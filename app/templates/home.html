@@ -1,18 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Game Master Interface</title>
+    <title>Game Master Dashboard</title>
 </head>
 <body>
     <h1>All Cities</h1>
     <ul>
         {% for city in cities %}
         <li>
-            {{ city.name }} ({{ city.size }}) - Population: {{ city.population }}, Region: {{ city.region }}
-            <a href="/edit_city/{{ city.city_id }}">Edit</a>
+            {{ city.name }} ({{ city.size }})
+            <a href="{{ url_for('city.edit_city', city_id=city.city_id) }}">Edit</a>
+            <a href="/city_shops/{{ city.city_id }}">Manage Shops</a>
         </li>
         {% endfor %}
     </ul>
-    <a href="/add_city">Add a New City</a>    
+    <a href="/cities/add_city">Add a New City</a>    
 </body>
 </html>

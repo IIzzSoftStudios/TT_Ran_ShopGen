@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shops in {{ city.name }}</title>
+</head>
+<body>
+    <h1>Shops in {{ city.name }}</h1>
+    <ul>
+        {% for shop in shops %}
+        <li>
+            {{ shop.type }}
+            <a href="/edit_shop/{{ shop.shop_id }}">Edit</a>
+            <form method="POST" action="/delete_shop/{{ shop.shop_id }}" style="display:inline;">
+                <button type="submit" style="color: red;">Delete</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/add_shop/{{ city.city_id }}">Add New Shop</a>
+    <br>
+    <a href="/">Back to All Cities</a>
+</body>
+</html>

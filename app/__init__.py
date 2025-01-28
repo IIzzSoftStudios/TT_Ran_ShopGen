@@ -4,26 +4,40 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 
-# Load .env file from the root directory
+# Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
-print(f"App instance created. SECRET_KEY: {app.config['SECRET_KEY']}")
+# Initialize extensions (without app)
+db = SQLAlchemy()
+migrate = Migrate()
 
+def create_app():
+    app = Flask(__name__)
 
-# Set the secret key from .env
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+    # Set configuration from environment variables
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'temporary_key_for_testing')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///default.db')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://Game_Master:887441Lf!@localhost/Shop Generator'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    # Initialize extensions with the app
+    db.init_app(app)
+    migrate.init_app(app, db)
 
-# Initialize extensions
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+    # Import and register blueprints
+    from app.routes.main_routes import main_bp
+    from app.routes.city_routes import city_bp
+    from app.routes.shop_routes import shop_bp
 
-# Import routes to avoid circular imports
-from app import routes
+    app.register_blueprint(main_bp)
+    app.register_blueprint(city_bp, url_prefix="/cities")
+    app.register_blueprint(shop_bp, url_prefix="/shops")
 
+    # Debug: Print registered routes
+    print("Registered Routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"{rule.endpoint}: {rule}")
 
-print(f"Loaded SECRET_KEY: {os.getenv('SECRET_KEY')}")
+    return app
+
+# Create the Flask app instance
+app = create_app()
