@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Master Interface</title>
+</head>
+<body>
+    <h1>All Cities</h1>
+    <ul>
+        {% for city in cities %}
+        <li>
+            {{ city.name }} ({{ city.size }}) - Population: {{ city.population }}, Region: {{ city.region }}
+            <a href="/edit_city/{{ city.city_id }}">Edit</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/add_city">Add a New City</a>    
+</body>
+</html>

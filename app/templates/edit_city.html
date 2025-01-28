@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit City</title>
+</head>
+<body>
+    <h1>Edit City</h1>
+    <form method="POST">
+        <!-- City Name -->
+        <label for="name">City Name:</label>
+        <input type="text" id="name" name="name" value="{{ city.name }}" required><br>
+
+        <!-- City Size -->
+        <label for="size">City Size:</label>
+        <select id="size" name="size" required>
+            <option value="Hamlet" {% if city.size == "Hamlet" %}selected{% endif %}>Hamlet (1–200)</option>
+            <option value="Village" {% if city.size == "Village" %}selected{% endif %}>Village (200–1,000)</option>
+            <option value="Small Town" {% if city.size == "Small Town" %}selected{% endif %}>Small Town (1,000–5,000)</option>
+            <option value="Large Town" {% if city.size == "Large Town" %}selected{% endif %}>Large Town (5,000–20,000)</option>
+            <option value="Small City" {% if city.size == "Small City" %}selected{% endif %}>Small City (20,000–50,000)</option>
+            <option value="Medium City" {% if city.size == "Medium City" %}selected{% endif %}>Medium City (50,000–200,000)</option>
+            <option value="Large City" {% if city.size == "Large City" %}selected{% endif %}>Large City (200,000–1,000,000)</option>
+            <option value="Metropolis" {% if city.size == "Metropolis" %}selected{% endif %}>Metropolis (1,000,000–10,000,000)</option>
+            <option value="Megaplex" {% if city.size == "Megaplex" %}selected{% endif %}>Megaplex (10,000,000+)</option>
+        </select><br>
+
+        <!-- Population -->
+        <label for="population">Population:</label>
+        <input type="number" id="population" name="population" value="{{ city.population }}" required><br>
+
+        <!-- Specialty -->
+        <label for="region">Specialty:</label>
+        <select id="region" name="region" required>
+            <option value="Industrial City" {% if city.region == "Industrial City" %}selected{% endif %}>Industrial City</option>
+            <option value="Agricultural Hub" {% if city.region == "Agricultural Hub" %}selected{% endif %}>Agricultural Hub</option>
+            <option value="Technological City" {% if city.region == "Technological City" %}selected{% endif %}>Technological City</option>
+            <option value="Mining Town" {% if city.region == "Mining Town" %}selected{% endif %}>Mining Town</option>
+            <option value="Commercial Center" {% if city.region == "Commercial Center" %}selected{% endif %}>Commercial Center</option>
+            <option value="Port City" {% if city.region == "Port City" %}selected{% endif %}>Port City</option>
+            <option value="Religious Center" {% if city.region == "Religious Center" %}selected{% endif %}>Religious Center</option>
+            <option value="Trade Crossroads" {% if city.region == "Trade Crossroads" %}selected{% endif %}>Trade Crossroads</option>
+            <option value="Capital City" {% if city.region == "Capital City" %}selected{% endif %}>Capital City</option>
+            <option value="Military Base" {% if city.region == "Military Base" %}selected{% endif %}>Military Base</option>
+        </select><br>
+
+        <button type="submit">Save Changes</button>
+    </form>
+
+    <!-- Delete Button -->
+    <form method="POST" action="/delete_city/{{ city.city_id }}">
+        <button type="submit" style="color: red;">Delete City</button>
+    </form>
+
+    <a href="/">Back to Home</a>
+</body>
+</html>
