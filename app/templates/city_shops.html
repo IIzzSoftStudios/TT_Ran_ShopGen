@@ -8,16 +8,19 @@
     <ul>
         {% for shop in shops %}
         <li>
-            {{ shop.type }}
-            <a href="/edit_shop/{{ shop.shop_id }}">Edit</a>
-            <form method="POST" action="/delete_shop/{{ shop.shop_id }}" style="display:inline;">
+            {{ shop.name }} - {{ shop.type }}
+            <a href="{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}">Edit Shop</a>
+            <a href="{{ url_for('item.view_items_by_shop', shop_id=shop.shop_id) }}">View Items</a>
+            <form method="POST" action="{{ url_for('city.delete_city', city_id=city.city_id) }}" style="display:inline;">
                 <button type="submit" style="color: red;">Delete</button>
             </form>
+            
         </li>
         {% endfor %}
     </ul>
     <a href="{{ url_for('shop.add_shop', city_id=city.city_id) }}">Add New Shop</a>
     <br>
-    <a href="/">Back to All Cities</a>
+    <a href="{{ url_for('city.home') }}">All Cities</a>
+    <a href="/">Home</a>
 </body>
 </html>

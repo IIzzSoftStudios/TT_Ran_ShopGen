@@ -27,10 +27,12 @@ def create_app():
     from app.routes.main_routes import main_bp
     from app.routes.city_routes import city_bp
     from app.routes.shop_routes import shop_bp
+    from app.routes.item_routes import item_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(city_bp, url_prefix="/cities")
     app.register_blueprint(shop_bp, url_prefix="/shops")
+    app.register_blueprint(item_bp, url_prefix="/items")
 
     # Debug: Print registered routes
     print("Registered Routes:")

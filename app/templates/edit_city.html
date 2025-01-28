@@ -47,11 +47,14 @@
     </form>
 
     <!-- Delete Button -->
-    <form method="POST" action="/delete_city/{{ city.city_id }}">
+    <form method="POST" action="{{ url_for('city.delete_city', city_id=city.city_id) }}" style="display:inline;">
         <button type="submit" style="color: red;">Delete City</button>
     </form>
+    
 
     <a href="{{ url_for('shop.city_shops', city_id=city.city_id) }}">Manage Shops</a>
-    <a href="/">Back to Home</a>
+
+    <a href="{{ url_for('city.home') }}">All Cities</a>
+    <a href="/">Home</a>
 </body>
 </html>

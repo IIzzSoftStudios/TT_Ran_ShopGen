@@ -1,20 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Game Master Dashboard</title>
+    <title>Manage Cities</title>
 </head>
 <body>
     <h1>All Cities</h1>
-    <ul>
-        {% for city in cities %}
-        <li>
-            {{ city.name }} ({{ city.size }})
-            <a href="{{ url_for('city.edit_city', city_id=city.city_id) }}">Edit</a>
-            <a href="{{ url_for('shop.city_shops', city_id=city.city_id) }}">Manage Shops</a>
-        </li>
-        {% endfor %}
-    </ul>
-    <a href="/cities/add_city">Add a New City</a>    
-    <a href="/">Back to Home</a>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Size</th>
+                <th>Population</th>
+                <th>Region</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for city in cities %}
+            <tr>
+                <td>{{ city.name }}</td>
+                <td>{{ city.size }}</td>
+                <td>{{ city.population }}</td>
+                <td>{{ city.region }}</td>
+                <td>
+                    <!-- Edit Button -->
+                    <a href="{{ url_for('city.edit_city', city_id=city.city_id) }}">Edit</a>
+
+                    <!-- Delete Button -->
+                    <form method="POST" action="{{ url_for('city.delete_city', city_id=city.city_id) }}" style="display:inline;">
+                        <button type="submit" style="color: red;">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{{ url_for('city.add_city') }}">Add New City</a>
+    <br>
+    <a href="/">Home</a>
 </body>
 </html>

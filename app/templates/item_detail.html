@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Details for {{ item.name }}</title>
+</head>
+<body>
+    <h1>Details for {{ item.name }}</h1>
+    <form method="POST">
+        <!-- Range -->
+        <label for="range">Range:</label>
+        <input type="text" id="range" name="range" value="{{ item.range }}" placeholder="e.g., 10/20/40"><br>
+
+        <!-- Damage -->
+        <label for="damage">Damage:</label>
+        <input type="text" id="damage" name="damage" value="{{ item.damage }}" placeholder="e.g., 2D6+1"><br>
+
+        <!-- Rate of Fire -->
+        <label for="rate_of_fire">Rate of Fire:</label>
+        <input type="number" id="rate_of_fire" name="rate_of_fire" value="{{ item.rate_of_fire }}"><br>
+
+        <!-- Minimum Strength -->
+        <label for="min_str">Min STR:</label>
+        <input type="text" id="min_str" name="min_str" value="{{ item.min_str }}" placeholder="e.g., N/A or 10"><br>
+
+        <!-- Notes -->
+        <label for="notes">Notes:</label>
+        <textarea id="notes" name="notes" placeholder="Additional details">{{ item.notes }}</textarea><br>
+
+        <button type="submit">Save Changes</button>
+    </form>
+
+    <!-- Back Link -->
+    <a href="{{ url_for('item.view_all_items') }}">All Items</a>
+</body>
+</html>

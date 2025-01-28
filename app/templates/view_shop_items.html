@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Items for {{ shop.name }}</title>
+</head>
+<body>
+    <h1>Items in {{ shop.name }} ({{ city.name }})</h1>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Rarity</th>
+                <th>Base Price</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.type }}</td>
+                <td>{{ item.rarity }}</td>
+                <td>{{ item.base_price }}</td>
+                <td>
+                    <a href="{{ url_for('item.edit_item', item_id=item.item_id) }}">Edit</a>
+                    <form method="POST" action="{{ url_for('item.delete_item', item_id=item.item_id) }}" style="display:inline;">
+                        <button type="submit" style="color: red;">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Add Items to Shop -->
+    <a href="{{ url_for('item.add_items_to_shop', shop_id=shop.shop_id) }}">Add Items to {{ shop.name }}</a>
+
+    <!-- Back to Shops -->
+    <a href="{{ url_for('shop.city_shops', city_id=shop.city_id) }}">Back to {{ city.name }} Shops</a>
+</body>
+</html>

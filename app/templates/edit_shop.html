@@ -6,10 +6,41 @@
 <body>
     <h1>Edit Shop</h1>
     <form method="POST">
-        <label for="type">Shop Type:</label>
-        <input type="text" id="type" name="type" value="{{ shop.type }}" required><br>
+        <!-- Shop Name -->
+        <label for="name">Shop Name:</label>
+        <input type="text" id="name" name="name" value="{{ shop.name }}" required><br>
+
+        <!-- Shop Type Dropdown -->
+        <label for="type">Shop Specialty:</label>
+        <select id="type" name="type" required>
+            <option value="Armor" {% if shop.type == "Armor" %}selected{% endif %}>Armor</option>
+            <option value="Arms Dealer" {% if shop.type == "Arms Dealer" %}selected{% endif %}>Arms Dealer</option>
+            <option value="Cyberwear" {% if shop.type == "Cyberwear" %}selected{% endif %}>Cyberwear</option>
+            <option value="General Store" {% if shop.type == "General Store" %}selected{% endif %}>General Store</option>
+            <option value="Medical" {% if shop.type == "Medical" %}selected{% endif %}>Medical</option>
+            <option value="Garage" {% if shop.type == "Garage" %}selected{% endif %}>Garage</option>
+            <option value="Airport" {% if shop.type == "Airport" %}selected{% endif %}>Airport</option>
+            <option value="Stable" {% if shop.type == "Stable" %}selected{% endif %}>Stable</option>
+            <option value="Dock" {% if shop.type == "Dock" %}selected{% endif %}>Dock</option>
+            <option value="Military Base" {% if shop.type == "Military Base" %}selected{% endif %}>Military Base</option>
+            <option value="Fence" {% if shop.type == "Fence" %}selected{% endif %}>Fence</option>
+        </select><br>
+
+        <!-- Cities Checkboxes -->
+        <label for="cities">Apply to Cities:</label><br>
+        {% for city in cities %}
+        <input type="checkbox" id="city_{{ city.city_id }}" name="cities" value="{{ city.city_id }}"
+        {% if city.city_id == shop.city_id %}checked{% endif %}>
+        <label for="city_{{ city.city_id }}">{{ city.name }} ({{ city.size }})</label><br>
+        {% endfor %}
+
+        <!-- Submit Button -->
         <button type="submit">Save Changes</button>
     </form>
-    <a href="{{ url_for('shop.city_shops', city_id=shop.city_id) }}">Back to Shops</a>
+
+    <!-- Back to All Shops -->
+    <a href="{% if shop.city %}{{ url_for('shop.city_shops', city_id=shop.city.city_id) }}{% else %}{{ url_for('shop.view_all_shops') }}{% endif %}">
+        All Shops
+    </a>
 </body>
 </html>

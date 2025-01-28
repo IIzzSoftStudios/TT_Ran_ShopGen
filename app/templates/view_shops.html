@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>All Shops</title>
+</head>
+<body>
+    <h1>All Shops</h1>
+
+    <!-- Table for Shops -->
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>City</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for shop in shops %}
+            <tr>
+                <!-- Shop Name -->
+                <td>{{ shop.name }}</td>
+
+                <!-- Shop Type -->
+                <td>{{ shop.type }}</td>
+
+                <!-- Shop City -->
+                <td>
+                    {% if shop.city %}
+                        {{ shop.city.name }}
+                    {% else %}
+                        No City Linked
+                    {% endif %}
+                </td>
+
+                <!-- Actions -->
+                <td>
+                    <!-- View Items if Shop is Linked to a City -->
+                    {% if shop.city %}
+                        <a href="{{ url_for('shop.city_shops', city_id=shop.city.city_id) }}">View</a>
+                    {% else %}
+                        Not Applicable
+                    {% endif %}
+
+                    <!-- Edit Shop -->
+                    <a href="{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}">Edit</a>
+
+                    <!-- Delete Shop -->
+                    <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
+                        <button type="submit" style="color: red;">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Add New Shop -->
+    <a href="{{ url_for('shop.add_shop') }}">Add New Shop</a>
+
+    <!-- Navigation -->
+    <br>
+    <a href="/">Home</a>
+</body>
+</html>

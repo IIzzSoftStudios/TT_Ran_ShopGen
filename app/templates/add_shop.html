@@ -27,16 +27,19 @@
         </select><br>
 
         <!-- City Checkboxes -->
-        <label for="cities">Apply to Cities:</label><br>
-        {% for city in cities %}
-        <input type="checkbox" id="city_{{ city.city_id }}" name="cities" value="{{ city.city_id }}">
-        <label for="city_{{ city.city_id }}">{{ city.name }} ({{ city.size }})</label><br>
-        {% endfor %}
+        <label for="city_id">City (Optional):</label>
+        <select id="city_id" name="city_id">
+            <option value="">-- None --</option>
+            {% for city in cities %}
+            <option value="{{ city.city_id }}">{{ city.name }}</option>
+            {% endfor %}
+        </select><br>
 
         <!-- Submit Button -->
         <button type="submit">Add Shop</button>
     </form>
 
-    <a href="{{ url_for('city.home') }}">Back to Cities</a>
+    <a href="{{ url_for('city.home') }}">All Cities</a>
+    <a href="/">Home</a>
 </body>
 </html>

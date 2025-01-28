@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Item</title>
+</head>
+<body>
+    <h1>Edit {{ item.name }}</h1>
+    <form method="POST">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" value="{{ item.name }}" required><br>
+
+        <label for="type">Type:</label>
+        <select id="type" name="type" required>
+            <option value="Melee: Martial" {% if item.type == "Melee: Martial" %}selected{% endif %}>Melee: Martial</option>
+            <option value="Melee: Exotic" {% if item.type == "Melee: Exotic" %}selected{% endif %}>Melee: Exotic</option>
+            <option value="Armor: Modern" {% if item.type == "Armor: Modern" %}selected{% endif %}>Armor: Modern</option>
+            <!-- Add other types as needed -->
+        </select><br>
+
+        <label for="rarity">Rarity:</label>
+        <select id="rarity" name="rarity" required>
+            <option value="Common" {% if item.rarity == "Common" %}selected{% endif %}>Common</option>
+            <option value="Rare" {% if item.rarity == "Rare" %}selected{% endif %}>Rare</option>
+            <option value="Unique" {% if item.rarity == "Unique" %}selected{% endif %}>Unique</option>
+            <!-- Add other rarities as needed -->
+        </select><br>
+
+        <label for="base_price">Base Price:</label>
+        <input type="number" id="base_price" name="base_price" value="{{ item.base_price }}" required><br>
+
+        <label for="description">Description:</label>
+        <textarea id="description" name="description">{{ item.description }}</textarea><br>
+
+        <button type="submit">Save Changes</button>
+    </form>
+    <a href="{{ url_for('item.view_all_items') }}">All Items</a>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Item</title>
+</head>
+<body>
+    <h1>Add a New Item</h1>
+    <form method="POST">
+        <!-- Name Field -->
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" placeholder="Enter item name" required><br>
+
+        <!-- Type Dropdown -->
+        <label for="type">Type:</label>
+        <select id="type" name="type" required>
+            <option value="Melee: Martial">Melee: Martial</option>
+            <option value="Melee: Exotic">Melee: Exotic</option>
+            <option value="Melee: Modern">Melee: Modern</option>
+            <option value="Melee: Future">Melee: Future</option>
+            <option value="Melee: MISC">Melee: MISC</option>
+            <option value="Armor: Medieval">Armor: Medieval</option>
+            <option value="Armor: Modern">Armor: Modern</option>
+            <option value="Armor: Future">Armor: Future</option>
+            <option value="Armor: Power Armor">Armor: Power Armor</option>
+            <option value="Armor: MISC">Armor: MISC</option>
+            <option value="Ranged: Martial">Ranged: Martial</option>
+            <option value="Ranged: Exotic">Ranged: Exotic</option>
+            <option value="Ranged: Modern">Ranged: Modern</option>
+            <option value="Ranged: Gunpowder">Ranged: Gunpowder</option>
+            <option value="Ranged: Laser">Ranged: Laser</option>
+            <option value="Ranged: LTL">Ranged: LTL</option>
+            <option value="Ranged: Gauss">Ranged: Gauss</option>
+            <option value="Ranged: Toxic">Ranged: Toxic</option>
+            <option value="Ranged: Rocket Launcher">Ranged: Rocket Launcher</option>
+            <option value="Ranged: Special">Ranged: Special</option>
+            <option value="Ranged: MISC">Ranged: MISC</option>
+            <option value="Grenade">Grenade</option>
+            <option value="Man Portable">Man Portable</option>
+            <option value="Adventuring Gear">Adventuring Gear</option>
+            <option value="Food">Food</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Transportation: Ground">Transportation: Ground</option>
+            <option value="Transportation: Water">Transportation: Water</option>
+            <option value="Transportation: Air">Transportation: Air</option>
+            <option value="Transportation: Space">Transportation: Space</option>
+            <option value="General Supplies">General Supplies</option>
+        </select><br>
+
+        <!-- Rarity Dropdown -->
+        <label for="rarity">Rarity:</label>
+        <select id="rarity" name="rarity" required>
+            <option value="Common">Common</option>
+            <option value="Uncommon">Uncommon</option>
+            <option value="Rare">Rare</option>
+            <option value="Very Rare">Very Rare</option>
+            <option value="Legendary">Legendary</option>
+            <option value="Unique">Unique</option>
+        </select><br>
+
+        <!-- Base Price Field -->
+        <label for="base_price">Base Price:</label>
+        <input type="number" id="base_price" name="base_price" placeholder="Enter base price" required><br>
+
+        <!-- Description Field -->
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" placeholder="Enter item link or description"><br>
+
+        <!-- Submit Button -->
+        <button type="submit">Add Item</button>
+    </form>
+    <!-- Navigation Buttons -->
+    <a href="{{ url_for('item.view_all_items') }}">All Items</a>
+    <a href="{{ url_for('item.view_items_by_shop', shop_id=shop.shop_id) }}">Back to Shop</a>
+</body>
+</html>
