@@ -51,7 +51,7 @@
         <button type="submit" style="color: red;">Delete City</button>
     </form>
 
-    <a href="/city_shops/{{ city.city_id }}">Manage Shops</a>
+    <a href="{{ url_for('shop.city_shops', city_id=city.city_id) }}">Manage Shops</a>
     <a href="/">Back to Home</a>
 </body>
 </html>

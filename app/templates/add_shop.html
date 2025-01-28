@@ -1,23 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Shops in {{ city.name }}</title>
+    <title>Add Shop</title>
 </head>
 <body>
-    <h1>Shops in {{ city.name }}</h1>
-    <ul>
-        {% for shop in shops %}
-        <li>
-            {{ shop.type }}
-            <a href="/edit_shop/{{ shop.shop_id }}">Edit</a>
-            <form method="POST" action="/delete_shop/{{ shop.shop_id }}" style="display:inline;">
-                <button type="submit" style="color: red;">Delete</button>
-            </form>
-        </li>
+    <h1>Add a New Shop</h1>
+    <form method="POST">
+        <!-- Shop Name -->
+        <label for="name">Shop Name:</label>
+        <input type="text" id="name" name="name" placeholder="Enter shop name" required><br>
+
+        <!-- Shop Type Dropdown -->
+        <label for="type">Shop Specialty:</label>
+        <select id="type" name="type" required>
+            <option value="Armor">Armor</option>
+            <option value="Arms Dealer">Arms Dealer</option>
+            <option value="Cyberwear">Cyberwear</option>
+            <option value="General Store">General Store</option>
+            <option value="Medical">Medical</option>
+            <option value="Garage">Garage</option>
+            <option value="Airport">Airport</option>
+            <option value="Stable">Stable</option>
+            <option value="Dock">Dock</option>
+            <option value="Military Base">Military Base</option>
+            <option value="Fence">Fence</option>
+        </select><br>
+
+        <!-- City Checkboxes -->
+        <label for="cities">Apply to Cities:</label><br>
+        {% for city in cities %}
+        <input type="checkbox" id="city_{{ city.city_id }}" name="cities" value="{{ city.city_id }}">
+        <label for="city_{{ city.city_id }}">{{ city.name }} ({{ city.size }})</label><br>
         {% endfor %}
-    </ul>
-    <a href="/add_shop/{{ city.city_id }}">Add New Shop</a>
-    <br>
-    <a href="/">Back to All Cities</a>
+
+        <!-- Submit Button -->
+        <button type="submit">Add Shop</button>
+    </form>
+
+    <a href="{{ url_for('city.home') }}">Back to Cities</a>
 </body>
 </html>

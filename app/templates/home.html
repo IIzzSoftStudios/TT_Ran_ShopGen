@@ -10,10 +10,11 @@
         <li>
             {{ city.name }} ({{ city.size }})
             <a href="{{ url_for('city.edit_city', city_id=city.city_id) }}">Edit</a>
-            <a href="/city_shops/{{ city.city_id }}">Manage Shops</a>
+            <a href="{{ url_for('shop.city_shops', city_id=city.city_id) }}">Manage Shops</a>
         </li>
         {% endfor %}
     </ul>
     <a href="/cities/add_city">Add a New City</a>    
+    <a href="/">Back to Home</a>
 </body>
 </html>

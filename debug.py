@@ -1,7 +1,18 @@
-from sqlalchemy import inspect
-from app import db
+# # from app import db
+# # from app.models import City
+# # print(City)
 
-with db.engine.connect() as connection:
-    inspector = inspect(connection)
-    tables = inspector.get_table_names()
-    print("Tables:", tables)
+# from dotenv import load_dotenv, find_dotenv
+# import os
+
+# dotenv_path = find_dotenv()
+# print(f"Using .env file at: {dotenv_path}")
+# load_dotenv(dotenv_path)
+
+# print(f"SECRET_KEY: {os.getenv('SECRET_KEY')}")
+# print(f"SQLALCHEMY_DATABASE_URI: {os.getenv('SQLALCHEMY_DATABASE_URI')}")
+# def upgrade():
+#     op.add_column('shops', sa.Column('name', sa.String(length=100), nullable=False))
+
+# def downgrade():
+#     op.drop_column('shops', 'name')

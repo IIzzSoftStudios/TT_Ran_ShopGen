@@ -10,22 +10,34 @@ def city_shops(city_id):
     shops = Shop.query.filter_by(city_id=city_id).all()
     return render_template("city_shops.html", city=city, shops=shops)
 
-@shop_bp.route("/add_shop/<int:city_id>", methods=["GET", "POST"])
-def add_shop(city_id):
-    city = City.query.get_or_404(city_id)
+@shop_bp.route("/add_shop", methods=["GET", "POST"])
+def add_shop():
+    cities = City.query.all()  # Get all cities for the checkbox options
+
     if request.method == "POST":
         shop_name = request.form.get("name")
         shop_type = request.form.get("type")
-        shop_inventory = request.form.get("inventory")
-        if not shop_name or not shop_type or not shop_inventory:
+        selected_city_ids = request.form.getlist("cities")  # Get list of selected cities
+
+        # Validate inputs
+        if not shop_name or not shop_type or not selected_city_ids:
             flash("All fields are required!", "danger")
-            return render_template("add_shop.html", city=city)
-        new_shop = Shop(city_id=city_id, name=shop_name, type=shop_type, inventory=shop_inventory)
-        db.session.add(new_shop)
-        db.session.commit()
-        flash(f"Shop '{shop_name}' added to {city.name}!", "success")
-        return redirect(f"/city_shops/{city_id}")
-    return render_template("add_shop.html", city=city)
+            return render_template("add_shop.html", cities=cities)
+
+        try:
+            # Add the shop to all selected cities
+            for city_id in selected_city_ids:
+                new_shop = Shop(city_id=city_id, type=shop_type, name=shop_name)
+                db.session.add(new_shop)
+            db.session.commit()
+            flash(f"Shop '{shop_name}' added successfully to selected cities!", "success")
+            return redirect(url_for('city.home'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error adding shop: {e}", "danger")
+
+    return render_template("add_shop.html", cities=cities)
+
 
 @shop_bp.route("/edit_shop/<int:shop_id>", methods=["GET", "POST"])
 def edit_shop(shop_id):

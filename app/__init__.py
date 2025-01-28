@@ -3,12 +3,12 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from dotenv import load_dotenv
+from app.extensions import db
 
 # Load environment variables
 load_dotenv()
 
 # Initialize extensions (without app)
-db = SQLAlchemy()
 migrate = Migrate()
 
 def create_app():

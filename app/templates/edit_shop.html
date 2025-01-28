@@ -10,6 +10,6 @@
         <input type="text" id="type" name="type" value="{{ shop.type }}" required><br>
         <button type="submit">Save Changes</button>
     </form>
-    <a href="/city_shops/{{ shop.city_id }}">Back to Shops</a>
+    <a href="{{ url_for('shop.city_shops', city_id=shop.city_id) }}">Back to Shops</a>
 </body>
 </html>

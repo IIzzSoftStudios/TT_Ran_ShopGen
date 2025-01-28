@@ -1,4 +1,4 @@
-from app import db
+from app.extensions import db
 
 class City(db.Model):
     __tablename__ = "cities"
@@ -16,8 +16,10 @@ class Shop(db.Model):
     shop_id = db.Column(db.Integer, primary_key=True)
     city_id = db.Column(db.Integer, db.ForeignKey("cities.city_id"), nullable=False)
     type = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
 
     city = db.relationship("City", backref="shops")
+
 
     def __repr__(self):
         return f"<Shop {self.type} in City {self.city_id}>"

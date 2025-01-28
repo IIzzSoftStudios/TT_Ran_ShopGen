@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, flash
 from app.models import City
-from app import db
+from app.extensions import db
 
 city_bp = Blueprint("city", __name__)
 

@@ -16,7 +16,7 @@
         </li>
         {% endfor %}
     </ul>
-    <a href="/add_shop/{{ city.city_id }}">Add New Shop</a>
+    <a href="{{ url_for('shop.add_shop', city_id=city.city_id) }}">Add New Shop</a>
     <br>
     <a href="/">Back to All Cities</a>
 </body>
