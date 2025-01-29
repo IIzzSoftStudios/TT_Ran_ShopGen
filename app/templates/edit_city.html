@@ -2,13 +2,120 @@
 <html>
 <head>
     <title>Edit City</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Align to top */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 20px; /* Space below heading */
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-bottom: 20px; /* Space below navigation buttons */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple; /* Purple */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Form Styling */
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px; /* Space between forms */
+            width: 400px;
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        /* Save and Delete Button Row */
+        .button-row {
+            display: flex;
+            justify-content: space-between; /* Distribute space evenly between buttons */
+            width: 100%;
+        }
+
+        /* Delete Button Styling */
+        .delete-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .delete-button:hover {
+            background-color: darkred; /* Darker red on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+    </style>
 </head>
 <body>
+    <!-- Styled and centered heading -->
     <h1>Edit City</h1>
+
+    <!-- Navigation Button Container -->
+    <div class="button-container">
+        <button class="button" onclick="window.location.href='{{ url_for('shop.city_shops', city_id=city.city_id) }}'">Manage Shops</button>
+        <button class="button" onclick="window.location.href='{{ url_for('city.home') }}'">All Cities</button>
+        <button class="button" onclick="window.location.href='/'">Home</button>
+    </div>
+
+    <!-- Centered Form -->
     <form method="POST">
         <!-- City Name -->
         <label for="name">City Name:</label>
-        <input type="text" id="name" name="name" value="{{ city.name }}" required><br>
+        <input type="text" id="name" name="name" value="{{ city.name }}" required>
 
         <!-- City Size -->
         <label for="size">City Size:</label>
@@ -22,11 +129,11 @@
             <option value="Large City" {% if city.size == "Large City" %}selected{% endif %}>Large City (200,000–1,000,000)</option>
             <option value="Metropolis" {% if city.size == "Metropolis" %}selected{% endif %}>Metropolis (1,000,000–10,000,000)</option>
             <option value="Megaplex" {% if city.size == "Megaplex" %}selected{% endif %}>Megaplex (10,000,000+)</option>
-        </select><br>
+        </select>
 
         <!-- Population -->
         <label for="population">Population:</label>
-        <input type="number" id="population" name="population" value="{{ city.population }}" required><br>
+        <input type="number" id="population" name="population" value="{{ city.population }}" required>
 
         <!-- Specialty -->
         <label for="region">Specialty:</label>
@@ -41,20 +148,13 @@
             <option value="Trade Crossroads" {% if city.region == "Trade Crossroads" %}selected{% endif %}>Trade Crossroads</option>
             <option value="Capital City" {% if city.region == "Capital City" %}selected{% endif %}>Capital City</option>
             <option value="Military Base" {% if city.region == "Military Base" %}selected{% endif %}>Military Base</option>
-        </select><br>
+        </select>
 
-        <button type="submit">Save Changes</button>
+        <!-- Button Row -->
+        <div class="button-row">
+            <button type="submit" class="button">Save Changes</button>
+            <button type="submit" class="delete-button">Delete City</button>
+        </div>
     </form>
-
-    <!-- Delete Button -->
-    <form method="POST" action="{{ url_for('city.delete_city', city_id=city.city_id) }}" style="display:inline;">
-        <button type="submit" style="color: red;">Delete City</button>
-    </form>
-    
-
-    <a href="{{ url_for('shop.city_shops', city_id=city.city_id) }}">Manage Shops</a>
-
-    <a href="{{ url_for('city.home') }}">All Cities</a>
-    <a href="/">Home</a>
 </body>
 </html>

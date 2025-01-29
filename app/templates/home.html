@@ -2,16 +2,120 @@
 <html>
 <head>
     <title>Manage Cities</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Align to top */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px; /* Add some space from the top */
+            margin-bottom: 20px; /* Space between heading and content */
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-bottom: 20px; /* Space between buttons and the table */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple; /* Purple */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Table Styling */
+        table {
+            width: 80%; /* Make the table responsive */
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: white;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        th {
+            background-color: purple; /* Matches button color */
+            color: white;
+            padding: 15px;
+        }
+
+        td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Smaller column for Actions */
+        td.actions {
+            text-align: center; /* Align buttons in the center */
+            vertical-align: middle; /* Align buttons vertically in the middle */
+            width: 150px; /* Smaller width for the Actions column */
+        }
+
+        /* Alternating Row Colors */
+        tr:nth-child(even) {
+            background-color: #f4f4f4; /* Light grey */
+        }
+
+        tr:nth-child(odd) {
+            background-color: white; /* White */
+        }
+
+        tr:hover {
+            background-color: #e0e0e0; /* Slightly darker grey on hover */
+        }
+    </style>
+    <script>
+        // Function to navigate to a URL
+        function navigateTo(url) {
+            window.location.href = url;
+        }
+    </script>
 </head>
 <body>
+    <!-- Styled and centered heading -->
     <h1>All Cities</h1>
+
+    <!-- Button Container -->
+    <div class="button-container">
+        <button class="button" onclick="navigateTo('{{ url_for('city.add_city') }}')">Add New City</button>
+        <button class="button" onclick="navigateTo('/')">Home</button>
+    </div>
+
+    <!-- Styled Table -->
     <table>
         <thead>
             <tr>
                 <th>Name</th>
                 <th>Size</th>
                 <th>Population</th>
-                <th>Region</th>
+                <th>Specialty</th> <!-- Updated from Region to Specialty -->
                 <th>Actions</th>
             </tr>
         </thead>
@@ -22,21 +126,19 @@
                 <td>{{ city.size }}</td>
                 <td>{{ city.population }}</td>
                 <td>{{ city.region }}</td>
-                <td>
+                <td class="actions">
                     <!-- Edit Button -->
-                    <a href="{{ url_for('city.edit_city', city_id=city.city_id) }}">Edit</a>
+                    <button class="button" onclick="navigateTo('{{ url_for('city.edit_city', city_id=city.city_id) }}')">Edit</button>
 
                     <!-- Delete Button -->
                     <form method="POST" action="{{ url_for('city.delete_city', city_id=city.city_id) }}" style="display:inline;">
-                        <button type="submit" style="color: red;">Delete</button>
+                        <button type="submit" class="button" style="background-color: red;">Delete</button>
                     </form>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    <a href="{{ url_for('city.add_city') }}">Add New City</a>
-    <br>
-    <a href="/">Home</a>
 </body>
 </html>
+

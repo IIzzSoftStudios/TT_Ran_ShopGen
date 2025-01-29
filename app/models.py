@@ -27,8 +27,17 @@ class Shop(db.Model):
         viewonly=True,
     )
 
+    # Define the inverse relationship with back_populates
+    inventory = db.relationship(
+        "ShopInventory",
+        back_populates="shop",
+        cascade="all, delete-orphan"  # Enable cascading deletes
+    )
+
     def __repr__(self):
         return f"<Shop {self.name} (Type: {self.type})>"
+
+
 
 class Item(db.Model):
     __tablename__ = "items"
@@ -58,12 +67,14 @@ class Item(db.Model):
 class ShopInventory(db.Model):
     __tablename__ = "shop_inventory"
     inventory_id = db.Column(db.Integer, primary_key=True)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
+    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id", ondelete="CASCADE"), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
     stock = db.Column(db.Integer, default=0)  # Stock level of the item in the shop
 
-    shop = db.relationship("Shop", backref="inventory")
+    # Define the relationship without backref
+    shop = db.relationship("Shop", back_populates="inventory")
     item = db.relationship("Item", backref="inventory")
 
     def __repr__(self):
         return f"<ShopInventory (Shop: {self.shop.name}, Item: {self.item.name}, Stock: {self.stock})>"
+

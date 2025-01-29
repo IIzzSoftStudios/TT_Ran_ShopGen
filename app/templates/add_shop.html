@@ -2,13 +2,109 @@
 <html>
 <head>
     <title>Add Shop</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Center vertically */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-bottom: 20px; /* Space between heading and form */
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-bottom: 20px; /* Space between buttons and form */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple; /* Purple */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Form Styling */
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 300px;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button[type="submit"] {
+            align-self: center;
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+    </style>
 </head>
 <body>
+    <!-- Styled and centered heading -->
     <h1>Add a New Shop</h1>
+
+    <!-- Button Container -->
+    <div class="button-container">
+        <button class="button" onclick="window.location.href='{{ url_for('city.home') }}'">All Cities</button>
+        <button class="button" onclick="window.location.href='/'">Home</button>
+    </div>
+
+    <!-- Centered Form -->
     <form method="POST">
         <!-- Shop Name -->
         <label for="name">Shop Name:</label>
-        <input type="text" id="name" name="name" placeholder="Enter shop name" required><br>
+        <input type="text" id="name" name="name" placeholder="Enter shop name" required>
 
         <!-- Shop Type Dropdown -->
         <label for="type">Shop Specialty:</label>
@@ -24,22 +120,20 @@
             <option value="Dock">Dock</option>
             <option value="Military Base">Military Base</option>
             <option value="Fence">Fence</option>
-        </select><br>
+        </select>
 
-        <!-- City Checkboxes -->
+        <!-- City Dropdown -->
         <label for="city_id">City (Optional):</label>
         <select id="city_id" name="city_id">
             <option value="">-- None --</option>
             {% for city in cities %}
             <option value="{{ city.city_id }}">{{ city.name }}</option>
             {% endfor %}
-        </select><br>
+        </select>
 
         <!-- Submit Button -->
         <button type="submit">Add Shop</button>
     </form>
-
-    <a href="{{ url_for('city.home') }}">All Cities</a>
-    <a href="/">Home</a>
 </body>
 </html>
+

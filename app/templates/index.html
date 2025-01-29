@@ -2,13 +2,68 @@
 <html>
 <head>
     <title>Game Master Dashboard</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Align to top */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px; /* Add some space from the top */
+            margin-bottom: 20px; /* Space between heading and buttons */
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple; /* Purple */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+    </style>
+    <script>
+        // Function to navigate to a URL
+        function navigateTo(url) {
+            window.location.href = url;
+        }
+    </script>
 </head>
 <body>
+    <!-- Styled and centered heading -->
     <h1>Welcome to the Game Master Interface</h1>
-    <ul>
-        <li><a href="/cities">Manage Cities</a></li>
-        <li><a href="/shops">Manage Shops</a></li>
-        <li><a href="/items">Manage Items</a></li> 
-    </ul>
+
+    <!-- Button Container with Side-by-Side Buttons -->
+<div class="button-container">
+        <button class="button" onclick="navigateTo('/cities')">Manage Cities</button>
+        <button class="button" onclick="navigateTo('/shops')">Manage Shops</button>
+        <button class="button" onclick="navigateTo('/items')">Manage Items</button>
+    </div>
 </body>
 </html>
+

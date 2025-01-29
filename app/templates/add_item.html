@@ -2,13 +2,109 @@
 <html>
 <head>
     <title>Add Item</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Center vertically */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-bottom: 20px; /* Space between heading and form */
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-bottom: 20px; /* Space between buttons and form */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple; /* Purple */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Form Styling */
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 300px;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button[type="submit"] {
+            align-self: center;
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+    </style>
 </head>
 <body>
+    <!-- Styled and centered heading -->
     <h1>Add a New Item</h1>
+
+    <!-- Button Container -->
+    <div class="button-container">
+        <button class="button" onclick="window.location.href='{{ url_for('item.view_all_items') }}'">All Items</button>
+        <button class="button" onclick="window.location.href='{{ url_for('item.view_items_by_shop', shop_id=shop.shop_id) }}'">Back to Shop</button>
+    </div>
+
+    <!-- Centered Form -->
     <form method="POST">
         <!-- Name Field -->
         <label for="name">Name:</label>
-        <input type="text" id="name" name="name" placeholder="Enter item name" required><br>
+        <input type="text" id="name" name="name" placeholder="Enter item name" required>
 
         <!-- Type Dropdown -->
         <label for="type">Type:</label>
@@ -44,7 +140,7 @@
             <option value="Transportation: Air">Transportation: Air</option>
             <option value="Transportation: Space">Transportation: Space</option>
             <option value="General Supplies">General Supplies</option>
-        </select><br>
+        </select>
 
         <!-- Rarity Dropdown -->
         <label for="rarity">Rarity:</label>
@@ -55,21 +151,18 @@
             <option value="Very Rare">Very Rare</option>
             <option value="Legendary">Legendary</option>
             <option value="Unique">Unique</option>
-        </select><br>
+        </select>
 
         <!-- Base Price Field -->
         <label for="base_price">Base Price:</label>
-        <input type="number" id="base_price" name="base_price" placeholder="Enter base price" required><br>
+        <input type="number" id="base_price" name="base_price" placeholder="Enter base price" required>
 
         <!-- Description Field -->
         <label for="description">Description:</label>
-        <input type="text" id="description" name="description" placeholder="Enter item link or description"><br>
+        <input type="text" id="description" name="description" placeholder="Enter item link or description">
 
         <!-- Submit Button -->
         <button type="submit">Add Item</button>
     </form>
-    <!-- Navigation Buttons -->
-    <a href="{{ url_for('item.view_all_items') }}">All Items</a>
-    <a href="{{ url_for('item.view_items_by_shop', shop_id=shop.shop_id) }}">Back to Shop</a>
 </body>
 </html>

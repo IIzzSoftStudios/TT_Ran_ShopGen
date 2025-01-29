@@ -2,37 +2,153 @@
 <html>
 <head>
     <title>Edit Item</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Align to top */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 20px; /* Space below heading */
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-bottom: 20px; /* Space below navigation buttons */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple; /* Purple */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Form Styling */
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px; /* Space between forms */
+            width: 400px;
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: vertical; /* Allow vertical resizing */
+            min-height: 100px; /* Minimum height */
+        }
+
+        /* Centered Save Button Row */
+        .button-row {
+            display: flex;
+            justify-content: center; /* Center the button */
+            width: 100%;
+        }
+
+        button[type="submit"] {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+    </style>
 </head>
 <body>
+    <!-- Styled and centered heading -->
     <h1>Edit {{ item.name }}</h1>
-    <form method="POST">
-        <label for="name">Name:</label>
-        <input type="text" id="name" name="name" value="{{ item.name }}" required><br>
 
+    <!-- Navigation Button Container -->
+    <div class="button-container">
+        <button class="button" onclick="window.location.href='{{ url_for('item.view_all_items') }}'">All Items</button>
+    </div>
+
+    <!-- Centered Form -->
+    <form method="POST">
+        <!-- Item Name -->
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" value="{{ item.name }}" required>
+
+        <!-- Item Type -->
         <label for="type">Type:</label>
         <select id="type" name="type" required>
             <option value="Melee: Martial" {% if item.type == "Melee: Martial" %}selected{% endif %}>Melee: Martial</option>
             <option value="Melee: Exotic" {% if item.type == "Melee: Exotic" %}selected{% endif %}>Melee: Exotic</option>
             <option value="Armor: Modern" {% if item.type == "Armor: Modern" %}selected{% endif %}>Armor: Modern</option>
             <!-- Add other types as needed -->
-        </select><br>
+        </select>
 
+        <!-- Item Rarity -->
         <label for="rarity">Rarity:</label>
         <select id="rarity" name="rarity" required>
             <option value="Common" {% if item.rarity == "Common" %}selected{% endif %}>Common</option>
             <option value="Rare" {% if item.rarity == "Rare" %}selected{% endif %}>Rare</option>
             <option value="Unique" {% if item.rarity == "Unique" %}selected{% endif %}>Unique</option>
             <!-- Add other rarities as needed -->
-        </select><br>
+        </select>
 
+        <!-- Base Price -->
         <label for="base_price">Base Price:</label>
-        <input type="number" id="base_price" name="base_price" value="{{ item.base_price }}" required><br>
+        <input type="number" id="base_price" name="base_price" value="{{ item.base_price }}" required>
 
+        <!-- Description -->
         <label for="description">Description:</label>
-        <textarea id="description" name="description">{{ item.description }}</textarea><br>
+        <textarea id="description" name="description">{{ item.description }}</textarea>
 
-        <button type="submit">Save Changes</button>
+        <!-- Centered Save Changes Button -->
+        <div class="button-row">
+            <button type="submit">Save Changes</button>
+        </div>
     </form>
-    <a href="{{ url_for('item.view_all_items') }}">All Items</a>
 </body>
 </html>

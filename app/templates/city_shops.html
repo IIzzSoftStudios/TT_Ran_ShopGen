@@ -2,25 +2,131 @@
 <html>
 <head>
     <title>Shops in {{ city.name }}</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Align to top */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-bottom: 20px; /* Space between buttons and the list */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple; /* Purple */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Delete Button Styling */
+        .delete-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .delete-button:hover {
+            background-color: darkred; /* Darker red on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Shop List Styling */
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            width: 80%; /* Responsive width */
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        li {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        li:last-child {
+            border-bottom: none;
+        }
+
+        a {
+            color: purple;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
+    <!-- Styled and centered heading -->
     <h1>Shops in {{ city.name }}</h1>
+
+    <!-- Button Container -->
+    <div class="button-container">
+        <button class="button" onclick="window.location.href='{{ url_for('shop.add_shop', city_id=city.city_id) }}'">Add New Shop</button>
+        <button class="button" onclick="window.location.href='{{ url_for('city.home') }}'">All Cities</button>
+        <button class="button" onclick="window.location.href='/'">Home</button>
+    </div>
+
+    <!-- Shop List -->
     <ul>
         {% for shop in shops %}
         <li>
-            {{ shop.name }} - {{ shop.type }}
-            <a href="{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}">Edit Shop</a>
-            <a href="{{ url_for('item.view_items_by_shop', shop_id=shop.shop_id) }}">View Items</a>
-            <form method="POST" action="{{ url_for('city.delete_city', city_id=city.city_id) }}" style="display:inline;">
-                <button type="submit" style="color: red;">Delete</button>
-            </form>
-            
+            <span>{{ shop.name }} - {{ shop.type }}</span>
+            <div>
+                <button class="button" onclick="window.location.href='{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}'">Edit Shop</button>
+                <button class="button" onclick="window.location.href='{{ url_for('item.view_items_by_shop', shop_id=shop.shop_id) }}'">View Items</button>
+                <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
+                    <input type="hidden" name="from_view_all" value="false"> <!-- Mark as City Shops -->
+                    <button type="submit" class="delete-button">Delete</button>
+                </form>
+                
+            </div>
         </li>
         {% endfor %}
     </ul>
-    <a href="{{ url_for('shop.add_shop', city_id=city.city_id) }}">Add New Shop</a>
-    <br>
-    <a href="{{ url_for('city.home') }}">All Cities</a>
-    <a href="/">Home</a>
 </body>
 </html>

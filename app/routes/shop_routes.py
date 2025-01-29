@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for
-from app.models import Shop, City
+from app.models import Shop, City, ShopInventory
 from app.extensions import db
 
 shop_bp = Blueprint("shop", __name__)
@@ -46,8 +46,6 @@ def add_shop():
     cities = City.query.all()  # Pass cities to the template for optional selection
     return render_template("add_shop.html", cities=cities)
 
-
-
 @shop_bp.route("/edit_shop/<int:shop_id>", methods=["GET", "POST"])
 def edit_shop(shop_id):
     shop = Shop.query.get_or_404(shop_id)
@@ -57,7 +55,7 @@ def edit_shop(shop_id):
         # Retrieve form data
         shop.name = request.form.get("name")
         shop.type = request.form.get("type")
-        selected_city_id = request.form.get("cities")  # Get the selected city for the shop
+        selected_city_id = request.form.get("city_id")  # Get the selected city for the shop
 
         # Validate form data
         if not shop.name or not shop.type:
@@ -78,18 +76,30 @@ def edit_shop(shop_id):
 
     return render_template("edit_shop.html", shop=shop, cities=cities)
 
-
-
-
 @shop_bp.route("/delete_shop/<int:shop_id>", methods=["POST"])
 def delete_shop(shop_id):
-    shop = Shop.query.get_or_404(shop_id)  # Retrieve the shop by ID
+    # Fetch the shop by ID
+    shop = Shop.query.get_or_404(shop_id)
+
     try:
-        db.session.delete(shop)  # Attempt to delete the shop
-        db.session.commit()  # Commit the changes
+        # Check the origin of the request
+        from_view_all = request.form.get("from_view_all") == "true"
+
+        if from_view_all:
+            # Cascading delete: Remove shop and all related ShopInventory
+            ShopInventory.query.filter_by(shop_id=shop_id).delete()
+
+        # Delete the shop itself
+        db.session.delete(shop)
+        db.session.commit()
         flash(f"Shop '{shop.name}' deleted successfully!", "success")
-        return redirect(url_for("shop.view_all_shops"))  # Redirect to the list of shops
     except Exception as e:
-        db.session.rollback()  # Rollback if there’s an error
+        db.session.rollback()  # Rollback changes on error
         flash(f"Error deleting shop: {e}", "danger")
-        return redirect(url_for("shop.view_all_shops"))  # Redirect even on failure
+
+    # Redirect to the appropriate page
+    if from_view_all:
+        return redirect(url_for("shop.view_all_shops"))
+    else:
+        # Redirect to the city-specific shops page
+        return redirect(url_for("shop.city_shops", city_id=shop.city_id))

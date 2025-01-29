@@ -2,11 +2,119 @@
 <html>
 <head>
     <title>Items for {{ shop.name }}</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Align to top */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 20px; /* Space below heading */
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-bottom: 20px; /* Space below navigation buttons */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple; /* Purple */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9; /* Darker blue on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Delete Button Styling */
+        .delete-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .delete-button:hover {
+            background-color: darkred; /* Darker red on hover */
+            transform: scale(1.1); /* Slight zoom effect */
+        }
+
+        /* Table Styling */
+        table {
+            width: 80%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: purple; /* Matches button color */
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f4f4f4; /* Light gray for even rows */
+        }
+
+        tr:nth-child(odd) {
+            background-color: white; /* White for odd rows */
+        }
+
+        tr:hover {
+            background-color: #e0e0e0; /* Slightly darker gray on hover */
+        }
+    </style>
 </head>
 <body>
+    <!-- Styled and centered heading -->
     <h1>Items in {{ shop.name }} ({{ city.name }})</h1>
 
-    <table border="1">
+    <!-- Navigation Button Container -->
+    <div class="button-container">
+        <button class="button" onclick="window.location.href='{{ url_for('item.add_items_to_shop', shop_id=shop.shop_id) }}'">
+            Add Items to {{ shop.name }}
+        </button>
+        <button class="button" onclick="window.location.href='{{ url_for('shop.city_shops', city_id=shop.city_id) }}'">
+            Back to {{ city.name }} Shops
+        </button>
+    </div>
+
+    <!-- Styled Table -->
+    <table>
         <thead>
             <tr>
                 <th>Name</th>
@@ -24,20 +132,15 @@
                 <td>{{ item.rarity }}</td>
                 <td>{{ item.base_price }}</td>
                 <td>
-                    <a href="{{ url_for('item.edit_item', item_id=item.item_id) }}">Edit</a>
+                    <a href="{{ url_for('item.edit_item', item_id=item.item_id) }}" class="button">Edit</a>
                     <form method="POST" action="{{ url_for('item.delete_item', item_id=item.item_id) }}" style="display:inline;">
-                        <button type="submit" style="color: red;">Delete</button>
+                        <button type="submit" class="delete-button">Delete</button>
                     </form>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-
-    <!-- Add Items to Shop -->
-    <a href="{{ url_for('item.add_items_to_shop', shop_id=shop.shop_id) }}">Add Items to {{ shop.name }}</a>
-
-    <!-- Back to Shops -->
-    <a href="{{ url_for('shop.city_shops', city_id=shop.city_id) }}">Back to {{ city.name }} Shops</a>
 </body>
 </html>
+
