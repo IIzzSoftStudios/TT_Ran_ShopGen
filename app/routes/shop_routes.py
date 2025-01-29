@@ -1,105 +1,117 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for
-from app.models import Shop, City, ShopInventory
+from app.models import Shop, City, ShopInventory, shop_cities
 from app.extensions import db
+from sqlalchemy.orm import joinedload
 
 shop_bp = Blueprint("shop", __name__)
 
 @shop_bp.route("/")
 def view_all_shops():
-    shops = Shop.query.all()  # Query all shops
-    return render_template("view_shops.html", shops=shops)  # Pass shops to template
+    shops = Shop.query.all()
+    return render_template("view_shops.html", shops=shops)
 
 @shop_bp.route("/city_shops/<int:city_id>")
 def city_shops(city_id):
     city = City.query.get_or_404(city_id)
-    shops = Shop.query.filter_by(city_id=city_id).all()
+    
+    # Correct query for many-to-many relationship
+    shops = Shop.query.join(shop_cities).filter(shop_cities.c.city_id == city_id).all()
+
     return render_template("city_shops.html", city=city, shops=shops)
 
 @shop_bp.route("/add_shop", methods=["GET", "POST"])
 def add_shop():
+    cities = City.query.all()  # Fetch all cities
+
     if request.method == "POST":
+        print("\n=== DEBUG: FORM SUBMISSION ===")
+        print("Received Form Data:", request.form)
+
         name = request.form.get("name")
         shop_type = request.form.get("type")
-        city_id = request.form.get("city_id")  # Optional field
+        city_ids = request.form.getlist("cities")  # Retrieve list of selected cities
+
+        print("Shop Name:", name)
+        print("Shop Type:", shop_type)
+        print("Selected city IDs:", city_ids)
 
         if not name or not shop_type:
             flash("Shop name and type are required!", "danger")
-            return render_template("add_shop.html")
+            return render_template("add_shop.html", cities=cities)
 
         try:
-            # Allow city_id to be NULL
-            city_id = int(city_id) if city_id else None
-
-            new_shop = Shop(
-                name=name,
-                type=shop_type,
-                city_id=city_id
-            )
+            # Create new shop and add to DB
+            new_shop = Shop(name=name, type=shop_type)
             db.session.add(new_shop)
-            db.session.commit()
+            db.session.flush()  # Ensure shop_id is generated
+
+            # Associate shop with selected cities
+            for city_id in city_ids:
+                city = City.query.get(int(city_id))
+                if city:
+                    print(f"Associating {new_shop.name} with {city.name}")  # Debugging
+                    new_shop.cities.append(city)
+
+            db.session.commit()  # Commit shop + relationships
             flash(f"Shop '{name}' added successfully!", "success")
             return redirect(url_for("shop.view_all_shops"))
+
         except Exception as e:
             db.session.rollback()
             flash(f"Error adding shop: {e}", "danger")
+            print(f"Error: {e}")
 
-    cities = City.query.all()  # Pass cities to the template for optional selection
     return render_template("add_shop.html", cities=cities)
+
+
+
 
 @shop_bp.route("/edit_shop/<int:shop_id>", methods=["GET", "POST"])
 def edit_shop(shop_id):
     shop = Shop.query.get_or_404(shop_id)
-    cities = City.query.all()  # Fetch all cities for the checkboxes
+    cities = City.query.all()  # Fetch all cities
 
     if request.method == "POST":
-        # Retrieve form data
         shop.name = request.form.get("name")
         shop.type = request.form.get("type")
-        selected_city_id = request.form.get("city_id")  # Get the selected city for the shop
+        shop.city_id = request.form.get('city_id')
+        selected_city_ids = request.form.getlist("city_ids")  # Multiple selection
 
-        # Validate form data
         if not shop.name or not shop.type:
             flash("Shop name and type are required!", "danger")
             return render_template("edit_shop.html", shop=shop, cities=cities)
 
-        # Update city assignment (optional)
-        shop.city_id = int(selected_city_id) if selected_city_id else None
-
         try:
-            db.session.commit()  # Save changes
+            # Clear old city-shop relationships
+            db.session.execute(shop_cities.delete().where(shop_cities.c.shop_id == shop_id))
+
+            # Add new relationships
+            for city_id in selected_city_ids:
+                db.session.execute(shop_cities.insert().values(shop_id=shop_id, city_id=int(city_id)))
+
+            db.session.commit()
             flash(f"Shop '{shop.name}' updated successfully!", "success")
-            return redirect(url_for("shop.view_all_shops"))  # Redirect to all shops
+            return redirect(url_for("shop.view_all_shops"))
         except Exception as e:
-            db.session.rollback()  # Rollback on error
-            flash(f"Error saving changes: {e}", "danger")
-            return render_template("edit_shop.html", shop=shop, cities=cities)
+            db.session.rollback()
+            flash(f"Error updating shop: {e}", "danger")
 
     return render_template("edit_shop.html", shop=shop, cities=cities)
 
 @shop_bp.route("/delete_shop/<int:shop_id>", methods=["POST"])
 def delete_shop(shop_id):
-    # Fetch the shop by ID
     shop = Shop.query.get_or_404(shop_id)
 
     try:
-        # Check the origin of the request
-        from_view_all = request.form.get("from_view_all") == "true"
-
-        if from_view_all:
-            # Cascading delete: Remove shop and all related ShopInventory
-            ShopInventory.query.filter_by(shop_id=shop_id).delete()
+        # Remove shop-city links first
+        db.session.execute(shop_cities.delete().where(shop_cities.c.shop_id == shop_id))
 
         # Delete the shop itself
         db.session.delete(shop)
         db.session.commit()
         flash(f"Shop '{shop.name}' deleted successfully!", "success")
     except Exception as e:
-        db.session.rollback()  # Rollback changes on error
+        db.session.rollback()
         flash(f"Error deleting shop: {e}", "danger")
 
-    # Redirect to the appropriate page
-    if from_view_all:
-        return redirect(url_for("shop.view_all_shops"))
-    else:
-        # Redirect to the city-specific shops page
-        return redirect(url_for("shop.city_shops", city_id=shop.city_id))
+    return redirect(url_for("shop.view_all_shops"))

@@ -140,17 +140,18 @@
         <option value="Fence" {% if shop.type == "Fence" %}selected{% endif %}>Fence</option>
     </select>
 
-    <!-- Cities Checkboxes -->
+    <!-- City Selection as Checkboxes -->
     <label for="cities">Apply to Cities:</label>
     <div class="checkbox-container">
         {% for city in cities %}
         <div>
             <input type="checkbox" id="city_{{ city.city_id }}" name="cities" value="{{ city.city_id }}"
-            {% if city.city_id == shop.city_id %}checked{% endif %}>
+                {% if city.city_id in shop.city_ids %}checked{% endif %}>
             <label for="city_{{ city.city_id }}">{{ city.name }} ({{ city.size }})</label>
         </div>
         {% endfor %}
     </div>
+
 
     <!-- Save Changes Button -->
     <div class="button-row">

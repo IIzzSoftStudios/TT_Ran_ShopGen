@@ -122,14 +122,19 @@
             <option value="Fence">Fence</option>
         </select>
 
-        <!-- City Dropdown -->
-        <label for="city_id">City (Optional):</label>
-        <select id="city_id" name="city_id">
-            <option value="">-- None --</option>
+        <!-- City Selection as Checkboxes -->
+        <label for="cities">Apply to Cities:</label>
+        <div class="checkbox-container">
             {% for city in cities %}
-            <option value="{{ city.city_id }}">{{ city.name }}</option>
+            <div>
+                <input type="checkbox" id="city_{{ city.city_id }}" name="cities" value="{{ city.city_id }}"
+                    {% if shop and city in shop.cities %}checked{% endif %}>
+                <label for="city_{{ city.city_id }}">{{ city.name }}</label>
+            </div>
             {% endfor %}
-        </select>
+        </div>
+
+        
 
         <!-- Submit Button -->
         <button type="submit">Add Shop</button>

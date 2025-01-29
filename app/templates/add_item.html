@@ -72,6 +72,22 @@
             font-size: 14px;
         }
 
+        .shop-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .shop-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .shop-item input {
+            margin-right: 5px;
+        }
+
         button[type="submit"] {
             align-self: center;
             background-color: purple;
@@ -97,7 +113,6 @@
     <!-- Button Container -->
     <div class="button-container">
         <button class="button" onclick="window.location.href='{{ url_for('item.view_all_items') }}'">All Items</button>
-        <button class="button" onclick="window.location.href='{{ url_for('item.view_items_by_shop', shop_id=shop.shop_id) }}'">Back to Shop</button>
     </div>
 
     <!-- Centered Form -->
@@ -160,6 +175,17 @@
         <!-- Description Field -->
         <label for="description">Description:</label>
         <input type="text" id="description" name="description" placeholder="Enter item link or description">
+
+        <!-- Shop Selection -->
+        <label>Select Shops:</label>
+        <div class="shop-list">
+            {% for shop in shops %}
+            <div class="shop-item">
+                <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}">
+                <label>{{ shop.name }} ({{ shop.type }})</label>
+            </div>
+            {% endfor %}
+        </div>
 
         <!-- Submit Button -->
         <button type="submit">Add Item</button>

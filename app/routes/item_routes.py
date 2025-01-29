@@ -51,8 +51,8 @@ def add_new_item():
 
         return redirect(url_for("item.view_all_items"))
 
-    # Render the form for adding a new item
-    return render_template("add_item.html")
+    # Pass `shop=None` to the template when not adding an item to a specific shop
+    return render_template("add_item.html", shop=None)
 
 
 @item_bp.route("/add_item/<int:shop_id>", methods=["GET", "POST"])
