@@ -8,32 +8,29 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start; /* Align to top */
+            justify-content: flex-start;
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
         }
 
-        /* Styling for the heading */
         h1 {
             font-size: 2.5rem;
             color: black;
             margin-top: 20px;
-            margin-bottom: 20px; /* Space below heading */
+            margin-bottom: 20px;
         }
 
-        /* Button Container */
         .button-container {
             display: flex;
             justify-content: center;
-            gap: 15px; /* Space between buttons */
-            margin-bottom: 20px; /* Space below navigation buttons */
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
-        /* Button Styling */
         .button {
-            background-color: purple; /* Purple */
+            background-color: purple;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -44,11 +41,10 @@
         }
 
         .button:hover {
-            background-color: #2980b9; /* Darker blue on hover */
-            transform: scale(1.1); /* Slight zoom effect */
+            background-color: #2980b9;
+            transform: scale(1.1);
         }
 
-        /* Form Styling */
         form {
             display: flex;
             flex-direction: column;
@@ -57,7 +53,6 @@
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px; /* Space between forms */
             width: 400px;
         }
 
@@ -75,19 +70,11 @@
             font-size: 14px;
         }
 
-        /* Checkbox List */
         .checkbox-container {
             display: flex;
             flex-direction: column;
             gap: 10px;
             margin-bottom: 15px;
-        }
-
-        /* Centered Save Button */
-        .button-row {
-            display: flex;
-            justify-content: center;
-            width: 100%;
         }
 
         button[type="submit"] {
@@ -102,69 +89,60 @@
         }
 
         button[type="submit"]:hover {
-            background-color: #2980b9; /* Darker blue on hover */
-            transform: scale(1.1); /* Slight zoom effect */
+            background-color: #2980b9;
+            transform: scale(1.1);
         }
     </style>
 </head>
 <body>
-    <!-- Styled and centered heading -->
     <h1>Edit Shop</h1>
 
     <!-- Navigation Button Container -->
     <div class="button-container">
-        <button class="button" onclick="window.location.href='{% if shop.city %}{{ url_for('shop.city_shops', city_id=shop.city.city_id) }}{% else %}{{ url_for('shop.view_all_shops') }}{% endif %}'">
-            All Shops
-        </button>
+        <button class="button" onclick="window.location.href='{{ url_for('shop.city_shops', city_id=shop.city_ids[0]) }}'">Manage Shops</button>
+        <button class="button" onclick="window.location.href='{{ url_for('shop.view_all_shops') }}'">All Shops</button>
+        <button class="button" onclick="window.location.href='/'">Home</button>
     </div>
 
-<!-- Centered Form -->
-<form method="POST">
-    <!-- Shop Name -->
-    <label for="name">Shop Name:</label>
-    <input type="text" id="name" name="name" value="{{ shop.name }}" required>
+    <!-- Centered Form -->
+    <form method="POST">
+        <label for="name">Shop Name:</label>
+        <input type="text" id="name" name="name" value="{{ shop.name }}" required>
 
-    <!-- Shop Type Dropdown -->
-    <label for="type">Shop Specialty:</label>
-    <select id="type" name="type" required>
-        <option value="Armor" {% if shop.type == "Armor" %}selected{% endif %}>Armor</option>
-        <option value="Arms Dealer" {% if shop.type == "Arms Dealer" %}selected{% endif %}>Arms Dealer</option>
-        <option value="Cyberwear" {% if shop.type == "Cyberwear" %}selected{% endif %}>Cyberwear</option>
-        <option value="General Store" {% if shop.type == "General Store" %}selected{% endif %}>General Store</option>
-        <option value="Medical" {% if shop.type == "Medical" %}selected{% endif %}>Medical</option>
-        <option value="Garage" {% if shop.type == "Garage" %}selected{% endif %}>Garage</option>
-        <option value="Airport" {% if shop.type == "Airport" %}selected{% endif %}>Airport</option>
-        <option value="Stable" {% if shop.type == "Stable" %}selected{% endif %}>Stable</option>
-        <option value="Dock" {% if shop.type == "Dock" %}selected{% endif %}>Dock</option>
-        <option value="Military Base" {% if shop.type == "Military Base" %}selected{% endif %}>Military Base</option>
-        <option value="Fence" {% if shop.type == "Fence" %}selected{% endif %}>Fence</option>
-    </select>
+        <label for="type">Shop Specialty:</label>
+        <select id="type" name="type" required>
+            <option value="Armor" {% if shop.type == "Armor" %}selected{% endif %}>Armor</option>
+            <option value="Arms Dealer" {% if shop.type == "Arms Dealer" %}selected{% endif %}>Arms Dealer</option>
+            <option value="Cyberwear" {% if shop.type == "Cyberwear" %}selected{% endif %}>Cyberwear</option>
+            <option value="General Store" {% if shop.type == "General Store" %}selected{% endif %}>General Store</option>
+            <option value="Medical" {% if shop.type == "Medical" %}selected{% endif %}>Medical</option>
+            <option value="Garage" {% if shop.type == "Garage" %}selected{% endif %}>Garage</option>
+            <option value="Airport" {% if shop.type == "Airport" %}selected{% endif %}>Airport</option>
+            <option value="Stable" {% if shop.type == "Stable" %}selected{% endif %}>Stable</option>
+            <option value="Dock" {% if shop.type == "Dock" %}selected{% endif %}>Dock</option>
+            <option value="Military Base" {% if shop.type == "Military Base" %}selected{% endif %}>Military Base</option>
+            <option value="Fence" {% if shop.type == "Fence" %}selected{% endif %}>Fence</option>
+        </select>
 
-    <!-- City Selection as Checkboxes -->
-    <label for="cities">Apply to Cities:</label>
-    <div class="checkbox-container">
-        {% for city in cities %}
-        <div>
-            <input type="checkbox" id="city_{{ city.city_id }}" name="cities" value="{{ city.city_id }}"
-                {% if city.city_id in shop.city_ids %}checked{% endif %}>
-            <label for="city_{{ city.city_id }}">{{ city.name }} ({{ city.size }})</label>
+        <label for="cities">Apply to Cities:</label>
+        <div class="checkbox-container">
+            {% for city in cities %}
+            <div>
+                <input type="checkbox" id="city_{{ city.city_id }}" name="city_ids" value="{{ city.city_id }}"
+                    {% if city.city_id in shop.city_ids %}checked{% endif %}>
+                <label for="city_{{ city.city_id }}">{{ city.name }} ({{ city.size }})</label>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
 
+        <div>
+            <button type="submit">Save Changes</button>
+        </div>
+    </form>
 
-    <!-- Save Changes Button -->
-    <div class="button-row">
-        <button type="submit">Save Changes</button>
-    </div>
-</form>
-
-<!-- Form for Deleting the Shop -->
-<form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}">
-    <div class="button-row">
+    <!-- Form for Deleting the Shop -->
+    <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}">
         <button type="submit" style="background-color: red;">Delete Shop</button>
-    </div>
-</form>
-
+    </form>
 </body>
 </html>
