@@ -109,57 +109,46 @@
         <button class="button" onclick="window.location.href='/'">Home</button>
     </div>
 
-    <!-- Styled Table -->
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>City</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for shop in shops %}
-            <tr>
-                <!-- Shop Name -->
-                <td>{{ shop.name }}</td>
+<!-- Styled Table -->
+<table>
+    <thead>
+        <tr>
+            <th>Shop Name</th>
+            <th>Type</th>
+            <th>Shop Locations</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for data in shop_data %}
+        <tr>
+            <td>{{ data.shop.name }}</td>
+            <td>{{ data.shop.type }}</td>
+            <td>
+                {% if data.linked_cities %}
+                    {{ ', '.join(data.linked_cities) }}
+                {% else %}
+                    Has not been established in a city.
+                {% endif %}
+            </td>
+            <td>
+                <!-- View Items if Shop is Linked to a City -->
+                {% if data.linked_cities %}
+                    <button class="button" onclick="window.location.href='{{ url_for('shop.view_items', shop_id=data.shop.shop_id) }}'">View Items</button>
+                {% else %}
+                    <span style="color: gray;">No Items Available</span>
+                {% endif %}
 
-                <!-- Shop Type -->
-                <td>{{ shop.type }}</td>
+                <!-- Edit Shop -->
+                <button class="button" onclick="window.location.href='{{ url_for('shop.edit_shop', shop_id=data.shop.shop_id) }}'">Edit</button>
 
-                <!-- Shop City -->
-                <td>
-                    {% if shop.city %}
-                        {{ shop.city.name }}
-                    {% else %}
-                        No City Linked
-                    {% endif %}
-                </td>
-
-                <!-- Actions -->
-                <td>
-                    <!-- View Items if Shop is Linked to a City -->
-                    {% if shop.city %}
-                        <button class="button" onclick="window.location.href='{{ url_for('shop.city_shops', city_id=shop.city.city_id) }}'">View</button>
-                    {% else %}
-                        Not Applicable
-                    {% endif %}
-
-                    <!-- Edit Shop -->
-                    <button class="button" onclick="window.location.href='{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}'">Edit</button>
-
-                    <!-- Delete Shop -->
-                    <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
-                        <input type="hidden" name="from_view_all" value="true"> <!-- Mark as View All -->
-                        <button type="submit" class="delete-button">Delete</button>
-                    </form>
-                    
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
-
+                <!-- Delete Shop -->
+                <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=data.shop.shop_id) }}" style="display:inline;">
+                    <input type="hidden" name="from_view_all" value="true"> <!-- Mark as View All -->
+                    <button type="submit" class="delete-button" style="background-color: red; color: white;">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

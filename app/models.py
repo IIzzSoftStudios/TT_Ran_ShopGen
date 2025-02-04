@@ -8,7 +8,6 @@ shop_cities = db.Table(
     db.Column("city_id", db.Integer, db.ForeignKey("cities.city_id", ondelete="CASCADE"), primary_key=True),
 )
 
-
 class City(db.Model):
     __tablename__ = "cities"
     city_id = db.Column(db.Integer, primary_key=True)
@@ -18,7 +17,7 @@ class City(db.Model):
     region = db.Column(db.String(100), index=True)
 
     # Many-to-Many relationship with Shop
-    shops = db.relationship("Shop", secondary=shop_cities, back_populates="cities")
+    shops = db.relationship("Shop", secondary=shop_cities, back_populates="cities", cascade="all, delete")
 
     def __repr__(self):
         return f"<City {self.name} (Size: {self.size}, Population: {self.population}, Region: {self.region})>"

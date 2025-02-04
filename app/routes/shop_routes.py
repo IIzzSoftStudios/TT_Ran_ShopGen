@@ -62,18 +62,16 @@ def edit_shop(shop_id):
         try:
             with db.session.begin():  # Transaction ensures atomicity
                 # Update shop details
-                db.session.commit()
-                print("[DEBUG] Shop details updated")
-
-                # Clear and reassign cities using relationships
-                shop.cities.clear()  # Clear existing links
+                shop.cities.clear()  # Clear existing links before updating
                 for city_id in city_ids:
                     city = City.query.get(city_id)
                     if city:
                         print(f"[DEBUG] Linking shop ID {shop.shop_id} to city ID {city_id}")
                         shop.cities.append(city)
 
-            print("[DEBUG] Updated city links committed to database")
+                db.session.commit()  # Commit all updates
+                print("[DEBUG] Shop details and city links updated successfully")
+
             flash("Shop updated successfully!", "success")
 
         except Exception as e:
@@ -83,9 +81,9 @@ def edit_shop(shop_id):
         return redirect(url_for('shop.view_all_shops'))
 
     cities = City.query.all()
-    linked_cities = [city.city_id for city in shop.cities]
-    print(f"[DEBUG] Shop linked to cities: {linked_cities}")
-    return render_template('edit_shop.html', shop=shop, cities=cities, linked_cities=linked_cities)
+    linked_city_ids = [city.city_id for city in shop.cities]
+    print(f"[DEBUG] Shop linked to cities: {linked_city_ids}")
+    return render_template('edit_shop.html', shop=shop, cities=cities, linked_city_ids=linked_city_ids)
 
 @shop_bp.route('/delete/<int:shop_id>', methods=['POST'])
 def delete_shop(shop_id):
@@ -93,13 +91,15 @@ def delete_shop(shop_id):
     print(f"[DEBUG] Deleting shop ID {shop_id}")
 
     try:
-        with db.session.begin():  # Ensure cascading deletion is handled properly
-            shop.cities.clear()  # Clear links to cities
-            db.session.delete(shop)
+        # Explicitly handle the transaction
+        shop.cities.clear()  # Clear links to cities first
+        db.session.delete(shop)  # Delete the shop
+        db.session.commit()  # Commit the changes
         print("[DEBUG] Shop and relationships deleted successfully")
         flash("Shop deleted successfully!", "success")
 
     except Exception as e:
+        db.session.rollback()  # Roll back if an error occurs
         print(f"[ERROR] Failed to delete shop: {e}")
         flash(f"Error deleting shop: {e}", "danger")
 

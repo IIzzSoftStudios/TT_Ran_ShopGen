@@ -1,18 +1,12 @@
-# # from app import db
-# # from app.models import City
-# # print(City)
+from app import create_app, db  # Import your app creation logic and db instance
 
-# from dotenv import load_dotenv, find_dotenv
-# import os
+# Create the application and activate the context
+app = create_app()
 
-# dotenv_path = find_dotenv()
-# print(f"Using .env file at: {dotenv_path}")
-# load_dotenv(dotenv_path)
+with app.app_context():
+    # Clear any cached data and ensure the session starts fresh
+    db.session.expire_all()
+    db.session.rollback()  # Roll back any ongoing transactions
+    db.session.close()     # Close and reset the session
 
-# print(f"SECRET_KEY: {os.getenv('SECRET_KEY')}")
-# print(f"SQLALCHEMY_DATABASE_URI: {os.getenv('SQLALCHEMY_DATABASE_URI')}")
-# def upgrade():
-#     op.add_column('shops', sa.Column('name', sa.String(length=100), nullable=False))
-
-# def downgrade():
-#     op.drop_column('shops', 'name')
+    print("[DEBUG] Cleared session cache, reset connections.")
