@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for
-from app.models import City, Shop
+from app.models import City
 from app.extensions import db
 
 city_bp = Blueprint("city", __name__)
@@ -8,7 +8,6 @@ city_bp = Blueprint("city", __name__)
 def home():
     print("[DEBUG] Fetching all cities")
     cities = City.query.all()
-    print(f"[DEBUG] Found {len(cities)} cities")
     return render_template("home.html", cities=cities)
 
 @city_bp.route("/add_city", methods=["GET", "POST"])
@@ -26,18 +25,19 @@ def add_city():
             return render_template("add_city.html")
 
         try:
-            with db.session.begin():  # Transaction ensures atomicity
-                new_city = City(
-                    name=name,
-                    size=size,
-                    population=int(population),
-                    region=region
-                )
-                db.session.add(new_city)
-                print(f"[DEBUG] City '{name}' added successfully")
+            new_city = City(
+                name=name,
+                size=size,
+                population=int(population),
+                region=region
+            )
+            db.session.add(new_city)
+            db.session.commit()  # Commit transaction
+            print(f"[DEBUG] City '{name}' added successfully")
             flash(f"City '{name}' added successfully!", "success")
-            return redirect("/cities")
+            return redirect(url_for("city.home"))
         except Exception as e:
+            db.session.rollback()  # Rollback in case of failure
             print(f"[ERROR] Error adding city: {e}")
             flash(f"Error adding city: {e}", "danger")
 
@@ -57,12 +57,12 @@ def edit_city(city_id):
         print(f"[DEBUG] Updated values - Name: {city.name}, Size: {city.size}, Population: {city.population}, Region: {city.region}")
 
         try:
-            with db.session.begin():  # Transaction ensures atomicity
-                db.session.commit()
+            db.session.commit()  # Commit transaction
             flash("City updated successfully!", "success")
             print("[DEBUG] City updated successfully")
-            return redirect("/cities")
+            return redirect(url_for("city.home"))
         except Exception as e:
+            db.session.rollback()  # Rollback in case of failure
             print(f"[ERROR] Error updating city: {e}")
             flash(f"Error updating city: {e}", "danger")
 
@@ -74,11 +74,12 @@ def delete_city(city_id):
     print(f"[DEBUG] Deleting city with ID: {city_id}")
 
     try:
-        with db.session.begin():  # Transaction ensures atomicity
-            db.session.delete(city)
+        db.session.delete(city)
+        db.session.commit()  # Commit transaction
         flash("City deleted successfully!", "success")
         print("[DEBUG] City deleted successfully")
     except Exception as e:
+        db.session.rollback()  # Rollback in case of failure
         print(f"[ERROR] Error deleting city: {e}")
         flash(f"Error deleting city: {e}", "danger")
 
