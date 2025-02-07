@@ -18,6 +18,7 @@ def view_items_by_shop(shop_id):
     items = Item.query.filter_by(shop_id=shop_id).all()  # Fetch items for the shop
     return render_template("view_shop_items.html", items=items, shop=shop, city=city)
 
+# Add a New Item (with shop linking)
 @item_bp.route("/add_new_item", methods=["GET", "POST"])
 def add_new_item():
     if request.method == "POST":
@@ -27,14 +28,15 @@ def add_new_item():
         rarity = request.form.get("rarity")
         base_price = request.form.get("base_price")
         description = request.form.get("description")
+        shop_ids = request.form.getlist("shop_ids[]")  # Get selected shops as a list
 
-        # Validate data
+        # Validate required fields
         if not name or not item_type or not rarity or not base_price:
             flash("All fields except description are required!", "danger")
             return redirect(request.referrer)
 
-        # Add the new item
         try:
+            # Create the new item
             new_item = Item(
                 name=name,
                 type=item_type,
@@ -43,17 +45,24 @@ def add_new_item():
                 description=description,
             )
             db.session.add(new_item)
+            db.session.commit()  # Commit to generate item_id
+
+            # Link the new item to the selected shops
+            for shop_id in shop_ids:
+                shop_inventory = ShopInventory(shop_id=int(shop_id), item_id=new_item.item_id, stock=10)  # Default stock
+                db.session.add(shop_inventory)
+
             db.session.commit()
-            flash(f"Item '{name}' added successfully!", "success")
+            flash(f"Item '{name}' added successfully and linked to selected shops!", "success")
         except Exception as e:
             db.session.rollback()
             flash(f"Error adding item: {e}", "danger")
 
         return redirect(url_for("item.view_all_items"))
 
-    # Pass `shop=None` to the template when not adding an item to a specific shop
-    return render_template("add_item.html", shop=None)
-
+    # Get all shops to display on the form
+    shops = Shop.query.all()
+    return render_template("add_item.html", shops=shops)
 
 @item_bp.route("/add_item/<int:shop_id>", methods=["GET", "POST"])
 def add_items_to_shop(shop_id):

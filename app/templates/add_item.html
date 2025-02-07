@@ -182,7 +182,7 @@
         <div class="shop-list">
             {% for shop in shops %}
             <div class="shop-item">
-                <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}">
+                <input type="checkbox" name="shop_ids[]" value="{{ shop.shop_id }}">
                 <label>{{ shop.name }} ({{ shop.type }})</label>
             </div>
             {% endfor %}
