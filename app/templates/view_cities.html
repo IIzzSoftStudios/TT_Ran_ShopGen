@@ -75,7 +75,7 @@
         td.actions {
             text-align: center; /* Align buttons in the center */
             vertical-align: middle; /* Align buttons vertically in the middle */
-            width: 150px; /* Smaller width for the Actions column */
+            width: 250px; /* Slightly larger width to fit the View Shops button */
         }
 
         /* Alternating Row Colors */
@@ -130,6 +130,9 @@
                     <!-- Edit Button -->
                     <button class="button" onclick="navigateTo('{{ url_for('city.edit_city', city_id=city.city_id) }}')">Edit</button>
 
+                    <!-- View Shops Button -->
+                    <button class="button" onclick="navigateTo('{{ url_for('shop.view_city_shops', city_id=city.city_id) }}')">View Shops</button>
+
                     <!-- Delete Button -->
                     <form method="POST" action="{{ url_for('city.delete_city', city_id=city.city_id) }}" style="display:inline;">
                         <button type="submit" class="button" style="background-color: red;">Delete</button>
@@ -141,4 +144,3 @@
     </table>
 </body>
 </html>
-

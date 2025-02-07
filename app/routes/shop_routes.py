@@ -104,3 +104,12 @@ def delete_shop(shop_id):
         flash(f"Error deleting shop: {e}", "danger")
 
     return redirect(url_for('shop.view_all_shops'))
+
+# route for viewing city-specific shops
+@shop_bp.route('/city/<int:city_id>/shops', methods=['GET'])
+def view_city_shops(city_id):
+    city = City.query.get_or_404(city_id)
+    shops = city.shops  # Assuming a relationship exists between City and Shop
+
+    print(f"[DEBUG] Displaying {len(shops)} shops for city ID {city_id}")
+    return render_template('view_city_shops.html', city=city, shops=shops)

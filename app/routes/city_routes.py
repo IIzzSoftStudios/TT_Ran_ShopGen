@@ -8,7 +8,7 @@ city_bp = Blueprint("city", __name__)
 def home():
     print("[DEBUG] Fetching all cities")
     cities = City.query.all()
-    return render_template("home.html", cities=cities)
+    return render_template("view_cities.html", cities=cities)
 
 @city_bp.route("/add_city", methods=["GET", "POST"])
 def add_city():

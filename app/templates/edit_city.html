@@ -106,7 +106,7 @@
 
     <!-- Navigation Button Container -->
     <div class="button-container">
-        <button class="button" onclick="window.location.href='{{ url_for('shop.city_shops', city_id=city.city_id) }}'">Manage Shops</button>
+        <button class="button" onclick="window.location.href='{{ url_for('shop.view_city_shops', city_id=city.city_id) }}'">Manage Shops</button>
         <button class="button" onclick="window.location.href='{{ url_for('city.home') }}'">All Cities</button>
         <button class="button" onclick="window.location.href='/'">Home</button>
     </div>
