@@ -1,7 +1,7 @@
 from sqlalchemy.orm import relationship
 from app.extensions import db
 
-# Junction table for the many-to-many relationship
+# Junction table for the many-to-many relationship between Shop and City
 shop_cities = db.Table(
     "shop_cities",
     db.Column("shop_id", db.Integer, db.ForeignKey("shops.shop_id", ondelete="CASCADE"), primary_key=True),
@@ -31,7 +31,7 @@ class Shop(db.Model):
     # Many-to-Many relationship with City
     cities = db.relationship("City", secondary=shop_cities, back_populates="shops")
 
-    # Relationship to ShopInventory
+    # Many-to-Many relationship with Item through ShopInventory
     inventory = db.relationship(
         "ShopInventory",
         back_populates="shop",
@@ -55,19 +55,27 @@ class Item(db.Model):
     min_str = db.Column(db.String(10))
     notes = db.Column(db.Text)
 
+    # Many-to-Many relationship with Shop through ShopInventory
+    inventory = db.relationship("ShopInventory", back_populates="item")
+
     def __repr__(self):
         return f"<Item {self.name} (Type: {self.type}, Rarity: {self.rarity}, Price: {self.base_price})>"
 
 class ShopInventory(db.Model):
     __tablename__ = "shop_inventory"
     inventory_id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign keys linking Shop and Item
     shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id", ondelete="CASCADE"), nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id", ondelete="CASCADE"), nullable=False)
+
+    # Shop-specific attributes for the item
     stock = db.Column(db.Integer, default=0)
     dynamic_price = db.Column(db.Float, nullable=False)
 
+    # Relationships for accessing item and shop details
     shop = db.relationship("Shop", back_populates="inventory")
-    item = db.relationship("Item", backref="inventory")
+    item = db.relationship("Item", back_populates="inventory")
 
     def __repr__(self):
-        return f"<ShopInventory (Shop: {self.shop.name}, Item: {self.item.name}, Stock: {self.stock})>"
+        return f"<ShopInventory (Shop: {self.shop.name}, Item: {self.item.name}, Stock: {self.stock}, Price: {self.dynamic_price})>"

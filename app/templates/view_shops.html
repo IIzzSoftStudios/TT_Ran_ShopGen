@@ -1,39 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Shops in {{ city.name }}</title>
+    <title>All Shops</title>
     <style>
         /* Center everything */
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start; /* Align to top */
+            justify-content: flex-start;
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
         }
 
-        /* Styling for the heading */
         h1 {
             font-size: 2.5rem;
             color: black;
             margin-top: 20px;
-            margin-bottom: 20px; /* Space below heading */
+            margin-bottom: 20px;
         }
 
-        /* Button Container */
         .button-container {
             display: flex;
             justify-content: center;
-            gap: 15px; /* Space between buttons */
-            margin-bottom: 20px; /* Space below navigation buttons */
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
-        /* Button Styling */
         .button {
-            background-color: purple; /* Purple */
+            background-color: purple;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -44,11 +41,10 @@
         }
 
         .button:hover {
-            background-color: #2980b9; /* Darker blue on hover */
-            transform: scale(1.1); /* Slight zoom effect */
+            background-color: #2980b9;
+            transform: scale(1.1);
         }
 
-        /* Delete Button Styling */
         .delete-button {
             background-color: red;
             color: white;
@@ -61,11 +57,10 @@
         }
 
         .delete-button:hover {
-            background-color: darkred; /* Darker red on hover */
-            transform: scale(1.1); /* Slight zoom effect */
+            background-color: darkred;
+            transform: scale(1.1);
         }
 
-        /* Table Styling */
         table {
             width: 80%;
             border-collapse: collapse;
@@ -82,40 +77,38 @@
         }
 
         th {
-            background-color: purple; /* Matches button color */
+            background-color: purple;
             color: white;
         }
 
         tr:nth-child(even) {
-            background-color: #f4f4f4; /* Light gray for even rows */
+            background-color: #f4f4f4;
         }
 
         tr:nth-child(odd) {
-            background-color: white; /* White for odd rows */
+            background-color: white;
         }
 
         tr:hover {
-            background-color: #e0e0e0; /* Slightly darker gray on hover */
+            background-color: #e0e0e0;
         }
     </style>
 </head>
 <body>
-    <!-- Styled and centered heading -->
-    <h1>Shops in {{ city.name }}</h1>
+    <h1>All Shops</h1>
 
-    <!-- Navigation Button Container -->
     <div class="button-container">
         <button class="button" onclick="window.location.href='{{ url_for("shop.add_shop") }}'">Add New Shop</button>
-        <button class="button" onclick="window.location.href='{{ url_for("city.view_cities") }}'">Back to All Cities</button>
+        <button class="button" onclick="window.location.href='{{ url_for("city.home") }}'">All Cities</button>
         <button class="button" onclick="window.location.href='/'">Home</button>
     </div>
 
-    <!-- Styled Table -->
     <table>
         <thead>
             <tr>
                 <th>Shop Name</th>
                 <th>Type</th>
+                <th>Cities</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -125,13 +118,13 @@
                 <td>{{ shop.name }}</td>
                 <td>{{ shop.type }}</td>
                 <td>
-                    <!-- View Items Button -->
+                    {% for city in shop.cities %}
+                        {{ city.name }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                <td>
                     <button class="button" onclick="window.location.href='{{ url_for('shop.view_items', shop_id=shop.shop_id) }}'">View Items</button>
-
-                    <!-- Edit Button -->
                     <button class="button" onclick="window.location.href='{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}'">Edit</button>
-
-                    <!-- Delete Button -->
                     <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
                         <button type="submit" class="delete-button">Delete</button>
                     </form>
