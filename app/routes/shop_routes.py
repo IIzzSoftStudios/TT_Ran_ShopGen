@@ -9,7 +9,7 @@ def view_all_shops():
     print("[DEBUG] Fetching all shops")
     shops = Shop.query.all()
     print(f"[DEBUG] Found {len(shops)} shops")
-    return render_template('view_shops.html', shops=shops)
+    return render_template('GM_view_shops.html', shops=shops)
 
 @shop_bp.route('/add', methods=['GET', 'POST'])
 def add_shop():
@@ -46,7 +46,7 @@ def add_shop():
 
     cities = City.query.all()
     print(f"[DEBUG] Fetching cities: {len(cities)} cities available")
-    return render_template('add_shop.html', cities=cities)
+    return render_template('GM_add_shop.html', cities=cities)
 
 @shop_bp.route('/edit/<int:shop_id>', methods=['GET', 'POST'])
 def edit_shop(shop_id):
@@ -83,7 +83,7 @@ def edit_shop(shop_id):
     cities = City.query.all()
     linked_city_ids = [city.city_id for city in shop.cities]
     print(f"[DEBUG] Shop linked to cities: {linked_city_ids}")
-    return render_template('edit_shop.html', shop=shop, cities=cities, linked_city_ids=linked_city_ids)
+    return render_template('GM_edit_shop.html', shop=shop, cities=cities, linked_city_ids=linked_city_ids)
 
 @shop_bp.route('/delete/<int:shop_id>', methods=['POST'])
 def delete_shop(shop_id):
@@ -112,10 +112,10 @@ def view_city_shops(city_id):
     shops = city.shops  # Assuming a relationship exists between City and Shop
 
     print(f"[DEBUG] Displaying {len(shops)} shops for city ID {city_id}")
-    return render_template('view_city_shops.html', city=city, shops=shops)
+    return render_template('GM_view_city_shops.html', city=city, shops=shops)
 
 @shop_bp.route('/shops/<int:shop_id>/items', methods=['GET'])
 def view_items(shop_id):
     shop = Shop.query.get_or_404(shop_id)
     inventory = ShopInventory.query.filter_by(shop_id=shop_id).all()
-    return render_template('view_items.html', shop=shop, inventory=inventory)
+    return render_template('GM_view_items.html', shop=shop, inventory=inventory)

@@ -8,7 +8,7 @@ city_bp = Blueprint("city", __name__)
 def home():
     print("[DEBUG] Fetching all cities")
     cities = City.query.all()
-    return render_template("view_cities.html", cities=cities)
+    return render_template("GM_view_cities.html", cities=cities)
 
 @city_bp.route("/add_city", methods=["GET", "POST"])
 def add_city():
@@ -22,7 +22,7 @@ def add_city():
 
         if not name or not size or not population or not region:
             flash("All fields are required!", "danger")
-            return render_template("add_city.html")
+            return render_template("GM_add_city.html")
 
         try:
             new_city = City(
@@ -41,7 +41,7 @@ def add_city():
             print(f"[ERROR] Error adding city: {e}")
             flash(f"Error adding city: {e}", "danger")
 
-    return render_template("add_city.html")
+    return render_template("GM_add_city.html")
 
 @city_bp.route("/edit_city/<int:city_id>", methods=["GET", "POST"])
 def edit_city(city_id):
@@ -66,7 +66,7 @@ def edit_city(city_id):
             print(f"[ERROR] Error updating city: {e}")
             flash(f"Error updating city: {e}", "danger")
 
-    return render_template("edit_city.html", city=city)
+    return render_template("GM_edit_city.html", city=city)
 
 @city_bp.route("/delete_city/<int:city_id>", methods=["POST"])
 def delete_city(city_id):

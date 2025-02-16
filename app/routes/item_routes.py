@@ -8,7 +8,7 @@ item_bp = Blueprint("item", __name__)
 @item_bp.route("/", methods=["GET"])
 def view_all_items():
     items = Item.query.all()  # Fetch all items in the database
-    return render_template("view_items.html", items=items)
+    return render_template("GM_view_items.html", items=items)
 
 
 @item_bp.route("/<int:shop_id>", methods=["GET"])
@@ -62,7 +62,7 @@ def add_new_item():
 
     # Get all shops to display on the form
     shops = Shop.query.all()
-    return render_template("add_item.html", shops=shops)
+    return render_template("GM_add_item.html", shops=shops)
 
 @item_bp.route("/add_item/<int:shop_id>", methods=["GET", "POST"])
 def add_items_to_shop(shop_id):
@@ -93,7 +93,7 @@ def add_items_to_shop(shop_id):
             db.session.rollback()
             flash(f"Error adding items to shop: {e}", "danger")
 
-    return render_template("add_item.html", shop=shop, items=items)
+    return render_template("GM_add_item.html", shop=shop, items=items)
 
 
 @item_bp.route("/edit_item/<int:item_id>", methods=["GET", "POST"])
@@ -114,7 +114,7 @@ def edit_item(item_id):
             db.session.rollback()
             flash(f"Error updating item: {e}", "danger")
 
-    return render_template("edit_item.html", item=item)
+    return render_template("GM_edit_item.html", item=item)
 
 @item_bp.route("/detail/<int:item_id>", methods=["GET", "POST"])
 def item_detail(item_id):
@@ -135,7 +135,7 @@ def item_detail(item_id):
             db.session.rollback()
             flash(f"Error updating item details: {e}", "danger")
 
-    return render_template("item_detail.html", item=item)
+    return render_template("GM_item_detail.html", item=item)
 
 @item_bp.route("/delete_item/<int:item_id>", methods=["POST"])
 def delete_item(item_id):
