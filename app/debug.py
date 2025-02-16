@@ -1,12 +1,10 @@
-from app import create_app, db  # Import your app creation logic and db instance
+import os
+from dotenv import load_dotenv
 
-# Create the application and activate the context
-app = create_app()
+# Load environment variables
+load_dotenv("config.env")
 
-with app.app_context():
-    # Clear any cached data and ensure the session starts fresh
-    db.session.expire_all()
-    db.session.rollback()  # Roll back any ongoing transactions
-    db.session.close()     # Close and reset the session
-
-    print("[DEBUG] Cleared session cache, reset connections.")
+# Print results
+print(f"SQLALCHEMY_DATABASE_URI: {os.getenv('SQLALCHEMY_DATABASE_URI')}")
+print(f"SECRET_KEY: {os.getenv('SECRET_KEY')}")
+print(f"FLASK_ENV: {os.getenv('FLASK_ENV')}")

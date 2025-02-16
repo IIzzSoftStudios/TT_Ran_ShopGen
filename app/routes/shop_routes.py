@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from app.models import db, Shop, City, ShopInventory
+from sqlalchemy.orm import joinedload
 
 # Define blueprint for shop-related routes
 shop_bp = Blueprint("shop", __name__)
@@ -114,8 +115,20 @@ def view_city_shops(city_id):
     print(f"[DEBUG] Displaying {len(shops)} shops for city ID {city_id}")
     return render_template('GM_view_city_shops.html', city=city, shops=shops)
 
-@shop_bp.route('/shops/<int:shop_id>/items', methods=['GET'])
+@shop_bp.route('/<int:shop_id>/items', methods=['GET'])
 def view_items(shop_id):
     shop = Shop.query.get_or_404(shop_id)
-    inventory = ShopInventory.query.filter_by(shop_id=shop_id).all()
-    return render_template('GM_view_items.html', shop=shop, inventory=inventory)
+
+    # Query for inventory with item relationships
+    inventory = db.session.query(ShopInventory).filter_by(shop_id=shop_id).options(
+        joinedload(ShopInventory.item)
+    ).all()
+
+    print(f"Shop: {shop.name}, Found {len(inventory)} inventory items.")
+
+    # Debug individual inventory entries
+    for entry in inventory:
+        print(f"Inventory Entry -> Item ID: {entry.item_id}, Stock: {entry.stock}, Price: {entry.dynamic_price}")
+        print(f"Linked Item -> Name: {entry.item.name if entry.item else 'None'}")
+
+    return render_template('shop_items.html', shop=shop, inventory=inventory)
