@@ -1,16 +1,11 @@
 import os
 from flask import Flask
 from dotenv import load_dotenv
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from app.extensions import db 
+from app.extensions import SQLAlchemy
+from app.extensions import db, migrate
 
 # Load environment variables
 load_dotenv("config.env")
-
-# Initialize Flask extensions globally
-db = SQLAlchemy()
-migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
@@ -19,7 +14,7 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "temporary_key_for_testing")
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI") 
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+    app.config['SQLALCHEMY_ECHO'] = True  # Enable SQL query logging
     # Debugging: Print loaded config
     print(f"[DEBUG] SQLALCHEMY_DATABASE_URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
     print(f"[DEBUG] SECRET_KEY: {app.config['SECRET_KEY']}")
