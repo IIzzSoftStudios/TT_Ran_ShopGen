@@ -54,37 +54,42 @@ def edit_shop(shop_id):
     shop = Shop.query.get_or_404(shop_id)
 
     if request.method == 'POST':
-        shop.name = request.form['name']
-        shop.type = request.form['type']
-        city_ids = request.form.getlist('city_ids')  # Get selected cities
-
-        print(f"[DEBUG] Editing shop ID {shop_id}, new name: {shop.name}, new type: {shop.type}")
-
         try:
-            with db.session.begin():  # Transaction ensures atomicity
-                # Update shop details
-                shop.cities.clear()  # Clear existing links before updating
-                for city_id in city_ids:
-                    city = City.query.get(city_id)
-                    if city:
-                        print(f"[DEBUG] Linking shop ID {shop.shop_id} to city ID {city_id}")
-                        shop.cities.append(city)
+            # Get updated form data
+            shop.name = request.form['name']
+            shop.type = request.form['type']
+            city_ids = request.form.getlist('city_ids')  # List of selected cities
 
-                db.session.commit()  # Commit all updates
-                print("[DEBUG] Shop details and city links updated successfully")
+            print(f"[DEBUG] Editing shop ID {shop_id}, New Name: {shop.name}, New Type: {shop.type}")
 
+            # Fetch valid cities before clearing the existing ones
+            new_cities = [City.query.get(city_id) for city_id in city_ids if City.query.get(city_id)]
+
+            # Clear existing links and update with new cities
+            shop.cities.clear()
+            shop.cities.extend(new_cities)
+
+            print(f"[DEBUG] Updated city links for Shop ID {shop.shop_id}: {city_ids}")
+
+            db.session.commit()  # Save changes
+
+            print("[DEBUG] Shop details and city links updated successfully")
             flash("Shop updated successfully!", "success")
 
+            return redirect(url_for('shop.view_all_shops'))
+
         except Exception as e:
+            db.session.rollback()
             print(f"[ERROR] Failed to update shop: {e}")
             flash(f"Error updating shop: {e}", "danger")
 
-        return redirect(url_for('shop.view_all_shops'))
-
+    # Fetch cities for form population
     cities = City.query.all()
     linked_city_ids = [city.city_id for city in shop.cities]
     print(f"[DEBUG] Shop linked to cities: {linked_city_ids}")
+
     return render_template('GM_edit_shop.html', shop=shop, cities=cities, linked_city_ids=linked_city_ids)
+
 
 @shop_bp.route('/delete/<int:shop_id>', methods=['POST'])
 def delete_shop(shop_id):
@@ -116,7 +121,7 @@ def view_city_shops(city_id):
     return render_template('GM_view_city_shops.html', city=city, shops=shops)
 
 @shop_bp.route('/<int:shop_id>/items', methods=['GET'])
-def view_items(shop_id):
+def view_items_by_shop(shop_id):
     shop = Shop.query.get_or_404(shop_id)
 
     # Query for inventory with item relationships
@@ -131,4 +136,21 @@ def view_items(shop_id):
         print(f"Inventory Entry -> Item ID: {entry.item_id}, Stock: {entry.stock}, Price: {entry.dynamic_price}")
         print(f"Linked Item -> Name: {entry.item.name if entry.item else 'None'}")
 
-    return render_template('shop_items.html', shop=shop, inventory=inventory)
+    return render_template('GM_view_shop_items.html', shop=shop, inventory=inventory)
+
+@shop_bp.route("/remove_item/<int:shop_id>/<int:item_id>", methods=["POST"])
+def remove_item_from_shop(shop_id, item_id):
+    try:
+        # Remove the item from the shop inventory
+        ShopInventory.query.filter_by(shop_id=shop_id, item_id=item_id).delete()
+        db.session.commit()
+        flash("Item removed from shop successfully!", "success")
+
+        # Ensure the redirect goes to the correct route
+        return redirect(url_for("shop.view_items_by_shop", shop_id=shop_id))
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error removing item from shop: {e}", "danger")
+
+    return redirect(url_for("shop.view_all_shops"))  # Fallback redirect

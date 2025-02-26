@@ -29,10 +29,9 @@ def view_items_by_shop(shop_id):
     items = Item.query.filter(Item.item_id.in_(item_ids)).all()
 
     logger.debug(f"Shop ID: {shop_id}, Items in Shop: {len(items)}")
-    return render_template("view_shop_items.html", items=items, shop=shop, city=city)
+    return render_template("GM_view_shop_items.html", items=items, shop=shop, city=city)
 
 
-# Add a New Item
 @item_bp.route("/add_new_item", methods=["GET", "POST"])
 def add_new_item():
     if request.method == "POST":
@@ -43,56 +42,51 @@ def add_new_item():
         base_price = request.form.get("base_price")
         description = request.form.get("description")
         shop_ids = request.form.getlist("shop_ids[]")  # List of selected shops
-
-        logger.debug(f"Form Data - Name: {name}, Type: {item_type}, Rarity: {rarity}, Base Price: {base_price}, Shop IDs: {shop_ids}")
+        stock = request.form.get("stock", default=10, type=int)  # Default stock
+        dynamic_price = request.form.get("dynamic_price", default=base_price, type=float)
 
         # Validate required fields
         if not name or not item_type or not rarity or not base_price:
             flash("All fields except description are required!", "danger")
-            logger.warning("Validation failed: Missing required fields.")
-            return redirect(request.referrer)
+            return redirect(url_for("item.add_new_item"))
 
         try:
-            # Create the new item
-            new_item = Item(
-                name=name,
-                type=item_type,
-                rarity=rarity,
-                base_price=int(base_price),
-                description=description,
-            )
-            db.session.add(new_item)
-            db.session.commit()  # Commit to generate item_id
+            with db.session.begin():  # Ensure atomic transaction
+                # Create new item
+                new_item = Item(
+                    name=name,
+                    type=item_type,
+                    rarity=rarity,
+                    base_price=base_price,
+                    description=description,
+                )
+                db.session.add(new_item)
+                db.session.flush()  # Ensure item_id is generated
 
-            logger.debug(f"Item created successfully with ID {new_item.item_id}")
-
-            # Link the new item to selected shops
-            if shop_ids:
+                # Link item to selected shops through ShopInventory
                 for shop_id in shop_ids:
-                    try:
-                        logger.debug(f"Attempting to add Item {new_item.item_id} to Shop {shop_id}")
-                        shop_inventory = ShopInventory(shop_id=int(shop_id), item_id=new_item.item_id, stock=10)
-                        db.session.add(shop_inventory)
-                    except Exception as e:
-                        logger.error(f"Error linking item {new_item.item_id} to shop {shop_id}: {e}")
+                    shop = Shop.query.get(shop_id)
+                    if shop:
+                        new_inventory_entry = ShopInventory(
+                            shop_id=shop.shop_id,
+                            item_id=new_item.item_id,
+                            stock=stock,
+                            dynamic_price=dynamic_price
+                        )
+                        db.session.add(new_inventory_entry)
 
-                db.session.commit()
-                logger.debug("Item successfully linked to selected shops.")
-            else:
-                logger.warning("No shops were selected for linking.")
+            db.session.commit()
+            flash(f"Item '{name}' added successfully!", "success")
 
-            flash(f"Item '{name}' added successfully and linked to selected shops!", "success")
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error adding item: {e}")
             flash(f"Error adding item: {e}", "danger")
 
         return redirect(url_for("item.view_all_items"))
 
-    # Fetch all shops
     shops = Shop.query.all()
-    logger.debug(f"Fetched {len(shops)} shops for item linking.")
     return render_template("GM_add_item.html", shops=shops)
+
 
 # Add Items to a Shop
 @item_bp.route("/add_item/<int:shop_id>", methods=["GET", "POST"])
@@ -130,24 +124,42 @@ def add_items_to_shop(shop_id):
 @item_bp.route("/edit_item/<int:item_id>", methods=["GET", "POST"])
 def edit_item(item_id):
     item = Item.query.get_or_404(item_id)
-    if request.method == "POST":
-        item.name = request.form.get("name")
-        item.type = request.form.get("type")
-        item.rarity = request.form.get("rarity")
-        item.base_price = request.form.get("base_price")
-        item.description = request.form.get("description")
+    shops = Shop.query.all()  # Fetch all shops
+    linked_shop_ids = [inv.shop_id for inv in ShopInventory.query.filter_by(item_id=item_id).all()]
 
+    if request.method == "POST":
         try:
+            # Update item details
+            item.name = request.form.get("name")
+            item.type = request.form.get("type")
+            item.rarity = request.form.get("rarity")
+            item.base_price = request.form.get("base_price")
+
+            # Get selected shops from the form
+            selected_shop_ids = request.form.getlist("shop_ids[]")
+            selected_shop_ids = [int(shop_id) for shop_id in selected_shop_ids]  # Convert to integers
+
+            # Remove existing shop links
+            ShopInventory.query.filter_by(item_id=item_id).delete()
+
+            # Add new shop links
+            for shop_id in selected_shop_ids:
+                new_inventory_entry = ShopInventory(
+                    shop_id=shop_id, item_id=item.item_id, stock=10, dynamic_price=item.base_price
+                )
+                db.session.add(new_inventory_entry)
+
             db.session.commit()
-            logger.debug(f"Item {item_id} updated successfully.")
             flash(f"Item '{item.name}' updated successfully!", "success")
+
             return redirect(url_for("item.view_all_items"))
+
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error updating item {item_id}: {e}")
             flash(f"Error updating item: {e}", "danger")
 
-    return render_template("GM_edit_item.html", item=item)
+    return render_template("GM_edit_item.html", item=item, shops=shops, linked_shop_ids=linked_shop_ids)
+
 
 # Item Detail
 @item_bp.route("/detail/<int:item_id>", methods=["GET", "POST"])
@@ -176,13 +188,22 @@ def item_detail(item_id):
 @item_bp.route("/delete_item/<int:item_id>", methods=["POST"])
 def delete_item(item_id):
     item = Item.query.get_or_404(item_id)
+    
     try:
+        # Delete all shop inventory references first
+        ShopInventory.query.filter_by(item_id=item_id).delete()
+        db.session.commit()
+
+        # Now delete the item itself
         db.session.delete(item)
         db.session.commit()
-        logger.debug(f"Item {item_id} deleted successfully.")
+
+        logger.debug(f"Item {item_id} and related inventory entries deleted successfully.")
         flash(f"Item '{item.name}' deleted successfully!", "success")
+
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error deleting item {item_id}: {e}")
         flash(f"Error deleting item: {e}", "danger")
+
     return redirect(url_for("item.view_all_items"))

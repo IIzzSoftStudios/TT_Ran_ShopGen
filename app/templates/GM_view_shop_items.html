@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>All Shops</title>
+    <title>{{ shop.name }} - Items</title>
     <style>
         /* Center everything */
         body {
@@ -92,43 +92,50 @@
         tr:hover {
             background-color: #e0e0e0;
         }
+
+        a {
+            color: purple;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <h1>All Shops</h1>
-
+    <h1>Items in {{ shop.name }}</h1>
+    
     <div class="button-container">
-        <button class="button" onclick="window.location.href='{{ url_for("shop.add_shop") }}'">Add New Shop</button>
-        <button class="button" onclick="window.location.href='{{ url_for("city.home") }}'">All Cities</button>
+        <button class="button" onclick="window.location.href='{{ url_for('item.add_new_item') }}'">Add Shop Item</button>
+        <button class="button" onclick="window.location.href='{{ url_for('shop.view_all_shops') }}'">All Shops</button>
         <button class="button" onclick="window.location.href='/'">Home</button>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>Shop Name</th>
+                <th>Name</th>
                 <th>Type</th>
-                <th>Cities</th>
+                <th>Stock</th>
+                <th>Price</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% for shop in shops %}
+            {% for inventory in shop.inventory %}
             <tr>
-                <td>{{ shop.name }}</td>
-                <td>{{ shop.type }}</td>
+                <td>{{ inventory.item.name }}</td>
+                <td>{{ inventory.item.type }}</td>
+                <td>{{ inventory.stock }}</td>
+                <td>{{ inventory.dynamic_price }}</td>
                 <td>
-                    {% for city in shop.cities %}
-                        {{ city.name }}{% if not loop.last %}, {% endif %}
-                    {% endfor %}
-                </td>
-                <td>
-                    <button class="button" onclick="window.location.href='{{ url_for('shop.view_items_by_shop', shop_id=shop.shop_id) }}'">View Items</button>
-                    <button class="button" onclick="window.location.href='{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}'">Edit</button>
-                    <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
-                        <button type="submit" class="delete-button">Delete</button>
-                    </form>
-                </td>
+                    <a href="{{ url_for('shop.view_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
+                    <form method="POST" action="{{ url_for('shop.remove_item_from_shop', shop_id=shop.shop_id, item_id=inventory.item_id) }}" style="display:inline;">
+                        <button type="submit" class="delete-button">Remove</button>
+                    </form>                    
+                </td>                
             </tr>
             {% endfor %}
         </tbody>

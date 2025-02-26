@@ -4,9 +4,10 @@ from app.extensions import db
 # Junction table for the many-to-many relationship between Shop and City
 shop_cities = db.Table(
     "shop_cities",
-    db.Column("shop_id", db.Integer, db.ForeignKey("shops.shop_id", ondelete="CASCADE"), primary_key=True),
-    db.Column("city_id", db.Integer, db.ForeignKey("cities.city_id", ondelete="CASCADE"), primary_key=True),
+    db.Column("shop_id", db.Integer, db.ForeignKey("shops.shop_id"), primary_key=True),
+    db.Column("city_id", db.Integer, db.ForeignKey("cities.city_id"), primary_key=True),
 )
+
 
 class City(db.Model):
     __tablename__ = "cities"
@@ -17,7 +18,7 @@ class City(db.Model):
     region = db.Column(db.String(100), index=True)
 
     # Many-to-Many relationship with Shop
-    shops = db.relationship("Shop", secondary=shop_cities, back_populates="cities", cascade="all, delete")
+    shops = db.relationship("Shop", secondary=shop_cities, back_populates="cities")
 
     def __repr__(self):
         return f"<City {self.name} (Size: {self.size}, Population: {self.population}, Region: {self.region})>"
@@ -34,9 +35,7 @@ class Shop(db.Model):
     # Many-to-Many relationship with Item through ShopInventory
     inventory = db.relationship(
         "ShopInventory",
-        back_populates="shop",
-        cascade="all, delete-orphan"
-    )
+        back_populates="shop")
 
     def __repr__(self):
         return f"<Shop {self.name} (Type: {self.type})>"
@@ -66,8 +65,8 @@ class ShopInventory(db.Model):
     inventory_id = db.Column(db.Integer, primary_key=True)
 
     # Foreign keys linking Shop and Item
-    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id", ondelete="CASCADE"), nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id", ondelete="CASCADE"), nullable=False)
+    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=True)
 
     # Shop-specific attributes for the item
     stock = db.Column(db.Integer, default=0)
