@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Explore Cities</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Table Styling */
+        table {
+            width: 80%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: white;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        th {
+            background-color: purple;
+            color: white;
+            padding: 15px;
+        }
+
+        td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Actions Column */
+        td.actions {
+            text-align: center;
+            vertical-align: middle;
+            width: 150px;
+        }
+
+        /* Alternating Row Colors */
+        tr:nth-child(even) {
+            background-color: #f4f4f4;
+        }
+
+        tr:nth-child(odd) {
+            background-color: white;
+        }
+
+        tr:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.1);
+        }
+    </style>
+    <script>
+        function navigateTo(url) {
+            window.location.href = url;
+        }
+    </script>
+</head>
+<body>
+
+    <h1>Explore Cities</h1>
+
+    <!-- Styled Table -->
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Size</th>
+                <th>Population</th>
+                <th>Specialty</th> 
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for city in cities %}
+            <tr>
+                <td>{{ city.name }}</td>
+                <td>{{ city.size }}</td>
+                <td>{{ city.population }}</td>
+                <td>{{ city.region }}</td>
+                <td class="actions">
+                    <!-- View Shops Button -->
+                    <button class="button" onclick="navigateTo('{{ url_for('player.view_city', city_id=city.city_id) }}')">View Shops</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>

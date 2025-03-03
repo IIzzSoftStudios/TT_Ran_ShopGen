@@ -1,5 +1,6 @@
 from sqlalchemy.orm import relationship
 from app.extensions import db, SQLAlchemy, bcrypt, UserMixin
+from datetime import datetime
 
 # Junction table for the many-to-many relationship between Shop and City
 shop_cities = db.Table(
@@ -7,7 +8,6 @@ shop_cities = db.Table(
     db.Column("shop_id", db.Integer, db.ForeignKey("shops.shop_id"), primary_key=True),
     db.Column("city_id", db.Integer, db.ForeignKey("cities.city_id"), primary_key=True),
 )
-
 
 class City(db.Model):
     __tablename__ = "cities"
@@ -33,9 +33,7 @@ class Shop(db.Model):
     cities = db.relationship("City", secondary=shop_cities, back_populates="shops")
 
     # Many-to-Many relationship with Item through ShopInventory
-    inventory = db.relationship(
-        "ShopInventory",
-        back_populates="shop")
+    inventory = db.relationship("ShopInventory", back_populates="shop")
 
     def __repr__(self):
         return f"<Shop {self.name} (Type: {self.type})>"
@@ -79,6 +77,42 @@ class ShopInventory(db.Model):
     def __repr__(self):
         return f"<ShopInventory (Shop: {self.shop.name}, Item: {self.item.name}, Stock: {self.stock}, Price: {self.dynamic_price})>"
 
+#Demand Modifier Models
+class DemandModifier(db.Model):
+    __tablename__ = "demand_modifiers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    scope = db.Column(db.Enum("global", "regional", "city", "shop", "item", name="modifier_scope"), nullable=False)
+    effect_value = db.Column(db.Float, nullable=False, default=1.0)
+    start_date = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
+    end_date = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+
+    def is_currently_active(self):
+        """Checks if the modifier is active and within its time range."""
+        if not self.is_active:
+            return False
+        if self.end_date and datetime.utcnow() > self.end_date:
+            return False
+        return True
+
+    @staticmethod
+    def get_active_modifiers():
+        """Fetches all currently active modifiers."""
+        return DemandModifier.query.filter_by(is_active=True).all()
+
+class ModifierTarget(db.Model):
+    __tablename__ = "modifier_targets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    modifier_id = db.Column(db.Integer, db.ForeignKey("demand_modifiers.id"), nullable=False)
+    entity_type = db.Column(db.Enum("region", "city", "shop", "item", name="target_type"), nullable=False)
+    entity_id = db.Column(db.Integer, nullable=False)  # The ID of the affected entity
+
+    modifier = db.relationship("DemandModifier", backref="targets")
+
 class User(db.Model, UserMixin):
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
@@ -94,6 +128,7 @@ class User(db.Model, UserMixin):
     
     def get_id(self):
         return str(self.id)
+
     @property
     def is_active(self):
         return True

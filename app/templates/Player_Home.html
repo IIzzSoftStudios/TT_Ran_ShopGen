@@ -3,63 +3,265 @@
 <head>
     <title>Player Dashboard</title>
     <style>
-        /* Center everything */
+        /* General Styling */
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start; /* Align to top */
+            justify-content: flex-start;
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
         }
 
-        /* Styling for the heading */
+        /* Top Header */
         h1 {
             font-size: 2.5rem;
             color: black;
-            margin-top: 20px; /* Add some space from the top */
-            margin-bottom: 20px; /* Space between heading and buttons */
+            margin-top: 20px;
+            margin-bottom: 10px;
         }
 
-        /* Button Container */
-        .button-container {
+        .currency-container {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        /* Layout Container */
+        .content-container {
             display: flex;
-            justify-content: center;
-            gap: 15px; /* Space between buttons */
+            justify-content: space-between;
+            width: 80%;
+            max-width: 1000px;
         }
 
-        /* Button Styling */
+        /* Section Box */
+        .section {
+            width: 48%;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Section Headings */
+        .section h2 {
+            font-size: 1.5rem;
+            color: purple;
+            margin-bottom: 10px;
+        }
+
+        /* Filter Section */
+        .search-section {
+            width: 80%;
+            max-width: 1000px;
+            background: white;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1;
+        }
+
+        .filter-label {
+            font-weight: bold;
+            color: purple;
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        /* Search Results */
+        .results-section {
+            width: 80%;
+            max-width: 1000px;
+            background: white;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: purple;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f4f4f4;
+        }
+
+        tr:nth-child(odd) {
+            background-color: white;
+        }
+
+        tr:hover {
+            background-color: #e0e0e0;
+        }
+
         .button {
-            background-color: purple; /* Purple */
+            background-color: purple;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 15px;
             border-radius: 5px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
         }
 
         .button:hover {
-            background-color: #2980b9; /* Darker blue on hover */
-            transform: scale(1.1); /* Slight zoom effect */
+            background-color: #2980b9;
+            transform: scale(1.05);
         }
     </style>
     <script>
-        // Function to navigate to a URL
-        function navigateTo(url) {
-            window.location.href = url;
+        function searchItems() {
+            let city = document.getElementById("cityFilter").value;
+            let shop = document.getElementById("shopFilter").value;
+            let item = document.getElementById("itemFilter").value;
+
+            fetch(`/search?city=${city}&shop=${shop}&item=${item}`)
+                .then(response => response.json())
+                .then(data => {
+                    let resultsTable = document.getElementById("searchResults");
+                    resultsTable.innerHTML = "";
+
+                    if (data.length === 0) {
+                        resultsTable.innerHTML = "<tr><td colspan='4' style='text-align:center;'>No results found</td></tr>";
+                    } else {
+                        data.forEach(result => {
+                            resultsTable.innerHTML += `
+                                <tr>
+                                    <td>${result.item_name}</td>
+                                    <td>${result.shop_name}</td>
+                                    <td>${result.city_name}</td>
+                                    <td>
+                                        <button class="button" onclick="window.location.href='/shop/${result.shop_id}'">View in Shop</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+                });
         }
     </script>
 </head>
 <body>
-    <!-- Styled and centered heading -->
+
     <h1>Welcome Player</h1>
 
-    <!-- Button Container with Side-by-Side Buttons -->
+    <!-- Display Player Currency -->
+    <div class="currency-container">
+        Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Gold
+    </div>
+
+    <!-- Content Layout -->
+    <div class="content-container">
+        <!-- Player Inventory Section (Left) -->
+        <div class="section">
+            <h2>Your Inventory</h2>
+            <ul class="item-list">
+                {% for item in player_inventory %}
+                <li>{{ item.name }} (x{{ item.quantity }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- City Selection Section (Right) -->
+        <div class="section">
+            <h2>Available Cities</h2>
+            <ul class="city-list">
+                {% for city in cities %}
+                <li onclick="navigateTo('/city/{{ city.id }}')">{{ city.name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Search & Filters Section -->
+    <div class="search-section">
+        <div class="filter-group">
+            <label class="filter-label" for="cityFilter">City:</label>
+            <select id="cityFilter" class="filter-select" onchange="searchItems()">
+                <option value="">All Cities</option>
+                {% for city in cities %}
+                <option value="{{ city.id }}">{{ city.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-label" for="shopFilter">Shop:</label>
+            <select id="shopFilter" class="filter-select" onchange="searchItems()">
+                <option value="">All Shops</option>
+                {% for shop in shops %}
+                <option value="{{ shop.id }}">{{ shop.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-label" for="itemFilter">Item:</label>
+            <select id="itemFilter" class="filter-select" onchange="searchItems()">
+                <option value="">All Items</option>
+                {% for item in items %}
+                <option value="{{ item.id }}">{{ item.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="results-section">
+        <h2>Search Results</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Shop</th>
+                    <th>City</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="searchResults">
+                <!-- Results will be dynamically inserted -->
+            </tbody>
+        </table>
+    </div>
 
 </body>
 </html>
-
