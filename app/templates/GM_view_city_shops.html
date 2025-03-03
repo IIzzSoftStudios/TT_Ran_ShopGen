@@ -118,7 +118,7 @@
             <span>{{ shop.name }} - {{ shop.type }}</span>
             <div>
                 <button class="button" onclick="window.location.href='{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}'">Edit Shop</button>
-                <button class="button" onclick="window.location.href='{{ url_for('shop.view_items', shop_id=shop.shop_id) }}'">View Items</button>
+                <button class="button" onclick="window.location.href='{{ url_for('shop.view_items_by_shop', shop_id=shop.shop_id) }}'">View Items</button>
                 <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
                     <input type="hidden" name="from_view_all" value="false"> <!-- Mark as City Shops -->
                     <button type="submit" class="delete-button">Delete</button>

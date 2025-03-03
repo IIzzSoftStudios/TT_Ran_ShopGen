@@ -131,7 +131,7 @@
                 <td>{{ inventory.stock }}</td>
                 <td>{{ inventory.dynamic_price }}</td>
                 <td>
-                    <a href="{{ url_for('shop.view_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
+                    <a href="{{ url_for('shop.view_items_by_shop', shop_id=shop.shop_id) }}" class="button">View Items</a>
                     <form method="POST" action="{{ url_for('shop.remove_item_from_shop', shop_id=shop.shop_id, item_id=inventory.item_id) }}" style="display:inline;">
                         <button type="submit" class="delete-button">Remove</button>
                     </form>                    
