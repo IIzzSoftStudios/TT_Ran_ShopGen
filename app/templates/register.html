@@ -66,20 +66,51 @@
         p {
             margin-top: 15px;
         }
+
+        .gm-select {
+            display: none;
+        }
     </style>
+    <script>
+        function toggleGMSelect() {
+            const role = document.getElementById('role').value;
+            const gmSelect = document.getElementById('gm-select');
+            gmSelect.style.display = role === 'Player' ? 'block' : 'none';
+            const gmInput = document.getElementById('gm_id');
+            gmInput.required = role === 'Player';
+        }
+    </script>
 </head>
 <body>
     <h2>Register</h2>
     <form method="POST">
-        <label for="username">Username:</label>
-        <input type="text" name="username" required>
-        <label for="password">Password:</label>
-        <input type="password" name="password" required>
-        <label for="role">Role:</label>
-        <select name="role">
-            <option value="GM">Game Master</option>
-            <option value="Player">Player</option>
-        </select>
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="role">Role:</label>
+            <select id="role" name="role" onchange="toggleGMSelect()" required>
+                <option value="GM">Game Master</option>
+                <option value="Player">Player</option>
+            </select>
+        </div>
+        
+        <div id="gm-select" class="form-group gm-select">
+            <label for="gm_id">Select Game Master:</label>
+            <select id="gm_id" name="gm_id">
+                {% for gm in gms %}
+                <option value="{{ gm.id }}">{{ gm.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
         <button type="submit">Register</button>
     </form>
     <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>

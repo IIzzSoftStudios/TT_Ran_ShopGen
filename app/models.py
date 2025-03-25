@@ -16,6 +16,7 @@ class City(db.Model):
     size = db.Column(db.String(50))
     population = db.Column(db.Integer)
     region = db.Column(db.String(100), index=True)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
 
     # Many-to-Many relationship with Shop
     shops = db.relationship("Shop", secondary=shop_cities, back_populates="cities")
@@ -28,10 +29,10 @@ class Shop(db.Model):
     shop_id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(100), nullable=False)
     name = db.Column(db.String(100), nullable=False)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
 
     # Many-to-Many relationship with City
     cities = db.relationship("City", secondary=shop_cities, back_populates="shops")
-
     # Many-to-Many relationship with Item through ShopInventory
     inventory = db.relationship("ShopInventory", back_populates="shop")
 
@@ -51,6 +52,7 @@ class Item(db.Model):
     rate_of_fire = db.Column(db.Integer)
     min_str = db.Column(db.String(10))
     notes = db.Column(db.Text)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
 
     # Many-to-Many relationship with Shop through ShopInventory
     inventory = db.relationship("ShopInventory", back_populates="item")
@@ -89,6 +91,7 @@ class DemandModifier(db.Model):
     start_date = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
     end_date = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
 
     def is_currently_active(self):
         """Checks if the modifier is active and within its time range."""
@@ -110,8 +113,12 @@ class ModifierTarget(db.Model):
     modifier_id = db.Column(db.Integer, db.ForeignKey("demand_modifiers.id"), nullable=False)
     entity_type = db.Column(db.Enum("region", "city", "shop", "item", name="target_type"), nullable=False)
     entity_id = db.Column(db.Integer, nullable=False)  # The ID of the affected entity
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
 
     modifier = db.relationship("DemandModifier", backref="targets")
+
+    def __repr__(self):
+        return f"<ModifierTarget (Type: {self.entity_type}, Entity ID: {self.entity_id})>"
 
 class User(db.Model, UserMixin):
     __tablename__ = "user"
@@ -119,6 +126,11 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(100), nullable=False, unique=True)
     password = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(50), nullable=False)
+    
+    # For GMs: Their players
+    players = db.relationship("Player", backref="user", foreign_keys="Player.user_id")
+    # GM Profile if they are a GM
+    gm_profile = db.relationship("GMProfile", backref="user", uselist=False)
 
     def set_password(self, password):
         self.password = bcrypt.generate_password_hash(password).decode("utf-8") 
@@ -132,3 +144,30 @@ class User(db.Model, UserMixin):
     @property
     def is_active(self):
         return True
+
+class GMProfile(db.Model):
+    __tablename__ = "gm_profile"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
+    
+    # Relationships with game entities
+    cities = db.relationship("City", backref="gm_profile")
+    shops = db.relationship("Shop", backref="gm_profile")
+    items = db.relationship("Item", backref="gm_profile")
+    demand_modifiers = db.relationship("DemandModifier", backref="gm_profile")
+    modifier_targets = db.relationship("ModifierTarget", backref="gm_profile")
+    # Players managed by this GM
+    players = db.relationship("Player", backref="gm_profile")
+
+    def __repr__(self):
+        return f"<GMProfile (User: {self.user.username})>"
+
+class Player(db.Model):
+    __tablename__ = "player"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+    currency = db.Column(db.Integer, default=0)
+
+    def __repr__(self):
+        return f"<Player (User: {self.user.username}, GM: {self.gm_profile.user.username})>"

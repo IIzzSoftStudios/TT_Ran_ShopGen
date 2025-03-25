@@ -1,5 +1,6 @@
 import logging
 from flask import Blueprint, render_template, request, redirect, flash, url_for
+from flask_login import login_required
 from app.models import Item, Shop, ShopInventory
 from app.extensions import db
 
@@ -11,6 +12,7 @@ item_bp = Blueprint("item", __name__)
 
 # View All Items
 @item_bp.route("/", methods=["GET"])
+@login_required
 def view_all_items():
     items = Item.query.all()  # Fetch all items
     logger.debug(f"Fetched {len(items)} items from the database.")
@@ -186,6 +188,7 @@ def item_detail(item_id):
 
 # Delete an Item
 @item_bp.route("/delete_item/<int:item_id>", methods=["POST"])
+@login_required
 def delete_item(item_id):
     item = Item.query.get_or_404(item_id)
     

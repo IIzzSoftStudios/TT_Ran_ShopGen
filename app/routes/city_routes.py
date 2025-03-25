@@ -1,16 +1,19 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for
+from flask_login import login_required
 from app.models import City
 from app.extensions import db
 
 city_bp = Blueprint("city", __name__)
 
 @city_bp.route("/")
+@login_required
 def home():
     print("[DEBUG] Fetching all cities")
     cities = City.query.all()
     return render_template("GM_view_cities.html", cities=cities)
 
 @city_bp.route("/add_city", methods=["GET", "POST"])
+@login_required
 def add_city():
     if request.method == "POST":
         name = request.form.get("name")
@@ -69,6 +72,7 @@ def edit_city(city_id):
     return render_template("GM_edit_city.html", city=city)
 
 @city_bp.route("/delete_city/<int:city_id>", methods=["POST"])
+@login_required
 def delete_city(city_id):
     city = City.query.get_or_404(city_id)
     print(f"[DEBUG] Deleting city with ID: {city_id}")

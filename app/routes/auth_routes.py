@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
-from app.models import db, User 
+from app.models import db, User, Player
 from app.extensions import bcrypt
 
 auth = Blueprint("auth", __name__)
@@ -44,13 +44,13 @@ def logout():
     flash("You have been logged out", "info")
     return redirect(url_for("auth.login"))
 
-@auth.route("/debug_user")
-@login_required
-def debug_user():
-    print(f"DEBUG: Session data: {session.items()}")
-    user_id = session.get("user_id")
-    user = db.session.get(User, user_id) if user_id else None
-    return f"User ID from session: {user_id}, User from DB: {user}"
+# @auth.route("/debug_user")
+# @login_required
+# def debug_user():
+#     print(f"DEBUG: Session data: {session.items()}")
+#     user_id = session.get("user_id")
+#     user = db.session.get(User, user_id) if user_id else None
+#     return f"User ID from session: {user_id}, User from DB: {user}"
 
 
 @auth.route("/register", methods=["GET", "POST"])
@@ -59,19 +59,40 @@ def register():
         username = request.form.get("username")
         password = request.form.get("password")
         role = request.form.get("role")
+        gm_id = request.form.get("gm_id") if role == "Player" else None
 
         if User.query.filter_by(username=username).first():
             flash("Username already exists!", "warning")
             return redirect(url_for("auth.register"))
 
-        new_user = User(username=username, role=role)
-        new_user.set_password(password)
+        try:
+            # Start a transaction
+            with db.session.begin():
+                # Create the user
+                new_user = User(username=username, role=role)
+                new_user.set_password(password)
+                db.session.add(new_user)
+                db.session.flush()  # This assigns the ID to new_user
 
-        db.session.add(new_user)
-        db.session.commit()
+                # If this is a player, create the player profile
+                if role == "Player" and gm_id:
+                    player = Player(
+                        user_id=new_user.id,
+                        gm_id=gm_id,
+                        currency=0
+                    )
+                    db.session.add(player)
 
-        flash("Account created! You can now log in.", "success")
-        return redirect(url_for("auth.login"))
+            flash("Account created! You can now log in.", "success")
+            return redirect(url_for("auth.login"))
 
-    return render_template("register.html")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error creating account: {str(e)}", "danger")
+            return redirect(url_for("auth.register"))
+
+    # GET request - show registration form
+    # Get list of GMs for the dropdown
+    gms = User.query.filter_by(role="GM").all() if request.method == "GET" else []
+    return render_template("register.html", gms=gms)
 

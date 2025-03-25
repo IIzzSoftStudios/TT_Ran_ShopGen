@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from app.models import db, Shop, City, ShopInventory
 from sqlalchemy.orm import joinedload
 
@@ -6,6 +7,7 @@ from sqlalchemy.orm import joinedload
 shop_bp = Blueprint("shop", __name__)
 
 @shop_bp.route('/')
+@login_required
 def view_all_shops():
     print("[DEBUG] Fetching all shops")
     shops = Shop.query.all()
@@ -113,6 +115,7 @@ def delete_shop(shop_id):
 
 # route for viewing city-specific shops
 @shop_bp.route('/city/<int:city_id>/shops', methods=['GET'])
+@login_required
 def view_city_shops(city_id):
     city = City.query.get_or_404(city_id)
     shops = city.shops  # Assuming a relationship exists between City and Shop
