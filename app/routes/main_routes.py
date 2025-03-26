@@ -11,14 +11,9 @@ def index():
 @login_required
 def home():
     if current_user.role == "GM":
-        return redirect(url_for("main.gm_dashboard"))
+        return redirect(url_for("gm.home"))
     else:
-        return redirect(url_for("main.player_dashboard"))
-
-@main_bp.route("/gm_dashboard")
-@login_required
-def gm_dashboard():
-    return render_template("GM_Home.html")
+        return redirect(url_for("player.player_home"))
 
 @main_bp.route("/player_dashboard")
 @login_required

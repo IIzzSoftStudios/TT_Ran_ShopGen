@@ -58,11 +58,11 @@
     <!-- Styled and centered heading -->
     <h1>Welcome to the Game Master Interface</h1>
 
-    <!-- Button Container with Side-by-Side Buttons -->
+    <!-- Button container for navigation -->
     <div class="button-container">
-        <a href="{{ url_for('city.home') }}" class="button">Manage Cities</a>
-        <a href="{{ url_for('shop.view_all_shops') }}" class="button">Manage Shops</a>
-        <a href="{{ url_for('item.view_all_items') }}" class="button">Manage Items</a>
+        <a href="{{ url_for('gm.view_cities') }}" class="button">Manage Cities</a>
+        <a href="{{ url_for('gm.view_shops') }}" class="button">Manage Shops</a>
+        <a href="{{ url_for('gm.view_items') }}" class="button">Manage Items</a>
         <a href="{{ url_for('auth.logout') }}" class="button">Logout</a>
     </div>
 </body>

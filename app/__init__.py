@@ -50,17 +50,13 @@ def create_app():
 
     # Register blueprints
     from app.routes.main_routes import main_bp
-    from app.routes.city_routes import city_bp
-    from app.routes.shop_routes import shop_bp
-    from app.routes.item_routes import item_bp
     from app.routes.auth_routes import auth
     from app.routes.player_routes import player_bp
+    from app.routes.gm_routes import gm_bp
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
-    app.register_blueprint(city_bp, url_prefix="/cities")
-    app.register_blueprint(shop_bp, url_prefix="/gm/shops")
-    app.register_blueprint(item_bp, url_prefix="/items")
+    app.register_blueprint(gm_bp)  # GM routes already have /gm prefix
     app.register_blueprint(player_bp, url_prefix="/player")
 
     # Debugging: Print registered routes

@@ -3,74 +3,40 @@
 <head>
     <title>Shops in {{ city.name }}</title>
     <style>
-        /* Center everything */
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start; /* Align to top */
-            height: 100vh;
+            justify-content: flex-start;
+            min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
         }
 
-        /* Styling for the heading */
         h1 {
             font-size: 2.5rem;
             color: black;
             margin-top: 20px;
             margin-bottom: 20px;
+            text-align: center;
         }
 
-        /* Button Container */
         .button-container {
             display: flex;
             justify-content: center;
-            gap: 15px; /* Space between buttons */
-            margin-bottom: 20px; /* Space between buttons and the list */
+            gap: 15px;
+            margin-bottom: 20px;
+            width: 80%;
+            max-width: 1200px;
         }
 
-        /* Button Styling */
-        .button {
-            background-color: purple; /* Purple */
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .button:hover {
-            background-color: #2980b9; /* Darker blue on hover */
-            transform: scale(1.1); /* Slight zoom effect */
-        }
-
-        /* Delete Button Styling */
-        .delete-button {
-            background-color: red;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .delete-button:hover {
-            background-color: darkred; /* Darker red on hover */
-            transform: scale(1.1); /* Slight zoom effect */
-        }
-
-        /* Shop List Styling */
         ul {
             list-style: none;
             padding: 0;
             margin: 0;
-            width: 80%; /* Responsive width */
+            width: 80%;
+            max-width: 1200px;
             background-color: white;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -89,6 +55,38 @@
             border-bottom: none;
         }
 
+        .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.1);
+        }
+
+        .delete-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .delete-button:hover {
+            background-color: darkred;
+            transform: scale(1.1);
+        }
+
         a {
             color: purple;
             text-decoration: none;
@@ -101,25 +99,22 @@
     </style>
 </head>
 <body>
-    <!-- Styled and centered heading -->
     <h1>Shops in {{ city.name }}</h1>
 
-    <!-- Button Container -->
     <div class="button-container">
-        <a href="{{ url_for('shop.add_shop', city_id=city.city_id) }}" class="button">Add New Shop</a>
-        <a href="{{ url_for('city.home') }}" class="button">All Cities</a>
-        <a href="{{ url_for('main.gm_dashboard') }}" class="button">Game Master Interface</a>
+        <a href="{{ url_for('gm.add_shop') }}" class="button">Add New Shop</a>
+        <a href="{{ url_for('gm.view_cities') }}" class="button">All Cities</a>
+        <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
     </div>
 
-    <!-- Shop List -->
     <ul>
         {% for shop in shops %}
         <li>
             <span>{{ shop.name }} - {{ shop.type }}</span>
             <div>
-                <a href="{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}" class="button">Edit Shop</a>
-                <a href="{{ url_for('shop.view_items_by_shop', shop_id=shop.shop_id) }}" class="button">View Items</a>
-                <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
+                <a href="{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}" class="button">Edit Shop</a>
+                <a href="{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
+                <form method="POST" action="{{ url_for('gm.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
                     <input type="hidden" name="from_view_all" value="false">
                     <button type="submit" class="delete-button">Delete</button>
                 </form>
