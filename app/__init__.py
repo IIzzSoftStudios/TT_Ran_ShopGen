@@ -59,14 +59,14 @@ def create_app():
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
     app.register_blueprint(city_bp, url_prefix="/cities")
-    app.register_blueprint(shop_bp, url_prefix="/shops")
+    app.register_blueprint(shop_bp, url_prefix="/gm/shops")
     app.register_blueprint(item_bp, url_prefix="/items")
     app.register_blueprint(player_bp, url_prefix="/player")
 
     # Debugging: Print registered routes
-    print("Registered Routes:")
+    print("\nRegistered Routes:")
     for rule in app.url_map.iter_rules():
-        print(f"{rule.endpoint}: {rule}")
+        print(f"{rule.endpoint}: {rule.methods} {rule}")
 
     return app
 

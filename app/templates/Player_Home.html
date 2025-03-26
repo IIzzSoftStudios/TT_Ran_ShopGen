@@ -238,8 +238,89 @@
             font-weight: bold;
             font-size: 2rem;
         }
+
+        /* Navigation Styling */
+        .nav-buttons {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .nav-button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .nav-button:hover {
+            background-color: #2980b9;
+            transform: scale(1.05);
+        }
+
+        /* Shops Section Styling */
+        .shops-section {
+            margin-top: 20px;
+            width: 80%;
+            max-width: 1000px;
+        }
+
+        .shops-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .shop-card {
+            width: calc(33.33% - 10px);
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .shop-card:hover {
+            background-color: #e0e0e0;
+            transform: scale(1.02);
+        }
+
+        .shop-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: purple;
+            margin-bottom: 5px;
+        }
+
+        .shop-type {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .shop-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .shop-quality {
+            font-weight: bold;
+            color: purple;
+        }
+
+        .shop-size {
+            font-weight: bold;
+            color: purple;
+        }
     </style>
     <script>
+        function navigateTo(url) {
+            window.location.href = url;
+        }
+
         function searchItems() {
             let city = document.getElementById("cityFilter").value;
             let shop = document.getElementById("shopFilter").value;
@@ -261,7 +342,7 @@
                                     <td>${result.shop_name}</td>
                                     <td>${result.city_name}</td>
                                     <td>
-                                        <button class="button" onclick="window.location.href='/shop/${result.shop_id}'">View in Shop</button>
+                                        <button class="button" onclick="window.location.href='{{ url_for('player.view_shop', shop_id=0) }}'.replace('0', ${result.shop_id})">View in Shop</button>
                                     </td>
                                 </tr>
                             `;
@@ -278,6 +359,39 @@
     <!-- Display Player Currency -->
     <div class="currency-container">
         Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
+    </div>
+
+    <div class="currency-display">
+        <h2>Your Currency</h2>
+        <div class="amount">{{ player_currency }}</div>
+    </div>
+
+    <!-- Cities Section -->
+    <div class="cities-section">
+        <h2>Available Cities</h2>
+        <div class="button-container">
+            <a href="{{ url_for('player.view_cities') }}" class="button">View All Cities</a>
+        </div>
+        {% if cities %}
+        <ul class="city-list">
+            {% for city in cities[:3] %}
+            <li onclick="window.location.href='{{ url_for('player.view_city', city_id=city.city_id) }}'">
+                <div class="city-name">{{ city.name }}</div>
+                <div class="city-details">
+                    <span class="city-size">{{ city.size }}</span>
+                    <span class="city-region">{{ city.region }}</span>
+                </div>
+            </li>
+            {% endfor %}
+            {% if cities|length > 3 %}
+            <li onclick="window.location.href='{{ url_for('player.view_cities') }}'" style="text-align: center;">
+                <div class="city-name">View All Cities...</div>
+            </li>
+            {% endif %}
+        </ul>
+        {% else %}
+        <p>No cities available.</p>
+        {% endif %}
     </div>
 
     <!-- Content Layout -->
@@ -301,72 +415,78 @@
             </div>
         </div>
 
-        <!-- City Selection Section (Right) -->
-        <div class="section">
-            <h2>Available Cities</h2>
-            <ul class="city-list">
-                {% for city in cities %}
-                <li onclick="navigateTo('/city/{{ city.city_id }}')">
-                    <div class="city-name">{{ city.name }}</div>
-                    <div class="city-details">
-                        <span class="city-size">{{ city.size }}</span>
-                        <span class="city-region">{{ city.region }}</span>
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
+        <!-- Search & Filters Section -->
+        <div class="search-section">
+            <div class="filter-group">
+                <label class="filter-label" for="cityFilter">City:</label>
+                <select id="cityFilter" class="filter-select" onchange="searchItems()">
+                    <option value="">All Cities</option>
+                    {% for city in cities %}
+                    <option value="{{ city.city_id }}">{{ city.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="shopFilter">Shop:</label>
+                <select id="shopFilter" class="filter-select" onchange="searchItems()">
+                    <option value="">All Shops</option>
+                    {% for shop in shops %}
+                    <option value="{{ shop.id }}">{{ shop.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="itemFilter">Item:</label>
+                <select id="itemFilter" class="filter-select" onchange="searchItems()">
+                    <option value="">All Items</option>
+                    {% for item in items %}
+                    <option value="{{ item.id }}">{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div class="results-section">
+            <h2>Search Results</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Shop</th>
+                        <th>City</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="searchResults">
+                    <!-- Results will be dynamically inserted -->
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Search & Filters Section -->
-    <div class="search-section">
-        <div class="filter-group">
-            <label class="filter-label" for="cityFilter">City:</label>
-            <select id="cityFilter" class="filter-select" onchange="searchItems()">
-                <option value="">All Cities</option>
-                {% for city in cities %}
-                <option value="{{ city.city_id }}">{{ city.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label class="filter-label" for="shopFilter">Shop:</label>
-            <select id="shopFilter" class="filter-select" onchange="searchItems()">
-                <option value="">All Shops</option>
-                {% for shop in shops %}
-                <option value="{{ shop.id }}">{{ shop.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label class="filter-label" for="itemFilter">Item:</label>
-            <select id="itemFilter" class="filter-select" onchange="searchItems()">
-                <option value="">All Items</option>
-                {% for item in items %}
-                <option value="{{ item.id }}">{{ item.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
+    <!-- Navigation -->
+    <div class="nav-buttons">
+        <button onclick="navigateTo('/player/home')" class="nav-button">Back to Dashboard</button>
     </div>
 
-    <!-- Search Results -->
-    <div class="results-section">
-        <h2>Search Results</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Shop</th>
-                    <th>City</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="searchResults">
-                <!-- Results will be dynamically inserted -->
-            </tbody>
-        </table>
+    <!-- Shops Section -->
+    <div class="shops-section">
+        <h2>Available Shops</h2>
+        <div class="shops-grid">
+            {% for shop in shops %}
+            <div class="shop-card" onclick="navigateTo('{{ url_for('player.view_shop', shop_id=shop.shop_id) }}')">
+                <div class="shop-name">{{ shop.name }}</div>
+                <div class="shop-type">{{ shop.type }}</div>
+                <div class="shop-details">
+                    <span class="shop-quality">{{ shop.quality }}</span>
+                    <span class="shop-size">{{ shop.size }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
 </body>

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <!-- Header Section -->
+    <div class="header">
+        <h1>{{ city.name }}</h1>
+        <div class="city-info">
+            <span class="size">{{ city.size }}</span>
+            <span class="region">{{ city.region }}</span>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-buttons">
+        <button onclick="window.location.href='{{ url_for('player.view_cities') }}'" class="nav-button">Back to Cities</button>
+        <button onclick="window.location.href='{{ url_for('player.player_home') }}'" class="nav-button">Back to Dashboard</button>
+    </div>
+
+    <!-- Shops Section -->
+    <div class="shops-section">
+        <h2>Available Shops</h2>
+        <div class="shops-grid">
+            {% for shop in shops %}
+            <div class="shop-card" onclick="navigateTo('{{ url_for('player.view_shop', shop_id=shop.shop_id) }}')">
+                <div class="shop-name">{{ shop.name }}</div>
+                <div class="shop-type">{{ shop.type }}</div>
+                <div class="shop-details">
+                    <span class="shop-quality">{{ shop.quality }}</span>
+                    <span class="shop-size">{{ shop.size }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .header h1 {
+        color: purple;
+        margin-bottom: 10px;
+    }
+
+    .city-info {
+        color: #666;
+    }
+
+    .city-info span {
+        margin: 0 10px;
+    }
+
+    .nav-buttons {
+        margin-bottom: 30px;
+    }
+
+    .nav-button {
+        background-color: purple;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .nav-button:hover {
+        background-color: #6a006a;
+    }
+
+    .shops-section {
+        margin-top: 30px;
+    }
+
+    .shops-section h2 {
+        color: purple;
+        margin-bottom: 20px;
+    }
+
+    .shops-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .shop-card {
+        background-color: #f8f8f8;
+        border-radius: 10px;
+        padding: 20px;
+        cursor: pointer;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .shop-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .shop-name {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: purple;
+        margin-bottom: 10px;
+    }
+
+    .shop-type {
+        color: #666;
+        margin-bottom: 10px;
+    }
+
+    .shop-details {
+        display: flex;
+        justify-content: space-between;
+        color: #888;
+        font-size: 0.9rem;
+    }
+
+    .shop-quality, .shop-size {
+        background-color: #eee;
+        padding: 3px 8px;
+        border-radius: 3px;
+    }
+</style>
+
+<script>
+    function navigateTo(url) {
+        window.location.href = url;
+    }
+</script>
+{% endblock %} 

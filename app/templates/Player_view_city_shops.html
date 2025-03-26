@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ shop.name }} - Available Items</title>
+    <style>
+        /* Center everything */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        /* Styling for the heading */
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+        }
+
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.1);
+        }
+
+        /* Currency Display */
+        .currency-display {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.5rem;
+            color: purple;
+            margin-bottom: 20px;
+        }
+
+        .amount {
+            font-weight: bold;
+            font-size: 2rem;
+        }
+
+        /* Shop Info */
+        .shop-info {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            width: 80%;
+            max-width: 1000px;
+        }
+
+        .shop-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: purple;
+            margin-bottom: 10px;
+        }
+
+        .shop-type {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Items Table */
+        .items-table {
+            width: 80%;
+            max-width: 1000px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: purple;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f4f4f4;
+        }
+
+        tr:nth-child(odd) {
+            background-color: white;
+        }
+
+        tr:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* Buy Button */
+        .buy-button {
+            background-color: green;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .buy-button:hover {
+            background-color: darkgreen;
+            transform: scale(1.1);
+        }
+
+        .buy-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Stock Status */
+        .stock-status {
+            font-weight: bold;
+        }
+
+        .in-stock {
+            color: green;
+        }
+
+        .low-stock {
+            color: orange;
+        }
+
+        .out-of-stock {
+            color: red;
+        }
+    </style>
+    <script>
+        function buyItem(shopId, itemId) {
+            fetch(`{{ url_for('player.buy_item', shop_id=0, item_id=0) }}`.replace('0', shopId).replace('0', itemId), { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("Purchase successful!");
+                        location.reload();
+                    } else {
+                        alert("Purchase failed: " + data.message);
+                    }
+                });
+        }
+
+        function getStockStatus(stock) {
+            if (stock <= 0) return 'out-of-stock';
+            if (stock <= 5) return 'low-stock';
+            return 'in-stock';
+        }
+    </script>
+</head>
+<body>
+    <h1>{{ shop.name }}</h1>
+
+    <div class="currency-display">
+        <h2>Your Currency</h2>
+        <div class="amount">{{ player_currency }}</div>
+    </div>
+
+    <div class="button-container">
+        <a href="{{ url_for('player.view_city', city_id=city.city_id) }}" class="button">Back to City</a>
+        <a href="{{ url_for('player.view_cities') }}" class="button">All Cities</a>
+        <a href="{{ url_for('player.player_home') }}" class="button">Back to Home</a>
+    </div>
+
+    <div class="shop-info">
+        <div class="shop-name">{{ shop.name }}</div>
+        <div class="shop-type">{{ shop.type }}</div>
+    </div>
+
+    <div class="items-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in shop_items %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.type }}</td>
+                    <td>
+                        <span class="stock-status {{ getStockStatus(item.stock) }}">
+                            {{ item.stock }}
+                        </span>
+                    </td>
+                    <td>{{ item.dynamic_price }}</td>
+                    <td>
+                        <button 
+                            class="buy-button" 
+                            onclick="buyItem('{{ shop.shop_id }}', '{{ item.item_id }}')"
+                            {% if item.stock <= 0 %}disabled{% endif %}
+                        >
+                            Buy
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

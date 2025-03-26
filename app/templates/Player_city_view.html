@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Explore Cities</title>
+    <title>{% if city %}{{ city.name }} Shops{% endif %}</title>
     <style>
         /* Center everything */
         body {
@@ -23,47 +23,12 @@
             margin-bottom: 20px;
         }
 
-        /* Table Styling */
-        table {
-            width: 80%;
-            border-collapse: collapse;
+        /* Button Container */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
             margin-bottom: 20px;
-            background-color: white;
-            border-radius: 5px;
-            overflow: hidden;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        th {
-            background-color: purple;
-            color: white;
-            padding: 15px;
-        }
-
-        td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        /* Actions Column */
-        td.actions {
-            text-align: center;
-            vertical-align: middle;
-            width: 150px;
-        }
-
-        /* Alternating Row Colors */
-        tr:nth-child(even) {
-            background-color: #f4f4f4;
-        }
-
-        tr:nth-child(odd) {
-            background-color: white;
-        }
-
-        tr:hover {
-            background-color: #e0e0e0;
         }
 
         /* Button Styling */
@@ -76,49 +41,119 @@
             font-size: 14px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
         }
 
         .button:hover {
             background-color: #2980b9;
             transform: scale(1.1);
         }
-    </style>
-    <script>
-        function navigateTo(url) {
-            window.location.href = url;
+
+        /* City List Styling */
+        .city-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            width: 80%;
+            max-width: 1000px;
         }
-    </script>
+
+        .city-list li {
+            padding: 15px;
+            margin: 10px 0;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .city-list li:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .city-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: purple;
+            margin-bottom: 5px;
+        }
+
+        .city-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Shop List Styling */
+        .shop-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            width: 80%;
+            max-width: 1000px;
+        }
+
+        .shop-list li {
+            padding: 15px;
+            margin: 10px 0;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shop-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: purple;
+        }
+
+        .shop-type {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
+    <h1>{% if city %}Shops in {{ city.name }}{% endif %}</h1>
 
-    <h1>Explore Cities</h1>
+    <div class="button-container">
+        {% if city %}
+            <a href="{{ url_for('player.view_cities') }}" class="button">Back to Cities</a>
+        {% endif %}
+        <a href="{{ url_for('player.player_home') }}" class="button">Back to Home</a>
+    </div>
 
-    <!-- Styled Table -->
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Size</th>
-                <th>Population</th>
-                <th>Specialty</th> 
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for city in cities %}
-            <tr>
-                <td>{{ city.name }}</td>
-                <td>{{ city.size }}</td>
-                <td>{{ city.population }}</td>
-                <td>{{ city.region }}</td>
-                <td class="actions">
-                    <!-- View Shops Button -->
-                    <button class="button" onclick="navigateTo('{{ url_for('player.view_city', city_id=city.city_id) }}')">View Shops</button>
-                </td>
-            </tr>
+    {% if city %}
+        <!-- Individual City View -->
+        <ul class="shop-list">
+            {% for shop in shops %}
+            <li>
+                <div>
+                    <div class="shop-name">{{ shop.name }}</div>
+                    <div class="shop-type">{{ shop.type }}</div>
+                </div>
+                <a href="{{ url_for('player.view_shop', shop_id=shop.shop_id) }}" class="button">View Shop</a>
+            </li>
             {% endfor %}
-        </tbody>
-    </table>
-
+        </ul>
+    {% else %}
+        <!-- Cities List View -->
+        <ul class="city-list">
+            {% for city in cities %}
+            <li onclick="window.location.href='{{ url_for('player.view_city', city_id=city.city_id) }}'">
+                <div class="city-name">{{ city.name }}</div>
+                <div class="city-details">
+                    <span>{{ city.size }}</span> • 
+                    <span>{{ city.region }}</span> • 
+                    <span>Population: {{ city.population }}</span>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 </body>
 </html>
