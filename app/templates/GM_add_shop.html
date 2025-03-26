@@ -96,8 +96,8 @@
 
     <!-- Navigation Buttons -->
     <div class="button-container">
-        <button class="button" onclick="window.location.href='{{ url_for('shop.view_all_shops') }}'">All Shops</button>
-        <button class="button" onclick="window.location.href='/'">Home</button>
+        <a href="{{ url_for('shop.view_all_shops') }}" class="button">All Shops</a>
+        <a href="{{ url_for('main.gm_dashboard') }}" class="button">Game Master Interface</a>
     </div>
 
     <!-- Form to Add Shop -->

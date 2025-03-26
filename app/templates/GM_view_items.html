@@ -115,8 +115,8 @@
 
     <!-- Navigation Button Container -->
     <div class="button-container">
-        <button class="button" onclick="window.location.href='{{ url_for('item.add_new_item') }}'">Add New Item</button>
-        <button class="button" onclick="window.location.href='/'">Home</button>
+        <a href="{{ url_for('item.add_new_item') }}" class="button">Add New Item</a>
+        <a href="{{ url_for('main.gm_dashboard') }}" class="button">Game Master Interface</a>
     </div>
 
     <!-- Styled Table -->

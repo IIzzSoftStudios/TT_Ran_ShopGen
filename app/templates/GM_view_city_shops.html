@@ -106,9 +106,9 @@
 
     <!-- Button Container -->
     <div class="button-container">
-        <button class="button" onclick="window.location.href='{{ url_for('shop.add_shop', city_id=city.city_id) }}'">Add New Shop</button>
-        <button class="button" onclick="window.location.href='{{ url_for('city.home') }}'">All Cities</button>
-        <button class="button" onclick="window.location.href='/'">Home</button>
+        <a href="{{ url_for('shop.add_shop', city_id=city.city_id) }}" class="button">Add New Shop</a>
+        <a href="{{ url_for('city.home') }}" class="button">All Cities</a>
+        <a href="{{ url_for('main.gm_dashboard') }}" class="button">Game Master Interface</a>
     </div>
 
     <!-- Shop List -->
@@ -117,13 +117,12 @@
         <li>
             <span>{{ shop.name }} - {{ shop.type }}</span>
             <div>
-                <button class="button" onclick="window.location.href='{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}'">Edit Shop</button>
-                <button class="button" onclick="window.location.href='{{ url_for('shop.view_items_by_shop', shop_id=shop.shop_id) }}'">View Items</button>
+                <a href="{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}" class="button">Edit Shop</a>
+                <a href="{{ url_for('shop.view_items_by_shop', shop_id=shop.shop_id) }}" class="button">View Items</a>
                 <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
-                    <input type="hidden" name="from_view_all" value="false"> <!-- Mark as City Shops -->
+                    <input type="hidden" name="from_view_all" value="false">
                     <button type="submit" class="delete-button">Delete</button>
                 </form>
-                
             </div>
         </li>
         {% endfor %}

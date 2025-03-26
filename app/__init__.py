@@ -26,7 +26,7 @@ def create_app():
     session.init_app(app)
 
     app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True, "isolation_level": "AUTOCOMMIT"}
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     
     # Initialize database and migration extensions
     db.init_app(app)
@@ -54,12 +54,14 @@ def create_app():
     from app.routes.shop_routes import shop_bp
     from app.routes.item_routes import item_bp
     from app.routes.auth_routes import auth
+    from app.routes.player_routes import player_bp
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
     app.register_blueprint(city_bp, url_prefix="/cities")
     app.register_blueprint(shop_bp, url_prefix="/shops")
     app.register_blueprint(item_bp, url_prefix="/items")
+    app.register_blueprint(player_bp, url_prefix="/player")
 
     # Debugging: Print registered routes
     print("Registered Routes:")

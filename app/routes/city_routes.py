@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for
-from flask_login import login_required
+from flask_login import login_required, current_user
 from app.models import City
 from app.extensions import db
 
@@ -9,7 +9,7 @@ city_bp = Blueprint("city", __name__)
 @login_required
 def home():
     print("[DEBUG] Fetching all cities")
-    cities = City.query.all()
+    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
     return render_template("GM_view_cities.html", cities=cities)
 
 @city_bp.route("/add_city", methods=["GET", "POST"])
@@ -32,7 +32,8 @@ def add_city():
                 name=name,
                 size=size,
                 population=int(population),
-                region=region
+                region=region,
+                gm_profile_id=current_user.gm_profile.id
             )
             db.session.add(new_city)
             db.session.commit()  # Commit transaction

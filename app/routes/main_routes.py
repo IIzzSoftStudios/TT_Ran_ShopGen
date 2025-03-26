@@ -3,12 +3,13 @@ from flask_login import login_required, current_user
 
 main_bp = Blueprint("main", __name__)
 
-@main_bp.route("/auth/login")
-def home():
+@main_bp.route("/")
+def index():
     return redirect(url_for("auth.login"))
 
+@main_bp.route("/home")
 @login_required
-def dashboard():
+def home():
     if current_user.role == "GM":
         return redirect(url_for("main.gm_dashboard"))
     else:
@@ -22,4 +23,4 @@ def gm_dashboard():
 @main_bp.route("/player_dashboard")
 @login_required
 def player_dashboard():
-    return render_template("Player_Home.html")
+    return redirect(url_for("player.player_home"))

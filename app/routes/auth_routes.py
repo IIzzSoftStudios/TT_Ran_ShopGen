@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
-from app.models import db, User, Player
+from app.models import db, User, Player, GMProfile
 from app.extensions import bcrypt
 
 auth = Blueprint("auth", __name__)
@@ -61,33 +61,57 @@ def register():
         role = request.form.get("role")
         gm_id = request.form.get("gm_id") if role == "Player" else None
 
+        # Validate required fields
+        if not username or not password or not role:
+            flash("All fields are required!", "warning")
+            return redirect(url_for("auth.register"))
+
+        # Validate role
+        if role not in ["GM", "Player"]:
+            flash("Invalid role selected!", "warning")
+            return redirect(url_for("auth.register"))
+
         if User.query.filter_by(username=username).first():
             flash("Username already exists!", "warning")
             return redirect(url_for("auth.register"))
 
         try:
-            # Start a transaction
-            with db.session.begin():
-                # Create the user
-                new_user = User(username=username, role=role)
-                new_user.set_password(password)
-                db.session.add(new_user)
-                db.session.flush()  # This assigns the ID to new_user
+            # Create the user
+            new_user = User(username=username, role=role)
+            new_user.set_password(password)
+            db.session.add(new_user)
+            db.session.flush()  # This assigns the ID to new_user
 
-                # If this is a player, create the player profile
-                if role == "Player" and gm_id:
-                    player = Player(
-                        user_id=new_user.id,
-                        gm_id=gm_id,
-                        currency=0
-                    )
-                    db.session.add(player)
+            if role == "GM":
+                # Create GM Profile
+                gm_profile = GMProfile(user_id=new_user.id)
+                db.session.add(gm_profile)
+            else:  # Player
+                # Get the GM's profile
+                gm = User.query.get(gm_id)
+                if not gm or gm.role != "GM":
+                    raise ValueError("Invalid GM selected")
+                
+                gm_profile = GMProfile.query.filter_by(user_id=gm.id).first()
+                if not gm_profile:
+                    raise ValueError("GM profile not found")
 
+                # Create Player profile linked to GM
+                player = Player(
+                    user_id=new_user.id,
+                    gm_profile_id=gm_profile.id,
+                    currency=0
+                )
+                db.session.add(player)
+
+            # Commit the transaction
+            db.session.commit()
             flash("Account created! You can now log in.", "success")
             return redirect(url_for("auth.login"))
 
         except Exception as e:
             db.session.rollback()
+            print(f"Error during registration: {str(e)}")  # Add debug logging
             flash(f"Error creating account: {str(e)}", "danger")
             return redirect(url_for("auth.register"))
 

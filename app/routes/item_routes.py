@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, render_template, request, redirect, flash, url_for
-from flask_login import login_required
+from flask_login import login_required, current_user
 from app.models import Item, Shop, ShopInventory
 from app.extensions import db
 
@@ -14,7 +14,7 @@ item_bp = Blueprint("item", __name__)
 @item_bp.route("/", methods=["GET"])
 @login_required
 def view_all_items():
-    items = Item.query.all()  # Fetch all items
+    items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()  # Fetch all items for current GM
     logger.debug(f"Fetched {len(items)} items from the database.")
     return render_template("GM_view_items.html", items=items)
 
@@ -61,6 +61,7 @@ def add_new_item():
                     rarity=rarity,
                     base_price=base_price,
                     description=description,
+                    gm_profile_id=current_user.gm_profile.id  # Add the GM profile ID
                 )
                 db.session.add(new_item)
                 db.session.flush()  # Ensure item_id is generated
@@ -86,7 +87,7 @@ def add_new_item():
 
         return redirect(url_for("item.view_all_items"))
 
-    shops = Shop.query.all()
+    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
     return render_template("GM_add_item.html", shops=shops)
 
 

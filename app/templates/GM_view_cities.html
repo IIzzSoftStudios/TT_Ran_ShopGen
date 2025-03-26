@@ -104,8 +104,8 @@
 
     <!-- Button Container -->
     <div class="button-container">
-        <button class="button" onclick="navigateTo('{{ url_for("city.add_city") }}')">Add New City</button>
-        <button class="button" onclick="navigateTo('/')">Home</button>
+        <a href="{{ url_for('city.add_city') }}" class="button">Add New City</a>
+        <a href="{{ url_for('main.gm_dashboard') }}" class="button">Game Master Interface</a>
     </div>
 
     <!-- Styled Table -->
@@ -115,7 +115,7 @@
                 <th>Name</th>
                 <th>Size</th>
                 <th>Population</th>
-                <th>Specialty</th> <!-- Updated from Region to Specialty -->
+                <th>Specialty</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -127,13 +127,8 @@
                 <td>{{ city.population }}</td>
                 <td>{{ city.region }}</td>
                 <td class="actions">
-                    <!-- Edit Button -->
-                    <button class="button" onclick="navigateTo('{{ url_for('city.edit_city', city_id=city.city_id) }}')">Edit</button>
-
-                    <!-- View Shops Button -->
-                    <button class="button" onclick="navigateTo('{{ url_for('shop.view_city_shops', city_id=city.city_id) }}')">View Shops</button>
-
-                    <!-- Delete Button -->
+                    <a href="{{ url_for('city.edit_city', city_id=city.city_id) }}" class="button">Edit</a>
+                    <a href="{{ url_for('shop.view_city_shops', city_id=city.city_id) }}" class="button">View Shops</a>
                     <form method="POST" action="{{ url_for('city.delete_city', city_id=city.city_id) }}" style="display:inline;">
                         <button type="submit" class="button" style="background-color: red;">Delete</button>
                     </form>

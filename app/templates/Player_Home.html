@@ -147,6 +147,97 @@
             background-color: #2980b9;
             transform: scale(1.05);
         }
+
+        /* Inventory Styling */
+        .inventory-container {
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .empty-inventory {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        .empty-inventory p {
+            margin: 5px 0;
+        }
+
+        .small-text {
+            font-size: 0.9rem;
+            color: #999;
+            font-style: italic;
+        }
+
+        .item-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .item-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .item-list li:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* City List Styling */
+        .city-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .city-list li {
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .city-list li:hover {
+            background-color: #e0e0e0;
+            transform: scale(1.02);
+        }
+
+        .city-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: purple;
+            margin-bottom: 5px;
+        }
+
+        .city-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .city-size, .city-region {
+            margin-right: 10px;
+        }
+
+        .currency-display {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.5rem;
+            color: purple;
+        }
+
+        .amount {
+            font-weight: bold;
+            font-size: 2rem;
+        }
     </style>
     <script>
         function searchItems() {
@@ -194,11 +285,20 @@
         <!-- Player Inventory Section (Left) -->
         <div class="section">
             <h2>Your Inventory</h2>
-            <ul class="item-list">
-                {% for item in player_inventory %}
-                <li>{{ item.name }} (x{{ item.quantity }})</li>
-                {% endfor %}
-            </ul>
+            <div class="inventory-container">
+                {% if player_inventory %}
+                    <ul class="item-list">
+                        {% for item in player_inventory %}
+                        <li>{{ item.name }} (x{{ item.quantity }})</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="empty-inventory">
+                        <p>Your inventory is currently empty.</p>
+                        <p class="small-text">Inventory system coming soon!</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
 
         <!-- City Selection Section (Right) -->
@@ -206,7 +306,13 @@
             <h2>Available Cities</h2>
             <ul class="city-list">
                 {% for city in cities %}
-                <li onclick="navigateTo('/city/{{ city.id }}')">{{ city.name }}</li>
+                <li onclick="navigateTo('/city/{{ city.city_id }}')">
+                    <div class="city-name">{{ city.name }}</div>
+                    <div class="city-details">
+                        <span class="city-size">{{ city.size }}</span>
+                        <span class="city-region">{{ city.region }}</span>
+                    </div>
+                </li>
                 {% endfor %}
             </ul>
         </div>
@@ -219,7 +325,7 @@
             <select id="cityFilter" class="filter-select" onchange="searchItems()">
                 <option value="">All Cities</option>
                 {% for city in cities %}
-                <option value="{{ city.id }}">{{ city.name }}</option>
+                <option value="{{ city.city_id }}">{{ city.name }}</option>
                 {% endfor %}
             </select>
         </div>

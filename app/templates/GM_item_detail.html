@@ -110,8 +110,8 @@
 
     <!-- Navigation Button Container -->
     <div class="button-container">
-        <button class="button" onclick="window.location.href='{{ url_for('item.view_all_items') }}'">All Items</button>
-		<button class="button" onclick="window.location.href='/'">Home</button>
+        <a href="{{ url_for('item.view_all_items') }}" class="button">All Items</a>
+        <a href="{{ url_for('main.gm_dashboard') }}" class="button">Game Master Interface</a>
     </div>
 
     <!-- Centered Form -->

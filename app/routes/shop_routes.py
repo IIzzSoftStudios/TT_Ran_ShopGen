@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_required
+from flask_login import login_required, current_user
 from app.models import db, Shop, City, ShopInventory
 from sqlalchemy.orm import joinedload
 
@@ -10,7 +10,7 @@ shop_bp = Blueprint("shop", __name__)
 @login_required
 def view_all_shops():
     print("[DEBUG] Fetching all shops")
-    shops = Shop.query.all()
+    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
     print(f"[DEBUG] Found {len(shops)} shops")
     return render_template('GM_view_shops.html', shops=shops)
 
@@ -27,7 +27,11 @@ def add_shop():
         try:
             with db.session.begin():  # Transaction ensures atomicity
                 # Create new shop
-                new_shop = Shop(name=shop_name, type=shop_type)
+                new_shop = Shop(
+                    name=shop_name, 
+                    type=shop_type,
+                    gm_profile_id=current_user.gm_profile.id  # Add the GM profile ID
+                )
                 db.session.add(new_shop)
                 db.session.flush()  # Ensure shop_id is generated before linking cities
 
@@ -47,7 +51,7 @@ def add_shop():
 
         return redirect(url_for('shop.view_all_shops'))
 
-    cities = City.query.all()
+    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
     print(f"[DEBUG] Fetching cities: {len(cities)} cities available")
     return render_template('GM_add_shop.html', cities=cities)
 
