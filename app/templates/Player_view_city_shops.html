@@ -163,19 +163,46 @@
         .out-of-stock {
             color: red;
         }
+
+        .buy-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .quantity-input {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+
+        .quantity-input:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
     </style>
     <script>
         function buyItem(shopId, itemId) {
-            fetch(`{{ url_for('player.buy_item', shop_id=0, item_id=0) }}`.replace('0', shopId).replace('0', itemId), { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Purchase successful!");
-                        location.reload();
-                    } else {
-                        alert("Purchase failed: " + data.message);
-                    }
-                });
+            const quantity = document.getElementById(`quantity-${itemId}`).value;
+            fetch(`{{ url_for('player.buy_item', shop_id=0, item_id=0) }}`.replace('0', shopId).replace('0', itemId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `quantity=${quantity}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    // Update currency display
+                    document.querySelector('.amount').textContent = data.new_currency;
+                    location.reload();
+                } else {
+                    alert("Purchase failed: " + data.message);
+                }
+            });
         }
 
         function getStockStatus(stock) {
@@ -227,13 +254,24 @@
                     </td>
                     <td>{{ item.dynamic_price }}</td>
                     <td>
-                        <button 
-                            class="buy-button" 
-                            onclick="buyItem('{{ shop.shop_id }}', '{{ item.item_id }}')"
-                            {% if item.stock <= 0 %}disabled{% endif %}
-                        >
-                            Buy
-                        </button>
+                        <div class="buy-controls">
+                            <input 
+                                type="number" 
+                                id="quantity-{{ item.item_id }}" 
+                                min="1" 
+                                max="{{ item.stock }}" 
+                                value="1" 
+                                class="quantity-input"
+                                {% if item.stock <= 0 %}disabled{% endif %}
+                            >
+                            <button 
+                                class="buy-button" 
+                                onclick="buyItem('{{ shop.shop_id }}', '{{ item.item_id }}')"
+                                {% if item.stock <= 0 %}disabled{% endif %}
+                            >
+                                Buy
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

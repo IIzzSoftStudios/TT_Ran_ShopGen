@@ -1,137 +1,57 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>All Shops</title>
-    <style>
-        /* Center everything */
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+    <title>GM - View Shops</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <script>
+        function navigateTo(url) {
+            window.location.href = url;
         }
-
-        h1 {
-            font-size: 2.5rem;
-            color: black;
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
-
-        .button-container {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .button {
-            background-color: purple;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .button:hover {
-            background-color: #2980b9;
-            transform: scale(1.1);
-        }
-
-        .delete-button {
-            background-color: red;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .delete-button:hover {
-            background-color: darkred;
-            transform: scale(1.1);
-        }
-
-        table {
-            width: 80%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
-            background-color: purple;
-            color: white;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f4f4f4;
-        }
-
-        tr:nth-child(odd) {
-            background-color: white;
-        }
-
-        tr:hover {
-            background-color: #e0e0e0;
-        }
-    </style>
+    </script>
 </head>
 <body>
-    <h1>All Shops</h1>
+    <h1>View Shops</h1>
 
-    <div class="button-container">
-        <button class="button" onclick="window.location.href='{{ url_for("shop.add_shop") }}'">Add New Shop</button>
-        <button class="button" onclick="window.location.href='{{ url_for("city.home") }}'">All Cities</button>
-        <button class="button" onclick="window.location.href='/'">Home</button>
+    <div class="content-container">
+        <div class="section">
+            <h2>Available Shops</h2>
+            {% if shops %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Quality</th>
+                        <th>Size</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shop in shops %}
+                    <tr>
+                        <td>{{ shop.name }}</td>
+                        <td>{{ shop.type }}</td>
+                        <td>{{ shop.quality }}</td>
+                        <td>{{ shop.size }}</td>
+                        <td>
+                            <button class="button" onclick="navigateTo('{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}')">Edit</button>
+                            <button class="button" onclick="navigateTo('{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}')">View Items</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>No shops available.</p>
+            </div>
+            {% endif %}
+        </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Shop Name</th>
-                <th>Type</th>
-                <th>Cities</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for shop in shops %}
-            <tr>
-                <td>{{ shop.name }}</td>
-                <td>{{ shop.type }}</td>
-                <td>
-                    {% for city in shop.cities %}
-                        {{ city.name }}{% if not loop.last %}, {% endif %}
-                    {% endfor %}
-                </td>
-                <td>
-                    <button class="button" onclick="window.location.href='{{ url_for('shop.view_items_by_shop', shop_id=shop.shop_id) }}'">View Items</button>
-                    <button class="button" onclick="window.location.href='{{ url_for('shop.edit_shop', shop_id=shop.shop_id) }}'">Edit</button>
-                    <form method="POST" action="{{ url_for('shop.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
-                        <button type="submit" class="delete-button">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="nav-buttons">
+        <button onclick="navigateTo('{{ url_for('gm.add_shop') }}')" class="button">Add New Shop</button>
+        <button onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
+    </div>
 </body>
 </html>

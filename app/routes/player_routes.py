@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app.models import Player, City, Shop, ShopInventory, Item
+from app.models import Player, City, Shop, ShopInventory, Item, PlayerInventory, shop_cities
 from flask_login import login_required, current_user
 from app.extensions import db
 
@@ -67,12 +67,21 @@ def view_shop(shop_id):
 
         print(f"[DEBUG] Found {len(shop_items)} items in shop")
 
+        def getStockStatus(stock):
+            if stock <= 0:
+                return "out-of-stock"
+            elif stock <= 5:
+                return "low-stock"
+            else:
+                return "in-stock"
+
         return render_template(
             "Player_view_city_shops.html",
             shop=shop,
             city=city,
             shop_items=shop_items,
-            player_currency=player.currency
+            player_currency=player.currency,
+            getStockStatus=getStockStatus
         )
     except Exception as e:
         print(f"[ERROR] Error viewing shop: {e}")
@@ -189,31 +198,129 @@ def player_home():
     for city in cities:
         print(f"[DEBUG] City: {city.name} (ID: {city.city_id})")
 
+    # Fetch available shops for the player's GM
+    shops = Shop.query.filter_by(gm_profile_id=player.gm_profile_id).all()
+    print(f"[DEBUG] Found {len(shops)} shops for GM Profile {player.gm_profile_id}")
+    for shop in shops:
+        print(f"[DEBUG] Shop: {shop.name} (ID: {shop.shop_id})")
+
+    # Fetch all items that are in the shops belonging to the player's GM
+    items = (
+        db.session.query(Item)
+        .join(ShopInventory, ShopInventory.item_id == Item.item_id)
+        .join(Shop, Shop.shop_id == ShopInventory.shop_id)
+        .filter(Shop.gm_profile_id == player.gm_profile_id)
+        .distinct()
+        .all()
+    )
+    print(f"[DEBUG] Found {len(items)} items in shops for GM Profile {player.gm_profile_id}")
+    for item in items:
+        print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
+
+    # Fetch player's inventory with item details
+    player_inventory = (
+        db.session.query(
+            PlayerInventory.quantity,
+            Item.name,
+            Item.type,
+            Item.rarity,
+            Item.description
+        )
+        .join(Item, PlayerInventory.item_id == Item.item_id)
+        .filter(PlayerInventory.player_id == player.id)
+        .all()
+    )
+    print(f"[DEBUG] Found {len(player_inventory)} items in player's inventory")
+
     return render_template(
         "Player_Home.html",
+        player_name=current_user.username,
         player_currency=player.currency,
         cities=cities,
+        shops=shops,
+        items=items,
+        player_inventory=player_inventory
     )
 
 # Search route
 @player_bp.route("/search")
 @login_required
 def search_item():
-    query = request.args.get("query", "").strip()
-    if not query:
-        return redirect(url_for("player.player_home"))
+    try:
+        # Get the current player
+        player = Player.query.filter_by(user_id=current_user.id).first()
+        if not player:
+            return jsonify({'error': 'Player not found'}), 404
 
-    # Search for items matching the query
-    results = (
-        db.session.query(Item.name, Shop.name.label("shop_name"), City.name.label("city_name"))
-        .join(ShopInventory, ShopInventory.item_id == Item.id)
-        .join(Shop, ShopInventory.shop_id == Shop.id)
-        .join(City, Shop.city_id == City.id)
-        .filter(Item.name.ilike(f"%{query}%"))
-        .all()
-    )
+        print(f"[DEBUG] Searching for player: {player.id}, GM Profile ID: {player.gm_profile_id}")
 
-    return render_template("search_results.html", query=query, results=results)
+        # Debug: Check available shops and items
+        shops = Shop.query.filter_by(gm_profile_id=player.gm_profile_id).all()
+        print(f"[DEBUG] Found {len(shops)} shops for GM Profile {player.gm_profile_id}")
+        for shop in shops:
+            print(f"[DEBUG] Shop: {shop.name} (ID: {shop.shop_id})")
+            print(f"[DEBUG] Cities: {[city.name for city in shop.cities]}")
+
+        items = Item.query.all()
+        print(f"[DEBUG] Found {len(items)} total items in database")
+        for item in items:
+            print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
+
+        # Get filter parameters
+        city_id = request.args.get("city")
+        shop_id = request.args.get("shop")
+        item_id = request.args.get("item")
+
+        print(f"[DEBUG] Search filters - City: {city_id}, Shop: {shop_id}, Item: {item_id}")
+
+        # Base query
+        query = (
+            db.session.query(
+                Item.name.label("item_name"),
+                Shop.name.label("shop_name"),
+                City.name.label("city_name"),
+                Shop.shop_id,
+                Item.item_id,
+                ShopInventory.stock,
+                ShopInventory.dynamic_price
+            )
+            .join(ShopInventory, ShopInventory.item_id == Item.item_id)
+            .join(Shop, ShopInventory.shop_id == Shop.shop_id)
+            .join(shop_cities, Shop.shop_id == shop_cities.c.shop_id)
+            .join(City, shop_cities.c.city_id == City.city_id)
+            .filter(Shop.gm_profile_id == player.gm_profile_id)
+        )
+
+        # Apply filters
+        if city_id:
+            query = query.filter(City.city_id == city_id)
+        if shop_id:
+            query = query.filter(Shop.shop_id == shop_id)
+        if item_id:
+            query = query.filter(Item.item_id == item_id)
+
+        # Execute query
+        results = query.all()
+        print(f"[DEBUG] Found {len(results)} matching results")
+
+        # Format results
+        formatted_results = [{
+            'item_name': result.item_name,
+            'shop_name': result.shop_name,
+            'city_name': result.city_name,
+            'shop_id': result.shop_id,
+            'item_id': result.item_id,
+            'stock': result.stock,
+            'price': result.dynamic_price
+        } for result in results]
+
+        return jsonify(formatted_results)
+
+    except Exception as e:
+        print(f"[ERROR] Error in search: {e}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'An error occurred while searching'}), 500
 
 @player_bp.route("/shop/<int:shop_id>/buy/<int:item_id>", methods=['POST'])
 @login_required
@@ -234,22 +341,80 @@ def buy_item(shop_id, item_id):
         if not inventory:
             return jsonify({'success': False, 'message': 'Item not found in shop'})
 
-        # Check if player has enough currency
-        if player.currency < inventory.dynamic_price:
-            return jsonify({'success': False, 'message': 'Not enough currency'})
+        # Get quantity from request (default to 1 if not specified)
+        quantity = int(request.form.get('quantity', 1))
+        if quantity <= 0:
+            return jsonify({'success': False, 'message': 'Invalid quantity'})
 
         # Check if item is in stock
-        if inventory.stock <= 0:
-            return jsonify({'success': False, 'message': 'Item out of stock'})
+        if inventory.stock < quantity:
+            return jsonify({'success': False, 'message': 'Not enough items in stock'})
 
         # Process the purchase
-        player.currency -= inventory.dynamic_price
-        inventory.stock -= 1
+        total_cost = inventory.dynamic_price * quantity
+        player.currency -= total_cost
+        inventory.stock -= quantity
+
+        # Add item to player's inventory
+        player_inventory = PlayerInventory.query.filter_by(
+            player_id=player.id,
+            item_id=item_id
+        ).first()
+
+        if player_inventory:
+            # Update existing inventory entry
+            player_inventory.quantity += quantity
+        else:
+            # Create new inventory entry
+            player_inventory = PlayerInventory(
+                player_id=player.id,
+                item_id=item_id,
+                quantity=quantity
+            )
+            db.session.add(player_inventory)
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Purchase successful'})
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully purchased {quantity} {inventory.item.name}',
+            'new_currency': player.currency
+        })
 
     except Exception as e:
         db.session.rollback()
         print(f"[ERROR] Error buying item: {e}")
         return jsonify({'success': False, 'message': 'An error occurred while processing your purchase'})
+
+@player_bp.route("/shop/<int:shop_id>/items")
+@login_required
+def view_shop_items(shop_id):
+    try:
+        # Get the current player
+        player = Player.query.filter_by(user_id=current_user.id).first()
+        if not player:
+            flash('Player profile not found.', 'error')
+            return redirect(url_for('player.player_home'))
+
+        # Get the shop and verify it belongs to the player's GM
+        shop = Shop.query.get_or_404(shop_id)
+        if shop.gm_profile_id != player.gm_profile_id:
+            flash('You do not have access to this shop.', 'error')
+            return redirect(url_for('player.player_home'))
+
+        # Query for inventory with item relationships
+        inventory = db.session.query(ShopInventory).filter_by(shop_id=shop_id).options(
+            db.joinedload(ShopInventory.item)
+        ).all()
+
+        print(f"Shop: {shop.name}, Found {len(inventory)} inventory items.")
+
+        # Debug individual inventory entries
+        for entry in inventory:
+            print(f"Inventory Entry -> Item ID: {entry.item_id}, Stock: {entry.stock}, Price: {entry.dynamic_price}")
+            print(f"Linked Item -> Name: {entry.item.name if entry.item else 'None'}")
+
+        return render_template('Player_view_shop_items.html', shop=shop, inventory=inventory, player_currency=player.currency)
+    except Exception as e:
+        print(f"[ERROR] Error viewing shop items: {e}")
+        flash('An error occurred while viewing shop items.', 'error')
+        return redirect(url_for('player.player_home'))

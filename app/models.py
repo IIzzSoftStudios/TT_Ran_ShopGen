@@ -168,6 +168,23 @@ class Player(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     currency = db.Column(db.Integer, default=0)
+    
+    # Relationship to player's inventory
+    inventory = db.relationship("PlayerInventory", back_populates="player")
 
     def __repr__(self):
         return f"<Player (User: {self.user.username}, GM: {self.gm_profile.user.username})>"
+
+class PlayerInventory(db.Model):
+    __tablename__ = "player_inventory"
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
+    quantity = db.Column(db.Integer, default=1)
+
+    # Relationships
+    player = db.relationship("Player", back_populates="inventory")
+    item = db.relationship("Item")
+
+    def __repr__(self):
+        return f"<PlayerInventory (Player: {self.player.user.username}, Item: {self.item.name}, Quantity: {self.quantity})>"

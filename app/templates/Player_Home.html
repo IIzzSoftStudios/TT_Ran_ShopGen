@@ -2,318 +2,274 @@
 <html>
 <head>
     <title>Player Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <style>
-        /* General Styling */
-        body {
+        .content-container {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
-        /* Top Header */
-        h1 {
-            font-size: 2.5rem;
-            color: black;
-            margin-top: 20px;
-            margin-bottom: 10px;
+        .section {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .currency-container {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-
-        /* Layout Container */
-        .content-container {
-            display: flex;
-            justify-content: space-between;
-            width: 80%;
-            max-width: 1000px;
-        }
-
-        /* Section Box */
-        .section {
-            width: 48%;
-            background: white;
+            background: #f8f9fa;
             padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Section Headings */
-        .section h2 {
-            font-size: 1.5rem;
-            color: purple;
-            margin-bottom: 10px;
-        }
-
-        /* Filter Section */
-        .search-section {
-            width: 80%;
-            max-width: 1000px;
-            background: white;
-            padding: 15px;
-            margin-top: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-grow: 1;
-        }
-
-        .filter-label {
-            font-weight: bold;
-            color: purple;
-        }
-
-        .filter-select {
-            width: 100%;
-            padding: 8px;
-            font-size: 14px;
-            border: 1px solid #ccc;
             border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.2em;
         }
 
-        /* Search Results */
-        .results-section {
-            width: 80%;
-            max-width: 1000px;
-            background: white;
-            padding: 15px;
+        .inventory-container {
             margin-top: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
         }
 
-        table {
+        .inventory-table {
             width: 100%;
             border-collapse: collapse;
-            background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            margin-top: 10px;
+            margin-top: 15px;
         }
 
-        th, td {
-            padding: 10px;
+        .inventory-table th,
+        .inventory-table td {
+            padding: 12px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
 
-        th {
+        .inventory-table th {
             background-color: purple;
             color: white;
         }
 
-        tr:nth-child(even) {
-            background-color: #f4f4f4;
+        .inventory-table tr:nth-child(even) {
+            background-color: #f8f9fa;
         }
 
-        tr:nth-child(odd) {
-            background-color: white;
+        .inventory-table tr:hover {
+            background-color: #f0f0f0;
         }
 
-        tr:hover {
-            background-color: #e0e0e0;
+        .item-quantity {
+            font-weight: bold;
+            color: purple;
+        }
+
+        .item-name {
+            font-weight: bold;
+        }
+
+        .item-type {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .item-rarity {
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .rarity-common { background-color: #e0e0e0; }
+        .rarity-uncommon { background-color: #90EE90; }
+        .rarity-rare { background-color: #87CEEB; }
+        .rarity-very-rare { background-color: #DDA0DD; }
+        .rarity-legendary { background-color: #FFD700; }
+        .rarity-unique { background-color: #FFA500; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state p {
+            margin: 10px 0;
+        }
+
+        .small-text {
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        .city-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .city-list li {
+            padding: 15px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .city-list li:hover {
+            background-color: #f8f9fa;
+            transform: translateX(5px);
+        }
+
+        .city-name {
+            font-weight: bold;
+            color: purple;
+        }
+
+        .city-details {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .city-details span {
+            margin-right: 15px;
         }
 
         .button {
             background-color: purple;
             color: white;
             border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
         }
 
         .button:hover {
-            background-color: #2980b9;
-            transform: scale(1.05);
+            background-color: #6a1b9a;
         }
 
-        /* Inventory Styling */
-        .inventory-container {
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .empty-inventory {
-            text-align: center;
-            color: #666;
-            padding: 20px;
-        }
-
-        .empty-inventory p {
-            margin: 5px 0;
-        }
-
-        .small-text {
-            font-size: 0.9rem;
-            color: #999;
-            font-style: italic;
-        }
-
-        .item-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .item-list li {
-            padding: 10px;
-            margin: 5px 0;
-            background-color: #f8f8f8;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-
-        .item-list li:hover {
-            background-color: #e0e0e0;
-        }
-
-        /* City List Styling */
-        .city-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .city-list li {
-            padding: 15px;
-            margin: 10px 0;
-            background-color: #f8f8f8;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .city-list li:hover {
-            background-color: #e0e0e0;
-            transform: scale(1.02);
-        }
-
-        .city-name {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: purple;
-            margin-bottom: 5px;
-        }
-
-        .city-details {
-            font-size: 0.9rem;
-            color: #666;
-        }
-
-        .city-size, .city-region {
-            margin-right: 10px;
-        }
-
-        .currency-display {
-            text-align: center;
-            padding: 20px;
-            font-size: 1.5rem;
-            color: purple;
-        }
-
-        .amount {
-            font-weight: bold;
-            font-size: 2rem;
-        }
-
-        /* Navigation Styling */
         .nav-buttons {
+            margin: 20px 0;
             text-align: center;
-            margin-top: 20px;
         }
 
         .nav-button {
-            background-color: purple;
+            background-color: #666;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
+            margin: 5px;
         }
 
         .nav-button:hover {
-            background-color: #2980b9;
-            transform: scale(1.05);
+            background-color: #555;
         }
 
-        /* Shops Section Styling */
-        .shops-section {
-            margin-top: 20px;
-            width: 80%;
-            max-width: 1000px;
-        }
-
-        .shops-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .shop-card {
-            width: calc(33.33% - 10px);
+        .search-section {
             background: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1200px;
         }
 
-        .shop-card:hover {
-            background-color: #e0e0e0;
-            transform: scale(1.02);
+        .filter-container {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            margin-top: 15px;
         }
 
-        .shop-name {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: purple;
+        .filter-group {
+            flex: 1;
+        }
+
+        .filter-label {
+            display: block;
             margin-bottom: 5px;
-        }
-
-        .shop-type {
-            font-size: 0.9rem;
             color: #666;
         }
 
-        .shop-details {
-            font-size: 0.9rem;
-            color: #666;
+        .filter-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
         }
 
-        .shop-quality {
-            font-weight: bold;
-            color: purple;
+        .search-button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            height: 35px;
+            transition: background-color 0.3s;
         }
 
-        .shop-size {
+        .search-button:hover {
+            background-color: #6a1b9a;
+        }
+
+        .results-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .results-table th {
+            background-color: purple;
+            color: white;
+        }
+
+        .results-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .results-table tr:hover {
+            background-color: #f0f0f0;
+        }
+
+        .stock-status {
             font-weight: bold;
-            color: purple;
+        }
+
+        .in-stock {
+            color: green;
+        }
+
+        .low-stock {
+            color: orange;
+        }
+
+        .out-of-stock {
+            color: red;
         }
     </style>
     <script>
@@ -321,105 +277,141 @@
             window.location.href = url;
         }
 
-        function searchItems() {
-            let city = document.getElementById("cityFilter").value;
-            let shop = document.getElementById("shopFilter").value;
-            let item = document.getElementById("itemFilter").value;
+        function getStockStatus(stock) {
+            if (stock <= 0) return 'out-of-stock';
+            if (stock <= 5) return 'low-stock';
+            return 'in-stock';
+        }
 
-            fetch(`/search?city=${city}&shop=${shop}&item=${item}`)
+        function searchItems() {
+            const city = document.getElementById("cityFilter").value;
+            const shop = document.getElementById("shopFilter").value;
+            const item = document.getElementById("itemFilter").value;
+
+            // Build query string
+            const params = new URLSearchParams();
+            if (city) params.append('city', city);
+            if (shop) params.append('shop', shop);
+            if (item) params.append('item', item);
+
+            // Fetch results
+            fetch(`{{ url_for('player.search_item') }}?${params.toString()}`)
                 .then(response => response.json())
                 .then(data => {
-                    let resultsTable = document.getElementById("searchResults");
+                    const resultsTable = document.getElementById("searchResults");
                     resultsTable.innerHTML = "";
 
-                    if (data.length === 0) {
-                        resultsTable.innerHTML = "<tr><td colspan='4' style='text-align:center;'>No results found</td></tr>";
-                    } else {
-                        data.forEach(result => {
-                            resultsTable.innerHTML += `
-                                <tr>
-                                    <td>${result.item_name}</td>
-                                    <td>${result.shop_name}</td>
-                                    <td>${result.city_name}</td>
-                                    <td>
-                                        <button class="button" onclick="window.location.href='{{ url_for('player.view_shop', shop_id=0) }}'.replace('0', ${result.shop_id})">View in Shop</button>
-                                    </td>
-                                </tr>
-                            `;
-                        });
+                    if (data.error) {
+                        resultsTable.innerHTML = `<tr><td colspan="6" style="text-align:center;color:red;">${data.error}</td></tr>`;
+                        return;
                     }
+
+                    if (data.length === 0) {
+                        resultsTable.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No results found</td></tr>";
+                        return;
+                    }
+
+                    data.forEach(result => {
+                        const stockStatus = getStockStatus(result.stock);
+                        resultsTable.innerHTML += `
+                            <tr>
+                                <td>${result.item_name}</td>
+                                <td>${result.shop_name}</td>
+                                <td>${result.city_name}</td>
+                                <td>${result.price}</td>
+                                <td><span class="stock-status ${stockStatus}">${result.stock}</span></td>
+                                <td>
+                                    <button class="button" onclick="window.location.href='{{ url_for('player.view_shop', shop_id=0) }}'.replace('0', ${result.shop_id})">View in Shop</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById("searchResults").innerHTML = 
+                        "<tr><td colspan='6' style='text-align:center;color:red;'>An error occurred while searching</td></tr>";
                 });
         }
     </script>
 </head>
 <body>
-
-    <h1>Welcome Player</h1>
-
-    <!-- Display Player Currency -->
-    <div class="currency-container">
-        Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
-    </div>
-
-    <div class="currency-display">
-        <h2>Your Currency</h2>
-        <div class="amount">{{ player_currency }}</div>
-    </div>
-
-    <!-- Cities Section -->
-    <div class="cities-section">
-        <h2>Available Cities</h2>
-        <div class="button-container">
-            <a href="{{ url_for('player.view_cities') }}" class="button">View All Cities</a>
-        </div>
-        {% if cities %}
-        <ul class="city-list">
-            {% for city in cities[:3] %}
-            <li onclick="window.location.href='{{ url_for('player.view_city', city_id=city.city_id) }}'">
-                <div class="city-name">{{ city.name }}</div>
-                <div class="city-details">
-                    <span class="city-size">{{ city.size }}</span>
-                    <span class="city-region">{{ city.region }}</span>
-                </div>
-            </li>
-            {% endfor %}
-            {% if cities|length > 3 %}
-            <li onclick="window.location.href='{{ url_for('player.view_cities') }}'" style="text-align: center;">
-                <div class="city-name">View All Cities...</div>
-            </li>
-            {% endif %}
-        </ul>
-        {% else %}
-        <p>No cities available.</p>
-        {% endif %}
-    </div>
+    <h1>{{ player_name }} Dashboard</h1>
 
     <!-- Content Layout -->
     <div class="content-container">
         <!-- Player Inventory Section (Left) -->
         <div class="section">
             <h2>Your Inventory</h2>
+            <div class="currency-container">
+                Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
+            </div>
             <div class="inventory-container">
                 {% if player_inventory %}
-                    <ul class="item-list">
-                        {% for item in player_inventory %}
-                        <li>{{ item.name }} (x{{ item.quantity }})</li>
-                        {% endfor %}
-                    </ul>
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Rarity</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in player_inventory %}
+                            <tr>
+                                <td>
+                                    <div class="item-name">{{ item.name }}</div>
+                                    <div class="item-type">{{ item.type }}</div>
+                                </td>
+                                <td>{{ item.type }}</td>
+                                <td>
+                                    <span class="item-rarity rarity-{{ item.rarity.lower().replace(' ', '-') }}">
+                                        {{ item.rarity }}
+                                    </span>
+                                </td>
+                                <td class="item-quantity">x{{ item.quantity }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 {% else %}
-                    <div class="empty-inventory">
+                    <div class="empty-state">
                         <p>Your inventory is currently empty.</p>
-                        <p class="small-text">Inventory system coming soon!</p>
+                        <p class="small-text">Visit shops to purchase items!</p>
                     </div>
                 {% endif %}
             </div>
         </div>
 
-        <!-- Search & Filters Section -->
-        <div class="search-section">
+        <!-- Cities Section -->
+        <div class="section">
+            <h2>Available Cities <a href="{{ url_for('player.view_cities') }}" class="button" style="font-size: 12px; padding: 5px 10px;">View All</a></h2>
+            {% if cities %}
+            <ul class="city-list">
+                {% for city in cities[:3] %}
+                <li onclick="window.location.href='{{ url_for('player.view_city', city_id=city.city_id) }}'">
+                    <div class="city-name">{{ city.name }}</div>
+                    <div class="city-details">
+                        <span class="city-size">{{ city.size }}</span>
+                        <span class="city-region">{{ city.region }}</span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>No cities available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Search & Filters Section -->
+    <div class="search-section">
+        <h2>Search Items</h2>
+        <div class="filter-container">
             <div class="filter-group">
                 <label class="filter-label" for="cityFilter">City:</label>
-                <select id="cityFilter" class="filter-select" onchange="searchItems()">
+                <select id="cityFilter" class="filter-select">
                     <option value="">All Cities</option>
                     {% for city in cities %}
                     <option value="{{ city.city_id }}">{{ city.name }}</option>
@@ -429,65 +421,51 @@
 
             <div class="filter-group">
                 <label class="filter-label" for="shopFilter">Shop:</label>
-                <select id="shopFilter" class="filter-select" onchange="searchItems()">
+                <select id="shopFilter" class="filter-select">
                     <option value="">All Shops</option>
                     {% for shop in shops %}
-                    <option value="{{ shop.id }}">{{ shop.name }}</option>
+                    <option value="{{ shop.shop_id }}">{{ shop.name }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="filter-group">
                 <label class="filter-label" for="itemFilter">Item:</label>
-                <select id="itemFilter" class="filter-select" onchange="searchItems()">
+                <select id="itemFilter" class="filter-select">
                     <option value="">All Items</option>
                     {% for item in items %}
-                    <option value="{{ item.id }}">{{ item.name }}</option>
+                    <option value="{{ item.item_id }}">{{ item.name }}</option>
                     {% endfor %}
                 </select>
             </div>
-        </div>
 
-        <!-- Search Results -->
-        <div class="results-section">
-            <h2>Search Results</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Shop</th>
-                        <th>City</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="searchResults">
-                    <!-- Results will be dynamically inserted -->
-                </tbody>
-            </table>
+            <button onclick="searchItems()" class="search-button">Search</button>
         </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="results-section">
+        <h2>Search Results</h2>
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Shop</th>
+                    <th>City</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="searchResults">
+                <!-- Results will be dynamically inserted -->
+            </tbody>
+        </table>
     </div>
 
     <!-- Navigation -->
     <div class="nav-buttons">
-        <button onclick="navigateTo('/player/home')" class="nav-button">Back to Dashboard</button>
+        <button onclick="navigateTo('{{ url_for('auth.logout') }}')" class="nav-button">Logout</button>
     </div>
-
-    <!-- Shops Section -->
-    <div class="shops-section">
-        <h2>Available Shops</h2>
-        <div class="shops-grid">
-            {% for shop in shops %}
-            <div class="shop-card" onclick="navigateTo('{{ url_for('player.view_shop', shop_id=shop.shop_id) }}')">
-                <div class="shop-name">{{ shop.name }}</div>
-                <div class="shop-type">{{ shop.type }}</div>
-                <div class="shop-details">
-                    <span class="shop-quality">{{ shop.quality }}</span>
-                    <span class="shop-size">{{ shop.size }}</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
 </body>
 </html>
