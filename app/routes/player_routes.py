@@ -492,3 +492,120 @@ def _ajax_or_redirect(message, success=False, error=False):
     # Fallback for normal HTML forms
     flash(message, 'success' if success else 'error')
     return redirect(request.referrer or url_for('player.player_home'))
+
+@player_bp.route("/market")
+@login_required
+def view_market():
+    try:
+        print("[DEBUG] Entered /player/market route")
+        
+        # Get the current player
+        player = Player.query.filter_by(user_id=current_user.id).first()
+        if not player:
+            print("[DEBUG] Player not found - redirecting to home")
+            flash('Player profile not found.', 'error')
+            return redirect(url_for('player.player_home'))
+        
+        print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
+
+        # Get all shops for the player's GM
+        shops = Shop.query.filter_by(gm_profile_id=player.gm_profile_id).all()
+        print(f"[DEBUG] Found {len(shops)} shops for player's GM")
+
+        # Get all items in shops for the GM
+        items = (
+            db.session.query(Item)
+            .join(ShopInventory, ShopInventory.item_id == Item.item_id)
+            .join(Shop, Shop.shop_id == ShopInventory.shop_id)
+            .filter(Shop.gm_profile_id == player.gm_profile_id)
+            .distinct()
+            .all()
+        )
+        print(f"[DEBUG] Found {len(items)} items in shops")
+
+        return render_template(
+            'Player_market_view.html',
+            player=player,
+            shops=shops,
+            items=items
+        )
+    except Exception as e:
+        print(f"[ERROR] Error viewing market: {e}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        flash('An error occurred while viewing the market.', 'error')
+        return redirect(url_for('player.player_home'))
+
+@player_bp.route("/api/market-data")
+@login_required
+def get_market_data():
+    try:
+        # Get the current player
+        player = Player.query.filter_by(user_id=current_user.id).first()
+        if not player:
+            return jsonify({'error': 'Player not found'}), 404
+
+        filter_type = request.args.get('filter', 'all')
+
+        # Query all items and their inventories across all shops in the player's GM profile
+        items_query = (
+            db.session.query(
+                Item,
+                db.func.sum(ShopInventory.stock).label('total_stock'),
+                db.func.avg(ShopInventory.dynamic_price).label('avg_price')
+            )
+            .join(ShopInventory, ShopInventory.item_id == Item.item_id)
+            .join(Shop, Shop.shop_id == ShopInventory.shop_id)
+            .filter(Shop.gm_profile_id == player.gm_profile_id)
+        )
+
+        if filter_type != 'all':
+            items_query = items_query.filter(Item.type == filter_type)
+
+        items_query = (
+            items_query.group_by(Item.item_id)
+            .order_by(Item.name)
+        )
+
+        market_items = []
+        for item, total_stock, avg_price in items_query.all():
+            # Calculate buy/sell orders (simplified example)
+            sell_orders = total_stock
+            buy_orders = int(total_stock * 1.2)  # Example: 20% more buy orders than stock
+            
+            # Calculate price trend (simplified example)
+            base_price_diff = ((avg_price or item.base_price) - item.base_price) / item.base_price * 100
+            
+            market_items.append({
+                'name': item.name,
+                'icon': f"{item.type.lower()}/{item.name.lower().replace(' ', '_')}.png",
+                'sellOrders': sell_orders,
+                'buyOrders': buy_orders,
+                'price': float(avg_price or item.base_price),
+                'trend': round(base_price_diff, 1),
+                'productionSources': [
+                    "Rye Farms",
+                    "Wheat Farms",
+                    "Rice Farms"
+                ] if item.type == 'Agricultural' else [
+                    "Factories",
+                    "Workshops"
+                ],
+                'priceHistory': {
+                    'dates': ['Jan 1', 'Jan 15', 'Feb 1', 'Feb 15', 'Mar 1'],
+                    'prices': [
+                        item.base_price * 0.9,
+                        item.base_price * 0.95,
+                        item.base_price,
+                        item.base_price * 1.1,
+                        float(avg_price or item.base_price)
+                    ]
+                }
+            })
+
+        return jsonify({
+            'items': market_items
+        })
+    except Exception as e:
+        print(f"[ERROR] Error fetching market data: {e}")
+        return jsonify({'error': str(e)}), 500

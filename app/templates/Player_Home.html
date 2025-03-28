@@ -383,6 +383,13 @@
 <body>
     <h1>{{ player_name }} Dashboard</h1>
 
+    <!-- Navigation Buttons -->
+    <div class="nav-buttons">
+        <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_cities') }}')">View Cities</button>
+        <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_shops') }}')">View Shops</button>
+        <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_market') }}')">Market Overview</button>
+    </div>
+
     <!-- Content Layout -->
     <div class="content-container">
         <!-- Player Inventory Section (Left) -->
@@ -390,6 +397,7 @@
             <h2>Your Inventory</h2>
             <div class="currency-container">
                 Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
+                <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
             </div>
             <div class="inventory-container">
                 {% if inventory_items %}
