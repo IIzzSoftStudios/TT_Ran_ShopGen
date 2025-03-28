@@ -271,6 +271,51 @@
         .out-of-stock {
             color: red;
         }
+
+        /* Add styles for sell button and quantity input */
+        .sell-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .sell-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .sell-button:hover {
+            background-color: #c82333;
+        }
+
+        .sell-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .quantity-input {
+            width: 60px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .sell-price {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .sell-error {
+            color: #dc3545;
+            font-size: 0.9em;
+            margin-top: 4px;
+        }
     </style>
     <script>
         function navigateTo(url) {
@@ -347,30 +392,47 @@
                 Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
             </div>
             <div class="inventory-container">
-                {% if player_inventory %}
+                {% if inventory_items %}
                     <table class="inventory-table">
                         <thead>
                             <tr>
-                                <th>Name</th>
+                                <th>Item</th>
                                 <th>Type</th>
                                 <th>Rarity</th>
                                 <th>Quantity</th>
+                                <th>Description</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in player_inventory %}
+                            {% for item in inventory_items %}
                             <tr>
-                                <td>
-                                    <div class="item-name">{{ item.name }}</div>
-                                    <div class="item-type">{{ item.type }}</div>
-                                </td>
-                                <td>{{ item.type }}</td>
-                                <td>
-                                    <span class="item-rarity rarity-{{ item.rarity.lower().replace(' ', '-') }}">
+                                <td class="item-name">{{ item.name }}</td>
+                                <td class="item-type">{{ item.type }}</td>
+                                <td class="item-rarity">
+                                    <span class="rarity-badge {{ item.rarity.lower() }}">
                                         {{ item.rarity }}
                                     </span>
                                 </td>
-                                <td class="item-quantity">x{{ item.quantity }}</td>
+                                <td class="item-quantity">{{ item.quantity }}</td>
+                                <td>{{ item.description }}</td>
+                                <td>
+                                    <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST">
+                                        <input type="number" 
+                                               name="quantity" 
+                                               class="quantity-input" 
+                                               min="1" 
+                                               max="{{ item.quantity }}" 
+                                               value="1"
+                                               required>
+                                        <button type="submit" class="sell-button">
+                                            Sell
+                                        </button>
+                                        <div class="sell-price">
+                                            ({{ (item.base_price * 0.75)|int }} gold each)
+                                        </div>
+                                    </form>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>

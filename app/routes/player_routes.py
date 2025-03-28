@@ -58,7 +58,8 @@ def view_shop(shop_id):
                 Item.type,
                 ShopInventory.stock,
                 ShopInventory.dynamic_price,
-                Item.item_id
+                Item.item_id,
+                Item.base_price
             )
             .join(ShopInventory, ShopInventory.item_id == Item.item_id)
             .filter(ShopInventory.shop_id == shop_id)
@@ -66,6 +67,15 @@ def view_shop(shop_id):
         )
 
         print(f"[DEBUG] Found {len(shop_items)} items in shop")
+
+        # Get player's inventory quantities for each item
+        player_inventory = {}
+        for item in shop_items:
+            inventory_entry = PlayerInventory.query.filter_by(
+                player_id=player.id,
+                item_id=item.item_id
+            ).first()
+            player_inventory[item.item_id] = inventory_entry.quantity if inventory_entry else 0
 
         def getStockStatus(stock):
             if stock <= 0:
@@ -81,6 +91,7 @@ def view_shop(shop_id):
             city=city,
             shop_items=shop_items,
             player_currency=player.currency,
+            player_inventory=player_inventory,
             getStockStatus=getStockStatus
         )
     except Exception as e:
@@ -187,59 +198,60 @@ def player_home():
     # Verify GM profile exists
     gm_profile = player.gm_profile
     if not gm_profile:
-        print("[DEBUG] GM Profile not found for player")
+        print("[DEBUG] GM Profile not found")
         return "GM Profile not found", 404
     
     print(f"[DEBUG] Found GM Profile: {gm_profile.id}, User ID: {gm_profile.user_id}")
 
-    # Fetch available cities for the player's GM
-    cities = City.query.filter_by(gm_profile_id=player.gm_profile_id).all()
-    print(f"[DEBUG] Found {len(cities)} cities for GM Profile {player.gm_profile_id}")
+    # Get all cities for the GM
+    cities = City.query.filter_by(gm_profile_id=gm_profile.id).all()
+    print(f"[DEBUG] Found {len(cities)} cities for GM Profile {gm_profile.id}")
     for city in cities:
         print(f"[DEBUG] City: {city.name} (ID: {city.city_id})")
 
-    # Fetch available shops for the player's GM
-    shops = Shop.query.filter_by(gm_profile_id=player.gm_profile_id).all()
-    print(f"[DEBUG] Found {len(shops)} shops for GM Profile {player.gm_profile_id}")
+    # Get all shops for the GM
+    shops = Shop.query.filter_by(gm_profile_id=gm_profile.id).all()
+    print(f"[DEBUG] Found {len(shops)} shops for GM Profile {gm_profile.id}")
     for shop in shops:
         print(f"[DEBUG] Shop: {shop.name} (ID: {shop.shop_id})")
 
-    # Fetch all items that are in the shops belonging to the player's GM
-    items = (
+    # Get all items in shops for the GM
+    shop_items = (
         db.session.query(Item)
         .join(ShopInventory, ShopInventory.item_id == Item.item_id)
         .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-        .filter(Shop.gm_profile_id == player.gm_profile_id)
+        .filter(Shop.gm_profile_id == gm_profile.id)
         .distinct()
         .all()
     )
-    print(f"[DEBUG] Found {len(items)} items in shops for GM Profile {player.gm_profile_id}")
-    for item in items:
+    print(f"[DEBUG] Found {len(shop_items)} items in shops for GM Profile {gm_profile.id}")
+    for item in shop_items:
         print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
 
-    # Fetch player's inventory with item details
-    player_inventory = (
+    # Get player's inventory with item details
+    inventory_items = (
         db.session.query(
             PlayerInventory.quantity,
             Item.name,
             Item.type,
             Item.rarity,
-            Item.description
+            Item.description,
+            Item.item_id,
+            Item.base_price
         )
         .join(Item, PlayerInventory.item_id == Item.item_id)
         .filter(PlayerInventory.player_id == player.id)
         .all()
     )
-    print(f"[DEBUG] Found {len(player_inventory)} items in player's inventory")
+    print(f"[DEBUG] Found {len(inventory_items)} items in player's inventory")
 
     return render_template(
         "Player_Home.html",
-        player_name=current_user.username,
-        player_currency=player.currency,
+        player=player,
         cities=cities,
         shops=shops,
-        items=items,
-        player_inventory=player_inventory
+        items=shop_items,
+        inventory_items=inventory_items
     )
 
 # Search route
@@ -418,3 +430,65 @@ def view_shop_items(shop_id):
         print(f"[ERROR] Error viewing shop items: {e}")
         flash('An error occurred while viewing shop items.', 'error')
         return redirect(url_for('player.player_home'))
+
+@player_bp.route("/sell/<int:item_id>", methods=['POST'])
+@login_required
+def sell_item(item_id):
+    try:
+        # Get the current player
+        player = Player.query.filter_by(user_id=current_user.id).first()
+        if not player:
+            return _ajax_or_redirect('Player profile not found.', error=True)
+
+        # Get the item and verify it belongs to the player's GM
+        item = Item.query.get_or_404(item_id)
+        if item.gm_profile_id != player.gm_profile_id:
+            return _ajax_or_redirect('You do not have access to this item.', error=True)
+
+        # Get the quantity to sell from the form
+        quantity = int(request.form.get('quantity', 1))
+        if quantity <= 0:
+            return _ajax_or_redirect('Invalid quantity to sell.', error=True)
+
+        # Get the player's inventory entry for this item
+        player_inventory = PlayerInventory.query.filter_by(
+            player_id=player.id,
+            item_id=item_id
+        ).first()
+
+        if not player_inventory or player_inventory.quantity < quantity:
+            return _ajax_or_redirect('You do not have enough of this item to sell.', error=True)
+
+        # Calculate sell price (50-75% of base price)
+        sell_price = int(item.base_price * 0.75)
+        total_value = sell_price * quantity
+
+        # Update inventory and currency
+        player_inventory.quantity -= quantity
+        player.currency += total_value
+
+        if player_inventory.quantity <= 0:
+            db.session.delete(player_inventory)
+
+        db.session.commit()
+
+        return _ajax_or_redirect(
+            f'Successfully sold {quantity} {item.name} for {total_value} gold!',
+            success=True
+        )
+
+    except Exception as e:
+        print(f"[ERROR] Error selling item: {e}")
+        db.session.rollback()
+        return _ajax_or_redirect('An error occurred while selling the item.', error=True)
+
+def _ajax_or_redirect(message, success=False, error=False):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'status': 'success' if success else 'error',
+            'message': message
+        }), 200 if success else 400
+
+    # Fallback for normal HTML forms
+    flash(message, 'success' if success else 'error')
+    return redirect(request.referrer or url_for('player.player_home'))
