@@ -9,6 +9,8 @@ gm_bp = Blueprint("gm", __name__, url_prefix="/gm")
 def home():
     return render_template("GM_Home.html")
 
+#cities routes
+
 @gm_bp.route("/cities/")
 @login_required
 def view_cities():
@@ -80,6 +82,8 @@ def delete_city(city_id):
         flash(f"Error deleting city: {e}", "danger")
     return redirect(url_for("gm.view_cities"))
 
+    #shops routes
+
 @gm_bp.route("/shops/")
 @login_required
 def view_shops():
@@ -90,31 +94,48 @@ def view_shops():
 @login_required
 def add_shop():
     if request.method == "POST":
-        shop_name = request.form["name"]
-        shop_type = request.form["type"]
+        shop_name = request.form.get("name")
+        shop_type = request.form.get("type")
         city_ids = request.form.getlist("city_ids")
 
-        try:
-            with db.session.begin():
-                new_shop = Shop(
-                    name=shop_name,
-                    type=shop_type,
-                    gm_profile_id=current_user.gm_profile.id
-                )
-                db.session.add(new_shop)
-                db.session.flush()
+        print("DEBUG: Shop Name:", shop_name)
+        print("DEBUG: Shop Type:", shop_type)
+        print("DEBUG: City IDs:", city_ids)
 
-                for city_id in city_ids:
-                    city = City.query.get(city_id)
+        try:
+            gm_profile_id = current_user.gm_profile.id
+            print("DEBUG: GM Profile ID:", gm_profile_id)
+
+            new_shop = Shop(
+                name=shop_name,
+                type=shop_type,
+                gm_profile_id=gm_profile_id
+            )
+            db.session.add(new_shop)
+            db.session.flush()  # Ensures new_shop gets an ID
+
+            for city_id in city_ids:
+                try:
+                    city = City.query.get(int(city_id))
                     if city:
                         new_shop.cities.append(city)
+                    else:
+                        print(f"[WARNING] City ID {city_id} not found.")
+                except ValueError:
+                    print(f"[ERROR] Invalid city_id value: {city_id}")
 
+            db.session.commit()
             flash(f"Shop '{shop_name}' added successfully!", "success")
+
         except Exception as e:
+            db.session.rollback()
+            print("[ERROR] Exception occurred while adding shop:")
+            traceback.print_exc()
             flash(f"Error adding shop: {e}", "danger")
 
         return redirect(url_for("gm.view_shops"))
 
+    # GET request: render form
     cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
     return render_template("GM_add_shop.html", cities=cities)
 
@@ -183,6 +204,8 @@ def remove_item_from_shop(shop_id, item_id):
         flash(f"Error removing item from shop: {e}", "danger")
     return redirect(url_for("gm.view_shop_items", shop_id=shop_id))
 
+#items routes
+
 @gm_bp.route("/items/")
 @login_required
 def view_items():
@@ -193,49 +216,84 @@ def view_items():
 @login_required
 def add_item():
     if request.method == "POST":
+        # Get all form fields
         name = request.form.get("name")
         item_type = request.form.get("type")
         rarity = request.form.get("rarity")
-        base_price = request.form.get("base_price")
+        base_price = request.form.get("base_price", type=float)
         description = request.form.get("description")
         shop_ids = request.form.getlist("shop_ids")
         stock = request.form.get("stock", type=int)
         dynamic_price = request.form.get("dynamic_price", type=float)
+        
+        #stock
+        stock = request.form.get("stock", type=int)
+        if stock is None:
+            stock = 0
+
+        #dynamic price
+        dynamic_price = request.form.get("dynamic_price", type=float)
+        if dynamic_price is None:
+            dynamic_price = 0
+
+        # Debug print statements
+        print("DEBUG: Item Name:", name)
+        print("DEBUG: Shop IDs:", shop_ids)
+        print("DEBUG: Base Price:", base_price, "| Stock:", stock, "| Dyn Price:", dynamic_price)
 
         try:
-            with db.session.begin():
-                new_item = Item(
-                    name=name,
-                    type=item_type,
-                    rarity=rarity,
-                    base_price=base_price,
-                    description=description,
-                    gm_profile_id=current_user.gm_profile.id
-                )
-                db.session.add(new_item)
-                db.session.flush()
+            gm_profile_id = current_user.gm_profile.id
+            print("DEBUG: GM Profile ID:", gm_profile_id)
 
-                for shop_id in shop_ids:
-                    shop = Shop.query.get(shop_id)
+            new_item = Item(
+                name=name,
+                type=item_type,
+                rarity=rarity,
+                base_price=base_price,
+                description=description,
+                gm_profile_id=gm_profile_id
+            )
+
+            db.session.add(new_item)
+            db.session.flush()  # assign item_id to new_item
+
+            for shop_id in shop_ids:
+                try:
+                    sid = int(shop_id)
+                    print(f"[DEBUG] Linking to Shop ID: {sid}")
+                    shop = Shop.query.get(sid)
                     if shop:
-                        new_inventory_entry = ShopInventory(
+                        print(f"[DEBUG] Found Shop: {shop.name}")
+                        print(f"[DEBUG] Stock: {stock} | Dyn Price: {dynamic_price}")  # <-- Add this here
+                        entry = ShopInventory(
                             shop_id=shop.shop_id,
                             item_id=new_item.item_id,
                             stock=stock,
                             dynamic_price=dynamic_price
                         )
-                        db.session.add(new_inventory_entry)
+                        db.session.add(entry)
+                    else:
+                        print(f"[WARNING] Shop ID {sid} not found.")
+                except ValueError:
+                    print(f"[ERROR] Invalid shop_id: {shop_id}")
+
 
             db.session.commit()
             flash(f"Item '{name}' added successfully!", "success")
+
         except Exception as e:
             db.session.rollback()
+            import traceback
+            print("[ERROR] Exception while adding item:")
+            traceback.print_exc()
             flash(f"Error adding item: {e}", "danger")
 
         return redirect(url_for("gm.view_items"))
 
+    # GET route: Load shops
     shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
     return render_template("GM_add_item.html", shops=shops)
+
 
 @gm_bp.route("/items/edit/<int:item_id>", methods=["GET", "POST"])
 @login_required
@@ -277,3 +335,9 @@ def delete_item(item_id):
         db.session.rollback()
         flash(f"Error deleting item: {e}", "danger")
     return redirect(url_for("gm.view_items")) 
+
+@gm_bp.route("/debug/form", methods=["POST"])
+def debug_form():
+    print("FORM KEYS:", request.form.keys())
+    print("FORM DICT:", request.form.to_dict(flat=False))
+    return "Check logs"

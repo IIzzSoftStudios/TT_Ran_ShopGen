@@ -173,6 +173,13 @@
         <label for="base_price">Base Price:</label>
         <input type="number" id="base_price" name="base_price" placeholder="Enter base price" required>
 
+        <!-- Stock Field -->
+        <label for="stock">Stock:</label>
+        <input type="number" id="stock" name="stock" placeholder="Enter stock quantity" required>
+
+        <!-- Dynamic Price Field -->
+        <label for="dynamic_price">Dynamic Price:</label>
+        
         <!-- Description Field -->
         <label for="description">Description:</label>
         <input type="text" id="description" name="description" placeholder="Enter item link or description">
@@ -182,7 +189,7 @@
         <div class="shop-list">
             {% for shop in shops %}
             <div class="shop-item">
-                <input type="checkbox" name="shop_ids[]" value="{{ shop.shop_id }}">
+                <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}">
                 <label>{{ shop.name }} ({{ shop.type }})</label>
             </div>
             {% endfor %}
