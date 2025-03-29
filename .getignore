@@ -15,4 +15,19 @@ env/
 *.swp
 
 # Ignore logs
-*.log
+*.log       
+
+# Ignore images
+images/
+
+# Ignore migrations
+migrations/
+
+# Ignore tests
+tests/
+
+# Ignore config.env
+config.env
+
+# Ignore app/routes/__init__.py
+app/routes/__init__.py

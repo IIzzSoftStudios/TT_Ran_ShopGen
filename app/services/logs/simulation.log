@@ -1,0 +1,4 @@
+2025-03-29 18:05:12,551 - simulation - INFO - [TICK START] Scheduler triggered tick for GM 11
+2025-03-29 18:05:12,552 - simulation - INFO - [APPLY RULES] Executing rules for GM 11, tick=15
+2025-03-29 18:05:12,553 - simulation - INFO - Applying 0 rules for GM 11
+2025-03-29 18:05:12,555 - simulation - INFO - [TICK COMMIT] Successfully ran tick 15 for GM 11 (previous: 14)

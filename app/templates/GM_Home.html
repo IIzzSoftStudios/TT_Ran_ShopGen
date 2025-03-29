@@ -28,6 +28,7 @@
             display: flex;
             justify-content: center;
             gap: 15px; /* Space between buttons */
+            margin-bottom: 30px;
         }
 
         /* Button Styling */
@@ -46,17 +47,224 @@
             background-color: #2980b9; /* Darker blue on hover */
             transform: scale(1.1); /* Slight zoom effect */
         }
+
+        /* Simulation Control Panel */
+        .simulation-panel {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            width: 80%;
+            max-width: 800px;
+        }
+
+        .simulation-panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .simulation-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .speed-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .speed-button:hover {
+            background-color: #45a049;
+        }
+
+        .speed-button.active {
+            background-color: #2E7D32;
+        }
+
+        .simulation-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .status-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .status-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .manual-tick-button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .manual-tick-button:hover {
+            background-color: #1976D2;
+        }
     </style>
     <script>
         // Function to navigate to a URL
         function navigateTo(url) {
             window.location.href = url;
         }
+
+        // Function to update simulation speed
+        async function updateSimulationSpeed(speed) {
+            try {
+                const response = await fetch('/api/simulation/speed', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ speed: speed })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to update simulation speed');
+                }
+                
+                // Update UI to show active speed
+                document.querySelectorAll('.speed-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-speed="${speed}"]`).classList.add('active');
+                
+                // Update status
+                updateSimulationStatus();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to update simulation speed');
+            }
+        }
+
+        // Function to perform manual tick
+        async function performManualTick() {
+            try {
+                const response = await fetch('/api/simulation/tick', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to perform manual tick');
+                }
+                
+                // Update status
+                updateSimulationStatus();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to perform manual tick');
+            }
+        }
+
+        // Function to update simulation status
+        async function updateSimulationStatus() {
+            try {
+                console.log('Fetching simulation status...');
+                const response = await fetch('/api/simulation/status');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch simulation status');
+                }
+                
+                const status = await response.json();
+                console.log('Received status:', status);
+                
+                // Get current values before update
+                const currentTick = document.getElementById('current-tick').textContent;
+                const newTick = status.current_tick;
+                
+                // Update status display
+                document.getElementById('current-tick').textContent = newTick;
+                document.getElementById('current-speed').textContent = status.speed;
+                document.getElementById('last-tick-time').textContent = new Date(status.last_tick_time).toLocaleString();
+                document.getElementById('simulation-status').textContent = status.status;
+                
+                // Log if tick changed
+                if (currentTick !== newTick) {
+                    console.log(`Tick updated: ${currentTick} -> ${newTick}`);
+                }
+            } catch (error) {
+                console.error('Error updating simulation status:', error);
+            }
+        }
+
+        // Update status every 5 seconds
+        const statusInterval = setInterval(updateSimulationStatus, 5000);
+        
+        // Clean up interval when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            clearInterval(statusInterval);
+        });
+
+        // Initial status update
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Page loaded, performing initial status update');
+            updateSimulationStatus();
+        });
     </script>
 </head>
 <body>
     <!-- Styled and centered heading -->
     <h1>Welcome to the Game Master Interface</h1>
+
+    <!-- Simulation Control Panel -->
+    <div class="simulation-panel">
+        <h2>Simulation Controls</h2>
+        <div class="simulation-controls">
+            <button class="speed-button" data-speed="pause" onclick="updateSimulationSpeed('pause')">Pause</button>
+            <button class="speed-button" data-speed="1x" onclick="updateSimulationSpeed('1x')">1x</button>
+            <button class="speed-button" data-speed="5x" onclick="updateSimulationSpeed('5x')">5x</button>
+            <button class="speed-button" data-speed="100x" onclick="updateSimulationSpeed('100x')">100x</button>
+            <button class="speed-button" data-speed="1000x" onclick="updateSimulationSpeed('1000x')">1000x</button>
+            <button class="manual-tick-button" onclick="performManualTick()">Manual Tick</button>
+        </div>
+        <div class="simulation-status">
+            <div class="status-item">
+                <span class="status-label">Current Tick</span>
+                <span class="status-value" id="current-tick">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Speed</span>
+                <span class="status-value" id="current-speed">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Last Tick Time</span>
+                <span class="status-value" id="last-tick-time">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Status</span>
+                <span class="status-value" id="simulation-status">-</span>
+            </div>
+        </div>
+    </div>
 
     <!-- Button container for navigation -->
     <div class="button-container">

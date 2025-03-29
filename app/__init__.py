@@ -3,6 +3,7 @@ from flask import Flask
 from dotenv import load_dotenv
 from app.extensions import db, migrate, bcrypt, login_manager, session
 from app.models import User
+from app.services.simulation import init_simulation_service  # Import the initialization function
 
 # Load environment variables
 load_dotenv("config.env")
@@ -53,11 +54,16 @@ def create_app():
     from app.routes.auth_routes import auth
     from app.routes.player_routes import player_bp
     from app.routes.gm_routes import gm_bp
+    from app.routes.simulation_routes import simulation_bp
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
     app.register_blueprint(gm_bp)  # GM routes already have /gm prefix
     app.register_blueprint(player_bp, url_prefix="/player")
+    app.register_blueprint(simulation_bp)  # Simulation routes have /api prefix
+
+    # Initialize SimulationService
+    init_simulation_service(app)
 
     # Debugging: Print registered routes
     print("\nRegistered Routes:")
