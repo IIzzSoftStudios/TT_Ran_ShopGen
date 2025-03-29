@@ -188,8 +188,6 @@ class PlayerInventory(db.Model):
 
     def __repr__(self):
         return f"<PlayerInventory (Player: {self.player.user.username}, Item: {self.item.name}, Quantity: {self.quantity})>"
-<<<<<<< Updated upstream
-=======
 
 class ResourceNode(db.Model):
     __tablename__ = "resource_nodes"
@@ -289,7 +287,7 @@ class SimulationState(db.Model):
     gm_profile = db.relationship("GMProfile", backref="simulation_state")
     
     def __repr__(self):
-        return f"<SimulationState (Tick: {self.current_tick}, Speed: {self.speed}, Last Tick: {self.last_tick_time})>"
+        return f"<SimulationState (Tick: {self.current_tick}, Speed: {self.speed})>"
 
 class SimulationLog(db.Model):
     __tablename__ = "simulation_logs"
@@ -304,7 +302,7 @@ class SimulationLog(db.Model):
     gm_profile = db.relationship("GMProfile", backref="simulation_logs")
     
     def __repr__(self):
-        return f"<SimulationLog (Tick: {self.tick_id}, Type: {self.event_type}, Time: {self.timestamp})>"
+        return f"<SimulationLog (Tick: {self.tick_id}, Type: {self.event_type})>"
 
 class SimRule(db.Model):
     __tablename__ = "sim_rules"
@@ -319,5 +317,4 @@ class SimRule(db.Model):
     gm_profile = db.relationship("GMProfile", backref="sim_rules")
     
     def __repr__(self):
-        return f"<SimRule (Type: {self.rule_type}, Target: {self.target_type}, Function: {self.function_type})>"
->>>>>>> Stashed changes
+        return f"<SimRule (Type: {self.rule_type}, Target: {self.target_type})>"
