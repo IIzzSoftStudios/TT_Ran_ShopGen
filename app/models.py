@@ -20,6 +20,8 @@ class City(db.Model):
 
     # Many-to-Many relationship with Shop
     shops = db.relationship("Shop", secondary=shop_cities, back_populates="cities")
+    # One-to-Many relationship with RegionalMarket
+    regional_market = db.relationship("RegionalMarket", back_populates="city")
 
     def __repr__(self):
         return f"<City {self.name} (Size: {self.size}, Population: {self.population}, Region: {self.region})>"
@@ -30,6 +32,7 @@ class Shop(db.Model):
     type = db.Column(db.String(100), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+    preferred_region = db.Column(db.String(100), nullable=True)  # Preferred region for sourcing
 
     # Many-to-Many relationship with City
     cities = db.relationship("City", secondary=shop_cities, back_populates="shops")
@@ -53,9 +56,14 @@ class Item(db.Model):
     min_str = db.Column(db.String(10))
     notes = db.Column(db.Text)
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+    preferred_regions = db.Column(db.JSON, nullable=True)  # List of regions where this item is commonly produced
 
     # Many-to-Many relationship with Shop through ShopInventory
     inventory = db.relationship("ShopInventory", back_populates="item")
+    # One-to-Many relationship with RegionalMarket
+    regional_market = db.relationship("RegionalMarket", back_populates="item")
+    # One-to-Many relationship with GlobalMarket
+    global_market = db.relationship("GlobalMarket", back_populates="item")
 
     def __repr__(self):
         return f"<Item {self.name} (Type: {self.type}, Rarity: {self.rarity}, Price: {self.base_price})>"
@@ -71,6 +79,7 @@ class ShopInventory(db.Model):
     # Shop-specific attributes for the item
     stock = db.Column(db.Integer, default=0)
     dynamic_price = db.Column(db.Float, nullable=False)
+    sourcing_preference = db.Column(db.Enum("regional", "global", "hybrid", name="sourcing_preference"), default="hybrid")
 
     # Relationships for accessing item and shop details
     shop = db.relationship("Shop", back_populates="inventory")
@@ -78,6 +87,44 @@ class ShopInventory(db.Model):
 
     def __repr__(self):
         return f"<ShopInventory (Shop: {self.shop.name}, Item: {self.item.name}, Stock: {self.stock}, Price: {self.dynamic_price})>"
+
+class RegionalMarket(db.Model):
+    """Tracks supply and demand for items within a region."""
+    __tablename__ = "regional_markets"
+    
+    market_id = db.Column(db.Integer, primary_key=True)
+    city_id = db.Column(db.Integer, db.ForeignKey("cities.city_id"), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
+    total_supply = db.Column(db.Integer, default=0)
+    total_demand = db.Column(db.Integer, default=0)
+    average_price = db.Column(db.Float, nullable=False)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+
+    # Relationships
+    city = db.relationship("City", back_populates="regional_market")
+    item = db.relationship("Item", back_populates="regional_market")
+
+    def __repr__(self):
+        return f"<RegionalMarket (City: {self.city.name}, Item: {self.item.name}, Supply: {self.total_supply}, Demand: {self.total_demand})>"
+
+class GlobalMarket(db.Model):
+    """Tracks global supply and demand for items."""
+    __tablename__ = "global_markets"
+    
+    market_id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
+    total_supply = db.Column(db.Integer, default=0)
+    total_demand = db.Column(db.Integer, default=0)
+    average_price = db.Column(db.Float, nullable=False)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+
+    # Relationships
+    item = db.relationship("Item", back_populates="global_market")
+
+    def __repr__(self):
+        return f"<GlobalMarket (Item: {self.item.name}, Supply: {self.total_supply}, Demand: {self.total_demand})>"
 
 #Demand Modifier Models
 class DemandModifier(db.Model):

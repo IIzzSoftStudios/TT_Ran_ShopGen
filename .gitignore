@@ -1,0 +1,113 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Flask specific
+instance/
+.webassets-cache
+flask_session/
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+config.env
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+*.temp
+*.sublime-workspace
+*.sublime-project
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+log/
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Project specific
+migrations/
+tests/
+images/
+uploads/
+media/
+static/uploads/
+static/media/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Local development settings
+local_settings.py
+instance/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database migrations
+migrations/versions/
+*.pyc
+migrations/__pycache__/ 
