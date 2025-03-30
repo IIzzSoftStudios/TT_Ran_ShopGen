@@ -170,9 +170,10 @@ class ModifierTarget(db.Model):
 class User(db.Model, UserMixin):
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), nullable=False, unique=True)
-    password = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(50), nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    last_active = db.Column(db.DateTime, default=datetime.utcnow)
     
     # For GMs: Their players
     players = db.relationship("Player", backref="user", foreign_keys="Player.user_id")
@@ -180,17 +181,24 @@ class User(db.Model, UserMixin):
     gm_profile = db.relationship("GMProfile", backref="user", uselist=False)
 
     def set_password(self, password):
-        self.password = bcrypt.generate_password_hash(password).decode("utf-8") 
-
+        """Set the user's password"""
+        self.password = bcrypt.generate_password_hash(password).decode('utf-8')
+        
     def check_password(self, password):
+        """Check if the provided password matches"""
         return bcrypt.check_password_hash(self.password, password)
-    
-    def get_id(self):
-        return str(self.id)
-
+        
+    def update_activity(self):
+        """Update the user's last active timestamp"""
+        self.last_active = datetime.utcnow()
+        db.session.commit()
+        
     @property
     def is_active(self):
-        return True
+        """Check if the user is currently active (active in last 5 minutes)"""
+        if not self.last_active:
+            return False
+        return (datetime.utcnow() - self.last_active).total_seconds() < 300  # 5 minutes
 
 class GMProfile(db.Model):
     __tablename__ = "gm_profile"
@@ -246,6 +254,10 @@ class ResourceNode(db.Model):
     city_id = db.Column(db.Integer, db.ForeignKey("cities.city_id"), nullable=False)
     owner_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=True)  # Can be owned by players
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+    
+    # Add relationship to Item
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"))
+    item = db.relationship("Item", backref="resource_nodes")
     
     # Relationships
     city = db.relationship("City", backref="resource_nodes")
@@ -335,6 +347,77 @@ class SimulationState(db.Model):
     
     def __repr__(self):
         return f"<SimulationState (Tick: {self.current_tick}, Speed: {self.speed})>"
+        
+    def get_performance_metrics(self):
+        """Get performance metrics in a safe way."""
+        try:
+            return {
+                'last_tick_duration_ms': getattr(self, 'last_tick_duration_ms', None),
+                'last_error': getattr(self, 'last_error', None),
+                'last_error_time': getattr(self, 'last_error_time', None),
+                'tick_history': getattr(self, 'tick_history', None),
+                'performance_metrics': getattr(self, 'performance_metrics', None)
+            }
+        except:
+            return {
+                'last_tick_duration_ms': None,
+                'last_error': None,
+                'last_error_time': None,
+                'tick_history': None,
+                'performance_metrics': None
+            }
+            
+    def update_performance_metrics(self, duration_ms: float):
+        """Update performance metrics for the current tick."""
+        try:
+            metrics = getattr(self, 'performance_metrics', None) or {
+                'tick_durations': [],
+                'avg_duration_ms': 0,
+                'max_duration_ms': 0,
+                'min_duration_ms': float('inf'),
+                'error_count': 0
+            }
+            
+            metrics['tick_durations'].append(duration_ms)
+            
+            # Keep only last 100 tick durations
+            if len(metrics['tick_durations']) > 100:
+                metrics['tick_durations'] = metrics['tick_durations'][-100:]
+            
+            # Update statistics
+            metrics['avg_duration_ms'] = sum(metrics['tick_durations']) / len(metrics['tick_durations'])
+            metrics['max_duration_ms'] = max(metrics['tick_durations'])
+            metrics['min_duration_ms'] = min(metrics['tick_durations'])
+            
+            # Try to update the attributes if they exist
+            try:
+                self.performance_metrics = metrics
+                self.last_tick_duration_ms = duration_ms
+            except:
+                pass  # Silently fail if columns don't exist yet
+        except:
+            pass  # Silently fail if any error occurs
+            
+    def record_error(self, error_message: str):
+        """Record an error that occurred during simulation."""
+        try:
+            # Try to update the attributes if they exist
+            try:
+                self.last_error = error_message
+                self.last_error_time = datetime.utcnow()
+            except:
+                pass  # Silently fail if columns don't exist yet
+                
+            # Update error count in performance metrics
+            metrics = getattr(self, 'performance_metrics', None)
+            if metrics:
+                metrics['error_count'] = metrics.get('error_count', 0) + 1
+                try:
+                    self.performance_metrics = metrics
+                except:
+                    pass  # Silently fail if column doesn't exist yet
+        except:
+            pass  # Silently fail if any error occurs
 
 class SimulationLog(db.Model):
     __tablename__ = "simulation_logs"

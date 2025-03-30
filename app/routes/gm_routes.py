@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
-from app.models import db, City, Shop, Item, ShopInventory
+from app.models import db, City, Shop, Item, ShopInventory, ResourceNode
 
 gm_bp = Blueprint("gm", __name__, url_prefix="/gm")
 
@@ -341,3 +341,86 @@ def debug_form():
     print("FORM KEYS:", request.form.keys())
     print("FORM DICT:", request.form.to_dict(flat=False))
     return "Check logs"
+
+# Resource Node routes
+@gm_bp.route("/resource_nodes/")
+@login_required
+def view_resource_nodes():
+    nodes = ResourceNode.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    return render_template("GM_view_resource_nodes.html", nodes=nodes)
+
+@gm_bp.route("/resource_nodes/add", methods=["GET", "POST"])
+@login_required
+def add_resource_node():
+    if request.method == "POST":
+        name = request.form.get("name")
+        type = request.form.get("type")
+        production_rate = float(request.form.get("production_rate"))
+        quality = float(request.form.get("quality"))
+        city_id = int(request.form.get("city_id"))
+        item_id = int(request.form.get("item_id"))
+
+        if not all([name, type, production_rate, quality, city_id, item_id]):
+            flash("All fields are required!", "danger")
+            return render_template("GM_add_resource_node.html")
+
+        try:
+            new_node = ResourceNode(
+                name=name,
+                type=type,
+                production_rate=production_rate,
+                quality=quality,
+                city_id=city_id,
+                item_id=item_id,
+                gm_profile_id=current_user.gm_profile.id
+            )
+            db.session.add(new_node)
+            db.session.commit()
+            flash(f"Resource node '{name}' added successfully!", "success")
+            return redirect(url_for("gm.view_resource_nodes"))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error adding resource node: {e}", "danger")
+
+    # GET request - show form
+    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    return render_template("GM_add_resource_node.html", cities=cities, items=items)
+
+@gm_bp.route("/resource_nodes/edit/<int:node_id>", methods=["GET", "POST"])
+@login_required
+def edit_resource_node(node_id):
+    node = ResourceNode.query.get_or_404(node_id)
+    
+    if request.method == "POST":
+        node.name = request.form.get("name")
+        node.type = request.form.get("type")
+        node.production_rate = float(request.form.get("production_rate"))
+        node.quality = float(request.form.get("quality"))
+        node.city_id = int(request.form.get("city_id"))
+        node.item_id = int(request.form.get("item_id"))
+        
+        try:
+            db.session.commit()
+            flash("Resource node updated successfully!", "success")
+            return redirect(url_for("gm.view_resource_nodes"))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating resource node: {e}", "danger")
+
+    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    return render_template("GM_edit_resource_node.html", node=node, cities=cities, items=items)
+
+@gm_bp.route("/resource_nodes/delete/<int:node_id>", methods=["POST"])
+@login_required
+def delete_resource_node(node_id):
+    node = ResourceNode.query.get_or_404(node_id)
+    try:
+        db.session.delete(node)
+        db.session.commit()
+        flash("Resource node deleted successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting resource node: {e}", "danger")
+    return redirect(url_for("gm.view_resource_nodes"))

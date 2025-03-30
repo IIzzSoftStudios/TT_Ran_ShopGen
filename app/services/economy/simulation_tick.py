@@ -10,6 +10,10 @@ from app.models import (
 from app.extensions import db
 from app.services.economy.demand import calculate_demand
 from app.services.economy.market_service import MarketService
+from app.services.logging_config import event_logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 class EconomicSimulationTick:
     def __init__(self, gm_profile_id: int):
@@ -34,6 +38,8 @@ class EconomicSimulationTick:
             gm_profile_id=self.gm_profile_id
         )
         db.session.add(log)
+        # Also log to event logger
+        event_logger.log_error(self.gm_profile_id, event_type, str(details))
 
     def _calculate_global_market(self):
         """Calculate global supply and demand for all items."""
@@ -59,23 +65,46 @@ class EconomicSimulationTick:
 
     def _process_resource_nodes(self):
         """Process production from resource nodes."""
+        logger.info(f"Processing resource nodes for GM {self.gm_profile_id}")
         nodes = ResourceNode.query.filter_by(gm_profile_id=self.gm_profile_id).all()
+        logger.debug(f"Found {len(nodes)} resource nodes to process")
+        
         for node in nodes:
-            # Calculate production
-            amount_produced = node.production_rate * node.quality
-            
-            # Record production history
-            history = ProductionHistory(
-                node_id=node.node_id,
-                amount_produced=amount_produced,
-                quality=node.quality
-            )
-            db.session.add(history)
+            try:
+                logger.debug(f"Processing node {node.node_id}: {node.name} (Type: {node.type})")
+                
+                # Validate node data
+                if not node.item:
+                    logger.error(f"Resource node {node.node_id} has no associated item")
+                    continue
+                    
+                if not node.city:
+                    logger.error(f"Resource node {node.node_id} has no associated city")
+                    continue
+                
+                # Calculate production
+                amount_produced = node.production_rate * node.quality
+                logger.debug(f"Node {node.node_id} produced {amount_produced} units of {node.item.name}")
+                
+                # Record production history
+                history = ProductionHistory(
+                    node_id=node.node_id,
+                    amount_produced=amount_produced,
+                    quality=node.quality
+                )
+                db.session.add(history)
+                logger.debug(f"Added production history for node {node.node_id}")
 
-            # Update regional market with produced resources
-            if node.city:
+                # Update regional market with produced resources
                 self.market_service.update_regional_supply(node.city, node.item, amount_produced)
                 self.market_service.update_global_supply(node.item, amount_produced)
+                logger.debug(f"Updated market supply for node {node.node_id}")
+                
+            except Exception as e:
+                logger.error(f"Error processing resource node {node.node_id}: {str(e)}", exc_info=True)
+                continue  # Continue with next node even if one fails
+                
+        logger.info(f"Completed processing resource nodes for GM {self.gm_profile_id}")
 
     def _process_building_production(self):
         """Process production from buildings."""
@@ -173,48 +202,59 @@ class EconomicSimulationTick:
         """Update the simulation state for the next tick."""
         state = SimulationState.query.filter_by(gm_profile_id=self.gm_profile_id).first()
         if state:
-            state.current_tick += 1
+            # Only update last_tick_time, don't increment tick count
             state.last_tick_time = datetime.utcnow()
+            state.update_performance_metrics(0)  # Will be updated with actual duration
+            logger.debug(f"Updated simulation state for GM {self.gm_profile_id}: last_tick={state.last_tick_time}")
         else:
             state = SimulationState(
                 gm_profile_id=self.gm_profile_id,
                 current_tick=1,
-                last_tick_time=datetime.utcnow()
+                last_tick_time=datetime.utcnow(),
+                speed="pause"  # Default to pause
             )
             db.session.add(state)
+            logger.debug(f"Created new simulation state for GM {self.gm_profile_id}")
 
     def run_tick(self):
-        """Run a complete economic simulation tick."""
+        """Run a single simulation tick."""
         try:
+            start_time = datetime.utcnow()
+            event_logger.log_tick_start(self.gm_profile_id, self.current_tick)
+            
             # Calculate global market state
             self._calculate_global_market()
-
-            # Process resource production
+            
+            # Process resource nodes
             self._process_resource_nodes()
-
+            
             # Process building production
             self._process_building_production()
-
+            
             # Process NPC purchases
             self._process_npc_purchases()
-
+            
             # Update shop prices
             self._update_shop_prices()
-
+            
             # Check shop viability
             self._check_shop_viability()
-
+            
             # Process shop maintenance
             self._process_shop_maintenance()
-
+            
             # Update simulation state
             self._update_simulation_state()
-
-            # Commit all changes
-            db.session.commit()
-
-            return True, "Simulation tick completed successfully"
-
+            
+            # Calculate duration
+            duration = (datetime.utcnow() - start_time).total_seconds() * 1000
+            
+            # Log successful tick completion
+            event_logger.log_tick_end(self.gm_profile_id, self.current_tick, duration)
+            
+            return True, "Tick completed successfully"
+            
         except Exception as e:
-            db.session.rollback()
-            return False, f"Error during simulation tick: {str(e)}" 
+            logger.error(f"Error during simulation tick: {str(e)}", exc_info=True)
+            event_logger.log_error(self.gm_profile_id, "tick_error", str(e))
+            return False, str(e) 

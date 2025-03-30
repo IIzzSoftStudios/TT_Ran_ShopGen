@@ -14,7 +14,7 @@ class ResourceNode(db.Model):
     gm_profile_id = db.Column(db.Integer, db.ForeignKey('gm_profile.id'))
     
     # Add relationship to Item
-    item_id = db.Column(db.Integer, db.ForeignKey('items.item_id'))
+    item_id = db.Column(db.Integer, db.ForeignKey('items.item_id'), nullable=False)
     item = db.relationship('Item', backref='resource_nodes')
     
     # Relationships

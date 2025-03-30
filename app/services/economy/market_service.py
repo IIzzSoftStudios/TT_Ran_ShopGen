@@ -3,90 +3,125 @@ from datetime import datetime
 from sqlalchemy import func
 from app.models import (
     Shop, ShopInventory, Item, City, RegionalMarket,
-    GlobalMarket, SimulationLog
+    GlobalMarket, SimulationLog, SimulationState
 )
 from app.extensions import db
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MarketService:
     def __init__(self, gm_profile_id: int):
         self.gm_profile_id = gm_profile_id
         self.regional_markets: Dict[Tuple[str, int], RegionalMarket] = {}  # (region, item_id) -> market
         self.global_markets: Dict[int, GlobalMarket] = {}  # item_id -> market
+        self.current_tick = self._get_current_tick()
+        logger.info(f"Initialized MarketService for GM {gm_profile_id}")
+
+    def _get_current_tick(self) -> int:
+        """Get the current simulation tick number."""
+        state = SimulationState.query.filter_by(gm_profile_id=self.gm_profile_id).first()
+        return state.current_tick if state else 0
 
     def _log_event(self, event_type: str, details: dict):
         """Log a market event."""
-        log = SimulationLog(
-            event_type=event_type,
-            details=details,
-            gm_profile_id=self.gm_profile_id
-        )
-        db.session.add(log)
+        try:
+            log = SimulationLog(
+                tick_id=self.current_tick,
+                event_type=event_type,
+                details=details,
+                gm_profile_id=self.gm_profile_id
+            )
+            db.session.add(log)
+            logger.debug(f"Logged market event: {event_type} - {details}")
+        except Exception as e:
+            logger.error(f"Error logging market event: {str(e)}", exc_info=True)
 
     def _get_regional_market(self, city: City, item: Item) -> RegionalMarket:
         """Get or create a regional market for a city-item pair."""
-        key = (city.region, item.item_id)
-        if key not in self.regional_markets:
-            market = RegionalMarket.query.filter_by(
-                city_id=city.city_id,
-                item_id=item.item_id,
-                gm_profile_id=self.gm_profile_id
-            ).first()
-            
-            if not market:
-                market = RegionalMarket(
+        try:
+            key = (city.region, item.item_id)
+            if key not in self.regional_markets:
+                logger.debug(f"Fetching regional market for city {city.name} and item {item.name}")
+                market = RegionalMarket.query.filter_by(
                     city_id=city.city_id,
                     item_id=item.item_id,
-                    total_supply=0,
-                    total_demand=0,
-                    average_price=item.base_price,
                     gm_profile_id=self.gm_profile_id
-                )
-                db.session.add(market)
+                ).first()
+                
+                if not market:
+                    logger.debug(f"Creating new regional market for city {city.name} and item {item.name}")
+                    market = RegionalMarket(
+                        city_id=city.city_id,
+                        item_id=item.item_id,
+                        total_supply=0,
+                        total_demand=0,
+                        average_price=item.base_price,
+                        gm_profile_id=self.gm_profile_id
+                    )
+                    db.session.add(market)
+                
+                self.regional_markets[key] = market
+                logger.debug(f"Regional market for {city.name} - {item.name}: supply={market.total_supply}, demand={market.total_demand}")
             
-            self.regional_markets[key] = market
-        
-        return self.regional_markets[key]
+            return self.regional_markets[key]
+        except Exception as e:
+            logger.error(f"Error getting regional market: {str(e)}", exc_info=True)
+            raise
 
     def _get_global_market(self, item: Item) -> GlobalMarket:
         """Get or create a global market for an item."""
-        if item.item_id not in self.global_markets:
-            market = GlobalMarket.query.filter_by(
-                item_id=item.item_id,
-                gm_profile_id=self.gm_profile_id
-            ).first()
-            
-            if not market:
-                market = GlobalMarket(
+        try:
+            if item.item_id not in self.global_markets:
+                logger.debug(f"Fetching global market for item {item.name}")
+                market = GlobalMarket.query.filter_by(
                     item_id=item.item_id,
-                    total_supply=0,
-                    total_demand=0,
-                    average_price=item.base_price,
                     gm_profile_id=self.gm_profile_id
-                )
-                db.session.add(market)
+                ).first()
+                
+                if not market:
+                    logger.debug(f"Creating new global market for item {item.name}")
+                    market = GlobalMarket(
+                        item_id=item.item_id,
+                        total_supply=0,
+                        total_demand=0,
+                        average_price=item.base_price,
+                        gm_profile_id=self.gm_profile_id
+                    )
+                    db.session.add(market)
+                
+                self.global_markets[item.item_id] = market
+                logger.debug(f"Global market for {item.name}: supply={market.total_supply}, demand={market.total_demand}")
             
-            self.global_markets[item.item_id] = market
-        
-        return self.global_markets[item.item_id]
+            return self.global_markets[item.item_id]
+        except Exception as e:
+            logger.error(f"Error getting global market: {str(e)}", exc_info=True)
+            raise
 
     def update_regional_supply(self, city: City, item: Item, amount: int):
         """Update the supply of an item in a regional market."""
-        market = self._get_regional_market(city, item)
-        market.total_supply += amount
-        market.last_updated = datetime.utcnow()
-        
-        # Update average price based on supply
-        if market.total_supply > 0:
-            market.average_price = item.base_price * (1 - (market.total_supply / 1000))
-        
-        self._log_event("regional_supply_update", {
-            "city": city.name,
-            "region": city.region,
-            "item": item.name,
-            "amount": amount,
-            "new_supply": market.total_supply,
-            "new_price": market.average_price
-        })
+        try:
+            logger.debug(f"Updating regional supply for {city.name} - {item.name}: +{amount}")
+            market = self._get_regional_market(city, item)
+            market.total_supply += amount
+            market.last_updated = datetime.utcnow()
+            
+            # Update average price based on supply
+            if market.total_supply > 0:
+                market.average_price = item.base_price * (1 - (market.total_supply / 1000))
+            
+            self._log_event("regional_supply_update", {
+                "city": city.name,
+                "region": city.region,
+                "item": item.name,
+                "amount": amount,
+                "new_supply": market.total_supply,
+                "new_price": market.average_price
+            })
+            logger.debug(f"Updated regional supply for {city.name} - {item.name}: supply={market.total_supply}, price={market.average_price}")
+        except Exception as e:
+            logger.error(f"Error updating regional supply: {str(e)}", exc_info=True)
+            raise
 
     def update_regional_demand(self, city: City, item: Item, amount: int):
         """Update the demand for an item in a regional market."""
@@ -109,20 +144,26 @@ class MarketService:
 
     def update_global_supply(self, item: Item, amount: int):
         """Update the global supply of an item."""
-        market = self._get_global_market(item)
-        market.total_supply += amount
-        market.last_updated = datetime.utcnow()
-        
-        # Update average price based on supply
-        if market.total_supply > 0:
-            market.average_price = item.base_price * (1 - (market.total_supply / 5000))
-        
-        self._log_event("global_supply_update", {
-            "item": item.name,
-            "amount": amount,
-            "new_supply": market.total_supply,
-            "new_price": market.average_price
-        })
+        try:
+            logger.debug(f"Updating global supply for {item.name}: +{amount}")
+            market = self._get_global_market(item)
+            market.total_supply += amount
+            market.last_updated = datetime.utcnow()
+            
+            # Update average price based on supply
+            if market.total_supply > 0:
+                market.average_price = item.base_price * (1 - (market.total_supply / 5000))
+            
+            self._log_event("global_supply_update", {
+                "item": item.name,
+                "amount": amount,
+                "new_supply": market.total_supply,
+                "new_price": market.average_price
+            })
+            logger.debug(f"Updated global supply for {item.name}: supply={market.total_supply}, price={market.average_price}")
+        except Exception as e:
+            logger.error(f"Error updating global supply: {str(e)}", exc_info=True)
+            raise
 
     def update_global_demand(self, item: Item, amount: int):
         """Update the global demand for an item."""

@@ -1,27 +1,85 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Optional, List
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.orm import Session
 from flask import current_app
-from app.models import SimulationState, SimulationLog, SimRule, ShopInventory, Item, City
+from app.models import SimulationState, SimulationLog, SimRule, ShopInventory, Item, City, GMProfile, User
 from app.extensions import db
-from app.services.logging_config import simulation_logger, rollback_logger
+from app.services.logging_config import simulation_logger, rollback_logger, event_logger
 from threading import Thread, Event
 import time
 from app.services.economy.simulation_tick import EconomicSimulationTick
 import logging
 import sys
+import threading
 
 # Configure logging with more detailed format
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('simulation.log')
+        logging.FileHandler('simulation.log'),
+        logging.FileHandler('simulation_debug.log'),
+        logging.FileHandler('simulation_error.log')
     ]
 )
+
+# Set levels for specific handlers
+for handler in logging.getLogger().handlers:
+    if isinstance(handler, logging.FileHandler):
+        if handler.baseFilename.endswith('simulation_debug.log'):
+            handler.setLevel(logging.DEBUG)
+        elif handler.baseFilename.endswith('simulation_error.log'):
+            handler.setLevel(logging.ERROR)
+        else:
+            handler.setLevel(logging.INFO)
+
+# Create a structured logger for simulation events
+class SimulationEventLogger:
+    def __init__(self):
+        self.logger = logging.getLogger('simulation.events')
+        self.logger.setLevel(logging.DEBUG)
+        
+    def log_tick_start(self, gm_profile_id: int, tick_number: int):
+        self.logger.info({
+            'event': 'tick_start',
+            'gm_profile_id': gm_profile_id,
+            'tick_number': tick_number,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    def log_tick_end(self, gm_profile_id: int, tick_number: int, duration_ms: float):
+        self.logger.info({
+            'event': 'tick_end',
+            'gm_profile_id': gm_profile_id,
+            'tick_number': tick_number,
+            'duration_ms': duration_ms,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    def log_error(self, gm_profile_id: int, error_type: str, message: str, details: dict = None):
+        self.logger.error({
+            'event': 'error',
+            'gm_profile_id': gm_profile_id,
+            'error_type': error_type,
+            'message': message,
+            'details': details or {},
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    def log_state_change(self, gm_profile_id: int, old_state: dict, new_state: dict):
+        self.logger.info({
+            'event': 'state_change',
+            'gm_profile_id': gm_profile_id,
+            'old_state': old_state,
+            'new_state': new_state,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+# Initialize the event logger
+event_logger = SimulationEventLogger()
 logger = logging.getLogger(__name__)
 
 # Global instance
@@ -36,22 +94,18 @@ def init_simulation_service(app):
     if simulation_service is None:
         logger.debug("Creating new simulation service instance")
         simulation_service = SimulationService(app)
-    service = simulation_service
+        # Start the service once during initialization
+        simulation_service.start()
     
-    # Use with_appcontext instead of before_first_request
-    @app.before_request
-    def start_simulation():
-        logger.debug("Checking if simulation needs to be started")
-        if not service.running:
-            logger.info("Starting simulation service")
-            service.start()
+    service = simulation_service
     
     @app.teardown_appcontext
     def stop_simulation(exception=None):
-        logger.info("Stopping simulation service")
+        # Only stop the service if there's an error
         if exception:
+            logger.info("Stopping simulation service due to error")
             logger.error(f"Error during shutdown: {str(exception)}")
-        service.stop()
+            service.stop()
     
     # Add error handlers
     @app.errorhandler(Exception)
@@ -73,276 +127,340 @@ SPEED_MAPPING = {
 
 class SimulationService:
     def __init__(self, app):
-        """Initialize the simulation service with the Flask app."""
-        logger.info("Initializing SimulationService")
-        logger.debug(f"App context: {app.app_context()}")
-        self.app = app
         self.running = False
         self.thread = None
-        self.tick_interval = 60  # seconds between ticks
-        self.current_tick = 0
-        self.last_tick_time = datetime.utcnow()
-        self._initialization_errors = []
+        self.db = db
+        self.logger = simulation_logger
+        self.app = app  # Store the Flask app instance
         
-        try:
-            # Load simulation state within app context
-            with app.app_context():
-                self._load_simulation_state()
-            logger.info(f"SimulationService initialized with tick {self.current_tick}")
-        except Exception as e:
-            logger.error(f"Error during SimulationService initialization: {str(e)}", exc_info=True)
-            self._initialization_errors.append(str(e))
-            raise
-
-    def _load_simulation_state(self):
-        """Load simulation state from database."""
-        logger.debug("Loading simulation state from database")
-        try:
-            state = SimulationState.query.first()
-            if state:
-                self.current_tick = state.current_tick
-                self.last_tick_time = state.last_tick_time
-                logger.info(f"Loaded existing simulation state: tick={self.current_tick}, last_tick={self.last_tick_time}")
-                logger.debug(f"State details: speed={state.speed}, gm_profile_id={state.gm_profile_id}")
-            else:
-                logger.info("No existing simulation state found, using defaults")
-                self.current_tick = 0
-                self.last_tick_time = datetime.utcnow()
-                logger.debug("Created default simulation state")
-        except Exception as e:
-            logger.error(f"Error loading simulation state: {str(e)}", exc_info=True)
-            raise
-
+        # Speed settings in seconds per tick
+        self.speed_settings = {
+            'pause': float('inf'),  # Never process ticks
+            'slow': 60.0,           # 1 tick per minute
+            'normal': 30.0,         # 2 ticks per minute
+            'fast': 10.0,           # 6 ticks per minute
+            'very_fast': 5.0        # 12 ticks per minute
+        }
+        
     def start(self):
-        """Start the simulation service."""
-        logger.info("Starting simulation service")
+        """Start the simulation service"""
         if not self.running:
-            try:
-                self.running = True
-                self.thread = Thread(target=self._run_simulation)
-                self.thread.daemon = True
-                self.thread.start()
-                logger.info("Simulation thread started")
-                logger.debug(f"Thread ID: {self.thread.ident}, Name: {self.thread.name}")
-            except Exception as e:
-                logger.error(f"Error starting simulation thread: {str(e)}", exc_info=True)
-                self.running = False
-                raise
+            self.running = True
+            self.thread = threading.Thread(target=self._run_simulation)
+            self.thread.daemon = True
+            self.thread.start()
+            self.logger.info("Simulation service started")
         else:
-            logger.warning("Simulation service already running")
-
+            self.logger.debug("Simulation service already running")
+            
     def stop(self):
-        """Stop the simulation service."""
-        logger.info("Stopping simulation service")
+        """Stop the simulation service"""
         if self.running:
             self.running = False
             if self.thread:
-                try:
-                    self.thread.join(timeout=5)  # Wait up to 5 seconds for thread to finish
-                    logger.info("Simulation thread stopped")
-                except Exception as e:
-                    logger.error(f"Error stopping simulation thread: {str(e)}", exc_info=True)
-            else:
-                logger.warning("No simulation thread to stop")
+                self.thread.join()
+            self.logger.info("Simulation service stopped")
         else:
-            logger.debug("Simulation service already stopped")
+            self.logger.debug("Simulation service already stopped")
 
     def _run_simulation(self):
-        """Main simulation loop."""
-        logger.info("Starting simulation loop")
+        """Main simulation loop"""
+        self.logger.info("Starting simulation loop")
+        
         while self.running:
             try:
-                self.run_tick()
-                logger.debug(f"Completed tick {self.current_tick}, sleeping for {self.tick_interval} seconds")
-                time.sleep(self.tick_interval)
-            except Exception as e:
-                logger.error(f"Error in simulation loop: {str(e)}", exc_info=True)
-                time.sleep(1)  # Wait before retrying
-
-    def run_tick(self):
-        """Run a single simulation tick."""
-        logger.info(f"Starting tick {self.current_tick}")
-        with self.app.app_context():
-            try:
-                # Get all GM profiles
-                gm_profiles = db.session.query(SimulationState.gm_profile_id).distinct().all()
-                logger.debug(f"Found {len(gm_profiles)} GM profiles to process")
-                
-                for gm_profile_row in gm_profiles:
-                    gm_profile_id = gm_profile_row[0]  # Extract the ID from the Row object
-                    logger.debug(f"Processing GM profile {gm_profile_id}")
-                    try:
-                        # Create and run simulation tick for each GM profile
-                        tick = EconomicSimulationTick(gm_profile_id)
-                        success, message = tick.run_tick()
-                        
-                        if not success:
-                            logger.error(f"Error in tick {self.current_tick} for GM {gm_profile_id}: {message}")
-                            self._log_error(f"Error in tick {self.current_tick}: {message}", gm_profile_id)
-                        else:
-                            logger.debug(f"Successfully processed tick for GM {gm_profile_id}")
-                    except Exception as e:
-                        logger.error(f"Error processing GM {gm_profile_id}: {str(e)}", exc_info=True)
-                        self._log_error(f"Error processing GM {gm_profile_id}: {str(e)}", gm_profile_id)
-                        continue  # Continue with next GM profile even if one fails
-                
-                self.current_tick += 1
-                self.last_tick_time = datetime.utcnow()
-                logger.info(f"Completed tick {self.current_tick}")
-                
-                # Update simulation state
-                try:
-                    state = SimulationState.query.first()
-                    if state:
-                        state.current_tick = self.current_tick
-                        state.last_tick_time = self.last_tick_time
-                        logger.debug(f"Updated existing simulation state: tick={self.current_tick}")
-                    else:
-                        state = SimulationState(
-                            current_tick=self.current_tick,
-                            last_tick_time=self.last_tick_time
-                        )
-                        db.session.add(state)
-                        logger.debug("Created new simulation state")
+                # Create application context for this iteration
+                with self.app.app_context():
+                    # Check for active GM sessions
+                    if not self._has_active_gm_sessions():
+                        self.logger.info("No active GM sessions found, pausing all simulations")
+                        running_sims = SimulationState.query.filter_by(status='running').all()
+                        for sim in running_sims:
+                            sim.status = 'paused'
+                            sim.speed = 'pause'
+                            self.logger.info(f"Paused simulation for GM {sim.gm_profile_id}")
+                        db.session.commit()
+                        time.sleep(5)
+                        continue
                     
+                    # Process active simulations
+                    active_sims = SimulationState.query.filter_by(status='running').all()
+                    
+                    for sim in active_sims:
+                        try:
+                            # Calculate time since last tick
+                            time_since_last = (datetime.utcnow() - sim.last_tick).total_seconds()
+                            
+                            # Check if we should process a new tick based on speed
+                            if sim.speed == 'normal' and time_since_last >= 60:
+                                self._process_tick(sim)
+                            elif sim.speed == 'fast' and time_since_last >= 30:
+                                self._process_tick(sim)
+                            elif sim.speed == 'very_fast' and time_since_last >= 15:
+                                self._process_tick(sim)
+                                
+                        except Exception as e:
+                            self.logger.error(f"Error processing simulation {sim.id}: {str(e)}")
+                            self.record_simulation_error(sim, str(e))
+                            continue
+                            
                     db.session.commit()
-                    logger.debug("Committed simulation state changes")
-                except Exception as e:
-                    logger.error(f"Error updating simulation state: {str(e)}", exc_info=True)
-                    db.session.rollback()
-                    self._log_error(f"Error updating simulation state: {str(e)}", gm_profile_id)
-                    raise
-                
+                    
             except Exception as e:
-                db.session.rollback()
-                logger.error(f"Error in simulation tick: {str(e)}", exc_info=True)
-                self._log_error(f"Error in simulation tick: {str(e)}", gm_profile_id)
-                raise
+                self.logger.error(f"Error in simulation loop: {str(e)}")
+                
+            # Sleep briefly to prevent CPU overuse
+            time.sleep(1)
 
-    def _log_error(self, message, gm_profile_id=None):
-        """Log an error message."""
-        logger.error(f"Logging error: {message}")
+    def _has_active_gm_sessions(self):
+        """Check if there are any active GM sessions"""
         try:
-            # Rollback any existing transaction
-            db.session.rollback()
-            
-            log = SimulationLog(
-                tick_id=self.current_tick,
-                event_type="error",
-                details={"message": message},
-                gm_profile_id=gm_profile_id
-            )
-            db.session.add(log)
-            db.session.commit()
-            logger.debug("Successfully logged error")
+            with self.app.app_context():
+                # Get count of active GM profiles (active in last 5 minutes)
+                active_count = GMProfile.query.join(User).filter(
+                    User.last_active >= datetime.utcnow() - timedelta(minutes=5)
+                ).count()
+                return active_count > 0
         except Exception as e:
-            logger.error(f"Error logging error message: {str(e)}", exc_info=True)
-            db.session.rollback()
+            self.logger.error(f"Error checking active GM sessions: {str(e)}")
+            return False
+
+    def _log_error(self, message: str, gm_profile_id: Optional[int] = None, error_type: str = "error"):
+        """Log an error message to both the logger and database"""
+        try:
+            # Log to file
+            if error_type == "error":
+                self.logger.error(message)
+            elif error_type == "warning":
+                self.logger.warning(message)
+            else:
+                self.logger.info(message)
+            
+            # Log to database
+            with self.app.app_context():
+                log = SimulationLog(
+                    message=message,
+                    level=error_type,
+                    gm_profile_id=gm_profile_id,
+                    timestamp=datetime.utcnow()
+                )
+                db.session.add(log)
+                db.session.commit()
+                
+        except Exception as e:
+            self.logger.error(f"Failed to log error: {str(e)}")
+            # If database logging fails, at least we have the file log
+            
+    def record_simulation_error(self, sim: SimulationState, error: str):
+        """Record an error for a specific simulation"""
+        try:
+            with self.app.app_context():
+                # Update simulation state
+                sim.last_error = error
+                sim.last_error_time = datetime.utcnow()
+                sim.error_count += 1
+                
+                # Log the error
+                self._log_error(
+                    message=f"Simulation error for GM {sim.gm_profile_id}: {error}",
+                    gm_profile_id=sim.gm_profile_id,
+                    error_type="error"
+                )
+                
+                db.session.commit()
+                
+        except Exception as e:
+            self.logger.error(f"Failed to record simulation error: {str(e)}")
+            # If we can't record the error, at least log it
+            self._log_error(
+                message=f"Failed to record error for GM {sim.gm_profile_id}: {error}",
+                gm_profile_id=sim.gm_profile_id,
+                error_type="error"
+            )
 
     def initialize_simulation(self, gm_profile_id: int) -> SimulationState:
-        """Initialize simulation state for a GM profile if it doesn't exist."""
-        logger.info(f"Initializing simulation for GM {gm_profile_id}")
+        """Initialize or get existing simulation state for a GM profile"""
+        self.logger.info(f"Initializing simulation for GM {gm_profile_id}")
+        
         try:
-            state = db.session.query(SimulationState).filter_by(gm_profile_id=gm_profile_id).first()
-            if not state:
-                state = SimulationState(
-                    current_tick=0,
-                    speed="pause",
-                    last_tick_time=datetime.utcnow(),
-                    gm_profile_id=gm_profile_id
-                )
-                db.session.add(state)
+            with self.app.app_context():
+                # Check for existing simulation
+                sim = SimulationState.query.filter_by(gm_profile_id=gm_profile_id).first()
+                
+                if sim is None:
+                    # Create new simulation state
+                    sim = SimulationState(
+                        gm_profile_id=gm_profile_id,
+                        current_tick=0,
+                        last_tick=datetime.utcnow(),
+                        speed='pause',
+                        status='paused',
+                        error_count=0,
+                        last_error=None,
+                        last_error_time=None
+                    )
+                    db.session.add(sim)
+                    self.logger.info(f"Created new simulation state for GM {gm_profile_id}")
+                else:
+                    self.logger.info(f"Found existing simulation state for GM {gm_profile_id}")
+                    
                 db.session.commit()
-                logger.info(f"Initialized new simulation state for GM {gm_profile_id}")
-            else:
-                logger.info(f"Found existing simulation state for GM {gm_profile_id}: tick={state.current_tick}, speed={state.speed}")
-            return state
+                return sim
+                
         except Exception as e:
-            logger.error(f"Error initializing simulation for GM {gm_profile_id}: {str(e)}", exc_info=True)
-            raise
+            error_msg = f"Error initializing simulation: {str(e)}"
+            self.logger.error(error_msg)
+            raise SimulationError(error_msg)
 
     def set_simulation_speed(self, gm_profile_id: int, speed: str) -> SimulationState:
-        """Set the simulation speed for a GM profile."""
-        logger.info(f"Setting simulation speed for GM {gm_profile_id} to {speed}")
-        if speed not in SPEED_MAPPING:
-            logger.error(f"Invalid speed setting: {speed}")
-            raise ValueError(f"Invalid speed setting: {speed}")
-
+        """Set the simulation speed for a GM profile"""
+        self.logger.info(f"Setting simulation speed to {speed} for GM {gm_profile_id}")
+        
+        # Validate speed setting
+        valid_speeds = ['pause', 'normal', 'fast', 'very_fast']
+        if speed not in valid_speeds:
+            error_msg = f"Invalid speed setting: {speed}. Must be one of: {', '.join(valid_speeds)}"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+            
         try:
-            state = self.initialize_simulation(gm_profile_id)
-            old_speed = state.speed
-            state.speed = speed
-            db.session.commit()
-            logger.info(f"Changed simulation speed for GM {gm_profile_id} from {old_speed} to {speed}")
-            return state
+            with self.app.app_context():
+                # Get or create simulation state
+                sim = SimulationState.query.filter_by(gm_profile_id=gm_profile_id).first()
+                if sim is None:
+                    sim = SimulationState(
+                        gm_profile_id=gm_profile_id,
+                        current_tick=0,
+                        last_tick=datetime.utcnow(),
+                        speed=speed,
+                        status='paused' if speed == 'pause' else 'running',
+                        error_count=0
+                    )
+                    db.session.add(sim)
+                else:
+                    # Update existing simulation
+                    sim.speed = speed
+                    sim.status = 'paused' if speed == 'pause' else 'running'
+                    sim.last_tick = datetime.utcnow()
+                    
+                self.logger.info(f"Updated simulation state for GM {gm_profile_id}: speed={speed}, status={sim.status}")
+                db.session.commit()
+                return sim
+                
         except Exception as e:
-            logger.error(f"Error setting simulation speed: {str(e)}", exc_info=True)
-            raise
+            error_msg = f"Error setting simulation speed: {str(e)}"
+            self.logger.error(error_msg)
+            raise SimulationError(error_msg)
 
     def get_simulation_status(self, gm_profile_id: int) -> Dict:
-        """Get the current simulation status for a GM profile."""
-        logger.debug(f"Getting simulation status for GM {gm_profile_id}")
+        """Get the current status of a simulation for a GM profile"""
+        self.logger.info(f"Getting simulation status for GM {gm_profile_id}")
+        
         try:
-            state = db.session.query(SimulationState).filter_by(gm_profile_id=gm_profile_id).first()
-            if not state:
-                logger.warning(f"No simulation state found for GM {gm_profile_id}")
+            with self.app.app_context():
+                sim = SimulationState.query.filter_by(gm_profile_id=gm_profile_id).first()
+                
+                if sim is None:
+                    # Return default status for non-existent simulation
+                    self.logger.info(f"No simulation state found for GM {gm_profile_id}")
+                    return {
+                        "active": False,
+                        "speed": "pause",
+                        "status": "paused",
+                        "current_tick": 0,
+                        "last_tick": datetime.utcnow().isoformat(),
+                        "error_count": 0,
+                        "last_error": None,
+                        "last_error_time": None
+                    }
+                
+                # Return current simulation state
+                self.logger.info(f"Found simulation state for GM {gm_profile_id}: tick={sim.current_tick}, speed={sim.speed}, status={sim.status}")
                 return {
-                    "active": False,
-                    "tick": 0,
-                    "speed": "pause",
-                    "last_tick": None
+                    "active": sim.status == "running",
+                    "speed": sim.speed,
+                    "status": sim.status,
+                    "current_tick": sim.current_tick,
+                    "last_tick": sim.last_tick.isoformat(),
+                    "error_count": sim.error_count,
+                    "last_error": sim.last_error,
+                    "last_error_time": sim.last_error_time.isoformat() if sim.last_error_time else None
                 }
-            
-            status = {
-                "active": state.speed != "pause",
-                "tick": state.current_tick,
-                "speed": state.speed,
-                "last_tick": state.last_tick_time.isoformat() if state.last_tick_time else None
-            }
-            logger.debug(f"Simulation status for GM {gm_profile_id}: {status}")
-            return status
+                
         except Exception as e:
-            logger.error(f"Error getting simulation status: {str(e)}", exc_info=True)
-            raise
+            error_msg = f"Error getting simulation status: {str(e)}"
+            self.logger.error(error_msg)
+            raise SimulationError(error_msg)
 
     def get_recent_logs(self, gm_profile_id: int, limit: int = 50) -> List[Dict]:
-        """Get recent simulation logs for a GM profile."""
-        logger.debug(f"Getting recent logs for GM {gm_profile_id}")
+        """Get recent simulation logs for a GM profile"""
+        self.logger.debug(f"Getting recent logs for GM {gm_profile_id}")
         try:
-            logs = db.session.query(SimulationLog).filter_by(gm_profile_id=gm_profile_id)\
-                .order_by(SimulationLog.timestamp.desc())\
-                .limit(limit)\
-                .all()
-            
-            result = [{
-                "tick_id": log.tick_id,
-                "event_type": log.event_type,
-                "details": log.details,
-                "timestamp": log.timestamp.isoformat()
-            } for log in logs]
-            
-            logger.debug(f"Retrieved {len(result)} logs for GM {gm_profile_id}")
-            return result
+            with self.app.app_context():
+                logs = SimulationLog.query.filter_by(gm_profile_id=gm_profile_id)\
+                    .order_by(SimulationLog.timestamp.desc())\
+                    .limit(limit)\
+                    .all()
+                
+                result = [{
+                    "timestamp": log.timestamp.isoformat(),
+                    "level": log.level,
+                    "message": log.message
+                } for log in logs]
+                
+                self.logger.debug(f"Retrieved {len(result)} logs for GM {gm_profile_id}")
+                return result
+                
         except Exception as e:
-            logger.error(f"Error getting recent logs: {str(e)}", exc_info=True)
+            self.logger.error(f"Error getting recent logs: {str(e)}")
             raise
 
     def manual_tick(self, gm_profile_id: int) -> Dict:
         """Manually trigger a simulation tick."""
-        logger.info(f"Manual tick requested for GM {gm_profile_id}")
+        self.logger.info(f"Manual tick requested for GM {gm_profile_id}")
         try:
-            self.run_tick()
-            status = self.get_simulation_status(gm_profile_id)
-            logger.info(f"Manual tick completed successfully for GM {gm_profile_id}")
-            return {
-                "success": True,
-                "message": "Manual tick completed successfully",
-                "status": status
-            }
+            with self.app.app_context():
+                # Create and run simulation tick
+                tick = EconomicSimulationTick(gm_profile_id)
+                success, message = tick.run_tick()
+                
+                if not success:
+                    raise Exception(message)
+                    
+                status = self.get_simulation_status(gm_profile_id)
+                self.logger.info(f"Manual tick completed successfully for GM {gm_profile_id}")
+                return {
+                    "success": True,
+                    "message": "Manual tick completed successfully",
+                    "status": status
+                }
         except Exception as e:
-            logger.error(f"Error during manual tick for GM {gm_profile_id}: {str(e)}", exc_info=True)
+            self.logger.error(f"Error during manual tick for GM {gm_profile_id}: {str(e)}", exc_info=True)
             return {
                 "success": False,
                 "message": f"Error during manual tick: {str(e)}",
                 "status": self.get_simulation_status(gm_profile_id)
-            } 
+            }
+
+    def _process_tick(self, simulation: SimulationState) -> None:
+        """Process a single simulation tick"""
+        try:
+            self.logger.info(f"Processing tick {simulation.current_tick} for GM {simulation.gm_profile_id}")
+            
+            # Update simulation state
+            simulation.last_tick = datetime.utcnow()
+            simulation.current_tick += 1
+            
+            # Process economic updates
+            self.economic_service.process_tick(simulation.gm_profile_id, simulation.current_tick)
+            
+            # Process other simulation updates here
+            # ...
+            
+            self.logger.info(f"Completed tick {simulation.current_tick} for GM {simulation.gm_profile_id}")
+            
+        except Exception as e:
+            error_msg = f"Error processing tick: {str(e)}"
+            self.logger.error(error_msg)
+            self.record_simulation_error(simulation, error_msg)
+            raise 

@@ -30,6 +30,14 @@ def purge_database():
             MarketEvent,  # Depends on City
         ]
         
+        # Clear the shop_cities junction table first
+        try:
+            db.session.execute(text('DELETE FROM shop_cities'))
+            print("Cleared table: shop_cities")
+        except Exception as e:
+            print(f"Error clearing table shop_cities: {str(e)}")
+            db.session.rollback()
+        
         for table in junction_tables:
             try:
                 db.session.query(table).delete()
@@ -38,9 +46,16 @@ def purge_database():
                 print(f"Error clearing table {table.__tablename__}: {str(e)}")
                 db.session.rollback()
         
-        # Then clear main tables
+        # Then clear main tables in the correct order
         main_tables = [
-            City, Shop, Item, DemandModifier, User, GMProfile, Player, SimulationState
+            City,  # Clear cities first since it's referenced by shops
+            Shop,  # Clear shops after cities
+            Item,  # Clear items after shop_inventory is cleared
+            DemandModifier,  # Clear after modifier_targets
+            GMProfile,  # Clear after cities and shops
+            User,  # Clear after gm_profile
+            Player,  # Clear after all other dependencies
+            SimulationState  # Clear last
         ]
         
         for table in main_tables:
