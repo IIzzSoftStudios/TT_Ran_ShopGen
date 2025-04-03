@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app.models import Player, City, Shop, ShopInventory, Item, PlayerInventory, shop_cities
 from flask_login import login_required, current_user
 from app.extensions import db
+from app.models.users import Player, PlayerInventory
+from app.models.backend import City, Shop, ShopInventory, Item, shop_cities
 
 player_bp = Blueprint("player", __name__)
 

@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
-from app.models import db, User, Player, GMProfile
-from app.extensions import bcrypt
+from app.extensions import db, bcrypt
+from app.models.users import User, Player, GMProfile
 from app.services.logging_config import auth_logger
 
 auth = Blueprint("auth", __name__)

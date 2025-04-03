@@ -92,6 +92,9 @@ def setup_logging():
     auth_handler = logging.FileHandler('app/services/logs/auth.log')
     auth_handler.setFormatter(formatter)
     
+    gm_handler = logging.FileHandler('app/services/logs/gm.log')
+    gm_handler.setFormatter(formatter)
+    
     # Create loggers
     simulation_logger = logging.getLogger('simulation')
     simulation_logger.setLevel(logging.INFO)
@@ -105,7 +108,11 @@ def setup_logging():
     auth_logger.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed logging
     auth_logger.addHandler(auth_handler)
     
-    return simulation_logger, rollback_logger, auth_logger
+    gm_logger = logging.getLogger('gm')
+    gm_logger.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed logging
+    gm_logger.addHandler(gm_handler)
+    
+    return simulation_logger, rollback_logger, auth_logger, gm_logger
 
 # Create loggers
-simulation_logger, rollback_logger, auth_logger = setup_logging() 
+simulation_logger, rollback_logger, auth_logger, gm_logger = setup_logging() 

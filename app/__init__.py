@@ -2,7 +2,6 @@ import os
 from flask import Flask
 from dotenv import load_dotenv
 from app.extensions import db, migrate, bcrypt, login_manager, session
-from app.models import User
 
 # Load environment variables
 load_dotenv("config.env")
@@ -33,19 +32,20 @@ def create_app():
     bcrypt.init_app(app)
     migrate.init_app(app, db)
 
+    # Import models after database initialization
+    from app.models.users import User
+    from app.models.backend import City, Shop, Item, ShopInventory
+
     @login_manager.user_loader
     def load_user(user_id):
         if not user_id:
             print("DEBUG: No user_id found in session")
             return None
-        with db.session.no_autoflush:
-            user = db.session.get(User, int(user_id))
+        # Using db.session.get is preferred for primary key lookups
+        user = db.session.get(User, int(user_id))
         if not user:
-            print(f"DEBUG: User ID {user_id} not found in database") 
+            print(f"DEBUG: User ID {user_id} not found in database")
         return user
-    
-    # Import models to ensure they are registered
-    from app.models import City, Shop, Item, ShopInventory
 
     # Register blueprints
     from app.routes.main_routes import main_bp

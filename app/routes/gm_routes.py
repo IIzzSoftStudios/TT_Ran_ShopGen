@@ -1,6 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from app.models import db, City, Shop, Item, ShopInventory
+from app.extensions import db
+from app.models.backend import City, Shop, Item, ShopInventory
+from app.services.logging_config import gm_logger
 
 gm_bp = Blueprint("gm", __name__, url_prefix="/gm")
 
