@@ -25,7 +25,7 @@ def login():
                 print(f"DEBUG: Current user: {current_user.is_authenticated}")
                 flash("Logged in successfully.", "success")
                 # Fix the endpoint names here
-                target = "gm.dashboard" if user.role == "GM" else "player.dashboard"
+                target = "gm.home" if user.role == "GM" else "player.player_home"
                 print(f"DEBUG: Redirecting to {target}")
                 return redirect(url_for(target))
             except Exception as e:
@@ -37,7 +37,7 @@ def login():
             print("DEBUG: Invalid credentials")
     
     print("DEBUG: Rendering login.html")
-    return render_template("auth/login.html")
+    return render_template("login.html")
 
 @auth.route("/logout")
 @login_required

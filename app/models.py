@@ -244,207 +244,92 @@ class PlayerInventory(db.Model):
     def __repr__(self):
         return f"<PlayerInventory (Player: {self.player.user.username}, Item: {self.item.name}, Quantity: {self.quantity})>"
 
-class ResourceNode(db.Model):
-    __tablename__ = "resource_nodes"
-    node_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    type = db.Column(db.String(50), nullable=False)  # mine, farm, forest, etc.
-    production_rate = db.Column(db.Float, nullable=False)  # units per day
-    quality = db.Column(db.Float, nullable=False)  # 0.0 to 1.0
-    city_id = db.Column(db.Integer, db.ForeignKey("cities.city_id"), nullable=False)
-    owner_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=True)  # Can be owned by players
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+# class ResourceNode(db.Model):
+#     __tablename__ = "resource_nodes"
+#     node_id = db.Column(db.Integer, primary_key=True)
+#     name = db.Column(db.String(100), nullable=False)
+#     type = db.Column(db.String(50), nullable=False)  # mine, farm, forest, etc.
+#     production_rate = db.Column(db.Float, nullable=False)  # units per day
+#     quality = db.Column(db.Float, nullable=False)  # 0.0 to 1.0
+#     city_id = db.Column(db.Integer, db.ForeignKey("cities.city_id"), nullable=False)
+#     owner_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=True)  # Can be owned by players
+#     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     
-    # Add relationship to Item
-    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"))
-    item = db.relationship("Item", backref="resource_nodes")
+#     # Add relationship to Item
+#     item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"))
+#     item = db.relationship("Item", backref="resource_nodes")
     
-    # Relationships
-    city = db.relationship("City", backref="resource_nodes")
-    owner = db.relationship("Player", backref="owned_resources")
-    production_history = db.relationship("ProductionHistory", back_populates="resource_node")
+#     # Relationships
+#     city = db.relationship("City", backref="resource_nodes")
+#     owner = db.relationship("Player", backref="owned_resources")
+#     production_history = db.relationship("ProductionHistory", back_populates="resource_node")
 
-    def __repr__(self):
-        return f"<ResourceNode {self.name} (Type: {self.type}, Rate: {self.production_rate})>"
+#     def __repr__(self):
+#         return f"<ResourceNode {self.name} (Type: {self.type}, Rate: {self.production_rate})>"
 
-class ProductionHistory(db.Model):
-    __tablename__ = "production_history"
-    history_id = db.Column(db.Integer, primary_key=True)
-    node_id = db.Column(db.Integer, db.ForeignKey("resource_nodes.node_id"), nullable=False)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    amount_produced = db.Column(db.Float, nullable=False)
-    quality = db.Column(db.Float, nullable=False)
+# class ProductionHistory(db.Model):
+#     __tablename__ = "production_history"
+#     history_id = db.Column(db.Integer, primary_key=True)
+#     node_id = db.Column(db.Integer, db.ForeignKey("resource_nodes.node_id"), nullable=False)
+#     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+#     amount_produced = db.Column(db.Float, nullable=False)
+#     quality = db.Column(db.Float, nullable=False)
     
-    # Relationships
-    resource_node = db.relationship("ResourceNode", back_populates="production_history")
+#     # Relationships
+#     resource_node = db.relationship("ResourceNode", back_populates="production_history")
 
-class ResourceTransform(db.Model):
-    __tablename__ = "resource_transforms"
-    transform_id = db.Column(db.Integer, primary_key=True)
-    input_item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
-    output_item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
-    conversion_rate = db.Column(db.Float, nullable=False)  # How many output items per input item
-    shop_type = db.Column(db.String(100), nullable=False)  # Type of shop that can perform this transform
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+# class ResourceTransform(db.Model):
+#     __tablename__ = "resource_transforms"
+#     transform_id = db.Column(db.Integer, primary_key=True)
+#     input_item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
+#     output_item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
+#     conversion_rate = db.Column(db.Float, nullable=False)  # How many output items per input item
+#     shop_type = db.Column(db.String(100), nullable=False)  # Type of shop that can perform this transform
+#     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     
-    # Relationships
-    input_item = db.relationship("Item", foreign_keys=[input_item_id])
-    output_item = db.relationship("Item", foreign_keys=[output_item_id])
+#     # Relationships
+#     input_item = db.relationship("Item", foreign_keys=[input_item_id])
+#     output_item = db.relationship("Item", foreign_keys=[output_item_id])
 
-class MarketEvent(db.Model):
-    __tablename__ = "market_events"
-    event_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    trigger_type = db.Column(db.String(50), nullable=False)  # date_based, player_action, random_roll, faction_state
-    city_id = db.Column(db.Integer, db.ForeignKey("cities.city_id"), nullable=True)
-    region = db.Column(db.String(100), nullable=True)
-    effect_json = db.Column(db.JSON, nullable=False)
-    start_date = db.Column(db.DateTime, nullable=False)
-    end_date = db.Column(db.DateTime, nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+# class MarketEvent(db.Model):
+#     __tablename__ = "market_events"
+#     event_id = db.Column(db.Integer, primary_key=True)
+#     name = db.Column(db.String(100), nullable=False)
+#     description = db.Column(db.Text)
+#     trigger_type = db.Column(db.String(50), nullable=False)  # date_based, player_action, random_roll, faction_state
+#     city_id = db.Column(db.Integer, db.ForeignKey("cities.city_id"), nullable=True)
+#     region = db.Column(db.String(100), nullable=True)
+#     effect_json = db.Column(db.JSON, nullable=False)
+#     start_date = db.Column(db.DateTime, nullable=False)
+#     end_date = db.Column(db.DateTime, nullable=True)
+#     is_active = db.Column(db.Boolean, default=True)
+#     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     
-    # Relationships
-    city = db.relationship("City", backref="market_events")
+#     # Relationships
+#     city = db.relationship("City", backref="market_events")
 
-class PlayerInvestment(db.Model):
-    __tablename__ = "player_investments"
-    investment_id = db.Column(db.Integer, primary_key=True)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
-    amount_invested = db.Column(db.Float, nullable=False)
-    stake_percentage = db.Column(db.Float, nullable=False)
-    income_yield = db.Column(db.Float, nullable=False)
-    last_payout = db.Column(db.DateTime, nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+# class PlayerInvestment(db.Model):
+#     __tablename__ = "player_investments"
+#     investment_id = db.Column(db.Integer, primary_key=True)
+#     player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False)
+#     shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
+#     amount_invested = db.Column(db.Float, nullable=False)
+#     stake_percentage = db.Column(db.Float, nullable=False)
+#     income_yield = db.Column(db.Float, nullable=False)
+#     last_payout = db.Column(db.DateTime, nullable=False)
+#     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     
-    # Relationships
-    player = db.relationship("Player", backref="investments")
-    shop = db.relationship("Shop", backref="investments")
+#     # Relationships
+#     player = db.relationship("Player", backref="investments")
+#     shop = db.relationship("Shop", backref="investments")
 
-class ShopMaintenance(db.Model):
-    __tablename__ = "shop_maintenance"
-    maintenance_id = db.Column(db.Integer, primary_key=True)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
-    daily_cost = db.Column(db.Float, nullable=False)
-    last_payment = db.Column(db.DateTime, nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+# class ShopMaintenance(db.Model):
+#     __tablename__ = "shop_maintenance"
+#     maintenance_id = db.Column(db.Integer, primary_key=True)
+#     shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
+#     daily_cost = db.Column(db.Float, nullable=False)
+#     last_payment = db.Column(db.DateTime, nullable=False)
+#     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     
-    # Relationships
-    shop = db.relationship("Shop", backref="maintenance")
-
-class SimulationState(db.Model):
-    __tablename__ = "simulation_state"
-    state_id = db.Column(db.Integer, primary_key=True)
-    current_tick = db.Column(db.Integer, nullable=False, default=0)
-    speed = db.Column(db.String(10), nullable=False, default="pause")
-    last_tick_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
-    
-    # Relationships
-    gm_profile = db.relationship("GMProfile", backref="simulation_state")
-    
-    def __repr__(self):
-        return f"<SimulationState (Tick: {self.current_tick}, Speed: {self.speed})>"
-        
-    def get_performance_metrics(self):
-        """Get performance metrics in a safe way."""
-        try:
-            return {
-                'last_tick_duration_ms': getattr(self, 'last_tick_duration_ms', None),
-                'last_error': getattr(self, 'last_error', None),
-                'last_error_time': getattr(self, 'last_error_time', None),
-                'tick_history': getattr(self, 'tick_history', None),
-                'performance_metrics': getattr(self, 'performance_metrics', None)
-            }
-        except:
-            return {
-                'last_tick_duration_ms': None,
-                'last_error': None,
-                'last_error_time': None,
-                'tick_history': None,
-                'performance_metrics': None
-            }
-            
-    def update_performance_metrics(self, duration_ms: float):
-        """Update performance metrics for the current tick."""
-        try:
-            metrics = getattr(self, 'performance_metrics', None) or {
-                'tick_durations': [],
-                'avg_duration_ms': 0,
-                'max_duration_ms': 0,
-                'min_duration_ms': float('inf'),
-                'error_count': 0
-            }
-            
-            metrics['tick_durations'].append(duration_ms)
-            
-            # Keep only last 100 tick durations
-            if len(metrics['tick_durations']) > 100:
-                metrics['tick_durations'] = metrics['tick_durations'][-100:]
-            
-            # Update statistics
-            metrics['avg_duration_ms'] = sum(metrics['tick_durations']) / len(metrics['tick_durations'])
-            metrics['max_duration_ms'] = max(metrics['tick_durations'])
-            metrics['min_duration_ms'] = min(metrics['tick_durations'])
-            
-            # Try to update the attributes if they exist
-            try:
-                self.performance_metrics = metrics
-                self.last_tick_duration_ms = duration_ms
-            except:
-                pass  # Silently fail if columns don't exist yet
-        except:
-            pass  # Silently fail if any error occurs
-            
-    def record_error(self, error_message: str):
-        """Record an error that occurred during simulation."""
-        try:
-            # Try to update the attributes if they exist
-            try:
-                self.last_error = error_message
-                self.last_error_time = datetime.utcnow()
-            except:
-                pass  # Silently fail if columns don't exist yet
-                
-            # Update error count in performance metrics
-            metrics = getattr(self, 'performance_metrics', None)
-            if metrics:
-                metrics['error_count'] = metrics.get('error_count', 0) + 1
-                try:
-                    self.performance_metrics = metrics
-                except:
-                    pass  # Silently fail if column doesn't exist yet
-        except:
-            pass  # Silently fail if any error occurs
-
-class SimulationLog(db.Model):
-    __tablename__ = "simulation_logs"
-    log_id = db.Column(db.Integer, primary_key=True)
-    tick_id = db.Column(db.Integer, nullable=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    event_type = db.Column(db.String(50), nullable=False)  # price_change, stock_update, restock, city_event
-    details = db.Column(db.JSON, nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
-    
-    # Relationships
-    gm_profile = db.relationship("GMProfile", backref="simulation_logs")
-    
-    def __repr__(self):
-        return f"<SimulationLog (Tick: {self.tick_id}, Type: {self.event_type})>"
-
-class SimRule(db.Model):
-    __tablename__ = "sim_rules"
-    rule_id = db.Column(db.Integer, primary_key=True)
-    rule_type = db.Column(db.String(50), nullable=False)  # price, stock, event
-    target_type = db.Column(db.String(50), nullable=False)  # item_id, region_id, city_id
-    function_type = db.Column(db.String(50), nullable=False)  # linear, decay, etc.
-    condition_json = db.Column(db.JSON, nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
-    
-    # Relationships
-    gm_profile = db.relationship("GMProfile", backref="sim_rules")
-    
-    def __repr__(self):
-        return f"<SimRule (Type: {self.rule_type}, Target: {self.target_type})>"
+#     # Relationships
+#     shop = db.relationship("Shop", backref="maintenance")

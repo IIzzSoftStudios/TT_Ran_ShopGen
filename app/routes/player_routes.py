@@ -187,72 +187,82 @@ def player_home():
     print("[DEBUG] Starting player_home route")
     print(f"[DEBUG] Current user: {current_user.username}, Role: {current_user.role}")
     
-    # Fetch player details
-    player = Player.query.filter_by(user_id=current_user.id).first()
-    if not player:
-        print("[DEBUG] Player not found")
-        return "Player not found", 404
-    
-    print(f"[DEBUG] Found player: {player.id}, User ID: {player.user_id}, GM Profile ID: {player.gm_profile_id}")
+    try:
+        # Fetch player details
+        player = Player.query.filter_by(user_id=current_user.id).first()
+        if not player:
+            print("[DEBUG] Player not found")
+            flash("Player profile not found. Please contact your GM.", "error")
+            return redirect(url_for("auth.logout"))
+        
+        print(f"[DEBUG] Found player: {player.id}, User ID: {player.user_id}, GM Profile ID: {player.gm_profile_id}")
 
-    # Verify GM profile exists
-    gm_profile = player.gm_profile
-    if not gm_profile:
-        print("[DEBUG] GM Profile not found")
-        return "GM Profile not found", 404
-    
-    print(f"[DEBUG] Found GM Profile: {gm_profile.id}, User ID: {gm_profile.user_id}")
+        # Verify GM profile exists
+        gm_profile = player.gm_profile
+        if not gm_profile:
+            print("[DEBUG] GM Profile not found")
+            flash("GM profile not found. Please contact support.", "error")
+            return redirect(url_for("auth.logout"))
+        
+        print(f"[DEBUG] Found GM Profile: {gm_profile.id}, User ID: {gm_profile.user_id}")
 
-    # Get all cities for the GM
-    cities = City.query.filter_by(gm_profile_id=gm_profile.id).all()
-    print(f"[DEBUG] Found {len(cities)} cities for GM Profile {gm_profile.id}")
-    for city in cities:
-        print(f"[DEBUG] City: {city.name} (ID: {city.city_id})")
+        # Get all cities for the GM
+        cities = City.query.filter_by(gm_profile_id=gm_profile.id).all()
+        print(f"[DEBUG] Found {len(cities)} cities for GM Profile {gm_profile.id}")
+        for city in cities:
+            print(f"[DEBUG] City: {city.name} (ID: {city.city_id})")
 
-    # Get all shops for the GM
-    shops = Shop.query.filter_by(gm_profile_id=gm_profile.id).all()
-    print(f"[DEBUG] Found {len(shops)} shops for GM Profile {gm_profile.id}")
-    for shop in shops:
-        print(f"[DEBUG] Shop: {shop.name} (ID: {shop.shop_id})")
+        # Get all shops for the GM
+        shops = Shop.query.filter_by(gm_profile_id=gm_profile.id).all()
+        print(f"[DEBUG] Found {len(shops)} shops for GM Profile {gm_profile.id}")
+        for shop in shops:
+            print(f"[DEBUG] Shop: {shop.name} (ID: {shop.shop_id})")
 
-    # Get all items in shops for the GM
-    shop_items = (
-        db.session.query(Item)
-        .join(ShopInventory, ShopInventory.item_id == Item.item_id)
-        .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-        .filter(Shop.gm_profile_id == gm_profile.id)
-        .distinct()
-        .all()
-    )
-    print(f"[DEBUG] Found {len(shop_items)} items in shops for GM Profile {gm_profile.id}")
-    for item in shop_items:
-        print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
-
-    # Get player's inventory with item details
-    inventory_items = (
-        db.session.query(
-            PlayerInventory.quantity,
-            Item.name,
-            Item.type,
-            Item.rarity,
-            Item.description,
-            Item.item_id,
-            Item.base_price
+        # Get all items in shops for the GM
+        shop_items = (
+            db.session.query(Item)
+            .join(ShopInventory, ShopInventory.item_id == Item.item_id)
+            .join(Shop, Shop.shop_id == ShopInventory.shop_id)
+            .filter(Shop.gm_profile_id == gm_profile.id)
+            .distinct()
+            .all()
         )
-        .join(Item, PlayerInventory.item_id == Item.item_id)
-        .filter(PlayerInventory.player_id == player.id)
-        .all()
-    )
-    print(f"[DEBUG] Found {len(inventory_items)} items in player's inventory")
+        print(f"[DEBUG] Found {len(shop_items)} items in shops for GM Profile {gm_profile.id}")
+        for item in shop_items:
+            print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
 
-    return render_template(
-        "Player_Home.html",
-        player=player,
-        cities=cities,
-        shops=shops,
-        items=shop_items,
-        inventory_items=inventory_items
-    )
+        # Get player's inventory with item details
+        inventory_items = (
+            db.session.query(
+                PlayerInventory.quantity,
+                Item.name,
+                Item.type,
+                Item.rarity,
+                Item.description,
+                Item.item_id,
+                Item.base_price
+            )
+            .join(Item, PlayerInventory.item_id == Item.item_id)
+            .filter(PlayerInventory.player_id == player.id)
+            .all()
+        )
+        print(f"[DEBUG] Found {len(inventory_items)} items in player's inventory")
+
+        return render_template(
+            "Player_Home.html",
+            player=player,
+            cities=cities,
+            shops=shops,
+            shop_items=shop_items,
+            inventory_items=inventory_items
+        )
+    except Exception as e:
+        print(f"[ERROR] Error in player_home: {str(e)}")
+        print(f"[ERROR] Exception type: {type(e)}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        flash("An error occurred while loading your home page. Please try again.", "error")
+        return redirect(url_for("auth.logout"))
 
 # Search route
 @player_bp.route("/search")
@@ -535,77 +545,3 @@ def view_market():
         print(f"[ERROR] Traceback: {traceback.format_exc()}")
         flash('An error occurred while viewing the market.', 'error')
         return redirect(url_for('player.player_home'))
-
-@player_bp.route("/api/market-data")
-@login_required
-def get_market_data():
-    try:
-        # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
-        if not player:
-            return jsonify({'error': 'Player not found'}), 404
-
-        filter_type = request.args.get('filter', 'all')
-
-        # Query all items and their inventories across all shops in the player's GM profile
-        items_query = (
-            db.session.query(
-                Item,
-                db.func.sum(ShopInventory.stock).label('total_stock'),
-                db.func.avg(ShopInventory.dynamic_price).label('avg_price')
-            )
-            .join(ShopInventory, ShopInventory.item_id == Item.item_id)
-            .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-            .filter(Shop.gm_profile_id == player.gm_profile_id)
-        )
-
-        if filter_type != 'all':
-            items_query = items_query.filter(Item.type == filter_type)
-
-        items_query = (
-            items_query.group_by(Item.item_id)
-            .order_by(Item.name)
-        )
-
-        market_items = []
-        for item, total_stock, avg_price in items_query.all():
-            # Calculate buy/sell orders (simplified example)
-            sell_orders = total_stock
-            buy_orders = int(total_stock * 1.2)  # Example: 20% more buy orders than stock
-            
-            # Calculate price trend (simplified example)
-            base_price_diff = ((avg_price or item.base_price) - item.base_price) / item.base_price * 100
-            
-            market_items.append({
-                'name': item.name,
-                'icon': f"{item.type.lower()}/{item.name.lower().replace(' ', '_')}.png",
-                'sellOrders': sell_orders,
-                'buyOrders': buy_orders,
-                'price': float(avg_price or item.base_price),
-                'trend': round(base_price_diff, 1),
-                'productionSources': [
-                    "Rye Farms",
-                    "Wheat Farms",
-                    "Rice Farms"
-                ] if item.type == 'Agricultural' else [
-                    "Factories",
-                    "Workshops"
-                ],
-                'priceHistory': {
-                    'dates': ['Jan 1', 'Jan 15', 'Feb 1', 'Feb 15', 'Mar 1'],
-                    'prices': [
-                        item.base_price * 0.9,
-                        item.base_price * 0.95,
-                        item.base_price,
-                        item.base_price * 1.1,
-                        float(avg_price or item.base_price)
-                    ]
-                }
-            })
-
-        return jsonify({
-            'items': market_items
-        })
-    except Exception as e:
-        print(f"[ERROR] Error fetching market data: {e}")
-        return jsonify({'error': str(e)}), 500
