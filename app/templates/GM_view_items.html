@@ -160,7 +160,10 @@
 </head>
 <body>
     <h1>View Items</h1>
-
+    <div class="nav-buttons">
+        <button onclick="navigateTo('{{ url_for('gm.add_item') }}')" class="button">Add New Item</button>
+        <button onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
+    </div>
     <div class="content-container">
         <div class="section">
             <h2>Available Items</h2>
@@ -199,10 +202,7 @@
         </div>
     </div>
 
-    <div class="nav-buttons">
-        <button onclick="navigateTo('{{ url_for('gm.add_item') }}')" class="button">Add New Item</button>
-        <button onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
-    </div>
+
 
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal">
