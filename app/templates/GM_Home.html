@@ -130,138 +130,108 @@
         .manual-tick-button:hover {
             background-color: #1976D2;
         }
+
+        /* Flash message styling */
+        .flash-messages {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .flash-message {
+            padding: 15px 20px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            color: white;
+            font-weight: bold;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .flash-message.success {
+            background-color: #4CAF50;
+        }
+
+        .flash-message.error {
+            background-color: #f44336;
+        }
+
+        .flash-message.info {
+            background-color: #2196F3;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
     </style>
-    <script>
-        // Function to navigate to a URL
-        function navigateTo(url) {
-            window.location.href = url;
-        }
-
-        // Function to update simulation speed
-        async function updateSimulationSpeed(speed) {
-            try {
-                const response = await fetch('/api/simulation/speed', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ speed: speed })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to update simulation speed');
-                }
-                
-                // Update UI to show active speed
-                document.querySelectorAll('.speed-button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                document.querySelector(`[data-speed="${speed}"]`).classList.add('active');
-                
-                // Update status
-                updateSimulationStatus();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to update simulation speed');
-            }
-        }
-
-        // Function to perform manual tick
-        async function performManualTick() {
-            try {
-                const response = await fetch('/api/simulation/tick', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to perform manual tick');
-                }
-                
-                // Update status
-                updateSimulationStatus();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to perform manual tick');
-            }
-        }
-
-        // Function to update simulation status
-        async function updateSimulationStatus() {
-            try {
-                console.log('Fetching simulation status...');
-                const response = await fetch('/api/simulation/status');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch simulation status');
-                }
-                
-                const status = await response.json();
-                console.log('Received status:', status);
-                
-                // Get current values before update
-                const currentTick = document.getElementById('current-tick').textContent;
-                const newTick = status.current_tick;
-                
-                // Update status display
-                document.getElementById('current-tick').textContent = newTick;
-                document.getElementById('current-speed').textContent = status.speed;
-                document.getElementById('last-tick-time').textContent = new Date(status.last_tick_time).toLocaleString();
-                document.getElementById('simulation-status').textContent = status.status;
-                
-                // Log if tick changed
-                if (currentTick !== newTick) {
-                    console.log(`Tick updated: ${currentTick} -> ${newTick}`);
-                }
-            } catch (error) {
-                console.error('Error updating simulation status:', error);
-            }
-        }
-
-        // Update status every 5 seconds
-        const statusInterval = setInterval(updateSimulationStatus, 5000);
-        
-        // Clean up interval when page is unloaded
-        window.addEventListener('beforeunload', () => {
-            clearInterval(statusInterval);
-        });
-
-        // Initial status update
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Page loaded, performing initial status update');
-            updateSimulationStatus();
-        });
-    </script>
 </head>
 <body>
-    <!-- Styled and centered heading -->
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
     <h1>Welcome to the Game Master Interface</h1>
 
     <!-- Simulation Control Panel -->
     <div class="simulation-panel">
         <h2>Simulation Controls</h2>
         <div class="simulation-controls">
-            <button class="speed-button" data-speed="pause" onclick="updateSimulationSpeed('pause')">Pause</button>
-            <button class="speed-button" data-speed="1x" onclick="updateSimulationSpeed('1x')">1 Hour</button>
-            <button class="speed-button" data-speed="5x" onclick="updateSimulationSpeed('5x')">1 Day</button>
-            <button class="speed-button" data-speed="100x" onclick="updateSimulationSpeed('100x')">1 Week</button>
-            <button class="speed-button" data-speed="1000x" onclick="updateSimulationSpeed('1000x')">1 Month</button>
-            <button class="manual-tick-button" onclick="performManualTick()">Manual Tick</button>
+            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="speed" value="pause">
+                <button type="submit" class="speed-button {% if current_speed == 'pause' %}active{% endif %}">Pause</button>
+            </form>
+            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="speed" value="1x">
+                <button type="submit" class="speed-button {% if current_speed == '1x' %}active{% endif %}">Simulate 1 Hour</button>
+            </form>
+            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="speed" value="5x">
+                <button type="submit" class="speed-button {% if current_speed == '5x' %}active{% endif %}">Simulate 1 Day</button>
+            </form>
+            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="speed" value="100x">
+                <button type="submit" class="speed-button {% if current_speed == '100x' %}active{% endif %}">Simulate 1 Week</button>
+            </form>
+            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="speed" value="1000x">
+                <button type="submit" class="speed-button {% if current_speed == '1000x' %}active{% endif %}">Simulate 1 Month</button>
+            </form>
+            <form action="{{ url_for('gm.run_simulation_tick') }}" method="post" style="display: inline;">
+                <button type="submit" class="manual-tick-button">Manual Tick</button>
+            </form>
         </div>
         <div class="simulation-status">
             <div class="status-item">
                 <span class="status-label">Current Tick</span>
-                <span class="status-value" id="current-tick">-</span>
+                <span class="status-value">{{ current_tick }}</span>
             </div>
             <div class="status-item">
                 <span class="status-label">Speed</span>
-                <span class="status-value" id="current-speed">-</span>
+                <span class="status-value">{{ current_speed }}</span>
             </div>
             <div class="status-item">
                 <span class="status-label">Last Tick Time</span>
-                <span class="status-value" id="last-tick-time">-</span>
+                <span class="status-value">{{ last_tick_time.strftime('%Y-%m-%d %H:%M:%S') }}</span>
             </div>
             <div class="status-item">
                 <span class="status-label">Status</span>
-                <span class="status-value" id="simulation-status">-</span>
+                <span class="status-value">{{ simulation_status }}</span>
             </div>
         </div>
     </div>

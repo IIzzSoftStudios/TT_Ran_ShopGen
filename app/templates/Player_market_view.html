@@ -3,73 +3,7 @@
 <div class="market-container">
     <div class="market-header">
         <h1>Market Overview</h1>
-        <div class="market-filters">
-            <select id="market-filter" class="vic3-select">
-                <option value="all">All Goods</option>
-                <option value="agricultural">Agricultural</option>
-                <option value="industrial">Industrial</option>
-                <option value="military">Military</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="market-grid">
-        <div class="market-table">
-            <div class="table-header">
-                <div class="col-icon"></div>
-                <div class="col-name">Good</div>
-                <div class="col-sell">Sell Orders</div>
-                <div class="col-buy">Buy Orders</div>
-                <div class="col-balance">Balance</div>
-                <div class="col-price">Market Price</div>
-                <div class="col-trend">Trend</div>
-            </div>
-            <div class="table-body" id="market-items">
-                <!-- Items will be populated via JavaScript -->
-            </div>
-        </div>
-    </div>
-
-    <div class="market-detail-panel" id="item-details">
-        <div class="detail-header">
-            <h2><span id="detail-item-name">Select an item</span></h2>
-            <div class="detail-price">£<span id="detail-price">0</span></div>
-        </div>
-        <div class="detail-content">
-            <div class="detail-section">
-                <h3>Production Sources</h3>
-                <div id="production-sources" class="detail-list"></div>
-            </div>
-            <div class="detail-section">
-                <h3>Market Information</h3>
-                <div class="market-stats">
-                    <div class="stat">
-                        <label>Sell Orders:</label>
-                        <span id="detail-sell-orders">0</span>
-                    </div>
-                    <div class="stat">
-                        <label>Buy Orders:</label>
-                        <span id="detail-buy-orders">0</span>
-                    </div>
-                    <div class="stat">
-                        <label>Market Balance:</label>
-                        <span id="detail-balance">0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="detail-section">
-                <h3>Price History</h3>
-                <div class="price-chart">
-                    <canvas id="price-history-chart"></canvas>
-                </div>
-            </div>
-        </div>
+        <p>Market interface under construction. Check back later.</p>
     </div>
 </div>
-
-{% endblock %}
-
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/market.js') }}"></script>
 {% endblock %} 
