@@ -22,7 +22,7 @@ def view_shop(shop_id):
         print(f"[DEBUG] Request Path: {request.path}")
         
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             print("[DEBUG] Player not found")
             flash('Player profile not found.', 'error')
@@ -109,7 +109,7 @@ def view_shops():
     try:
         print("[DEBUG] Starting view_shops route")
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             print("[DEBUG] Player not found")
             flash('Player profile not found.', 'error')
@@ -142,7 +142,7 @@ def view_shops():
 def view_cities():
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
@@ -161,7 +161,7 @@ def view_cities():
 def view_city(city_id):
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
@@ -190,13 +190,13 @@ def player_home():
     
     try:
         # Fetch player details
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             print("[DEBUG] Player not found")
             flash("Player profile not found. Please contact your GM.", "error")
             return redirect(url_for("auth.logout"))
         
-        print(f"[DEBUG] Found player: {player.id}, User ID: {player.user_id}, GM Profile ID: {player.gm_profile_id}")
+        print(f"[DEBUG] Found player: {player.id}, User ID: {player.user_id_player}, GM Profile ID: {player.gm_profile_id}")
 
         # Verify GM profile exists
         gm_profile = player.gm_profile
@@ -225,7 +225,7 @@ def player_home():
             .join(ShopInventory, ShopInventory.item_id == Item.item_id)
             .join(Shop, Shop.shop_id == ShopInventory.shop_id)
             .filter(Shop.gm_profile_id == gm_profile.id)
-            .distinct()
+            # .distinct()
             .all()
         )
         print(f"[DEBUG] Found {len(shop_items)} items in shops for GM Profile {gm_profile.id}")
@@ -271,7 +271,7 @@ def player_home():
 def search_item():
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             return jsonify({'error': 'Player not found'}), 404
 
@@ -350,7 +350,7 @@ def search_item():
 def buy_item(shop_id, item_id):
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             return jsonify({'success': False, 'message': 'Player not found'})
 
@@ -413,7 +413,7 @@ def buy_item(shop_id, item_id):
 def view_shop_items(shop_id):
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_playe=current_user.id).first()
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
@@ -447,7 +447,7 @@ def view_shop_items(shop_id):
 def sell_item(item_id):
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             return _ajax_or_redirect('Player profile not found.', error=True)
 
@@ -511,7 +511,7 @@ def view_market():
         print("[DEBUG] Entered /player/market route")
         
         # Get the current player
-        player = Player.query.filter_by(user_id=current_user.id).first()
+        player = Player.query.filter_by(user_id_player =current_user.id).first()
         if not player:
             print("[DEBUG] Player not found - redirecting to home")
             flash('Player profile not found.', 'error')
@@ -529,7 +529,7 @@ def view_market():
             .join(ShopInventory, ShopInventory.item_id == Item.item_id)
             .join(Shop, Shop.shop_id == ShopInventory.shop_id)
             .filter(Shop.gm_profile_id == player.gm_profile_id)
-            .distinct()
+            # .distinct()
             .all()
         )
         print(f"[DEBUG] Found {len(items)} items in shops")

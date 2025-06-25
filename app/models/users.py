@@ -69,7 +69,7 @@ class Player(db.Model):
     user_id_player = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
     # Link to the GMProfile managing this player
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
-    # Link to the User account of the GM (Redundant? Can get via gm_profile.user_id)
+    # Link to the User account of the GM
     user_id_gm = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False) 
 
     currency = db.Column(db.Integer, default=0)

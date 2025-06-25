@@ -116,8 +116,9 @@ def register():
 
                 # Create Player profile linked to GM
                 player = Player(
-                    user_id=new_user.id,
+                    user_id_player=new_user.id,
                     gm_profile_id=gm_profile.id,
+                    user_id_gm=gm.id,
                     currency=0
                 )
                 db.session.add(player)
