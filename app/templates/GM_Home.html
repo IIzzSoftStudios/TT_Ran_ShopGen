@@ -186,7 +186,24 @@
         {% endif %}
     {% endwith %}
 
-    <h1>Welcome to the Game Master Interface</h1>
+    <h1>Welcome {{ current_user.username }} the Game Master Interface</h1>
+
+    <!-- World Seeder Button -->
+    <div class="card p-4 shadow-sm mb-4">
+        <h2>World Management</h2>
+        <p>Populate your game world with cities, shops, and items automatically.</p>
+        <form action="{{ url_for('gm.seed_world') }}" method="POST" onsubmit="return confirm('Are you sure you want to seed your world? This will DELETE any existing cities, shops, and items associated with your GM profile and create new ones!');">
+            <button type="submit" class="btn btn-primary">Seed My World Now!</button>
+        </form>
+        <small class="text-muted mt-2">
+            Warning: This action will clear out your current GM's cities, shops, and items before seeding new ones.
+        </small>
+    </div>
+
+    <div class="card p-4 shadow-sm">
+        <h2>Your Game Statistics (Coming Soon)</h2>
+        <p>Stats about your players, economy, and world will appear here.</p>
+    </div>
 
     <!-- Simulation Control Panel -->
     <div class="simulation-panel">

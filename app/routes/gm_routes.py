@@ -5,6 +5,7 @@ from app.models.backend import City, Shop, Item, ShopInventory
 from app.services.logging_config import gm_logger
 from app.services.simulation import SimulationEngine
 from datetime import datetime
+from app.scripts.seeder import seed_gm_data
 
 gm_bp = Blueprint("gm", __name__, url_prefix="/gm")
 
@@ -21,6 +22,7 @@ def _debug_request(request_type: str, route: str):
         f"  Current speed: {simulation_engine.current_speed}\n"
         f"  Last tick: {simulation_engine.last_tick_time}"
     )
+
 
 @gm_bp.route("/")
 @login_required
@@ -57,8 +59,41 @@ def home():
         simulation_status="active" if simulation_engine.current_speed != "pause" else "paused"
     )
 
-#cities routes
+# --- Seeding Route ---
+@gm_bp.route("/seed_world", methods=["POST"])
+@login_required
+def seed_world():
+    """
+    Route to trigger the seeding of the GM's world data.
+    """
+    _debug_request("POST", "/gm/seed_world") # Add debug logging for this route
+    
+    # current_user.gm_profile is already guaranteed to exist by @gm_bp.before_request
+    gm_profile = current_user.gm_profile
 
+    try:
+        # Call the seeding function with the GM's profile ID
+        success = seed_gm_data(
+            gm_profile.id,
+            num_cities=10,
+            num_shops_per_city=10,
+            num_global_items=75, # Global distinct items to choose from
+            num_items_per_shop=10 # Items assigned to each shop
+        )
+        if success:
+            flash("Your world has been successfully seeded!", "success")
+        else:
+            flash("Failed to seed world. Check server logs for details.", "error")
+    except Exception as e:
+        db.session.rollback() # Ensure rollback on error
+        gm_logger.error(f"Error during seeding world: {str(e)}", exc_info=True)
+        flash(f"An error occurred during seeding: {str(e)}", "error")
+
+    # Redirect back to the GM home page (dashboard)
+    return redirect(url_for("gm.home"))
+
+
+#cities routes
 @gm_bp.route("/cities/")
 @login_required
 def view_cities():
