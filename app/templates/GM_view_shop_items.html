@@ -111,9 +111,9 @@
     <h1>Items in {{ shop.name }}</h1>
     
     <div class="button-container">
-        <button class="button" onclick="window.location.href='{{ url_for('gm.add_item') }}'">Add Shop Item</button>
-        <button class="button" onclick="window.location.href='{{ url_for('gm.view_shops') }}'">All Shops</button>
-        <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
+        <button class="button" onclick="window.location.href='{{ url_for('gm.gm_add_item') }}'">Add Shop Item</button>
+        <button class="button" onclick="window.location.href='{{ url_for('gm.gm_view_shops') }}'">All Shops</button>
+        <a href="{{ url_for('gm.gm_home') }}" class="button">Game Master Interface</a>
     </div>
 
     <table>
@@ -134,8 +134,8 @@
                 <td>{{ inventory.stock }}</td>
                 <td>{{ inventory.dynamic_price }}</td>
                 <td>
-                    <a href="{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
-                    <form method="POST" action="{{ url_for('gm.remove_item_from_shop', shop_id=shop.shop_id, item_id=inventory.item_id) }}" style="display:inline;">
+                    <a href="{{ url_for('gm.gm_view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
+                    <form method="POST" action="{{ url_for('gm.gm_remove_item_from_shop', shop_id=shop.shop_id, item_id=inventory.item_id) }}" style="display:inline;">
                         <button type="submit" class="delete-button">Remove</button>
                     </form>                    
                 </td>                

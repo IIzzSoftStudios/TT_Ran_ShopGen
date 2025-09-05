@@ -161,8 +161,8 @@
 <body>
     <h1>View Cities</h1>
     <div class="nav-buttons">
-        <button onclick="navigateTo('{{ url_for('gm.add_city') }}')" class="button">Add New City</button>
-        <button onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
+        <button onclick="navigateTo('{{ url_for('gm.gm_add_city') }}')" class="button">Add New City</button>
+        <button onclick="navigateTo('{{ url_for('gm.gm_home') }}')" class="nav-button">Back to Dashboard</button>
     </div>
     <div class="content-container">
         <div class="section">
@@ -184,8 +184,8 @@
                         <td>{{ city.size }}</td>
                         <td>{{ city.region }}</td>
                         <td>
-                            <button class="button" onclick="navigateTo('{{ url_for('gm.edit_city', city_id=city.city_id) }}')">Edit</button>
-                            <button class="button" onclick="navigateTo('{{ url_for('gm.view_city_shops', city_id=city.city_id) }}')">View Shops</button>
+                            <button class="button" onclick="navigateTo('{{ url_for('gm.gm_edit_city', city_id=city.city_id) }}')">Edit</button>
+                            <button class="button" onclick="navigateTo('{{ url_for('gm.gm_view_city_shops', city_id=city.city_id) }}')">View Shops</button>
                             <button class="delete-button" onclick="showDeleteConfirmation({{ city.city_id }}, '{{ city.name }}')">Delete</button>
                         </td>
                     </tr>

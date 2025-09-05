@@ -192,7 +192,7 @@
     <div class="card p-4 shadow-sm mb-4">
         <h2>World Management</h2>
         <p>Populate your game world with cities, shops, and items automatically.</p>
-        <form action="{{ url_for('gm.seed_world') }}" method="POST" onsubmit="return confirm('Are you sure you want to seed your world? This will DELETE any existing cities, shops, and items associated with your GM profile and create new ones!');">
+        <form action="{{ url_for('gm.gm_seed_world') }}" method="POST" onsubmit="return confirm('Are you sure you want to seed your world? This will DELETE any existing cities, shops, and items associated with your GM profile and create new ones!');">
             <button type="submit" class="btn btn-primary">Seed My World Now!</button>
         </form>
         <small class="text-muted mt-2">
@@ -209,27 +209,27 @@
     <div class="simulation-panel">
         <h2>Simulation Controls</h2>
         <div class="simulation-controls">
-            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
                 <input type="hidden" name="speed" value="pause">
                 <button type="submit" class="speed-button {% if current_speed == 'pause' %}active{% endif %}">Pause</button>
             </form>
-            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
                 <input type="hidden" name="speed" value="1x">
                 <button type="submit" class="speed-button {% if current_speed == '1x' %}active{% endif %}">Simulate 1 Hour</button>
             </form>
-            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
                 <input type="hidden" name="speed" value="5x">
                 <button type="submit" class="speed-button {% if current_speed == '5x' %}active{% endif %}">Simulate 1 Day</button>
             </form>
-            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
                 <input type="hidden" name="speed" value="100x">
                 <button type="submit" class="speed-button {% if current_speed == '100x' %}active{% endif %}">Simulate 1 Week</button>
             </form>
-            <form action="{{ url_for('gm.update_simulation_speed') }}" method="post" style="display: inline;">
+            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
                 <input type="hidden" name="speed" value="1000x">
                 <button type="submit" class="speed-button {% if current_speed == '1000x' %}active{% endif %}">Simulate 1 Month</button>
             </form>
-            <form action="{{ url_for('gm.run_simulation_tick') }}" method="post" style="display: inline;">
+            <form action="{{ url_for('gm.gm_run_simulation_tick') }}" method="post" style="display: inline;">
                 <button type="submit" class="manual-tick-button">Manual Tick</button>
             </form>
         </div>
@@ -265,9 +265,9 @@
 
     <!-- Button container for navigation -->
     <div class="button-container">
-        <a href="{{ url_for('gm.view_cities') }}" class="button">Manage Cities</a>
-        <a href="{{ url_for('gm.view_shops') }}" class="button">Manage Shops</a>
-        <a href="{{ url_for('gm.view_items') }}" class="button">Manage Items</a>
+        <a href="{{ url_for('gm.gm_view_cities') }}" class="button">Manage Cities</a>
+        <a href="{{ url_for('gm.gm_view_shops') }}" class="button">Manage Shops</a>
+        <a href="{{ url_for('gm.gm_view_items') }}" class="button">Manage Items</a>
         <a href="{{ url_for('auth.logout') }}" class="button">Logout</a>
     </div>
 </body>

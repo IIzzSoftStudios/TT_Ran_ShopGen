@@ -11,7 +11,7 @@ def index():
 @login_required
 def home():
     if current_user.role == "GM":
-        return redirect(url_for("gm.home"))
+        return redirect(url_for("gm.gm_home"))
     else:
         return redirect(url_for("player.player_home"))
 

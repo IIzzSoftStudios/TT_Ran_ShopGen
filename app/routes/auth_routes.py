@@ -25,7 +25,7 @@ def login():
                 print(f"DEBUG: Current user: {current_user.is_authenticated}")
                 flash("Logged in successfully.", "success")
                 # Fix the endpoint names here
-                target = "gm.home" if user.role == "GM" else "player.player_home"
+                target = "gm.gm_home" if user.role == "GM" else "player.player_home"
                 print(f"DEBUG: Redirecting to {target}")
                 return redirect(url_for(target))
             except Exception as e:
@@ -222,13 +222,13 @@ def admin_reset():
     if not username:
         auth_logger.warning("No username provided")
         flash("Username is required!", "warning")
-        return redirect(url_for("gm.home"))
+        return redirect(url_for("gm.gm_home"))
         
     user = User.query.filter_by(username=username).first()
     if not user:
         auth_logger.warning(f"User not found: {username}")
         flash(f"User '{username}' not found!", "error")
-        return redirect(url_for("gm.home"))
+        return redirect(url_for("gm.gm_home"))
         
     token = user.generate_reset_token()
     auth_logger.info(f"Admin generated reset token for user: {username}")
