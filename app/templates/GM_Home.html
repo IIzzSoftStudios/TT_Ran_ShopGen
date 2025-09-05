@@ -253,6 +253,16 @@
         </div>
     </div>
 
+    <!-- Admin Utilities Section -->
+    <div class="card p-4 shadow-sm" style="margin-bottom: 20px;">
+        <h2>Admin Utilities</h2>
+        <p style="margin-bottom: 15px; color: #666;">Quick password reset for testing:</p>
+        <form method="POST" action="{{ url_for('auth.admin_reset') }}" style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" name="username" placeholder="Enter username" required style="padding: 8px; border: 1px solid #ccc; border-radius: 5px; flex: 1;">
+            <button type="submit" style="background-color: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Generate Reset Token</button>
+        </form>
+    </div>
+
     <!-- Button container for navigation -->
     <div class="button-container">
         <a href="{{ url_for('gm.view_cities') }}" class="button">Manage Cities</a>

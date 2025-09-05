@@ -1,6 +1,7 @@
 from sqlalchemy.orm import relationship
 from app.extensions import db, bcrypt, UserMixin
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
 
 class User(db.Model, UserMixin):
     __tablename__ = "user"
@@ -9,6 +10,10 @@ class User(db.Model, UserMixin):
     password = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False) # Consider Enum('GM', 'Player', 'Admin')?
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Password reset fields
+    reset_token = db.Column(db.String(100), nullable=True)
+    reset_token_expires = db.Column(db.DateTime, nullable=True)
     
     # For GMs: Their players
     # Use primaryjoin for clarity when multiple relationships point to Player
@@ -29,6 +34,27 @@ class User(db.Model, UserMixin):
     def update_activity(self):
         """Update the user's last active timestamp"""
         self.last_active = datetime.utcnow()
+        db.session.commit()
+        
+    def generate_reset_token(self):
+        """Generate a password reset token valid for 1 hour"""
+        self.reset_token = secrets.token_urlsafe(32)
+        self.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+        db.session.commit()
+        return self.reset_token
+        
+    def verify_reset_token(self, token):
+        """Verify if the reset token is valid"""
+        if not self.reset_token or not self.reset_token_expires:
+            return False
+        if datetime.utcnow() > self.reset_token_expires:
+            return False
+        return secrets.compare_digest(self.reset_token, token)
+        
+    def clear_reset_token(self):
+        """Clear the reset token after successful password reset"""
+        self.reset_token = None
+        self.reset_token_expires = None
         db.session.commit()
         
     @property

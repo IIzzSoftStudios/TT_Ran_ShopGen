@@ -4,12 +4,31 @@
     <title>Player Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <style>
-        .content-container {
+        .main-layout {
             display: flex;
             gap: 20px;
             padding: 20px;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
+        }
+
+        .market-panel {
+            flex: 0 0 350px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .dashboard-panel {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .content-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
         .section {
@@ -173,11 +192,10 @@
 
         .search-section {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin: 20px auto;
-            max-width: 1200px;
+            margin: 10px 0;
         }
 
         .filter-container {
@@ -223,11 +241,10 @@
 
         .results-section {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin: 20px auto;
-            max-width: 1200px;
+            margin: 10px 0;
         }
 
         .results-table {
@@ -316,6 +333,200 @@
             font-size: 0.9em;
             margin-top: 4px;
         }
+
+        /* Market Visualization Styles */
+        .market-header {
+            background: linear-gradient(135deg, #6a1b9a, #8e24aa);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .market-header h2 {
+            margin: 0;
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+
+        .market-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+
+        .market-item:hover {
+            background: #f0f0f0;
+            transform: translateX(2px);
+        }
+
+        .item-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #6a1b9a, #8e24aa);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .item-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+            font-size: 0.9em;
+        }
+
+        .item-price {
+            color: #6a1b9a;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .price-change {
+            display: flex;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .change-percentage {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .change-positive {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .change-negative {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .change-neutral {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .price-bar {
+            flex: 1;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .price-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6a1b9a, #8e24aa);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .mini-chart {
+            width: 60px;
+            height: 30px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            margin-left: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #6a1b9a, #8e24aa);
+        }
+
+        .chart-dots {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            transform: translateY(-50%);
+        }
+
+        .chart-dot {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: #6a1b9a;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .market-stats {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .market-stats p {
+            margin: 5px 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .market-panel {
+                flex: none;
+                width: 100%;
+            }
+            
+            .dashboard-panel {
+                flex: none;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .content-container {
+                flex-direction: column;
+            }
+            
+            .filter-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .filter-group {
+                flex: none;
+            }
+        }
     </style>
     <script>
         function navigateTo(url) {
@@ -390,147 +601,213 @@
         <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_market') }}')">Market Overview</button>
     </div>
 
-    <!-- Content Layout -->
-    <div class="content-container">
-        <!-- Player Inventory Section (Left) -->
-        <div class="section">
-            <h2>Your Inventory</h2>
-            <div class="currency-container">
-                Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
-                <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
-            </div>
-            <div class="inventory-container">
-                {% if inventory_items %}
-                    <table class="inventory-table">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Type</th>
-                                <th>Rarity</th>
-                                <th>Quantity</th>
-                                <th>Description</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in inventory_items %}
-                            <tr>
-                                <td class="item-name">{{ item.name }}</td>
-                                <td class="item-type">{{ item.type }}</td>
-                                <td class="item-rarity">
-                                    <span class="rarity-badge {{ item.rarity.lower() }}">
-                                        {{ item.rarity }}
-                                    </span>
-                                </td>
-                                <td class="item-quantity">{{ item.quantity }}</td>
-                                <td>{{ item.description }}</td>
-                                <td>
-                                    <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST">
-                                        <input type="number" 
-                                               name="quantity" 
-                                               class="quantity-input" 
-                                               min="1" 
-                                               max="{{ item.quantity }}" 
-                                               value="1"
-                                               required>
-                                        <button type="submit" class="sell-button">
-                                            Sell
-                                        </button>
-                                        <div class="sell-price">
-                                            ({{ (item.base_price * 0.75)|int }} gold each)
-                                        </div>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                {% else %}
-                    <div class="empty-state">
-                        <p>Your inventory is currently empty.</p>
-                        <p class="small-text">Visit shops to purchase items!</p>
+    <!-- Main Layout with Dashboard and Market Panel -->
+    <div class="main-layout">
+        <!-- Dashboard Panel (Left) -->
+        <div class="dashboard-panel">
+            <!-- Content Layout -->
+            <div class="content-container">
+                <!-- Player Inventory Section (Left) -->
+                <div class="section">
+                    <h2>Your Inventory</h2>
+                    <div class="currency-container">
+                        Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
+                        <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
                     </div>
+                    <div class="inventory-container">
+                        {% if inventory_items %}
+                            <table class="inventory-table">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Type</th>
+                                        <th>Rarity</th>
+                                        <th>Quantity</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in inventory_items %}
+                                    <tr>
+                                        <td class="item-name">{{ item.name }}</td>
+                                        <td class="item-type">{{ item.type }}</td>
+                                        <td class="item-rarity">
+                                            <span class="rarity-badge {{ item.rarity.lower() }}">
+                                                {{ item.rarity }}
+                                            </span>
+                                        </td>
+                                        <td class="item-quantity">{{ item.quantity }}</td>
+                                        <td>{{ item.description }}</td>
+                                        <td>
+                                            <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST">
+                                                <input type="number" 
+                                                       name="quantity" 
+                                                       class="quantity-input" 
+                                                       min="1" 
+                                                       max="{{ item.quantity }}" 
+                                                       value="1"
+                                                       required>
+                                                <button type="submit" class="sell-button">
+                                                    Sell
+                                                </button>
+                                                <div class="sell-price">
+                                                    ({{ (item.base_price * 0.75)|int }} credits each)
+                                                </div>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <div class="empty-state">
+                                <p>Your inventory is currently empty.</p>
+                                <p class="small-text">Visit shops to purchase items!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Cities Section -->
+                <div class="section">
+                    <h2>Available Cities <a href="{{ url_for('player.view_cities') }}" class="button" style="font-size: 12px; padding: 5px 10px;">View All</a></h2>
+                    {% if cities %}
+                    <ul class="city-list">
+                        {% for city in cities[:3] %}
+                        <li onclick="window.location.href='{{ url_for('player.view_city', city_id=city.city_id) }}'">
+                            <div class="city-name">{{ city.name }}</div>
+                            <div class="city-details">
+                                <span class="city-size">{{ city.size }}</span>
+                                <span class="city-region">{{ city.region }}</span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p>No cities available.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Search & Filters Section -->
+            <div class="search-section">
+                <h2>Search Items</h2>
+                <div class="filter-container">
+                    <div class="filter-group">
+                        <label class="filter-label" for="cityFilter">City:</label>
+                        <select id="cityFilter" class="filter-select">
+                            <option value="">All Cities</option>
+                            {% for city in cities %}
+                            <option value="{{ city.city_id }}">{{ city.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label" for="shopFilter">Shop:</label>
+                        <select id="shopFilter" class="filter-select">
+                            <option value="">All Shops</option>
+                            {% for shop in shops %}
+                            <option value="{{ shop.shop_id }}">{{ shop.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label" for="itemFilter">Item:</label>
+                        <select id="itemFilter" class="filter-select">
+                            <option value="">All Items</option>
+                            {% for item in items %}
+                            <option value="{{ item.item_id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button onclick="searchItems()" class="search-button">Search</button>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div class="results-section">
+                <h2>Search Results</h2>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Shop</th>
+                            <th>City</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="searchResults">
+                        <!-- Results will be dynamically inserted -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Market Visualization Panel (Right) -->
+        <div class="market-panel">
+            <div class="market-header">
+                <h2>Market Prices</h2>
+            </div>
+            
+            {% if market_data %}
+                {% for item in market_data %}
+                <div class="market-item">
+                    <div class="item-icon">{{ item.name[0].upper() }}</div>
+                    <div class="item-details">
+                        <div class="item-name">{{ item.name }}</div>
+                        <div class="item-price">₵ {{ "%.0f"|format(item.avg_price) }}</div>
+                        <div class="price-change">
+                            {% set price_change = ((item.avg_price - item.base_price) / item.base_price * 100) %}
+                            <span class="change-percentage {% if price_change > 0 %}change-positive{% elif price_change < 0 %}change-negative{% else %}change-neutral{% endif %}">
+                                {% if price_change > 0 %}+{% endif %}{{ "%.0f"|format(price_change) }}%
+                            </span>
+                            <div class="price-bar">
+                                {% set price_ratio = (item.avg_price / item.base_price * 100) %}
+                                {% if price_ratio > 200 %}
+                                    {% set bar_width = 200 %}
+                                {% elif price_ratio < 0 %}
+                                    {% set bar_width = 0 %}
+                                {% else %}
+                                    {% set bar_width = price_ratio|int %}
+                                {% endif %}
+                                <div class="price-bar-fill" style="width: {{ bar_width }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mini-chart">
+                        <div class="chart-dots">
+                            <div class="chart-dot" style="left: 10%"></div>
+                            <div class="chart-dot" style="left: 30%"></div>
+                            <div class="chart-dot" style="left: 50%"></div>
+                            <div class="chart-dot" style="left: 70%"></div>
+                            <div class="chart-dot" style="left: 90%"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <p>No market data available.</p>
+                    <p class="small-text">Market prices will appear here once shops are set up.</p>
+                </div>
+            {% endif %}
+            
+            <div class="market-stats">
+                <p><strong>Total Items:</strong> {{ market_data|length if market_data else 0 }}</p>
+                {% if market_data %}
+                    {% set avg_price = market_data|sum(attribute='avg_price') / market_data|length %}
+                    <p><strong>Avg Price:</strong> ₵ {{ "%.0f"|format(avg_price) }}</p>
+                {% else %}
+                    <p><strong>Avg Price:</strong> ₵ 0</p>
                 {% endif %}
             </div>
         </div>
-
-        <!-- Cities Section -->
-        <div class="section">
-            <h2>Available Cities <a href="{{ url_for('player.view_cities') }}" class="button" style="font-size: 12px; padding: 5px 10px;">View All</a></h2>
-            {% if cities %}
-            <ul class="city-list">
-                {% for city in cities[:3] %}
-                <li onclick="window.location.href='{{ url_for('player.view_city', city_id=city.city_id) }}'">
-                    <div class="city-name">{{ city.name }}</div>
-                    <div class="city-details">
-                        <span class="city-size">{{ city.size }}</span>
-                        <span class="city-region">{{ city.region }}</span>
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p>No cities available.</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Search & Filters Section -->
-    <div class="search-section">
-        <h2>Search Items</h2>
-        <div class="filter-container">
-            <div class="filter-group">
-                <label class="filter-label" for="cityFilter">City:</label>
-                <select id="cityFilter" class="filter-select">
-                    <option value="">All Cities</option>
-                    {% for city in cities %}
-                    <option value="{{ city.city_id }}">{{ city.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label class="filter-label" for="shopFilter">Shop:</label>
-                <select id="shopFilter" class="filter-select">
-                    <option value="">All Shops</option>
-                    {% for shop in shops %}
-                    <option value="{{ shop.shop_id }}">{{ shop.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label class="filter-label" for="itemFilter">Item:</label>
-                <select id="itemFilter" class="filter-select">
-                    <option value="">All Items</option>
-                    {% for item in items %}
-                    <option value="{{ item.item_id }}">{{ item.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <button onclick="searchItems()" class="search-button">Search</button>
-        </div>
-    </div>
-
-    <!-- Search Results -->
-    <div class="results-section">
-        <h2>Search Results</h2>
-        <table class="results-table">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Shop</th>
-                    <th>City</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="searchResults">
-                <!-- Results will be dynamically inserted -->
-            </tbody>
-        </table>
     </div>
 
     <!-- Navigation -->

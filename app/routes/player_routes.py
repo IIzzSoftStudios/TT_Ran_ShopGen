@@ -232,6 +232,25 @@ def player_home():
         for item in shop_items:
             print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
 
+        # Get market data for visualizations - top items by average price
+        market_data = (
+            db.session.query(
+                Item.name,
+                Item.base_price,
+                db.func.avg(ShopInventory.dynamic_price).label('avg_price'),
+                db.func.count(ShopInventory.shop_id).label('shop_count'),
+                db.func.sum(ShopInventory.stock).label('total_stock')
+            )
+            .join(ShopInventory, ShopInventory.item_id == Item.item_id)
+            .join(Shop, Shop.shop_id == ShopInventory.shop_id)
+            .filter(Shop.gm_profile_id == gm_profile.id)
+            .group_by(Item.item_id, Item.name, Item.base_price)
+            .order_by(db.func.avg(ShopInventory.dynamic_price).desc())
+            .limit(6)
+            .all()
+        )
+        print(f"[DEBUG] Found {len(market_data)} items for market visualization")
+
         # Get player's inventory with item details
         inventory_items = (
             db.session.query(
@@ -252,10 +271,14 @@ def player_home():
         return render_template(
             "Player_Home.html",
             player=player,
+            player_name=player.player_user.username,
+            player_currency=player.currency,
             cities=cities,
             shops=shops,
+            items=shop_items,
             shop_items=shop_items,
-            inventory_items=inventory_items
+            inventory_items=inventory_items,
+            market_data=market_data
         )
     except Exception as e:
         print(f"[ERROR] Error in player_home: {str(e)}")

@@ -142,3 +142,96 @@ def register():
     auth_logger.debug(f"Rendering registration form with {len(gms)} GMs available")
     return render_template("register.html", gms=gms)
 
+@auth.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    """Handle password reset requests"""
+    if request.method == "POST":
+        username = request.form.get("username")
+        auth_logger.info(f"Password reset requested for username: {username}")
+        
+        if not username:
+            flash("Username is required!", "warning")
+            return redirect(url_for("auth.forgot_password"))
+            
+        user = User.query.filter_by(username=username).first()
+        if user:
+            # Generate reset token
+            token = user.generate_reset_token()
+            auth_logger.info(f"Generated reset token for user: {username}")
+            
+            # For now, we'll show the token on the page (in production, this would be emailed)
+            flash(f"Password reset token generated! Use this token to reset your password: {token}", "info")
+            return redirect(url_for("auth.reset_password", token=token))
+        else:
+            # Don't reveal if username exists for security
+            flash("If the username exists, a password reset token has been generated.", "info")
+            return redirect(url_for("auth.login"))
+    
+    return render_template("forgot_password.html")
+
+@auth.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    """Handle password reset with token"""
+    if request.method == "POST":
+        new_password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+        
+        if not new_password or not confirm_password:
+            flash("All fields are required!", "warning")
+            return redirect(url_for("auth.reset_password", token=token))
+            
+        if new_password != confirm_password:
+            flash("Passwords do not match!", "warning")
+            return redirect(url_for("auth.reset_password", token=token))
+            
+        # Find user with this token
+        user = User.query.filter_by(reset_token=token).first()
+        if not user or not user.verify_reset_token(token):
+            flash("Invalid or expired reset token!", "error")
+            return redirect(url_for("auth.forgot_password"))
+            
+        # Update password
+        user.set_password(new_password)
+        user.clear_reset_token()
+        auth_logger.info(f"Password reset successful for user: {user.username}")
+        flash("Password updated successfully! You can now log in.", "success")
+        return redirect(url_for("auth.login"))
+    
+    # GET request - show reset form
+    user = User.query.filter_by(reset_token=token).first()
+    if not user or not user.verify_reset_token(token):
+        flash("Invalid or expired reset token!", "error")
+        return redirect(url_for("auth.forgot_password"))
+        
+    return render_template("reset_password.html", token=token)
+
+@auth.route("/admin-reset", methods=["GET", "POST"])
+def admin_reset():
+    """Admin utility to generate reset token for testing"""
+    auth_logger.info(f"Admin reset called with method: {request.method}")
+    auth_logger.info(f"Form data: {request.form}")
+    auth_logger.info(f"Args data: {request.args}")
+    
+    if request.method == "POST":
+        username = request.form.get("username")
+        auth_logger.info(f"POST - Username from form: {username}")
+    else:
+        username = request.args.get("username")
+        auth_logger.info(f"GET - Username from args: {username}")
+        
+    if not username:
+        auth_logger.warning("No username provided")
+        flash("Username is required!", "warning")
+        return redirect(url_for("gm.home"))
+        
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        auth_logger.warning(f"User not found: {username}")
+        flash(f"User '{username}' not found!", "error")
+        return redirect(url_for("gm.home"))
+        
+    token = user.generate_reset_token()
+    auth_logger.info(f"Admin generated reset token for user: {username}")
+    flash(f"Reset token for {username}: {token}", "info")
+    return redirect(url_for("auth.reset_password", token=token))
+
