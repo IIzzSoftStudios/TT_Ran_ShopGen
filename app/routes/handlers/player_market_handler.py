@@ -15,7 +15,7 @@ def view_market():
         print("[DEBUG] Entered /player/market route")
         
         # Get the current player
-        player = Player.query.filter_by(user_id_player =current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             print("[DEBUG] Player not found - redirecting to home")
             flash('Player profile not found.', 'error')

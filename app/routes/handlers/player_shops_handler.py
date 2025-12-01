@@ -136,7 +136,7 @@ def view_shop_items(shop_id):
     """View all items in a specific shop"""
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id_playe=current_user.id).first()
+        player = Player.query.filter_by(user_id_player=current_user.id).first()
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))

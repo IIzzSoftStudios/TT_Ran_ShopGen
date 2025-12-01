@@ -63,13 +63,39 @@
             font-weight: bold;
         }
 
-        input, select {
+        input, select, textarea {
             width: 300px;
             padding: 10px;
             margin-bottom: 15px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 14px;
+        }
+        
+        textarea {
+            min-height: 150px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-container input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            margin-bottom: 0;
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            font-style: italic;
         }
 
         .shop-list {
@@ -173,16 +199,42 @@
         <label for="base_price">Base Price:</label>
         <input type="number" id="base_price" name="base_price" placeholder="Enter base price" required>
 
+        <!-- Weight Field -->
+        <label for="weight">Weight:</label>
+        <input type="number" id="weight" name="weight" step="0.1" placeholder="Enter weight (e.g., 65.0)">
+
+        <!-- Is Magic Checkbox -->
+        <div class="checkbox-container">
+            <input type="checkbox" id="is_magic" name="is_magic">
+            <label for="is_magic">Is Magic Item</label>
+        </div>
+
+        <!-- Properties JSON Field -->
+        <label for="properties_json">Properties (JSON):</label>
+        <textarea id="properties_json" name="properties_json" placeholder='{
+  "armor_class": 18,
+  "max_dex_bonus": 0,
+  "stealth_disadvantage": true,
+  "system_tags": ["D&D5e", "Heavy Armor"]
+}
+
+Examples:
+D&D 5e Melee Weapon: {"weapon_category": "Martial", "damage_dice": "1d8", "damage_type": "Slashing", "modifier_ability": "STR", "properties_list": ["Versatile (1d10)", "Finesse"]}
+Savage Worlds Armor: {"defense_rating": 3, "armor_type": "Heavy", "penalty": 1, "toughness_bonus": 3, "notes": "Slows movement by 1"}
+Pathfinder Consumable: {"spell_level": 3, "spell_name": "Fireball", "caster_level": 5, "saving_throw": "DC 15 Reflex", "charges": 1}'></textarea>
+        <div class="help-text">Enter system-specific properties as valid JSON. Leave empty if not applicable.</div>
+
+        <!-- Description Field -->
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" placeholder="Enter item link or description">
+
         <!-- Stock Field -->
         <label for="stock">Stock:</label>
         <input type="number" id="stock" name="stock" placeholder="Enter stock quantity" required>
 
         <!-- Dynamic Price Field -->
         <label for="dynamic_price">Dynamic Price:</label>
-        
-        <!-- Description Field -->
-        <label for="description">Description:</label>
-        <input type="text" id="description" name="description" placeholder="Enter item link or description">
+        <input type="number" id="dynamic_price" name="dynamic_price" step="0.01" placeholder="Enter dynamic price">
 
         <!-- Shop Selection -->
         <label>Select Shops:</label>

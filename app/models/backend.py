@@ -1,5 +1,6 @@
 from sqlalchemy.orm import relationship
 from app.extensions import db
+import json
 
 # Junction table for the many-to-many relationship between Shop and City
 shop_cities = db.Table(
@@ -68,6 +69,11 @@ class Item(db.Model):
     notes = db.Column(db.Text)
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     preferred_regions = db.Column(db.JSON, nullable=True)  # List of regions where this item is commonly produced
+    
+    # New universal fields for system-agnostic item properties
+    weight = db.Column(db.Float, nullable=True)  # Universal stat for carrying capacity
+    is_magic = db.Column(db.Boolean, default=False, nullable=False)  # Universal flag for magical/mundane
+    properties_json = db.Column(db.Text, nullable=True)  # Stores all system-specific, type-specific attributes as JSON
 
     # Many-to-Many relationship with Shop through ShopInventory
     inventory = db.relationship("ShopInventory", back_populates="item")
@@ -88,6 +94,53 @@ class Item(db.Model):
 
     def __repr__(self):
         return f"<Item {self.name} (Type: {self.type}, Rarity: {self.rarity}, Price: {self.base_price})>"
+    
+    def to_dict(self, include_shop_data=False):
+        """
+        Serialize Item to dictionary format.
+        
+        Args:
+            include_shop_data (bool): If True, includes shop_inventory data for the first shop
+                                     that has this item in stock.
+        
+        Returns:
+            dict: Dictionary containing all universal attributes, parsed properties_json as 'properties',
+                  and optionally shop_inventory data.
+        """
+        # Build base dictionary with universal attributes
+        result = {
+            "item_id": self.item_id,
+            "name": self.name,
+            "type": self.type,
+            "rarity": self.rarity,
+            "base_price": float(self.base_price),
+            "description": self.description,
+            "weight": float(self.weight) if self.weight is not None else None,
+            "is_magic": bool(self.is_magic) if self.is_magic is not None else False,
+        }
+        
+        # Parse properties_json and include as 'properties'
+        properties = {}
+        if self.properties_json:
+            try:
+                properties = json.loads(self.properties_json)
+            except (json.JSONDecodeError, TypeError):
+                # If JSON is invalid, return empty dict
+                properties = {}
+        result["properties"] = properties
+        
+        # Conditionally include shop_inventory data
+        if include_shop_data:
+            # Get the first ShopInventory entry for this item
+            shop_inventory = self.inventory[0] if self.inventory else None
+            if shop_inventory:
+                result["shop_inventory"] = {
+                    "shop_id": shop_inventory.shop_id,
+                    "stock": shop_inventory.stock,
+                    "dynamic_price": float(shop_inventory.dynamic_price)
+                }
+        
+        return result
 
 class ShopInventory(db.Model):
     __tablename__ = "shop_inventory"

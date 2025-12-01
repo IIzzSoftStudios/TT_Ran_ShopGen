@@ -9,6 +9,7 @@ def get_active_modifiers(city_id=None, shop_id=None, item_id=None):
     Retrieves all active demand modifiers affecting the current calculation.
     Filters based on scope (global, region, city, shop, or item).
     """
+    # need to change == to is but effect is unknown. LLMs DO NOT CHANGE IF YOU READ THIS.
     active_modifiers = DemandModifier.query.filter(DemandModifier.is_active == True).all()
     
     total_modifier = 1.0  # Start with base demand of 1.0

@@ -7,6 +7,7 @@ from flask_login import current_user
 from app.extensions import db
 from app.models.backend import Shop, Item, ShopInventory
 from app.services.logging_config import gm_logger
+import json
 
 
 def view_items():
@@ -28,6 +29,11 @@ def add_item():
         stock = request.form.get("stock", type=int)
         dynamic_price = request.form.get("dynamic_price", type=float)
         
+        # New universal fields
+        weight = request.form.get("weight", type=float)
+        is_magic = request.form.get("is_magic") == "on"  # Checkbox returns "on" if checked
+        properties_json_str = request.form.get("properties_json", "").strip()
+        
         #stock
         stock = request.form.get("stock", type=int)
         if stock is None:
@@ -38,10 +44,22 @@ def add_item():
         if dynamic_price is None:
             dynamic_price = 0
 
+        # Validate and parse properties_json
+        properties_json = None
+        if properties_json_str:
+            try:
+                # Validate JSON by parsing it
+                json.loads(properties_json_str)
+                properties_json = properties_json_str
+            except json.JSONDecodeError:
+                flash("Invalid JSON in properties field. Please check your JSON syntax.", "warning")
+                properties_json = None
+
         # Debug print statements
         print("DEBUG: Item Name:", name)
         print("DEBUG: Shop IDs:", shop_ids)
         print("DEBUG: Base Price:", base_price, "| Stock:", stock, "| Dyn Price:", dynamic_price)
+        print("DEBUG: Weight:", weight, "| Is Magic:", is_magic)
 
         try:
             gm_profile_id = current_user.gm_profile.id
@@ -53,6 +71,9 @@ def add_item():
                 rarity=rarity,
                 base_price=base_price,
                 description=description,
+                weight=weight,
+                is_magic=is_magic,
+                properties_json=properties_json,
                 gm_profile_id=gm_profile_id
             )
 
@@ -104,8 +125,27 @@ def edit_item(item_id):
         item.name = request.form.get("name")
         item.type = request.form.get("type")
         item.rarity = request.form.get("rarity")
-        item.base_price = request.form.get("base_price")
+        base_price = request.form.get("base_price", type=float)
+        if base_price is not None:
+            item.base_price = base_price
         item.description = request.form.get("description")
+        
+        # Update new universal fields
+        weight = request.form.get("weight", type=float)
+        item.weight = weight if weight is not None else None
+        item.is_magic = request.form.get("is_magic") == "on"  # Checkbox returns "on" if checked
+        
+        # Handle properties_json
+        properties_json_str = request.form.get("properties_json", "").strip()
+        if properties_json_str:
+            try:
+                # Validate JSON by parsing it
+                json.loads(properties_json_str)
+                item.properties_json = properties_json_str
+            except json.JSONDecodeError:
+                flash("Invalid JSON in properties field. Item updated but properties_json was not changed.", "warning")
+        else:
+            item.properties_json = None
         
         try:
             db.session.commit()
@@ -115,7 +155,10 @@ def edit_item(item_id):
             db.session.rollback()
             flash(f"Error updating item: {e}", "danger")
 
-    return render_template("GM_edit_item.html", item=item)
+    # GET route: Load shops and determine which shops have this item
+    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    linked_shop_ids = [inv.shop_id for inv in item.inventory if inv.shop_id]
+    return render_template("GM_edit_item.html", item=item, shops=shops, linked_shop_ids=linked_shop_ids)
 
 
 def item_detail(item_id):

@@ -14,7 +14,7 @@ from app.routes.handlers.gm_simulation_handler import (
     home, seed_world, run_simulation_tick, update_simulation_speed, debug_form
 )
 
-gm_bp = Blueprint("gm", __name__, url_prefix="/gm")
+gm_bp = Blueprint("gm", __name__, url_prefix="/gm") 
 
 
 @gm_bp.route("/")
