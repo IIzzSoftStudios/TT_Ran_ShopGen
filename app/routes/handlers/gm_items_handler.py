@@ -8,6 +8,30 @@ from app.extensions import db
 from app.models.backend import Shop, Item, ShopInventory
 from app.services.logging_config import gm_logger
 import json
+from collections import defaultdict
+
+
+def group_shops_for_display(shops):
+    """
+    Groups shops by City -> Shop Type -> List of Shops
+    
+    Args:
+        shops: List of Shop objects (must have cities relationship and type attribute)
+    
+    Returns:
+        dict: Nested dictionary structure: {city_name: {shop_type: [shop1, shop2, ...]}}
+    """
+    grouped = defaultdict(lambda: defaultdict(list))
+    
+    for shop in shops:
+        # A shop can be in multiple cities
+        for city in shop.cities:
+            city_name = city.name
+            shop_type = shop.type
+            grouped[city_name][shop_type].append(shop)
+    
+    # Convert defaultdict to regular dict for template rendering
+    return {city: dict(types) for city, types in grouped.items()}
 
 
 def view_items():
@@ -112,9 +136,10 @@ def add_item():
 
         return redirect(url_for("gm.gm_view_items"))
 
-    # GET route: Load shops
+    # GET route: Load shops and group them
     shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
-    return render_template("GM_add_item.html", shops=shops)
+    grouped_shops = group_shops_for_display(shops)
+    return render_template("GM_add_item.html", shops=shops, grouped_shops=grouped_shops)
 
 
 def edit_item(item_id):
@@ -157,8 +182,9 @@ def edit_item(item_id):
 
     # GET route: Load shops and determine which shops have this item
     shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    grouped_shops = group_shops_for_display(shops)
     linked_shop_ids = [inv.shop_id for inv in item.inventory if inv.shop_id]
-    return render_template("GM_edit_item.html", item=item, shops=shops, linked_shop_ids=linked_shop_ids)
+    return render_template("GM_edit_item.html", item=item, shops=shops, grouped_shops=grouped_shops, linked_shop_ids=linked_shop_ids)
 
 
 def item_detail(item_id):

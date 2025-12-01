@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Add Item</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Center everything */
         body {
@@ -9,7 +10,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center; /* Center vertically */
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
@@ -40,6 +41,7 @@
             font-size: 14px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
         }
 
         .button:hover {
@@ -56,6 +58,8 @@
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
         }
 
         label {
@@ -64,12 +68,13 @@
         }
 
         input, select, textarea {
-            width: 300px;
+            width: 100%;
             padding: 10px;
             margin-bottom: 15px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 14px;
+            box-sizing: border-box;
         }
         
         textarea {
@@ -98,20 +103,108 @@
             font-style: italic;
         }
 
-        .shop-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+        /* Dynamic Properties Container */
+        #dynamic-properties-container {
+            width: 100%;
             margin-bottom: 15px;
+        }
+
+        .dynamic-field {
+            margin-bottom: 15px;
+        }
+
+        .dynamic-field label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .dynamic-field input,
+        .dynamic-field select {
+            width: 100%;
+        }
+
+        /* Shop Selector Styles */
+        .shop-selector-container {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .shop-filter {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .city-group {
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .city-header {
+            background-color: #e0e0e0;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .city-header:hover {
+            background-color: #d0d0d0;
+        }
+
+        .city-content {
+            display: none;
+            padding: 10px;
+        }
+
+        .city-content.expanded {
+            display: block;
+        }
+
+        .shop-type-group {
+            margin-bottom: 10px;
+            padding-left: 15px;
+        }
+
+        .shop-type-header {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            padding: 5px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+        }
+
+        .shop-list {
+            padding-left: 20px;
         }
 
         .shop-item {
             display: flex;
             align-items: center;
+            margin-bottom: 5px;
         }
 
-        .shop-item input {
-            margin-right: 5px;
+        .shop-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+            margin-bottom: 0;
+        }
+
+        .shop-item.hidden {
+            display: none;
+        }
+
+        .city-group.hidden,
+        .shop-type-group.hidden {
+            display: none;
         }
 
         button[type="submit"] {
@@ -143,7 +236,7 @@
     </div>
 
     <!-- Centered Form -->
-    <form method="POST">
+    <form method="POST" id="item-form">
         <!-- Name Field -->
         <label for="name">Name:</label>
         <input type="text" id="name" name="name" placeholder="Enter item name" required>
@@ -209,20 +302,10 @@
             <label for="is_magic">Is Magic Item</label>
         </div>
 
-        <!-- Properties JSON Field -->
-        <label for="properties_json">Properties (JSON):</label>
-        <textarea id="properties_json" name="properties_json" placeholder='{
-  "armor_class": 18,
-  "max_dex_bonus": 0,
-  "stealth_disadvantage": true,
-  "system_tags": ["D&D5e", "Heavy Armor"]
-}
-
-Examples:
-D&D 5e Melee Weapon: {"weapon_category": "Martial", "damage_dice": "1d8", "damage_type": "Slashing", "modifier_ability": "STR", "properties_list": ["Versatile (1d10)", "Finesse"]}
-Savage Worlds Armor: {"defense_rating": 3, "armor_type": "Heavy", "penalty": 1, "toughness_bonus": 3, "notes": "Slows movement by 1"}
-Pathfinder Consumable: {"spell_level": 3, "spell_name": "Fireball", "caster_level": 5, "saving_throw": "DC 15 Reflex", "charges": 1}'></textarea>
-        <div class="help-text">Enter system-specific properties as valid JSON. Leave empty if not applicable.</div>
+        <!-- Dynamic Properties Container -->
+        <label>Item Properties:</label>
+        <div id="dynamic-properties-container"></div>
+        <input type="hidden" name="properties_json" id="properties-json">
 
         <!-- Description Field -->
         <label for="description">Description:</label>
@@ -237,18 +320,275 @@ Pathfinder Consumable: {"spell_level": 3, "spell_name": "Fireball", "caster_leve
         <input type="number" id="dynamic_price" name="dynamic_price" step="0.01" placeholder="Enter dynamic price">
 
         <!-- Shop Selection -->
-        <label>Select Shops:</label>
-        <div class="shop-list">
-            {% for shop in shops %}
-            <div class="shop-item">
-                <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}">
-                <label>{{ shop.name }} ({{ shop.type }})</label>
+        <div class="shop-selector-container">
+            <label>Select Shops:</label>
+            <input type="text" id="shop-filter" class="shop-filter" placeholder="Filter shops by name, city, or type...">
+            
+            <div id="shop-groups">
+                {% for city_name, shop_types in grouped_shops.items() %}
+                <div class="city-group" data-city="{{ city_name }}">
+                    <div class="city-header" onclick="toggleCity('{{ city_name }}')">
+                        <span>{{ city_name }}</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="city-content" id="city-{{ city_name|replace(' ', '-') }}">
+                        {% for shop_type, shops_list in shop_types.items() %}
+                        <div class="shop-type-group" data-shop-type="{{ shop_type }}">
+                            <div class="shop-type-header">{{ shop_type }}</div>
+                            <div class="shop-list">
+                                {% for shop in shops_list %}
+                                <div class="shop-item" data-shop-name="{{ shop.name|lower }}" data-city-name="{{ city_name|lower }}" data-shop-type="{{ shop_type|lower }}">
+                                    <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}" id="shop_{{ shop.shop_id }}">
+                                    <label for="shop_{{ shop.shop_id }}">{{ shop.name }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
 
         <!-- Submit Button -->
         <button type="submit">Add Item</button>
     </form>
+
+    <script>
+        // Item Schemas - defines fields for each item type
+        const itemSchemas = {
+            'Melee': [
+                { id: 'damage_dice', label: 'Damage Dice', type: 'text', placeholder: 'e.g., 1d8' },
+                { id: 'damage_type', label: 'Damage Type', type: 'select', options: ['Slashing', 'Piercing', 'Bludgeoning', 'Energy'] },
+                { id: 'hands_required', label: 'Hands Required', type: 'number', placeholder: 'e.g., 1 or 2' },
+                { id: 'is_finesse', label: 'Is Finesse?', type: 'checkbox' }
+            ],
+            'Range': [
+                { id: 'damage_dice', label: 'Damage Dice', type: 'text', placeholder: 'e.g., 1d6' },
+                { id: 'damage_type', label: 'Damage Type', type: 'select', options: ['Piercing', 'Bludgeoning', 'Energy'] },
+                { id: 'range', label: 'Range (ft/m)', type: 'text', placeholder: 'e.g., 30/120' },
+                { id: 'requires_ammo', label: 'Requires Ammo?', type: 'checkbox' }
+            ],
+            'Armor': [
+                { id: 'armor_class', label: 'Base AC', type: 'number', placeholder: 'e.g., 14' },
+                { id: 'dex_bonus_limit', label: 'DEX Max Bonus', type: 'number', placeholder: 'e.g., 2 or 0' },
+                { id: 'stealth_disadvantage', label: 'Stealth Disadvantage?', type: 'checkbox' }
+            ],
+            'Consumables': [
+                { id: 'effect_type', label: 'Effect Type', type: 'select', options: ['Healing', 'Buff', 'Utility', 'Damage'] },
+                { id: 'uses', label: 'Number of Uses', type: 'number', placeholder: 'e.g., 1' },
+                { id: 'duration', label: 'Effect Duration', type: 'text', placeholder: 'e.g., Instant, 1 Hour' }
+            ],
+            'Tools': [
+                { id: 'tool_skill', label: 'Associated Skill', type: 'text', placeholder: 'e.g., Lockpicking' },
+                { id: 'quality_bonus', label: 'Quality Bonus (+)', type: 'number', placeholder: 'e.g., +2' }
+            ],
+            'Accessories': [
+                { id: 'slot', label: 'Equip Slot', type: 'select', options: ['Finger', 'Neck', 'Head', 'Wrist', 'Misc'] },
+                { id: 'ability_bonus', label: 'Ability Bonus', type: 'text', placeholder: 'e.g., +1 STR' }
+            ],
+            'Vehicles': [
+                { id: 'vehicle_type', label: 'Vehicle Class', type: 'select', options: ['Horse', 'Automobile', 'Aircraft', 'Ship', 'Starship'] },
+                { id: 'speed', label: 'Top Speed', type: 'text', placeholder: 'e.g., 60 mph' },
+                { id: 'capacity', label: 'Capacity', type: 'number' },
+                { id: 'hit_points', label: 'Hull/Body HP', type: 'number' }
+            ]
+        };
+
+        // Map item type strings to schema keys
+        function getSchemaKey(itemType) {
+            if (itemType.startsWith('Melee')) return 'Melee';
+            if (itemType.startsWith('Ranged')) return 'Range';
+            if (itemType.startsWith('Armor')) return 'Armor';
+            if (itemType.startsWith('Transportation')) return 'Vehicles';
+            if (itemType === 'Grenade' || itemType === 'Food') return 'Consumables';
+            if (itemType === 'Adventuring Gear' || itemType === 'Electronics') return 'Tools';
+            if (itemType === 'Man Portable' || itemType === 'General Supplies') return 'Accessories';
+            return null; // No schema for this type
+        }
+
+        // Render dynamic fields based on item type
+        function renderDynamicFields(itemType) {
+            const container = document.getElementById('dynamic-properties-container');
+            container.innerHTML = ''; // Clear existing fields
+
+            const schemaKey = getSchemaKey(itemType);
+            if (!schemaKey || !itemSchemas[schemaKey]) {
+                return; // No fields for this type
+            }
+
+            const schema = itemSchemas[schemaKey];
+            schema.forEach(field => {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'dynamic-field';
+
+                const label = document.createElement('label');
+                label.textContent = field.label;
+                label.setAttribute('for', field.id);
+
+                let input;
+                if (field.type === 'select') {
+                    input = document.createElement('select');
+                    input.id = field.id;
+                    input.name = field.id;
+                    field.options.forEach(option => {
+                        const optionEl = document.createElement('option');
+                        optionEl.value = option;
+                        optionEl.textContent = option;
+                        input.appendChild(optionEl);
+                    });
+                } else if (field.type === 'checkbox') {
+                    const checkboxContainer = document.createElement('div');
+                    checkboxContainer.className = 'checkbox-container';
+                    input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.id = field.id;
+                    input.name = field.id;
+                    const inputLabel = document.createElement('label');
+                    inputLabel.setAttribute('for', field.id);
+                    inputLabel.textContent = field.label;
+                    checkboxContainer.appendChild(input);
+                    checkboxContainer.appendChild(inputLabel);
+                    fieldDiv.appendChild(checkboxContainer);
+                    container.appendChild(fieldDiv);
+                    return; // Skip adding label separately for checkbox
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type;
+                    input.id = field.id;
+                    input.name = field.id;
+                    if (field.placeholder) {
+                        input.placeholder = field.placeholder;
+                    }
+                }
+
+                fieldDiv.appendChild(label);
+                fieldDiv.appendChild(input);
+                container.appendChild(fieldDiv);
+            });
+
+            // Attach listeners to all dynamic inputs
+            const dynamicInputs = container.querySelectorAll('input, select');
+            dynamicInputs.forEach(input => {
+                input.addEventListener('input', updatePropertiesJson);
+                input.addEventListener('change', updatePropertiesJson);
+            });
+        }
+
+        // Update the hidden properties_json field
+        function updatePropertiesJson() {
+            const container = document.getElementById('dynamic-properties-container');
+            const inputs = container.querySelectorAll('input, select');
+            const properties = {};
+
+            inputs.forEach(input => {
+                if (input.type === 'checkbox') {
+                    if (input.checked) {
+                        properties[input.id] = true;
+                    }
+                } else if (input.type === 'number') {
+                    const value = input.value;
+                    if (value !== '') {
+                        properties[input.id] = parseFloat(value) || parseInt(value) || 0;
+                    }
+                } else if (input.value.trim() !== '') {
+                    properties[input.id] = input.value.trim();
+                }
+            });
+
+            const jsonInput = document.getElementById('properties-json');
+            jsonInput.value = Object.keys(properties).length > 0 ? JSON.stringify(properties) : '';
+        }
+
+        // Toggle city accordion
+        function toggleCity(cityName) {
+            const cityId = 'city-' + cityName.replace(/\s+/g, '-');
+            const content = document.getElementById(cityId);
+            const header = content.previousElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                icon.textContent = '▼';
+            } else {
+                content.classList.add('expanded');
+                icon.textContent = '▲';
+            }
+        }
+
+        // Filter shops
+        function filterShops() {
+            const filterValue = document.getElementById('shop-filter').value.toLowerCase();
+            const shopItems = document.querySelectorAll('.shop-item');
+            const shopTypeGroups = document.querySelectorAll('.shop-type-group');
+            const cityGroups = document.querySelectorAll('.city-group');
+
+            let hasVisibleShops = false;
+
+            shopItems.forEach(item => {
+                const shopName = item.getAttribute('data-shop-name');
+                const cityName = item.getAttribute('data-city-name');
+                const shopType = item.getAttribute('data-shop-type');
+                const searchText = shopName + ' ' + cityName + ' ' + shopType;
+
+                if (filterValue === '' || searchText.includes(filterValue)) {
+                    item.classList.remove('hidden');
+                    hasVisibleShops = true;
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+
+            // Hide/show shop type groups
+            shopTypeGroups.forEach(group => {
+                const visibleShops = group.querySelectorAll('.shop-item:not(.hidden)');
+                if (visibleShops.length === 0) {
+                    group.classList.add('hidden');
+                } else {
+                    group.classList.remove('hidden');
+                }
+            });
+
+            // Hide/show city groups
+            cityGroups.forEach(group => {
+                const visibleTypes = group.querySelectorAll('.shop-type-group:not(.hidden)');
+                if (visibleTypes.length === 0) {
+                    group.classList.add('hidden');
+                } else {
+                    group.classList.remove('hidden');
+                    // Auto-expand if filtering
+                    if (filterValue !== '') {
+                        const cityName = group.getAttribute('data-city');
+                        const cityId = 'city-' + cityName.replace(/\s+/g, '-');
+                        const content = document.getElementById(cityId);
+                        if (content && !content.classList.contains('expanded')) {
+                            content.classList.add('expanded');
+                            const header = content.previousElementSibling;
+                            const icon = header.querySelector('.toggle-icon');
+                            if (icon) icon.textContent = '▲';
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            const typeSelect = document.getElementById('type');
+            
+            // Render fields on page load
+            renderDynamicFields(typeSelect.value);
+            
+            // Render fields when type changes
+            typeSelect.addEventListener('change', function() {
+                renderDynamicFields(this.value);
+            });
+
+            // Filter shops
+            const shopFilter = document.getElementById('shop-filter');
+            shopFilter.addEventListener('input', filterShops);
+        });
+    </script>
 </body>
 </html>
