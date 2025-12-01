@@ -172,6 +172,30 @@ def edit_item(item_id):
         else:
             item.properties_json = None
         
+        # Handle shop associations
+        shop_ids = request.form.getlist("shop_ids")
+        # Get current shop associations
+        current_shop_ids = {inv.shop_id for inv in item.inventory if inv.shop_id}
+        new_shop_ids = {int(sid) for sid in shop_ids if sid}
+        
+        # Remove shops that are no longer selected
+        for inv in item.inventory[:]:  # Use slice to create a copy for iteration
+            if inv.shop_id and inv.shop_id not in new_shop_ids:
+                db.session.delete(inv)
+        
+        # Add new shop associations
+        for shop_id in new_shop_ids:
+            if shop_id not in current_shop_ids:
+                shop = Shop.query.get(shop_id)
+                if shop:
+                    entry = ShopInventory(
+                        shop_id=shop.shop_id,
+                        item_id=item.item_id,
+                        stock=0,  # Default stock, can be updated separately
+                        dynamic_price=item.base_price  # Default to base price
+                    )
+                    db.session.add(entry)
+        
         try:
             db.session.commit()
             flash("Item updated successfully!", "success")
@@ -190,7 +214,20 @@ def edit_item(item_id):
 def item_detail(item_id):
     """View detailed information about an item"""
     item = Item.query.get_or_404(item_id)
-    return render_template("GM_view_items.html", item=item)
+    # Get shops where this item is available
+    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    grouped_shops = group_shops_for_display(shops)
+    linked_shop_ids = [inv.shop_id for inv in item.inventory if inv.shop_id]
+    
+    # Parse properties_json for display
+    properties = {}
+    if item.properties_json:
+        try:
+            properties = json.loads(item.properties_json)
+        except json.JSONDecodeError:
+            properties = {}
+    
+    return render_template("GM_item_detail.html", item=item, grouped_shops=grouped_shops, linked_shop_ids=linked_shop_ids, properties=properties)
 
 
 def delete_item(item_id):

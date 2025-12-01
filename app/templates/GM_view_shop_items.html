@@ -106,6 +106,15 @@
             text-decoration: underline;
         }
     </style>
+    <script>
+        // Log when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('GM View Shop Items page loaded');
+            console.log('Shop:', '{{ shop.name }}', 'ID:', {{ shop.shop_id }});
+            const inventoryCount = {{ shop.inventory|length if shop.inventory else 0 }};
+            console.log('Inventory count:', inventoryCount);
+        });
+    </script>
 </head>
 <body>
     <h1>Items in {{ shop.name }}</h1>
@@ -127,20 +136,28 @@
             </tr>
         </thead>
         <tbody>
-            {% for inventory in shop.inventory %}
-            <tr>
-                <td>{{ inventory.item.name }}</td>
-                <td>{{ inventory.item.type }}</td>
-                <td>{{ inventory.stock }}</td>
-                <td>{{ inventory.dynamic_price }}</td>
-                <td>
-                    <a href="{{ url_for('gm.gm_view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
-                    <form method="POST" action="{{ url_for('gm.gm_remove_item_from_shop', shop_id=shop.shop_id, item_id=inventory.item_id) }}" style="display:inline;">
-                        <button type="submit" class="delete-button">Remove</button>
-                    </form>                    
-                </td>                
-            </tr>
-            {% endfor %}
+            {% if shop.inventory %}
+                {% for inventory in shop.inventory %}
+                <tr>
+                    <td>{{ inventory.item.name if inventory.item else 'N/A' }}</td>
+                    <td>{{ inventory.item.type if inventory.item else 'N/A' }}</td>
+                    <td>{{ inventory.stock }}</td>
+                    <td>{{ inventory.dynamic_price }}</td>
+                    <td>
+                        <a href="{{ url_for('gm.gm_edit_item', item_id=inventory.item_id) }}" class="button" style="margin-right: 5px;">Edit</a>
+                        <form method="POST" action="{{ url_for('gm.gm_remove_item_from_shop', shop_id=shop.shop_id, item_id=inventory.item_id) }}" style="display:inline;">
+                            <button type="submit" class="delete-button">Remove</button>
+                        </form>                    
+                    </td>                
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px;">
+                        <p>No items in this shop's inventory.</p>
+                    </td>
+                </tr>
+            {% endif %}
         </tbody>
     </table>
 </body>

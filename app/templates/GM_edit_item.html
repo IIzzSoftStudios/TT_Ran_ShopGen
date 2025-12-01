@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Item</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
@@ -39,6 +40,7 @@
             font-size: 14px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
         }
 
         .button:hover {
@@ -54,7 +56,8 @@
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 400px;
+            max-width: 600px;
+            width: 100%;
         }
 
         label {
@@ -69,6 +72,7 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 14px;
+            box-sizing: border-box;
         }
         
         textarea {
@@ -87,14 +91,118 @@
 
         .checkbox-container {
             display: flex;
-            flex-direction: column;
-            gap: 5px;
+            align-items: center;
             margin-bottom: 15px;
         }
 
-        .checkbox-container div {
+        .checkbox-container input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            margin-bottom: 0;
+        }
+
+        /* Dynamic Properties Container */
+        #dynamic-properties-container {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .dynamic-field {
+            margin-bottom: 15px;
+        }
+
+        .dynamic-field label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .dynamic-field input,
+        .dynamic-field select {
+            width: 100%;
+        }
+
+        /* Shop Selector Styles */
+        .shop-selector-container {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .shop-filter {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .city-group {
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .city-header {
+            background-color: #e0e0e0;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .city-header:hover {
+            background-color: #d0d0d0;
+        }
+
+        .city-content {
+            display: none;
+            padding: 10px;
+        }
+
+        .city-content.expanded {
+            display: block;
+        }
+
+        .shop-type-group {
+            margin-bottom: 10px;
+            padding-left: 15px;
+        }
+
+        .shop-type-header {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            padding: 5px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+        }
+
+        .shop-list {
+            padding-left: 20px;
+        }
+
+        .shop-item {
             display: flex;
             align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .shop-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+            margin-bottom: 0;
+        }
+
+        .shop-item.hidden {
+            display: none;
+        }
+
+        .city-group.hidden,
+        .shop-type-group.hidden {
+            display: none;
         }
 
         .button-row {
@@ -128,7 +236,7 @@
         <a href="{{ url_for('gm.gm_home') }}" class="button">Game Master Interface</a>
     </div>
 
-    <form method="POST">
+    <form method="POST" id="item-form">
         <label for="name">Name:</label>
         <input type="text" id="name" name="name" value="{{ item.name }}" required>
 
@@ -136,64 +244,364 @@
         <select id="type" name="type" required>
             <option value="Melee: Martial" {% if item.type == "Melee: Martial" %}selected{% endif %}>Melee: Martial</option>
             <option value="Melee: Exotic" {% if item.type == "Melee: Exotic" %}selected{% endif %}>Melee: Exotic</option>
+            <option value="Melee: Modern" {% if item.type == "Melee: Modern" %}selected{% endif %}>Melee: Modern</option>
+            <option value="Melee: Future" {% if item.type == "Melee: Future" %}selected{% endif %}>Melee: Future</option>
+            <option value="Melee: MISC" {% if item.type == "Melee: MISC" %}selected{% endif %}>Melee: MISC</option>
+            <option value="Armor: Medieval" {% if item.type == "Armor: Medieval" %}selected{% endif %}>Armor: Medieval</option>
             <option value="Armor: Modern" {% if item.type == "Armor: Modern" %}selected{% endif %}>Armor: Modern</option>
-            <!-- Add other types as needed -->
+            <option value="Armor: Future" {% if item.type == "Armor: Future" %}selected{% endif %}>Armor: Future</option>
+            <option value="Armor: Power Armor" {% if item.type == "Armor: Power Armor" %}selected{% endif %}>Armor: Power Armor</option>
+            <option value="Armor: MISC" {% if item.type == "Armor: MISC" %}selected{% endif %}>Armor: MISC</option>
+            <option value="Ranged: Martial" {% if item.type == "Ranged: Martial" %}selected{% endif %}>Ranged: Martial</option>
+            <option value="Ranged: Exotic" {% if item.type == "Ranged: Exotic" %}selected{% endif %}>Ranged: Exotic</option>
+            <option value="Ranged: Modern" {% if item.type == "Ranged: Modern" %}selected{% endif %}>Ranged: Modern</option>
+            <option value="Ranged: Gunpowder" {% if item.type == "Ranged: Gunpowder" %}selected{% endif %}>Ranged: Gunpowder</option>
+            <option value="Ranged: Laser" {% if item.type == "Ranged: Laser" %}selected{% endif %}>Ranged: Laser</option>
+            <option value="Ranged: LTL" {% if item.type == "Ranged: LTL" %}selected{% endif %}>Ranged: LTL</option>
+            <option value="Ranged: Gauss" {% if item.type == "Ranged: Gauss" %}selected{% endif %}>Ranged: Gauss</option>
+            <option value="Ranged: Toxic" {% if item.type == "Ranged: Toxic" %}selected{% endif %}>Ranged: Toxic</option>
+            <option value="Ranged: Rocket Launcher" {% if item.type == "Ranged: Rocket Launcher" %}selected{% endif %}>Ranged: Rocket Launcher</option>
+            <option value="Ranged: Special" {% if item.type == "Ranged: Special" %}selected{% endif %}>Ranged: Special</option>
+            <option value="Ranged: MISC" {% if item.type == "Ranged: MISC" %}selected{% endif %}>Ranged: MISC</option>
+            <option value="Grenade" {% if item.type == "Grenade" %}selected{% endif %}>Grenade</option>
+            <option value="Man Portable" {% if item.type == "Man Portable" %}selected{% endif %}>Man Portable</option>
+            <option value="Adventuring Gear" {% if item.type == "Adventuring Gear" %}selected{% endif %}>Adventuring Gear</option>
+            <option value="Food" {% if item.type == "Food" %}selected{% endif %}>Food</option>
+            <option value="Electronics" {% if item.type == "Electronics" %}selected{% endif %}>Electronics</option>
+            <option value="Transportation: Ground" {% if item.type == "Transportation: Ground" %}selected{% endif %}>Transportation: Ground</option>
+            <option value="Transportation: Water" {% if item.type == "Transportation: Water" %}selected{% endif %}>Transportation: Water</option>
+            <option value="Transportation: Air" {% if item.type == "Transportation: Air" %}selected{% endif %}>Transportation: Air</option>
+            <option value="Transportation: Space" {% if item.type == "Transportation: Space" %}selected{% endif %}>Transportation: Space</option>
+            <option value="General Supplies" {% if item.type == "General Supplies" %}selected{% endif %}>General Supplies</option>
         </select>
 
         <label for="rarity">Rarity:</label>
         <select id="rarity" name="rarity" required>
             <option value="Common" {% if item.rarity == "Common" %}selected{% endif %}>Common</option>
+            <option value="Uncommon" {% if item.rarity == "Uncommon" %}selected{% endif %}>Uncommon</option>
             <option value="Rare" {% if item.rarity == "Rare" %}selected{% endif %}>Rare</option>
+            <option value="Very Rare" {% if item.rarity == "Very Rare" %}selected{% endif %}>Very Rare</option>
+            <option value="Legendary" {% if item.rarity == "Legendary" %}selected{% endif %}>Legendary</option>
             <option value="Unique" {% if item.rarity == "Unique" %}selected{% endif %}>Unique</option>
-            <!-- Add other rarities as needed -->
         </select>
 
         <label for="base_price">Base Price:</label>
         <input type="number" id="base_price" name="base_price" value="{{ item.base_price }}" required>
 
-        <label for="description">Description:</label>
-        <input type="text" id="description" name="description" value="{{ item.description or '' }}">
-
-        <!-- Weight Field -->
         <label for="weight">Weight:</label>
         <input type="number" id="weight" name="weight" step="0.1" value="{{ item.weight or '' }}" placeholder="Enter weight (e.g., 65.0)">
 
-        <!-- Is Magic Checkbox -->
         <div class="checkbox-container">
             <input type="checkbox" id="is_magic" name="is_magic" {% if item.is_magic %}checked{% endif %}>
             <label for="is_magic">Is Magic Item</label>
         </div>
 
-        <!-- Properties JSON Field -->
-        <label for="properties_json">Properties (JSON):</label>
-        <textarea id="properties_json" name="properties_json" placeholder='{
-  "armor_class": 18,
-  "max_dex_bonus": 0,
-  "stealth_disadvantage": true,
-  "system_tags": ["D&D5e", "Heavy Armor"]
-}
+        <!-- Dynamic Properties Container -->
+        <label>Item Properties:</label>
+        <div id="dynamic-properties-container"></div>
+        <input type="hidden" name="properties_json" id="properties-json" value="{{ item.properties_json or '' }}">
 
-Examples:
-D&D 5e Melee Weapon: {"weapon_category": "Martial", "damage_dice": "1d8", "damage_type": "Slashing", "modifier_ability": "STR", "properties_list": ["Versatile (1d10)", "Finesse"]}
-Savage Worlds Armor: {"defense_rating": 3, "armor_type": "Heavy", "penalty": 1, "toughness_bonus": 3, "notes": "Slows movement by 1"}
-Pathfinder Consumable: {"spell_level": 3, "spell_name": "Fireball", "caster_level": 5, "saving_throw": "DC 15 Reflex", "charges": 1}'>{{ item.properties_json or '' }}</textarea>
-        <div class="help-text">Enter system-specific properties as valid JSON. Leave empty if not applicable.</div>
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" value="{{ item.description or '' }}" placeholder="Enter item link or description">
 
-        <!-- Shop Selection with Checkboxes -->
-        <label for="shops">Available in Shops:</label>
-        <div class="checkbox-container">
-            {% for shop in shops %}
-            <div>
-                <input type="checkbox" id="shop_{{ shop.shop_id }}" name="shop_ids[]" value="{{ shop.shop_id }}"
-                {% if shop.shop_id in linked_shop_ids %}checked{% endif %}>
-                <label for="shop_{{ shop.shop_id }}">{{ shop.name }}</label>
+        <!-- Shop Selection -->
+        <div class="shop-selector-container">
+            <label>Select Shops:</label>
+            <input type="text" id="shop-filter" class="shop-filter" placeholder="Filter shops by name, city, or type...">
+            
+            <div id="shop-groups">
+                {% for city_name, shop_types in grouped_shops.items() %}
+                <div class="city-group" data-city="{{ city_name }}">
+                    <div class="city-header" onclick="toggleCity('{{ city_name }}')">
+                        <span>{{ city_name }}</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="city-content" id="city-{{ city_name|replace(' ', '-') }}">
+                        {% for shop_type, shops_list in shop_types.items() %}
+                        <div class="shop-type-group" data-shop-type="{{ shop_type }}">
+                            <div class="shop-type-header">{{ shop_type }}</div>
+                            <div class="shop-list">
+                                {% for shop in shops_list %}
+                                <div class="shop-item" data-shop-name="{{ shop.name|lower }}" data-city-name="{{ city_name|lower }}" data-shop-type="{{ shop_type|lower }}">
+                                    <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}" id="shop_{{ shop.shop_id }}"
+                                    {% if shop.shop_id in linked_shop_ids %}checked{% endif %}>
+                                    <label for="shop_{{ shop.shop_id }}">{{ shop.name }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
 
         <div class="button-row">
             <button type="submit">Save Changes</button>
         </div>
     </form>
+
+    <script>
+        // Item Schemas - defines fields for each item type
+        const itemSchemas = {
+            'Melee': [
+                { id: 'damage_dice', label: 'Damage Dice', type: 'text', placeholder: 'e.g., 1d8' },
+                { id: 'damage_type', label: 'Damage Type', type: 'select', options: ['Slashing', 'Piercing', 'Bludgeoning', 'Energy'] },
+                { id: 'hands_required', label: 'Hands Required', type: 'number', placeholder: 'e.g., 1 or 2' },
+                { id: 'is_finesse', label: 'Is Finesse?', type: 'checkbox' }
+            ],
+            'Range': [
+                { id: 'damage_dice', label: 'Damage Dice', type: 'text', placeholder: 'e.g., 1d6' },
+                { id: 'damage_type', label: 'Damage Type', type: 'select', options: ['Piercing', 'Bludgeoning', 'Energy'] },
+                { id: 'range', label: 'Range (ft/m)', type: 'text', placeholder: 'e.g., 30/120' },
+                { id: 'requires_ammo', label: 'Requires Ammo?', type: 'checkbox' }
+            ],
+            'Armor': [
+                { id: 'armor_class', label: 'Base AC', type: 'number', placeholder: 'e.g., 14' },
+                { id: 'dex_bonus_limit', label: 'DEX Max Bonus', type: 'number', placeholder: 'e.g., 2 or 0' },
+                { id: 'stealth_disadvantage', label: 'Stealth Disadvantage?', type: 'checkbox' }
+            ],
+            'Consumables': [
+                { id: 'effect_type', label: 'Effect Type', type: 'select', options: ['Healing', 'Buff', 'Utility', 'Damage'] },
+                { id: 'uses', label: 'Number of Uses', type: 'number', placeholder: 'e.g., 1' },
+                { id: 'duration', label: 'Effect Duration', type: 'text', placeholder: 'e.g., Instant, 1 Hour' }
+            ],
+            'Tools': [
+                { id: 'tool_skill', label: 'Associated Skill', type: 'text', placeholder: 'e.g., Lockpicking' },
+                { id: 'quality_bonus', label: 'Quality Bonus (+)', type: 'number', placeholder: 'e.g., +2' }
+            ],
+            'Accessories': [
+                { id: 'slot', label: 'Equip Slot', type: 'select', options: ['Finger', 'Neck', 'Head', 'Wrist', 'Misc'] },
+                { id: 'ability_bonus', label: 'Ability Bonus', type: 'text', placeholder: 'e.g., +1 STR' }
+            ],
+            'Vehicles': [
+                { id: 'vehicle_type', label: 'Vehicle Class', type: 'select', options: ['Horse', 'Automobile', 'Aircraft', 'Ship', 'Starship'] },
+                { id: 'speed', label: 'Top Speed', type: 'text', placeholder: 'e.g., 60 mph' },
+                { id: 'capacity', label: 'Capacity', type: 'number' },
+                { id: 'hit_points', label: 'Hull/Body HP', type: 'number' }
+            ]
+        };
+
+        // Map item type strings to schema keys
+        function getSchemaKey(itemType) {
+            if (itemType.startsWith('Melee')) return 'Melee';
+            if (itemType.startsWith('Ranged')) return 'Range';
+            if (itemType.startsWith('Armor')) return 'Armor';
+            if (itemType.startsWith('Transportation')) return 'Vehicles';
+            if (itemType === 'Grenade' || itemType === 'Food') return 'Consumables';
+            if (itemType === 'Adventuring Gear' || itemType === 'Electronics') return 'Tools';
+            if (itemType === 'Man Portable' || itemType === 'General Supplies') return 'Accessories';
+            return null; // No schema for this type
+        }
+
+        // Parse existing properties JSON
+        function parseExistingProperties() {
+            const jsonInput = document.getElementById('properties-json');
+            if (!jsonInput || !jsonInput.value) return {};
+            
+            try {
+                return JSON.parse(jsonInput.value);
+            } catch (e) {
+                console.warn('Could not parse existing properties JSON:', e);
+                return {};
+            }
+        }
+
+        // Render dynamic fields based on item type
+        function renderDynamicFields(itemType, existingProps = {}) {
+            const container = document.getElementById('dynamic-properties-container');
+            container.innerHTML = ''; // Clear existing fields
+
+            const schemaKey = getSchemaKey(itemType);
+            if (!schemaKey || !itemSchemas[schemaKey]) {
+                return; // No fields for this type
+            }
+
+            const schema = itemSchemas[schemaKey];
+            schema.forEach(field => {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'dynamic-field';
+
+                const label = document.createElement('label');
+                label.textContent = field.label;
+                label.setAttribute('for', field.id);
+
+                let input;
+                if (field.type === 'select') {
+                    input = document.createElement('select');
+                    input.id = field.id;
+                    input.name = field.id;
+                    field.options.forEach(option => {
+                        const optionEl = document.createElement('option');
+                        optionEl.value = option;
+                        optionEl.textContent = option;
+                        // Select if it matches existing value
+                        if (existingProps[field.id] === option) {
+                            optionEl.selected = true;
+                        }
+                        input.appendChild(optionEl);
+                    });
+                } else if (field.type === 'checkbox') {
+                    const checkboxContainer = document.createElement('div');
+                    checkboxContainer.className = 'checkbox-container';
+                    input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.id = field.id;
+                    input.name = field.id;
+                    // Check if existing value is true
+                    if (existingProps[field.id] === true) {
+                        input.checked = true;
+                    }
+                    const inputLabel = document.createElement('label');
+                    inputLabel.setAttribute('for', field.id);
+                    inputLabel.textContent = field.label;
+                    checkboxContainer.appendChild(input);
+                    checkboxContainer.appendChild(inputLabel);
+                    fieldDiv.appendChild(checkboxContainer);
+                    container.appendChild(fieldDiv);
+                    return; // Skip adding label separately for checkbox
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type;
+                    input.id = field.id;
+                    input.name = field.id;
+                    if (field.placeholder) {
+                        input.placeholder = field.placeholder;
+                    }
+                    // Set existing value if available
+                    if (existingProps[field.id] !== undefined && existingProps[field.id] !== null) {
+                        input.value = existingProps[field.id];
+                    }
+                }
+
+                fieldDiv.appendChild(label);
+                fieldDiv.appendChild(input);
+                container.appendChild(fieldDiv);
+            });
+
+            // Attach listeners to all dynamic inputs
+            const dynamicInputs = container.querySelectorAll('input, select');
+            dynamicInputs.forEach(input => {
+                input.addEventListener('input', updatePropertiesJson);
+                input.addEventListener('change', updatePropertiesJson);
+            });
+        }
+
+        // Update the hidden properties_json field
+        function updatePropertiesJson() {
+            const container = document.getElementById('dynamic-properties-container');
+            const inputs = container.querySelectorAll('input, select');
+            const properties = {};
+
+            inputs.forEach(input => {
+                if (input.type === 'checkbox') {
+                    if (input.checked) {
+                        properties[input.id] = true;
+                    }
+                } else if (input.type === 'number') {
+                    const value = input.value;
+                    if (value !== '') {
+                        properties[input.id] = parseFloat(value) || parseInt(value) || 0;
+                    }
+                } else if (input.value.trim() !== '') {
+                    properties[input.id] = input.value.trim();
+                }
+            });
+
+            const jsonInput = document.getElementById('properties-json');
+            jsonInput.value = Object.keys(properties).length > 0 ? JSON.stringify(properties) : '';
+        }
+
+        // Toggle city accordion
+        function toggleCity(cityName) {
+            const cityId = 'city-' + cityName.replace(/\s+/g, '-');
+            const content = document.getElementById(cityId);
+            const header = content.previousElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                icon.textContent = '▼';
+            } else {
+                content.classList.add('expanded');
+                icon.textContent = '▲';
+            }
+        }
+
+        // Filter shops
+        function filterShops() {
+            const filterValue = document.getElementById('shop-filter').value.toLowerCase();
+            const shopItems = document.querySelectorAll('.shop-item');
+            const shopTypeGroups = document.querySelectorAll('.shop-type-group');
+            const cityGroups = document.querySelectorAll('.city-group');
+
+            let hasVisibleShops = false;
+
+            shopItems.forEach(item => {
+                const shopName = item.getAttribute('data-shop-name');
+                const cityName = item.getAttribute('data-city-name');
+                const shopType = item.getAttribute('data-shop-type');
+                const searchText = shopName + ' ' + cityName + ' ' + shopType;
+
+                if (filterValue === '' || searchText.includes(filterValue)) {
+                    item.classList.remove('hidden');
+                    hasVisibleShops = true;
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+
+            // Hide/show shop type groups
+            shopTypeGroups.forEach(group => {
+                const visibleShops = group.querySelectorAll('.shop-item:not(.hidden)');
+                if (visibleShops.length === 0) {
+                    group.classList.add('hidden');
+                } else {
+                    group.classList.remove('hidden');
+                }
+            });
+
+            // Hide/show city groups
+            cityGroups.forEach(group => {
+                const visibleTypes = group.querySelectorAll('.shop-type-group:not(.hidden)');
+                if (visibleTypes.length === 0) {
+                    group.classList.add('hidden');
+                } else {
+                    group.classList.remove('hidden');
+                    // Auto-expand if filtering
+                    if (filterValue !== '') {
+                        const cityName = group.getAttribute('data-city');
+                        const cityId = 'city-' + cityName.replace(/\s+/g, '-');
+                        const content = document.getElementById(cityId);
+                        if (content && !content.classList.contains('expanded')) {
+                            content.classList.add('expanded');
+                            const header = content.previousElementSibling;
+                            const icon = header.querySelector('.toggle-icon');
+                            if (icon) icon.textContent = '▲';
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            const typeSelect = document.getElementById('type');
+            const existingProps = parseExistingProperties();
+            
+            // Render fields on page load with existing values
+            renderDynamicFields(typeSelect.value, existingProps);
+            
+            // Render fields when type changes
+            typeSelect.addEventListener('change', function() {
+                renderDynamicFields(this.value);
+            });
+
+            // Filter shops
+            const shopFilter = document.getElementById('shop-filter');
+            shopFilter.addEventListener('input', filterShops);
+        });
+    </script>
 </body>
 </html>

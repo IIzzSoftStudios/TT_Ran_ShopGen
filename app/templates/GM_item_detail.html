@@ -1,146 +1,335 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Details for {{ item.name }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Details - {{ item.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Center everything */
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start; /* Align to top */
-            height: 100vh;
+            justify-content: flex-start;
+            min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
         }
 
-        /* Styling for the heading */
         h1 {
             font-size: 2.5rem;
             color: black;
             margin-top: 20px;
-            margin-bottom: 20px; /* Space below heading */
+            margin-bottom: 20px;
         }
 
-        /* Button Container */
         .button-container {
             display: flex;
             justify-content: center;
-            gap: 15px; /* Space between buttons */
-            margin-bottom: 20px; /* Space below navigation buttons */
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
-        /* Button Styling */
         .button {
-            background-color: purple; /* Purple */
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .button:hover {
-            background-color: #2980b9; /* Darker blue on hover */
-            transform: scale(1.1); /* Slight zoom effect */
-        }
-
-        /* Form Styling */
-        form {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px; /* Space between forms */
-            width: 400px;
-        }
-
-        label {
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        input, textarea {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        textarea {
-            resize: vertical; /* Allow vertical resizing */
-            min-height: 100px; /* Minimum height */
-        }
-
-        /* Centered Save Button */
-        .button-row {
-            display: flex;
-            justify-content: center; /* Center the button */
-            width: 100%;
-        }
-
-        button[type="submit"] {
             background-color: purple;
             color: white;
             border: none;
             padding: 10px 20px;
             border-radius: 5px;
-            cursor: pointer;
             font-size: 14px;
+            cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
 
-        button[type="submit"]:hover {
-            background-color: #2980b9; /* Darker blue on hover */
-            transform: scale(1.1); /* Slight zoom effect */
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.1);
+        }
+
+        .edit-button {
+            background-color: #28a745;
+        }
+
+        .edit-button:hover {
+            background-color: #218838;
+        }
+
+        .detail-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+        }
+
+        .detail-section h2 {
+            font-size: 1.5rem;
+            color: purple;
+            margin-bottom: 15px;
+            border-bottom: 2px solid purple;
+            padding-bottom: 5px;
+        }
+
+        .detail-row {
+            display: flex;
+            margin-bottom: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            width: 200px;
+            color: #555;
+        }
+
+        .detail-value {
+            flex: 1;
+            color: #333;
+        }
+
+        .detail-value.empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .properties-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .property-item {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 3px solid purple;
+        }
+
+        .property-label {
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .property-value {
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .shop-list {
+            margin-top: 10px;
+        }
+
+        .city-group {
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .city-header {
+            background-color: #e0e0e0;
+            padding: 10px 15px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .city-content {
+            padding: 10px;
+        }
+
+        .shop-type-group {
+            margin-bottom: 10px;
+            padding-left: 15px;
+        }
+
+        .shop-type-header {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            padding: 5px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+        }
+
+        .shop-list-items {
+            padding-left: 20px;
+        }
+
+        .shop-item {
+            padding: 5px 0;
+            color: #333;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .badge-common { background-color: #6c757d; color: white; }
+        .badge-uncommon { background-color: #28a745; color: white; }
+        .badge-rare { background-color: #007bff; color: white; }
+        .badge-very-rare { background-color: #6f42c1; color: white; }
+        .badge-legendary { background-color: #fd7e14; color: white; }
+        .badge-unique { background-color: #dc3545; color: white; }
+
+        .magic-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: #ffc107;
+            color: #000;
+            border-radius: 3px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-left: 10px;
         }
     </style>
 </head>
 <body>
-    <!-- Styled and centered heading -->
-    <h1>Details for {{ item.name }}</h1>
+    <h1>{{ item.name }}</h1>
 
-    <!-- Navigation Button Container -->
-    <div class="nav-buttons">
+    <div class="button-container">
+        <a href="{{ url_for('gm.gm_edit_item', item_id=item.item_id) }}" class="button edit-button">Edit Item</a>
         <a href="{{ url_for('gm.gm_view_items') }}" class="button">All Items</a>
         <a href="{{ url_for('gm.gm_home') }}" class="button">Game Master Interface</a>
     </div>
 
-    <!-- Centered Form -->
-    <form method="POST">
-        <!-- Range -->
-        <label for="range">Range:</label>
-        <input type="text" id="range" name="range" value="{{ item.range }}" placeholder="e.g., 10/20/40">
-
-        <!-- Damage -->
-        <label for="damage">Damage:</label>
-        <input type="text" id="damage" name="damage" value="{{ item.damage }}" placeholder="e.g., 2D6+1">
-
-        <!-- Rate of Fire -->
-        <label for="rate_of_fire">Rate of Fire:</label>
-        <input type="number" id="rate_of_fire" name="rate_of_fire" value="{{ item.rate_of_fire }}">
-
-        <!-- Minimum Strength -->
-        <label for="min_str">Min STR:</label>
-        <input type="text" id="min_str" name="min_str" value="{{ item.min_str }}" placeholder="e.g., N/A or 10">
-
-        <!-- Notes -->
-        <label for="notes">Notes:</label>
-        <textarea id="notes" name="notes" placeholder="Additional details">{{ item.notes }}</textarea>
-
-        <!-- Centered Save Changes Button -->
-        <div class="button-row">
-            <button type="submit">Save Changes</button>
-			
+    <div class="detail-container">
+        <!-- Basic Information -->
+        <div class="detail-section">
+            <h2>Basic Information</h2>
+            <div class="detail-row">
+                <div class="detail-label">Name:</div>
+                <div class="detail-value">{{ item.name }}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Type:</div>
+                <div class="detail-value">{{ item.type }}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Rarity:</div>
+                <div class="detail-value">
+                    <span class="badge badge-{{ item.rarity.lower().replace(' ', '-') }}">{{ item.rarity }}</span>
+                    {% if item.is_magic %}
+                    <span class="magic-indicator">✨ Magic</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Base Price:</div>
+                <div class="detail-value">{{ item.base_price }} gold</div>
+            </div>
+            {% if item.weight %}
+            <div class="detail-row">
+                <div class="detail-label">Weight:</div>
+                <div class="detail-value">{{ item.weight }} lbs</div>
+            </div>
+            {% endif %}
+            {% if item.description %}
+            <div class="detail-row">
+                <div class="detail-label">Description:</div>
+                <div class="detail-value">{{ item.description }}</div>
+            </div>
+            {% endif %}
         </div>
-    </form>
+
+        <!-- Item Properties -->
+        {% if properties %}
+        <div class="detail-section">
+            <h2>Item Properties</h2>
+            <div class="properties-grid">
+                {% for key, value in properties.items() %}
+                <div class="property-item">
+                    <div class="property-label">{{ key.replace('_', ' ').title() }}:</div>
+                    <div class="property-value">
+                        {% if value is sameas true %}
+                            ✓ Yes
+                        {% elif value is sameas false %}
+                            ✗ No
+                        {% elif value is number %}
+                            {{ value }}
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Available in Shops -->
+        {% if linked_shop_ids %}
+        <div class="detail-section">
+            <h2>Available in Shops</h2>
+            <div class="shop-list">
+                {% for city_name, shop_types in grouped_shops.items() %}
+                    {% set has_linked_shops = False %}
+                    {% for shop_type, shops_list in shop_types.items() %}
+                        {% for shop in shops_list %}
+                            {% if shop.shop_id in linked_shop_ids %}
+                                {% set has_linked_shops = True %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% if has_linked_shops %}
+                    <div class="city-group">
+                        <div class="city-header">{{ city_name }}</div>
+                        <div class="city-content">
+                            {% for shop_type, shops_list in shop_types.items() %}
+                                {% set has_type_shops = False %}
+                                {% for shop in shops_list %}
+                                    {% if shop.shop_id in linked_shop_ids %}
+                                        {% set has_type_shops = True %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% if has_type_shops %}
+                                <div class="shop-type-group">
+                                    <div class="shop-type-header">{{ shop_type }}</div>
+                                    <div class="shop-list-items">
+                                        {% for shop in shops_list %}
+                                            {% if shop.shop_id in linked_shop_ids %}
+                                                {% for inv in item.inventory %}
+                                                    {% if inv.shop_id == shop.shop_id %}
+                                                    <div class="shop-item">
+                                                        {{ shop.name }} - Stock: {{ inv.stock }}, Price: {{ inv.dynamic_price }} gold
+                                                    </div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="detail-section">
+            <h2>Available in Shops</h2>
+            <div class="detail-value empty">This item is not currently available in any shops.</div>
+        </div>
+        {% endif %}
+    </div>
 </body>
 </html>

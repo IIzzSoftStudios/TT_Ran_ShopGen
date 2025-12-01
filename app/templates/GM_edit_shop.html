@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Shop</title>
     <style>
-        /* Center everything */
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
@@ -22,7 +23,7 @@
             margin-bottom: 20px;
         }
 
-        .button-container {
+        .button-container, .nav-buttons {
             display: flex;
             justify-content: center;
             gap: 15px;
@@ -38,6 +39,7 @@
             font-size: 14px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
         }
 
         .button:hover {
@@ -53,7 +55,8 @@
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 400px;
+            max-width: 600px;
+            width: 100%;
         }
 
         label {
@@ -68,13 +71,88 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 14px;
+            box-sizing: border-box;
         }
 
-        .checkbox-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        /* City Selector Styles */
+        .city-selector-container {
+            width: 100%;
             margin-bottom: 15px;
+        }
+
+        .city-filter {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .region-group {
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .region-header {
+            background-color: #e0e0e0;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .region-header:hover {
+            background-color: #d0d0d0;
+        }
+
+        .region-content {
+            display: none;
+            padding: 10px;
+        }
+
+        .region-content.expanded {
+            display: block;
+        }
+
+        .size-group {
+            margin-bottom: 10px;
+            padding-left: 15px;
+        }
+
+        .size-header {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            padding: 5px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+        }
+
+        .city-list {
+            padding-left: 20px;
+        }
+
+        .city-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .city-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+            margin-bottom: 0;
+        }
+
+        .city-item.hidden,
+        .size-group.hidden,
+        .region-group.hidden {
+            display: none;
         }
 
         button[type="submit"] {
@@ -123,15 +201,37 @@
             <option value="Fence" {% if shop.type == "Fence" %}selected{% endif %}>Fence</option>
         </select>
 
-        <label for="cities">Apply to Cities:</label>
-        <div class="checkbox-container">
-            {% for city in cities %}
-            <div>
-                <input type="checkbox" id="city_{{ city.city_id }}" name="city_ids" value="{{ city.city_id }}"
-                    {% if city.city_id in linked_city_ids %}checked{% endif %}>
-                <label for="city_{{ city.city_id }}">{{ city.name }} ({{ city.size }})</label>
+        <!-- City Selection -->
+        <div class="city-selector-container">
+            <label>Apply to Cities:</label>
+            <input type="text" id="city-filter" class="city-filter" placeholder="Filter cities by name, region, or size...">
+            
+            <div id="city-groups">
+                {% for region_name, sizes in grouped_cities.items() %}
+                <div class="region-group" data-region="{{ region_name }}">
+                    <div class="region-header" onclick="toggleRegion('{{ region_name }}')">
+                        <span>{{ region_name }}</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="region-content" id="region-{{ region_name|replace(' ', '-') }}">
+                        {% for size_name, cities_list in sizes.items() %}
+                        <div class="size-group" data-size="{{ size_name }}">
+                            <div class="size-header">{{ size_name }}</div>
+                            <div class="city-list">
+                                {% for city in cities_list %}
+                                <div class="city-item" data-city-name="{{ city.name|lower }}" data-region-name="{{ region_name|lower }}" data-size-name="{{ size_name|lower }}">
+                                    <input type="checkbox" name="city_ids" value="{{ city.city_id }}" id="city_{{ city.city_id }}"
+                                    {% if city.city_id in linked_city_ids %}checked{% endif %}>
+                                    <label for="city_{{ city.city_id }}">{{ city.name }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
 
         <div>
@@ -143,5 +243,85 @@
     <form method="POST" action="{{ url_for('gm.gm_delete_shop', shop_id=shop.shop_id) }}">
         <button type="submit" style="background-color: red;">Delete Shop</button>
     </form>
+
+    <script>
+        // Toggle region accordion
+        function toggleRegion(regionName) {
+            const regionId = 'region-' + regionName.replace(/\s+/g, '-');
+            const content = document.getElementById(regionId);
+            const header = content.previousElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                icon.textContent = '▼';
+            } else {
+                content.classList.add('expanded');
+                icon.textContent = '▲';
+            }
+        }
+
+        // Filter cities
+        function filterCities() {
+            const filterValue = document.getElementById('city-filter').value.toLowerCase();
+            const cityItems = document.querySelectorAll('.city-item');
+            const sizeGroups = document.querySelectorAll('.size-group');
+            const regionGroups = document.querySelectorAll('.region-group');
+
+            cityItems.forEach(item => {
+                const cityName = item.getAttribute('data-city-name');
+                const regionName = item.getAttribute('data-region-name');
+                const sizeName = item.getAttribute('data-size-name');
+                const searchText = cityName + ' ' + regionName + ' ' + sizeName;
+
+                if (filterValue === '' || searchText.includes(filterValue)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+
+            // Hide/show size groups
+            sizeGroups.forEach(group => {
+                const visibleCities = group.querySelectorAll('.city-item:not(.hidden)');
+                if (visibleCities.length === 0) {
+                    group.classList.add('hidden');
+                } else {
+                    group.classList.remove('hidden');
+                }
+            });
+
+            // Hide/show region groups
+            regionGroups.forEach(group => {
+                const visibleSizes = group.querySelectorAll('.size-group:not(.hidden)');
+                if (visibleSizes.length === 0) {
+                    group.classList.add('hidden');
+                } else {
+                    group.classList.remove('hidden');
+                    // Auto-expand if filtering
+                    if (filterValue !== '') {
+                        const regionName = group.getAttribute('data-region');
+                        const regionId = 'region-' + regionName.replace(/\s+/g, '-');
+                        const content = document.getElementById(regionId);
+                        if (content && !content.classList.contains('expanded')) {
+                            content.classList.add('expanded');
+                            const header = content.previousElementSibling;
+                            const icon = header.querySelector('.toggle-icon');
+                            if (icon) icon.textContent = '▲';
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Filter cities
+            const cityFilter = document.getElementById('city-filter');
+            if (cityFilter) {
+                cityFilter.addEventListener('input', filterCities);
+            }
+        });
+    </script>
 </body>
 </html>

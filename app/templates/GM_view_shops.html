@@ -39,10 +39,11 @@
             margin: 20px 0;
         }
 
-        th, td {
+        th,         td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #ddd;
+            position: relative;
         }
 
         th {
@@ -70,6 +71,9 @@
             font-size: 14px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            pointer-events: auto;
+            position: relative;
+            z-index: 1;
         }
 
         .button:hover {
@@ -86,6 +90,9 @@
             font-size: 14px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            pointer-events: auto;
+            position: relative;
+            z-index: 1;
         }
 
         .delete-button:hover {
@@ -123,8 +130,30 @@
     </style>
     <script>
         function navigateTo(url) {
-            window.location.href = url;
+            try {
+                console.log('navigateTo called with URL:', url);
+                if (url && url.trim() !== '') {
+                    console.log('Navigating to:', url);
+                    window.location.href = url;
+                } else {
+                    console.error('Invalid URL provided to navigateTo:', url);
+                    alert('Error: Invalid URL. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error navigating to URL:', error);
+                alert('Error navigating: ' + error.message);
+            }
         }
+        
+        // Log when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('GM View Shops page loaded');
+            const buttons = document.querySelectorAll('.button');
+            console.log('Found', buttons.length, 'buttons on page');
+            buttons.forEach(function(button, index) {
+                console.log('Button', index, ':', button.textContent, 'onclick:', button.getAttribute('onclick'));
+            });
+        });
 
         function showDeleteConfirmation(shopId, shopName) {
             const modal = document.getElementById('deleteModal');
@@ -173,8 +202,8 @@
                     <tr>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>Quality</th>
-                        <th>Size</th>
+                        <th>Preferred Region</th>
+                        <th>Cities</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -183,12 +212,12 @@
                     <tr>
                         <td>{{ shop.name }}</td>
                         <td>{{ shop.type }}</td>
-                        <td>{{ shop.quality }}</td>
-                        <td>{{ shop.size }}</td>
+                        <td>{{ shop.preferred_region or 'N/A' }}</td>
+                        <td>{{ shop.cities|length }}</td>
                         <td>
-                            <button class="button" onclick="navigateTo('{{ url_for('gm.gm_edit_shop', shop_id=shop.shop_id) }}')">Edit</button>
-                            <button class="button" onclick="navigateTo('{{ url_for('gm.gm_view_shop_items', shop_id=shop.shop_id) }}')">View Items</button>
-                            <button class="delete-button" onclick="showDeleteConfirmation({{ shop.shop_id }}, '{{ shop.name }}')">Delete</button>
+                            <button type="button" class="button" onclick="navigateTo('{{ url_for('gm.gm_edit_shop', shop_id=shop.shop_id) }}')">Edit</button>
+                            <button type="button" class="button" onclick="navigateTo('{{ url_for('gm.gm_view_shop_items', shop_id=shop.shop_id) }}')">View Items</button>
+                            <button type="button" class="delete-button" onclick="showDeleteConfirmation({{ shop.shop_id }}, '{{ shop.name }}')">Delete</button>
                         </td>
                     </tr>
                     {% endfor %}
