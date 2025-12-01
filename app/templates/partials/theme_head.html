@@ -1,0 +1,17 @@
+    <script>
+        (function () {
+            try {
+                var storedTheme = localStorage.getItem('tt-theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var shouldUseDark = storedTheme ? storedTheme === 'dark' : prefersDark;
+                if (shouldUseDark) {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            } catch (err) {
+                console.warn('Failed to initialize theme', err);
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <script defer src="{{ url_for('static', filename='js/theme.js') }}"></script>
+

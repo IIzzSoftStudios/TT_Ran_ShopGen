@@ -1,0 +1,274 @@
+:root {
+  color-scheme: light;
+  --color-bg: #f3f4f6;
+  --color-surface: #ffffff;
+  --color-border: #e5e7eb;
+  --color-text: #111827;
+  --color-muted: #4b5563;
+  --color-table-stripe: #f1f5f9;
+  --color-table-hover: #e2e8f0;
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-accent-contrast: #ffffff;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-success: #16a34a;
+  --color-warning: #fb923c;
+  --color-input-bg: #ffffff;
+  --color-input-border: #d1d5db;
+  --shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+:root.dark-mode {
+  color-scheme: dark;
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-border: #334155;
+  --color-text: #e2e8f0;
+  --color-muted: #94a3b8;
+  --color-table-stripe: rgba(148, 163, 184, 0.08);
+  --color-table-hover: rgba(148, 163, 184, 0.18);
+  --color-accent: #c084fc;
+  --color-accent-hover: #a855f7;
+  --color-accent-contrast: #0f172a;
+  --color-danger: #f87171;
+  --color-danger-hover: #ef4444;
+  --color-success: #4ade80;
+  --color-warning: #fdba74;
+  --color-input-bg: #0f172a;
+  --color-input-border: #475569;
+  --shadow-panel: 0 6px 30px rgba(2, 6, 23, 0.6);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 0.25s ease, color 0.25s ease;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--color-accent);
+  transition: color 0.25s ease;
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+input,
+select,
+textarea {
+  background-color: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
+  color: var(--color-text);
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 1500;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background-color: rgba(15, 23, 42, 0.7);
+  color: #f8fafc;
+  font-size: 0.9rem;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.3);
+  transition: transform 0.2s ease, background-color 0.3s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-2px);
+}
+
+:root.dark-mode .theme-toggle {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: #f4f4f5;
+}
+
+html.dark-mode body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+html.dark-mode header,
+html.dark-mode main,
+html.dark-mode .card,
+html.dark-mode .section,
+html.dark-mode .market-panel,
+html.dark-mode .dashboard-panel,
+html.dark-mode .results-section,
+html.dark-mode .search-section,
+html.dark-mode .currency-container,
+html.dark-mode .simulation-panel,
+html.dark-mode .simulation-status,
+html.dark-mode .inventory-container,
+html.dark-mode .content-container,
+html.dark-mode .city-list li,
+html.dark-mode .market-item,
+html.dark-mode .market-header,
+html.dark-mode .button-container,
+html.dark-mode form,
+html.dark-mode .panel,
+html.dark-mode .modal,
+html.dark-mode .nav-buttons,
+html.dark-mode [class*="container"],
+html.dark-mode [class*="section"],
+html.dark-mode [class*="panel"],
+html.dark-mode [class*="card"] {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-panel);
+}
+
+html.dark-mode .inventory-table,
+html.dark-mode .results-table,
+html.dark-mode table {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+html.dark-mode th {
+  background-color: var(--color-accent) !important;
+  color: var(--color-accent-contrast) !important;
+}
+
+html.dark-mode td {
+  border-color: var(--color-border);
+}
+
+html.dark-mode tr:nth-child(even) {
+  background-color: var(--color-table-stripe) !important;
+}
+
+html.dark-mode tr:hover {
+  background-color: var(--color-table-hover) !important;
+}
+
+html.dark-mode .item-quantity,
+html.dark-mode .city-name,
+html.dark-mode .item-price,
+html.dark-mode .status-value {
+  color: var(--color-accent);
+}
+
+html.dark-mode .item-type,
+html.dark-mode .city-details,
+html.dark-mode .status-label,
+html.dark-mode .filter-label,
+html.dark-mode .small-text,
+html.dark-mode [class*="details"],
+html.dark-mode [class*="info"] {
+  color: var(--color-muted) !important;
+}
+
+html.dark-mode .button,
+html.dark-mode .nav-button,
+html.dark-mode .search-button,
+html.dark-mode .speed-button,
+html.dark-mode .manual-tick-button,
+html.dark-mode .btn,
+html.dark-mode button[type="submit"],
+html.dark-mode button[type="button"] {
+  background-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border-color: transparent;
+}
+
+html.dark-mode .button:hover,
+html.dark-mode .nav-button:hover,
+html.dark-mode .search-button:hover,
+html.dark-mode .speed-button:hover,
+html.dark-mode .manual-tick-button:hover,
+html.dark-mode .btn:hover {
+  background-color: var(--color-accent-hover);
+}
+
+html.dark-mode .sell-button {
+  background-color: var(--color-danger);
+  color: var(--color-accent-contrast);
+}
+
+html.dark-mode .sell-button:hover {
+  background-color: var(--color-danger-hover);
+}
+
+html.dark-mode .sell-button:disabled {
+  background-color: rgba(148, 163, 184, 0.4);
+}
+
+html.dark-mode .flash-message.success {
+  background-color: var(--color-success);
+  color: #0f172a;
+}
+
+html.dark-mode .flash-message.error {
+  background-color: var(--color-danger);
+}
+
+html.dark-mode .flash-message.info {
+  background-color: #38bdf8;
+}
+
+html.dark-mode .simulation-status {
+  border: 1px solid var(--color-border);
+}
+
+html.dark-mode .market-header {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.6), rgba(168, 85, 247, 0.7));
+}
+
+html.dark-mode .item-icon {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.9), rgba(168, 85, 247, 0.9));
+}
+
+html.dark-mode .currency-container {
+  background-color: rgba(148, 163, 184, 0.08) !important;
+}
+
+html.dark-mode .inventory-table th,
+html.dark-mode .results-table th {
+  border: none;
+}
+
+html.dark-mode .inventory-table tr:nth-child(even),
+html.dark-mode .results-table tr:nth-child(even),
+html.dark-mode .market-item:nth-child(even) {
+  background-color: var(--color-table-stripe);
+}
+
+html.dark-mode .market-item:hover,
+html.dark-mode .city-list li:hover {
+  background-color: var(--color-table-hover);
+}
+
+html.dark-mode .shop-quality,
+html.dark-mode .shop-size,
+html.dark-mode .badge,
+html.dark-mode .tag,
+html.dark-mode [class*="pill"] {
+  background-color: rgba(148, 163, 184, 0.2);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+html.dark-mode .rarity-common { background-color: rgba(148, 163, 184, 0.4); }
+html.dark-mode .rarity-uncommon { background-color: rgba(52, 211, 153, 0.35); }
+html.dark-mode .rarity-rare { background-color: rgba(56, 189, 248, 0.35); }
+html.dark-mode .rarity-very-rare { background-color: rgba(192, 132, 252, 0.35); }
+html.dark-mode .rarity-legendary { background-color: rgba(250, 204, 21, 0.5); }
+html.dark-mode .rarity-unique { background-color: rgba(251, 146, 60, 0.45); }
+
