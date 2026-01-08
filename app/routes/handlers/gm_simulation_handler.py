@@ -50,6 +50,9 @@ def home():
         f"  Time since last tick: {datetime.now() - simulation_engine.last_tick_time}"
     )
     
+    # Get economy mode from GM profile
+    economy_mode = current_user.gm_profile.economy_mode if current_user.gm_profile else "simple"
+    
     return render_template(
         "GM_Home.html",
         current_tick=0,  # Will be stored in database

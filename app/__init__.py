@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from dotenv import load_dotenv
-from app.extensions import db, migrate, bcrypt, login_manager, session, mail
+from app.extensions import db, migrate, bcrypt, login_manager, session
 
 # Load environment variables
 load_dotenv("config.env")
@@ -22,23 +22,6 @@ def create_app():
     app.config["SESSION_FILE_THRESHOLD"] = 100  # Limits excessive session files
 
     session.init_app(app)
-    
-    # Email configuration
-    app.config['MAIL_SERVER'] = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-    app.config['MAIL_PORT'] = int(os.getenv("MAIL_PORT", 587))
-    app.config['MAIL_USE_TLS'] = os.getenv("MAIL_USE_TLS", "True").lower() == "true"
-    app.config['MAIL_USE_SSL'] = os.getenv("MAIL_USE_SSL", "False").lower() == "true"
-    app.config['MAIL_USERNAME'] = os.getenv("MAIL_USERNAME", "")
-    app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD", "")
-    app.config['MAIL_DEFAULT_SENDER'] = os.getenv("MAIL_DEFAULT_SENDER", os.getenv("MAIL_USERNAME", ""))
-    app.config['APP_NAME'] = os.getenv("APP_NAME", "TT Shop Gen")
-    app.config['BASE_URL'] = os.getenv("BASE_URL", "http://localhost:5000")
-    
-    # Email verification and 2FA settings
-    app.config['REQUIRE_EMAIL_VERIFICATION'] = os.getenv("REQUIRE_EMAIL_VERIFICATION", "False").lower() == "true"
-    app.config['REQUIRE_2FA'] = os.getenv("REQUIRE_2FA", "False").lower() == "true"
-    
-    mail.init_app(app)
 
     app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
