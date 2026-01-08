@@ -1,19 +1,32 @@
 from sqlalchemy.orm import relationship
+from sqlalchemy import JSON
 from app.extensions import db, bcrypt, UserMixin
 from datetime import datetime, timedelta
 import secrets
+import json
 
 class User(db.Model, UserMixin):
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False) # Consider Enum('GM', 'Player', 'Admin')?
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Email verification fields
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    verification_token = db.Column(db.String(100), nullable=True)
+    verification_token_expires = db.Column(db.DateTime, nullable=True)
+    
     # Password reset fields
     reset_token = db.Column(db.String(100), nullable=True)
     reset_token_expires = db.Column(db.DateTime, nullable=True)
+    
+    # Two-factor authentication fields
+    two_factor_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    two_factor_secret = db.Column(db.String(32), nullable=True)  # TOTP secret
+    two_factor_backup_codes = db.Column(db.Text, nullable=True)  # JSON array of backup codes
     
     # For GMs: Their players
     # Use primaryjoin for clarity when multiple relationships point to Player
@@ -56,6 +69,54 @@ class User(db.Model, UserMixin):
         self.reset_token = None
         self.reset_token_expires = None
         db.session.commit()
+    
+    def generate_verification_token(self):
+        """Generate an email verification token valid for 24 hours"""
+        self.verification_token = secrets.token_urlsafe(32)
+        self.verification_token_expires = datetime.utcnow() + timedelta(hours=24)
+        db.session.commit()
+        return self.verification_token
+        
+    def verify_email_token(self, token):
+        """Verify if the email verification token is valid"""
+        if not self.verification_token or not self.verification_token_expires:
+            return False
+        if datetime.utcnow() > self.verification_token_expires:
+            return False
+        return secrets.compare_digest(self.verification_token, token)
+        
+    def verify_email(self):
+        """Mark email as verified and clear token"""
+        self.email_verified = True
+        self.verification_token = None
+        self.verification_token_expires = None
+        db.session.commit()
+    
+    def generate_backup_codes(self, count=10):
+        """Generate backup codes for 2FA"""
+        codes = [secrets.token_urlsafe(8) for _ in range(count)]
+        self.two_factor_backup_codes = json.dumps(codes)
+        db.session.commit()
+        return codes
+    
+    def get_backup_codes(self):
+        """Get backup codes as a list"""
+        if not self.two_factor_backup_codes:
+            return []
+        try:
+            return json.loads(self.two_factor_backup_codes)
+        except:
+            return []
+    
+    def use_backup_code(self, code):
+        """Use a backup code and remove it from the list"""
+        codes = self.get_backup_codes()
+        if code in codes:
+            codes.remove(code)
+            self.two_factor_backup_codes = json.dumps(codes) if codes else None
+            db.session.commit()
+            return True
+        return False
         
     @property
     def is_active(self):

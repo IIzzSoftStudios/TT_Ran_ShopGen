@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Two-Factor Authentication Setup</title>
+    {% include 'partials/theme_head.html' %}
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: black;
+            margin-bottom: 20px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .qr-code {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .qr-code img {
+            border: 2px solid #ddd;
+            padding: 10px;
+            background-color: white;
+        }
+
+        .backup-codes {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: monospace;
+        }
+
+        .backup-codes code {
+            display: block;
+            margin: 5px 0;
+        }
+
+        form {
+            margin-top: 15px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button.danger {
+            background-color: #dc3545;
+        }
+
+        button.danger:hover {
+            background-color: #c82333;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .status.enabled {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.disabled {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info-box {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+            color: #0066cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Two-Factor Authentication Setup</h2>
+
+        <div class="status {{ 'enabled' if two_factor_enabled else 'disabled' }}">
+            <strong>Status:</strong> {{ 'Enabled' if two_factor_enabled else 'Disabled' }}
+        </div>
+
+        {% if two_factor_enabled %}
+            <div class="section">
+                <h3>Disable Two-Factor Authentication</h3>
+                <p>To disable 2FA, enter your password:</p>
+                <form method="POST">
+                    <input type="hidden" name="action" value="disable">
+                    <label for="password">Password:</label>
+                    <input type="password" name="password" required>
+                    <button type="submit" class="danger">Disable 2FA</button>
+                </form>
+            </div>
+        {% else %}
+            {% if secret %}
+                <div class="section">
+                    <h3>Step 1: Scan QR Code</h3>
+                    <p>Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.):</p>
+                    <div class="qr-code">
+                        <img src="data:image/png;base64,{{ qr_code_data }}" alt="QR Code">
+                    </div>
+                    <p><strong>Or enter this secret manually:</strong></p>
+                    <div class="backup-codes">
+                        <code>{{ secret }}</code>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Step 2: Verify Setup</h3>
+                    <p>Enter the 6-digit code from your authenticator app to enable 2FA:</p>
+                    <form method="POST">
+                        <input type="hidden" name="action" value="enable">
+                        <label for="code">Verification Code:</label>
+                        <input type="text" name="code" maxlength="6" required autofocus>
+                        <button type="submit">Enable 2FA</button>
+                    </form>
+                </div>
+
+                {% if backup_codes %}
+                    <div class="section">
+                        <h3>Backup Codes</h3>
+                        <div class="info-box">
+                            <strong>Important:</strong> Save these backup codes in a safe place. You can use them to log in if you lose access to your authenticator app.
+                        </div>
+                        <div class="backup-codes">
+                            {% for code in backup_codes %}
+                                <code>{{ code }}</code>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="section">
+                    <p>Click the button below to start setting up two-factor authentication:</p>
+                    <form method="POST">
+                        <input type="hidden" name="action" value="enable">
+                        <button type="submit">Start 2FA Setup</button>
+                    </form>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</body>
+</html>
+
