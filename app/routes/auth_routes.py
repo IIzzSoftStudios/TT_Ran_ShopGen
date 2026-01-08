@@ -24,10 +24,9 @@ def login():
                 print(f"DEBUG: User authenticated, ID: {user.id}, Role: {user.role}")
                 print(f"DEBUG: Current user: {current_user.is_authenticated}")
                 flash("Logged in successfully.", "success")
-                # Fix the endpoint names here
-                target = "gm.gm_home" if user.role == "GM" else "player.player_home"
-                print(f"DEBUG: Redirecting to {target}")
-                return redirect(url_for(target))
+                # Redirect to campaign selection page
+                print(f"DEBUG: Redirecting to campaign selection")
+                return redirect(url_for("main.campaigns"))
             except Exception as e:
                 flash(f"An error occurred: {str(e)}", "danger")
                 print(f"DEBUG: Exception during login: {str(e)}")

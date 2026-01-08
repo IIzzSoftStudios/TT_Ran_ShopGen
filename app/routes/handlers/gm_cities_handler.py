@@ -7,16 +7,24 @@ from flask_login import current_user
 from app.extensions import db
 from app.models.backend import City
 from app.services.logging_config import gm_logger
+from app.routes.handlers.gm_helpers import get_current_gm_profile
 
 
 def view_cities():
     """View all cities for the current GM"""
-    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+    cities = City.query.filter_by(gm_profile_id=gm_profile.id).all()
     return render_template("GM_view_cities.html", cities=cities)
 
 
 def add_city():
     """Add a new city"""
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+    
     if request.method == "POST":
         name = request.form.get("name")
         size = request.form.get("size")
@@ -33,7 +41,7 @@ def add_city():
                 size=size,
                 population=int(population),
                 region=region,
-                gm_profile_id=current_user.gm_profile.id
+                gm_profile_id=gm_profile.id
             )
             db.session.add(new_city)
             db.session.commit()

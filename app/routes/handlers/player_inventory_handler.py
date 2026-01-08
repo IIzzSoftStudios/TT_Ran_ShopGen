@@ -7,15 +7,16 @@ from flask_login import current_user
 from app.extensions import db
 from app.models.users import Player, PlayerInventory
 from app.models.backend import Item
+from app.routes.handlers.player_helpers import get_current_player
 
 
 def sell_item(item_id):
     """Sell an item from player's inventory"""
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id_player=current_user.id).first()
-        if not player:
-            return _ajax_or_redirect('Player profile not found.', error=True)
+        player, redirect_response = get_current_player()
+        if redirect_response:
+            return _ajax_or_redirect('Please select a campaign first.', error=True)
 
         # Get the item and verify it belongs to the player's GM
         item = Item.query.get_or_404(item_id)

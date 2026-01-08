@@ -7,6 +7,7 @@ from flask_login import current_user
 from app.extensions import db
 from app.models.backend import City, Shop, Item, ShopInventory
 from app.services.logging_config import gm_logger
+from app.routes.handlers.gm_helpers import get_current_gm_profile
 from collections import defaultdict
 
 
@@ -34,8 +35,11 @@ def group_cities_for_display(cities):
 def view_shops():
     """View all shops for the current GM"""
     try:
-        gm_logger.info(f"view_shops called for user: {current_user.username}, GM Profile ID: {current_user.gm_profile.id}")
-        shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+        gm_profile, redirect_response = get_current_gm_profile()
+        if redirect_response:
+            return redirect_response
+        gm_logger.info(f"view_shops called for user: {current_user.username}, GM Profile ID: {gm_profile.id}")
+        shops = Shop.query.filter_by(gm_profile_id=gm_profile.id).all()
         gm_logger.info(f"Found {len(shops)} shops")
         for shop in shops:
             gm_logger.debug(f"Shop: {shop.name} (ID: {shop.shop_id}), Type: {shop.type}, Cities: {len(shop.cities)}")
@@ -57,8 +61,12 @@ def add_shop():
         print("DEBUG: Shop Type:", shop_type)
         print("DEBUG: City IDs:", city_ids)
 
+        gm_profile, redirect_response = get_current_gm_profile()
+        if redirect_response:
+            return redirect_response
+        
         try:
-            gm_profile_id = current_user.gm_profile.id
+            gm_profile_id = gm_profile.id
             print("DEBUG: GM Profile ID:", gm_profile_id)
 
             new_shop = Shop(
@@ -92,7 +100,10 @@ def add_shop():
         return redirect(url_for("gm.gm_view_shops"))
 
     # GET request: render form
-    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+    cities = City.query.filter_by(gm_profile_id=gm_profile.id).all()
     return render_template("GM_add_shop.html", cities=cities)
 
 
@@ -131,7 +142,10 @@ def edit_shop(shop_id):
             flash(f"Error updating shop: {e}", "danger")
 
     # GET route: Load cities and determine which cities have this shop
-    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+    cities = City.query.filter_by(gm_profile_id=gm_profile.id).all()
     grouped_cities = group_cities_for_display(cities)
     linked_city_ids = [city.city_id for city in shop.cities]
     return render_template("GM_edit_shop.html", shop=shop, cities=cities, grouped_cities=grouped_cities, linked_city_ids=linked_city_ids)
@@ -166,7 +180,10 @@ def view_shop_items(shop_id):
         gm_logger.info(f"Shop found: {shop.name} (ID: {shop.shop_id}), GM Profile ID: {shop.gm_profile_id}")
         
         # Verify shop belongs to current user's GM profile
-        if shop.gm_profile_id != current_user.gm_profile.id:
+        gm_profile, redirect_response = get_current_gm_profile()
+        if redirect_response:
+            return redirect_response
+        if shop.gm_profile_id != gm_profile.id:
             gm_logger.warning(f"Access denied: Shop {shop_id} does not belong to user {current_user.username}")
             flash("You don't have permission to view this shop.", "danger")
             return redirect(url_for("gm.gm_view_shops"))

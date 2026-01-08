@@ -7,6 +7,7 @@ from flask_login import current_user
 from app.extensions import db
 from app.models.backend import Shop, Item, ShopInventory
 from app.services.logging_config import gm_logger
+from app.routes.handlers.gm_helpers import get_current_gm_profile
 import json
 from collections import defaultdict
 
@@ -36,7 +37,10 @@ def group_shops_for_display(shops):
 
 def view_items():
     """View all items for the current GM"""
-    items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+    items = Item.query.filter_by(gm_profile_id=gm_profile.id).all()
     return render_template("GM_view_items.html", items=items)
 
 
@@ -85,8 +89,12 @@ def add_item():
         print("DEBUG: Base Price:", base_price, "| Stock:", stock, "| Dyn Price:", dynamic_price)
         print("DEBUG: Weight:", weight, "| Is Magic:", is_magic)
 
+        gm_profile, redirect_response = get_current_gm_profile()
+        if redirect_response:
+            return redirect_response
+        
         try:
-            gm_profile_id = current_user.gm_profile.id
+            gm_profile_id = gm_profile.id
             print("DEBUG: GM Profile ID:", gm_profile_id)
 
             new_item = Item(
@@ -137,7 +145,10 @@ def add_item():
         return redirect(url_for("gm.gm_view_items"))
 
     # GET route: Load shops and group them
-    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+    shops = Shop.query.filter_by(gm_profile_id=gm_profile.id).all()
     grouped_shops = group_shops_for_display(shops)
     return render_template("GM_add_item.html", shops=shops, grouped_shops=grouped_shops)
 
@@ -205,7 +216,10 @@ def edit_item(item_id):
             flash(f"Error updating item: {e}", "danger")
 
     # GET route: Load shops and determine which shops have this item
-    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+    shops = Shop.query.filter_by(gm_profile_id=gm_profile.id).all()
     grouped_shops = group_shops_for_display(shops)
     linked_shop_ids = [inv.shop_id for inv in item.inventory if inv.shop_id]
     return render_template("GM_edit_item.html", item=item, shops=shops, grouped_shops=grouped_shops, linked_shop_ids=linked_shop_ids)
@@ -215,7 +229,10 @@ def item_detail(item_id):
     """View detailed information about an item"""
     item = Item.query.get_or_404(item_id)
     # Get shops where this item is available
-    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+    shops = Shop.query.filter_by(gm_profile_id=gm_profile.id).all()
     grouped_shops = group_shops_for_display(shops)
     linked_shop_ids = [inv.shop_id for inv in item.inventory if inv.shop_id]
     

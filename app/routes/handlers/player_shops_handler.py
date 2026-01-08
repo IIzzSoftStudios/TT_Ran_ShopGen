@@ -7,6 +7,7 @@ from flask_login import current_user
 from app.extensions import db
 from app.models.users import Player, PlayerInventory
 from app.models.backend import City, Shop, ShopInventory, Item
+from app.routes.handlers.player_helpers import get_current_player
 
 
 def view_shops():
@@ -14,11 +15,9 @@ def view_shops():
     try:
         print("[DEBUG] Starting view_shops route")
         # Get the current player
-        player = Player.query.filter_by(user_id_player=current_user.id).first()
-        if not player:
-            print("[DEBUG] Player not found")
-            flash('Player profile not found.', 'error')
-            return redirect(url_for('player.player_home'))
+        player, redirect_response = get_current_player()
+        if redirect_response:
+            return redirect_response
 
         print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
 
@@ -50,11 +49,9 @@ def view_shop(shop_id):
         print(f"[DEBUG] Request Path: {request.path}")
         
         # Get the current player
-        player = Player.query.filter_by(user_id_player=current_user.id).first()
-        if not player:
-            print("[DEBUG] Player not found")
-            flash('Player profile not found.', 'error')
-            return redirect(url_for('player.player_home'))
+        player, redirect_response = get_current_player()
+        if redirect_response:
+            return redirect_response
 
         print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
 
@@ -136,10 +133,9 @@ def view_shop_items(shop_id):
     """View all items in a specific shop"""
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id_player=current_user.id).first()
-        if not player:
-            flash('Player profile not found.', 'error')
-            return redirect(url_for('player.player_home'))
+        player, redirect_response = get_current_player()
+        if redirect_response:
+            return redirect_response
 
         # Get the shop and verify it belongs to the player's GM
         shop = Shop.query.get_or_404(shop_id)
@@ -170,9 +166,9 @@ def buy_item(shop_id, item_id):
     """Buy an item from a shop"""
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id_player=current_user.id).first()
-        if not player:
-            return jsonify({'success': False, 'message': 'Player not found'})
+        player, redirect_response = get_current_player()
+        if redirect_response:
+            return jsonify({'success': False, 'message': 'Please select a campaign first'})
 
         # Get the shop and verify it belongs to the player's GM
         shop = Shop.query.get_or_404(shop_id)

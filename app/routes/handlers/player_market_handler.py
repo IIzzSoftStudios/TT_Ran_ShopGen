@@ -7,6 +7,7 @@ from flask_login import current_user
 from app.extensions import db
 from app.models.users import Player, PlayerInventory
 from app.models.backend import City, Shop, ShopInventory, Item, shop_cities
+from app.routes.handlers.player_helpers import get_current_player
 
 
 def view_market():
@@ -15,11 +16,9 @@ def view_market():
         print("[DEBUG] Entered /player/market route")
         
         # Get the current player
-        player = Player.query.filter_by(user_id_player=current_user.id).first()
-        if not player:
-            print("[DEBUG] Player not found - redirecting to home")
-            flash('Player profile not found.', 'error')
-            return redirect(url_for('player.player_home'))
+        player, redirect_response = get_current_player()
+        if redirect_response:
+            return redirect_response
         
         print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
 
@@ -56,9 +55,9 @@ def search_item():
     """Search for items across shops and cities"""
     try:
         # Get the current player
-        player = Player.query.filter_by(user_id_player=current_user.id).first()
-        if not player:
-            return jsonify({'error': 'Player not found'}), 404
+        player, redirect_response = get_current_player()
+        if redirect_response:
+            return jsonify({'error': 'Please select a campaign first'}), 400
 
         print(f"[DEBUG] Searching for player: {player.id}, GM Profile ID: {player.gm_profile_id}")
 

@@ -2,7 +2,7 @@
 Player Home Handler
 Handles the main player dashboard and home page logic
 """
-from flask import render_template, redirect, url_for, flash
+from flask import render_template, redirect, url_for, flash, session
 from flask_login import current_user
 from app.extensions import db
 from app.models.users import Player, PlayerInventory
@@ -14,13 +14,23 @@ def player_home():
     print("[DEBUG] Starting player_home route")
     print(f"[DEBUG] Current user: {current_user.username}, Role: {current_user.role}")
     
+    # Check if campaign is selected in session
+    campaign_id = session.get('campaign_id')
+    if not campaign_id:
+        flash("Please select a campaign first.", "info")
+        return redirect(url_for("main.campaigns"))
+    
     try:
-        # Fetch player details
-        player = Player.query.filter_by(user_id_player=current_user.id).first()
+        # Fetch player details for the selected campaign
+        player = Player.query.filter_by(
+            user_id_player=current_user.id,
+            gm_profile_id=campaign_id
+        ).first()
         if not player:
-            print("[DEBUG] Player not found")
-            flash("Player profile not found. Please contact your GM.", "error")
-            return redirect(url_for("auth.logout"))
+            print("[DEBUG] Player not found for campaign")
+            flash("Player profile not found for this campaign. Please contact your GM.", "error")
+            session.pop('campaign_id', None)
+            return redirect(url_for("main.campaigns"))
         
         print(f"[DEBUG] Found player: {player.id}, User ID: {player.user_id_player}, GM Profile ID: {player.gm_profile_id}")
 
@@ -29,7 +39,8 @@ def player_home():
         if not gm_profile:
             print("[DEBUG] GM Profile not found")
             flash("GM profile not found. Please contact support.", "error")
-            return redirect(url_for("auth.logout"))
+            session.pop('campaign_id', None)
+            return redirect(url_for("main.campaigns"))
         
         print(f"[DEBUG] Found GM Profile: {gm_profile.id}, User ID: {gm_profile.user_id}")
 

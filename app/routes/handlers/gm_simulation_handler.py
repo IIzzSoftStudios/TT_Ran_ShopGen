@@ -2,12 +2,13 @@
 GM Simulation Handler
 Handles all simulation-related business logic for GM routes
 """
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import current_user
 from app.services.logging_config import gm_logger
 from app.services.simulation import SimulationEngine
 from app.scripts.seeder import seed_gm_data
 from app.extensions import db
+from app.models.users import GMProfile
 from datetime import datetime
 
 
@@ -26,13 +27,26 @@ def _debug_request(request_type: str, route: str):
 
 def home():
     """Render the GM dashboard with simulation controls and status."""
+    # Check if campaign is selected in session
+    campaign_id = session.get('campaign_id')
+    if not campaign_id:
+        flash("Please select a campaign first.", "info")
+        return redirect(url_for("main.campaigns"))
+    
+    # Verify the user has access to this campaign
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id, id=campaign_id).first()
+    if not gm_profile:
+        flash("You do not have access to this campaign.", "error")
+        session.pop('campaign_id', None)
+        return redirect(url_for("main.campaigns"))
+    
     simulation_engine = SimulationEngine()
     _debug_request("GET", "/gm/")
     
     # Check if we should run a tick based on current speed
     if simulation_engine.should_run_tick():
         try:
-            stats = simulation_engine.run_tick(current_user.gm_profile.id)
+            stats = simulation_engine.run_tick(gm_profile.id)
             flash(
                 f"Simulation tick completed: Updated {stats['shops_updated']} shops "
                 f"and {stats['items_updated']} items.",
@@ -44,7 +58,7 @@ def home():
     # Log current simulation state
     gm_logger.debug(
         f"GM dashboard state:\n"
-        f"  User ID: {current_user.gm_profile.id}\n"
+        f"  User ID: {gm_profile.id}\n"
         f"  Current speed: {simulation_engine.current_speed}\n"
         f"  Last tick: {simulation_engine.last_tick_time}\n"
         f"  Time since last tick: {datetime.now() - simulation_engine.last_tick_time}"
@@ -64,8 +78,17 @@ def seed_world():
     simulation_engine = SimulationEngine()
     _debug_request("POST", "/gm/seed_world")
     
-    # current_user.gm_profile is already guaranteed to exist by @gm_bp.before_request
-    gm_profile = current_user.gm_profile
+    # Get campaign from session
+    campaign_id = session.get('campaign_id')
+    if not campaign_id:
+        flash("Please select a campaign first.", "info")
+        return redirect(url_for("main.campaigns"))
+    
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id, id=campaign_id).first()
+    if not gm_profile:
+        flash("You do not have access to this campaign.", "error")
+        session.pop('campaign_id', None)
+        return redirect(url_for("main.campaigns"))
 
     try:
         # Call the seeding function with the GM's profile ID
@@ -94,13 +117,25 @@ def run_simulation_tick():
     simulation_engine = SimulationEngine()
     _debug_request("POST", "/gm/simulation/tick")
     
+    # Get campaign from session
+    campaign_id = session.get('campaign_id')
+    if not campaign_id:
+        flash("Please select a campaign first.", "info")
+        return redirect(url_for("main.campaigns"))
+    
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id, id=campaign_id).first()
+    if not gm_profile:
+        flash("You do not have access to this campaign.", "error")
+        session.pop('campaign_id', None)
+        return redirect(url_for("main.campaigns"))
+    
     try:
-        stats = simulation_engine.run_tick(current_user.gm_profile.id)
+        stats = simulation_engine.run_tick(gm_profile.id)
         
         # Log the tick execution
         gm_logger.debug(
             f"Manual tick execution:\n"
-            f"  User ID: {current_user.gm_profile.id}\n"
+            f"  Campaign ID: {gm_profile.id}\n"
             f"  Shops updated: {stats['shops_updated']}\n"
             f"  Items updated: {stats['items_updated']}\n"
             f"  Last tick time: {simulation_engine.last_tick_time}\n"
@@ -125,6 +160,18 @@ def update_simulation_speed():
     simulation_engine = SimulationEngine()
     _debug_request("POST", "/gm/simulation/speed")
     
+    # Get campaign from session
+    campaign_id = session.get('campaign_id')
+    if not campaign_id:
+        flash("Please select a campaign first.", "info")
+        return redirect(url_for("main.campaigns"))
+    
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id, id=campaign_id).first()
+    if not gm_profile:
+        flash("You do not have access to this campaign.", "error")
+        session.pop('campaign_id', None)
+        return redirect(url_for("main.campaigns"))
+    
     try:
         speed = request.form.get("speed", "pause")
         
@@ -145,7 +192,7 @@ def update_simulation_speed():
                 raise ValueError(f"Invalid speed setting: {speed}")
                 
             # Run the simulation for the selected time period
-            stats = simulation_engine.run_time_period(current_user.gm_profile.id, time_period)
+            stats = simulation_engine.run_time_period(gm_profile.id, time_period)
             
             # Log the simulation results
             gm_logger.debug(
