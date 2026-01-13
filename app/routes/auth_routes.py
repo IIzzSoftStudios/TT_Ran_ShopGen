@@ -3,6 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.extensions import db, bcrypt
 from app.models.users import User, Player, GMProfile
 from app.services.logging_config import auth_logger
+from datetime import datetime
 
 auth = Blueprint("auth", __name__)
 
@@ -17,12 +18,15 @@ def login():
 
         if user and user.check_password(password):
             try:
-                login_user(user)
-                user.update_activity()  # Update last active timestamp
-                session["user_id"] = user.id  # Force session set
-                session.modified = True       # Ensure it saves
+                # Login user - Flask-Login will handle session management
+                login_user(user, remember=True)
+                
+                # Update activity after login
+                user.last_active = datetime.utcnow()
+                db.session.commit()
+                
                 print(f"DEBUG: User authenticated, ID: {user.id}, Role: {user.role}")
-                print(f"DEBUG: Current user: {current_user.is_authenticated}")
+                print(f"DEBUG: Current user authenticated: {current_user.is_authenticated}")
                 flash("Logged in successfully.", "success")
                 # Redirect to campaign selection page
                 print(f"DEBUG: Redirecting to campaign selection")
@@ -44,7 +48,6 @@ def logout():
     if current_user.is_authenticated:
         current_user.update_activity()  # Update last active timestamp before logout
     logout_user()
-    session.pop("user_id", None) 
     flash("Logged out successfully.", "success")
     return redirect(url_for("auth.login"))
 

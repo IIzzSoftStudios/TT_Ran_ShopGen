@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from dotenv import load_dotenv
-from app.extensions import db, migrate, bcrypt, login_manager, session
+from app.extensions import db, migrate, bcrypt, login_manager
 
 # Load environment variables
 load_dotenv("config.env")
@@ -15,13 +15,8 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = True
     
-    # Ensure Flask uses sessions properly
-    app.config['SESSION_TYPE'] = "filesystem"  
-    app.config['SESSION_PERMANENT'] = False
-    app.config["SESSION_USE_SIGNER"] = True
-    app.config["SESSION_FILE_THRESHOLD"] = 100  # Limits excessive session files
-
-    session.init_app(app)
+    # Flask's default cookie-based sessions work perfectly with Flask-Login
+    # No need for Flask-Session which can cause conflicts
 
     app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
