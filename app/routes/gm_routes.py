@@ -10,6 +10,12 @@ from app.routes.handlers.gm_shops_handler import (
 from app.routes.handlers.gm_items_handler import (
     view_items, add_item, edit_item, item_detail, delete_item
 )
+from app.routes.handlers.gm_campaigns_handler import (
+    list_campaigns,
+    create_campaign,
+    delete_campaign,
+    sync_players_to_campaign,
+)
 from app.routes.handlers.gm_simulation_handler import (
     home, seed_world, run_simulation_tick, update_simulation_speed, debug_form
 )
@@ -131,6 +137,35 @@ def gm_item_detail(item_id):
 def gm_delete_item(item_id):
     """Delete an item"""
     return delete_item(item_id) 
+
+
+# Campaign routes
+@gm_bp.route("/campaigns/")
+@login_required
+def gm_view_campaigns():
+    """View all campaigns for the current GM."""
+    return list_campaigns()
+
+
+@gm_bp.route("/campaigns/add", methods=["GET", "POST"])
+@login_required
+def gm_add_campaign():
+    """Create a new campaign for the current GM."""
+    return create_campaign()
+
+
+@gm_bp.route("/campaigns/sync/<int:campaign_id>", methods=["POST"])
+@login_required
+def gm_sync_players_to_campaign(campaign_id):
+    """Sync all players to a campaign."""
+    return sync_players_to_campaign(campaign_id)
+
+
+@gm_bp.route("/campaigns/delete/<int:campaign_id>", methods=["POST"])
+@login_required
+def gm_delete_campaign(campaign_id):
+    """Delete a campaign."""
+    return delete_campaign(campaign_id)
 
 @gm_bp.route("/debug/form", methods=["POST"])
 def gm_debug_form():

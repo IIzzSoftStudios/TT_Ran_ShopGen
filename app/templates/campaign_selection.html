@@ -130,6 +130,9 @@
                         <div class="campaign-info">
                             <p><strong>GM:</strong> {{ campaign.gm_username }}</p>
                             <p><strong>Players:</strong> {{ campaign.player_count }}</p>
+                            {% if campaign.system_type %}
+                                <p><strong>System:</strong> {{ campaign.system_type }}</p>
+                            {% endif %}
                             <span class="campaign-type {{ campaign.type|lower }}">{{ campaign.type }}</span>
                         </div>
                     </a>

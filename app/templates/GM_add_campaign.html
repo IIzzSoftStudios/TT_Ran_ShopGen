@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Add Campaign</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .form-container {
+            width: 80%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        .buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <h1>Create Campaign</h1>
+    <div class="form-container">
+        <form method="POST">
+            <label for="name">Campaign Name</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="system_type">Game System</label>
+            <select id="system_type" name="system_type" required>
+                <option value="dnd5e">D&D 5e</option>
+                <option value="pf2e">Pathfinder 2e</option>
+                <option value="savage_worlds">Savage Worlds</option>
+                <option value="generic">Generic</option>
+            </select>
+
+            <label for="world_setup">World Setup</label>
+            <select id="world_setup" name="world_setup" required>
+                <option value="preseeded">Preseeded Entities (Cities, Shops, Items)</option>
+                <option value="blank">Blank Slate (Start Empty)</option>
+                <option value="preset" disabled>Preset World (Coming Soon - Based on Faerûn)</option>
+            </select>
+            <small style="color: #666; display: block; margin-top: 5px;">
+                Preseeded will automatically create cities, shops, and items for your campaign.
+            </small>
+
+            <div class="buttons">
+                {% if campaigns %}
+                    <a href="{{ url_for('gm.gm_view_campaigns') }}" class="button">Cancel</a>
+                {% else %}
+                    <a href="{{ url_for('auth.logout') }}" class="button">Cancel</a>
+                {% endif %}
+                <button type="submit" class="button">Create Campaign</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+

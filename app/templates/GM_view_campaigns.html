@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>GM - Campaigns</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .content-container {
+            width: 80%;
+            max-width: 900px;
+            margin: 0 auto 40px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: purple;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.05);
+        }
+        .delete-button {
+            background-color: #dc3545;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Your Campaigns</h1>
+    <div class="nav-buttons">
+        <a href="{{ url_for('gm.gm_add_campaign') }}" class="button">Add New Campaign</a>
+        <a href="{{ url_for('gm.gm_home') }}" class="button">Back to Dashboard</a>
+    </div>
+    <div class="content-container">
+        {% if campaigns_info %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>System</th>
+                        <th>Players</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for info in campaigns_info %}
+                        <tr>
+                            <td>{{ info.campaign.name }}</td>
+                            <td>{{ info.campaign.system_type }}</td>
+                            <td>{{ info.player_count }} / {{ info.total_players }}</td>
+                            <td>{{ info.campaign.created_at.strftime('%Y-%m-%d') if info.campaign.created_at else '-' }}</td>
+                            <td>
+                                {% if info.player_count < info.total_players %}
+                                    <form method="POST" action="{{ url_for('gm.gm_sync_players_to_campaign', campaign_id=info.campaign.id) }}" style="display:inline;">
+                                        <button type="submit" class="button" style="background-color: #28a745; margin-right: 5px;" title="Add all players to this campaign">Sync Players</button>
+                                    </form>
+                                {% endif %}
+                                <form method="POST" action="{{ url_for('gm.gm_delete_campaign', campaign_id=info.campaign.id) }}" style="display:inline;" onsubmit="return confirm('Delete this campaign? This cannot be undone.');">
+                                    <button type="submit" class="button delete-button">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                <p>No campaigns yet. Create your first one!</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+

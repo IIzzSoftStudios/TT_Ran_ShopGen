@@ -83,6 +83,8 @@ class GMProfile(db.Model):
     modifier_targets = db.relationship("ModifierTarget", back_populates="gm_profile")
     # Players managed by this GM - Linked via Player.gm_profile_id
     players = db.relationship("Player", back_populates="gm_profile", foreign_keys="Player.gm_profile_id")
+    # Campaigns owned by this GM
+    campaigns = db.relationship("Campaign", back_populates="gm_profile", cascade="all, delete-orphan")
 
     def __repr__(self):
         username = self.user.username if self.user else "N/A"
@@ -109,6 +111,15 @@ class Player(db.Model):
 
     # Relationship to player's inventory
     inventory = db.relationship("PlayerInventory", back_populates="player")
+    # Relationship to the player's characters (one player can have multiple characters per GM/campaign)
+    characters = db.relationship("PlayerCharacter", back_populates="player", cascade="all, delete-orphan")
+
+    # Memberships in campaigns (many-to-many via CampaignPlayer)
+    campaign_memberships = db.relationship(
+        "CampaignPlayer",
+        back_populates="player",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self):
         player_username = self.player_user.username if self.player_user else "N/A"
@@ -130,3 +141,105 @@ class PlayerInventory(db.Model):
         player_username = self.player.player_user.username if self.player and self.player.player_user else "N/A"
         item_name = self.item.name if self.item else "N/A"
         return f"<PlayerInventory (Player: {player_username}, Item: {item_name}, Quantity: {self.quantity})>"
+
+
+class PlayerCharacter(db.Model):
+    """
+    Represents a specific character for a Player within a GM's campaign.
+    Normalized away from Player so one Player can eventually have multiple characters.
+    """
+    __tablename__ = "player_character"
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+
+    # Campaign this character belongs to (one character per player per campaign for now)
+    campaign_id = db.Column(db.Integer, db.ForeignKey("campaign.id"), nullable=True, index=True)
+
+    # Basic identity
+    name = db.Column(db.String(100), nullable=False)
+
+    # System this character is using (DnD 5e, Pathfinder 2e, Savage Worlds, etc.).
+    # For consistency, this should usually mirror Campaign.system_type.
+    system_type = db.Column(db.String(50), nullable=False, default="generic")
+
+    # Common meta
+    level = db.Column(db.Integer, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    # Relationships
+    player = db.relationship("Player", back_populates="characters")
+    campaign = db.relationship("Campaign", back_populates="characters")
+    equipment_slots = db.relationship(
+        "CharacterEquipmentSlot",
+        back_populates="character",
+        cascade="all, delete-orphan",
+    )
+    stats = db.relationship(
+        "CharacterStat",
+        back_populates="character",
+        cascade="all, delete-orphan",
+    )
+
+    def __repr__(self):
+        return f"<PlayerCharacter (Name: {self.name}, System: {self.system_type})>"
+
+
+class CharacterEquipmentSlot(db.Model):
+    """
+    Represents a single equipment slot on a character (e.g. head, chest, main_hand).
+    Each slot may have zero or one equipped Item.
+    """
+    __tablename__ = "character_equipment_slot"
+
+    id = db.Column(db.Integer, primary_key=True)
+    character_id = db.Column(db.Integer, db.ForeignKey("player_character.id"), nullable=False, index=True)
+
+    # Logical slot name used by UI and logic (e.g. head, chest, main_hand, off_hand, legs)
+    slot_name = db.Column(db.String(50), nullable=False)
+
+    # Equipped item reference; nullable means empty slot
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=True)
+
+    # Relationships
+    character = db.relationship("PlayerCharacter", back_populates="equipment_slots")
+    item = db.relationship("Item")
+
+    __table_args__ = (
+        # Ensure each character has at most one row per slot_name
+        db.UniqueConstraint("character_id", "slot_name", name="uq_character_slot"),
+    )
+
+    def __repr__(self):
+        return f"<CharacterEquipmentSlot (Character: {self.character_id}, Slot: {self.slot_name}, Item: {self.item_id})>"
+
+
+class CharacterStat(db.Model):
+    """
+    Flexible stat key/value store for a character.
+    Supports multiple systems (DnD, Pathfinder, Savage Worlds) by changing stat keys.
+    """
+    __tablename__ = "character_stat"
+
+    id = db.Column(db.Integer, primary_key=True)
+    character_id = db.Column(db.Integer, db.ForeignKey("player_character.id"), nullable=False, index=True)
+
+    # e.g. STR, DEX, CON, Agility, Fighting, etc.
+    stat_key = db.Column(db.String(50), nullable=False)
+
+    # Optional grouping: ability, skill, derived, resource, etc.
+    category = db.Column(db.String(50), nullable=True)
+
+    # Store as simple numeric value for now
+    value = db.Column(db.Float, nullable=True)
+
+    # Relationships
+    character = db.relationship("PlayerCharacter", back_populates="stats")
+
+    __table_args__ = (
+        # Each character should have at most one row per stat_key+category
+        db.UniqueConstraint("character_id", "stat_key", "category", name="uq_character_stat_key_category"),
+    )
+
+    def __repr__(self):
+        return f"<CharacterStat (Character: {self.character_id}, Key: {self.stat_key}, Value: {self.value})>"

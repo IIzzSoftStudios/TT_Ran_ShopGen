@@ -20,6 +20,14 @@ from app.routes.handlers.player_market_handler import (
 from app.routes.handlers.player_inventory_handler import (
     sell_item as handle_sell_item
 )
+from app.routes.handlers.player_character_handler import (
+    view_character as handle_view_character,
+    get_character_data as handle_get_character_data,
+    equip_item as handle_equip_item,
+    unequip_item as handle_unequip_item,
+    create_character as handle_create_character,
+    update_character as handle_update_character,
+)
 
 player_bp = Blueprint("player", __name__)
 
@@ -62,12 +70,38 @@ def player_home():
     """Render the player home dashboard"""
     return handle_player_home()
 
+
+@player_bp.route("/character")
+@login_required
+def view_character():
+    """Render the full character sheet page"""
+    return handle_view_character()
+
+@player_bp.route("/character/create", methods=["GET", "POST"])
+@login_required
+def create_character():
+    """Create a new character for the player"""
+    return handle_create_character()
+
+@player_bp.route("/character/update", methods=["POST"])
+@login_required
+def update_character():
+    """Update character information"""
+    return handle_update_character()
+
 # Search route
 @player_bp.route("/search")
 @login_required
 def search_item():
     """Search for items across shops and cities"""
     return handle_search_item()
+
+
+@player_bp.route("/character/data")
+@login_required
+def character_data():
+    """JSON endpoint for the current player's active character"""
+    return handle_get_character_data()
 
 @player_bp.route("/shop/<int:shop_id>/buy/<int:item_id>", methods=['POST'])
 @login_required
@@ -86,6 +120,20 @@ def view_shop_items(shop_id):
 def sell_item(item_id):
     """Sell an item from player's inventory"""
     return handle_sell_item(item_id)
+
+
+@player_bp.route("/character/equip/<int:item_id>", methods=["POST"])
+@login_required
+def equip_item(item_id):
+    """Equip an item from the player's inventory onto their character"""
+    return handle_equip_item(item_id)
+
+
+@player_bp.route("/character/unequip/<slot_name>", methods=["POST"])
+@login_required
+def unequip_item(slot_name):
+    """Unequip the item currently in the specified slot"""
+    return handle_unequip_item(slot_name)
 
 @player_bp.route("/market")
 @login_required

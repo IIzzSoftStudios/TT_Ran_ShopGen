@@ -124,7 +124,39 @@ def handle_register():
                     currency=0,
                 )
                 db.session.add(player)
+                db.session.flush()  # Get player.id before committing
                 auth_logger.debug(f"Created Player profile for user ID: {new_user.id}")
+                
+                # Automatically add this new player to all existing active campaigns for this GM
+                from app.models.campaigns import Campaign, CampaignPlayer
+                from app.services.billing_rules import can_add_player_to_campaign
+                
+                existing_campaigns = Campaign.query.filter_by(
+                    gm_profile_id=gm_profile.id,
+                    is_active=True
+                ).all()
+                
+                campaigns_added = 0
+                for campaign in existing_campaigns:
+                    can_add, _ = can_add_player_to_campaign(campaign)
+                    if can_add:
+                        # Check if membership already exists
+                        existing_membership = CampaignPlayer.query.filter_by(
+                            campaign_id=campaign.id,
+                            player_id=player.id
+                        ).first()
+                        if not existing_membership:
+                            membership = CampaignPlayer(
+                                campaign_id=campaign.id,
+                                player_id=player.id,
+                                status="active",
+                                is_active=True,
+                            )
+                            db.session.add(membership)
+                            campaigns_added += 1
+                
+                if campaigns_added > 0:
+                    auth_logger.debug(f"Added new player to {campaigns_added} existing campaign(s)")
 
             # Commit the transaction
             db.session.commit()
