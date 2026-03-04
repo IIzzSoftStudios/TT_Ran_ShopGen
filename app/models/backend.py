@@ -1,5 +1,7 @@
 from sqlalchemy.orm import relationship
+from sqlalchemy import Index
 from app.extensions import db
+from datetime import datetime
 import json
 
 # Junction table for the many-to-many relationship between Shop and City
@@ -164,3 +166,19 @@ class ShopInventory(db.Model):
         shop_name = self.shop.name if self.shop else "N/A"
         item_name = self.item.name if self.item else "N/A"
         return f"<ShopInventory (Shop: {shop_name}, Item: {item_name}, Stock: {self.stock}, Price: {self.dynamic_price})>"
+
+
+class PriceHistory(db.Model):
+    """One snapshot per (shop, item) per tick for stock-style charts. Recorded in same transaction as tick."""
+    __tablename__ = "price_history"
+    __table_args__ = (Index("ix_price_history_shop_item_recorded", "shop_id", "item_id", "recorded_at"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    recorded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+
+    def __repr__(self):
+        return f"<PriceHistory shop_id={self.shop_id} item_id={self.item_id} price={self.price} at {self.recorded_at}>"

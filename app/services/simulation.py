@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
 from app.extensions import db
-from app.models.backend import Shop, ShopInventory, City
+from app.models.backend import Shop, ShopInventory, City, PriceHistory
 from app.services.economy import calculate_dynamic_price
 from app.config.simulation_config import SimulationConfig, default_config
 
@@ -93,7 +93,7 @@ class SimulationEngine:
         
     def set_speed(self, speed: str):
         """Set the simulation speed."""
-        valid_speeds = ["pause", "1x", "5x", "100x", "1000x"]
+        valid_speeds = ["pause", "day", "week", "month", "year"]
         if speed not in valid_speeds:
             raise ValueError(f"Invalid speed: {speed}. Must be one of {valid_speeds}")
         old_speed = self.current_speed
@@ -102,18 +102,11 @@ class SimulationEngine:
         self._debug_state()
         
     def get_speed_multiplier(self) -> int:
-        """Get the time multiplier for the current speed setting."""
+        """Get the time multiplier for the current speed setting (used for real-time tick scheduling)."""
         if self.current_speed == "pause":
             return 0
-        elif self.current_speed == "1x":
-            return 1  # 1 second = 1 second
-        elif self.current_speed == "5x":
-            return 5  # 1 second = 5 seconds
-        elif self.current_speed == "100x":
-            return 100  # 1 second = 100 seconds
-        elif self.current_speed == "1000x":
-            return 1000  # 1 second = 1000 seconds
-        return 0
+        # day, week, month, year are used as time-period buttons; return 1 if any is set
+        return 1
         
     def should_run_tick(self) -> bool:
         """Determine if a tick should run based on current speed and time elapsed."""
@@ -156,11 +149,12 @@ class SimulationEngine:
         
         return should_run
         
-    def run_tick(self, gm_profile_id: int) -> Dict:
+    def run_tick(self, gm_profile_id: int, commit: bool = True) -> Dict:
         """
-        Execute one simulation tick.
+        Execute one simulation tick (one tick = one game day).
         Args:
             gm_profile_id: The ID of the GM whose shops should be updated
+            commit: If True, commit at end of tick; if False, caller commits (e.g. once per time period).
         Returns a dictionary containing tick results and statistics.
         """
         tick_start = datetime.now()
@@ -170,61 +164,85 @@ class SimulationEngine:
             'price_changes': [],
             'tick_duration': 0
         }
-        
+        shops_seen = set()
+
         try:
             self._log_tick("Starting simulation tick", "debug")
-            
-            # Get only shops belonging to the current GM
-            shops = Shop.query.filter_by(gm_profile_id=gm_profile_id).all()
-            self._log_tick(f"Found {len(shops)} shops to update", "debug")
-            
-            for shop in shops:
-                # Get all cities this shop operates in
-                cities = City.query.join(Shop.cities).filter(Shop.shop_id == shop.shop_id).all()
-                primary_city_id = cities[0].city_id if cities else None
 
-                # Mandatory for O(n) performance: eager-load item so base_price/rarity avoid N+1
-                inventory_items = (
-                    ShopInventory.query
-                    .filter_by(shop_id=shop.shop_id)
-                    .options(db.joinedload(ShopInventory.item))
-                    .all()
+            # Single batch query: all ShopInventory for GM's shops with item and shop.cities eager-loaded
+            inventory_rows = (
+                ShopInventory.query
+                .join(Shop, ShopInventory.shop_id == Shop.shop_id)
+                .filter(Shop.gm_profile_id == gm_profile_id)
+                .options(
+                    db.joinedload(ShopInventory.item),
+                    db.joinedload(ShopInventory.shop).joinedload(Shop.cities),
                 )
+                .all()
+            )
+            self._log_tick(f"Found {len(inventory_rows)} inventory rows to update", "debug")
 
-                for item in inventory_items:
-                    old_price = item.dynamic_price
-                    base_price = item.item.base_price
-                    rarity = int(item.item.rarity) if item.item.rarity.isdigit() else 5
+            for inventory in inventory_rows:
+                old_price = inventory.dynamic_price
+                base_price = inventory.item.base_price
+                rarity = int(inventory.item.rarity) if inventory.item.rarity.isdigit() else 5
+                shop = inventory.shop
+                cities = shop.cities if shop else []
 
+                # Per-city evaluation (in memory): aggregate to one price per row for future modifiers
+                if cities:
+                    prices = []
+                    for city in cities:
+                        p = calculate_dynamic_price(
+                            base_price=base_price,
+                            rarity=rarity,
+                            stock_level=inventory.stock,
+                            shop_id=shop.shop_id,
+                            city_id=city.city_id
+                        )
+                        prices.append(p)
+                    new_price = round(sum(prices) / len(prices), 2)
+                else:
                     new_price = calculate_dynamic_price(
                         base_price=base_price,
                         rarity=rarity,
-                        stock_level=item.stock,
-                        shop_id=shop.shop_id,
-                        city_id=primary_city_id
+                        stock_level=inventory.stock,
+                        shop_id=shop.shop_id if shop else None,
+                        city_id=None
                     )
-                    item.dynamic_price = new_price
-                    stats['items_updated'] += 1
-                    if old_price > 0 and abs(new_price - old_price) / old_price > 0.10:
-                        stats['price_changes'].append({
-                            'item_id': item.item_id,
-                            'city_id': primary_city_id,
-                            'old_price': old_price,
-                            'new_price': new_price
-                        })
 
-                stats['shops_updated'] += 1
-            
-            # Commit all changes
-            db.session.commit()
-            
-            # Update last tick time
+                inventory.dynamic_price = new_price
+                stats['items_updated'] += 1
+
+                # Snapshot for stock-style charts (same transaction)
+                db.session.add(PriceHistory(
+                    shop_id=inventory.shop_id,
+                    item_id=inventory.item_id,
+                    price=new_price,
+                    recorded_at=datetime.utcnow(),
+                    gm_profile_id=gm_profile_id
+                ))
+
+                if old_price > 0 and abs(new_price - old_price) / old_price > 0.10:
+                    primary_city_id = cities[0].city_id if cities else None
+                    stats['price_changes'].append({
+                        'item_id': inventory.item_id,
+                        'city_id': primary_city_id,
+                        'old_price': old_price,
+                        'new_price': new_price
+                    })
+
+                if shop and shop.shop_id not in shops_seen:
+                    shops_seen.add(shop.shop_id)
+                    stats['shops_updated'] += 1
+
+            if commit:
+                db.session.commit()
+
             self.last_tick_time = datetime.now()
-            
-            # Calculate tick duration
             tick_duration = (datetime.now() - tick_start).total_seconds()
             stats['tick_duration'] = tick_duration
-            
+
             self._log_tick(
                 f"Tick completed:\n"
                 f"  Shops updated: {stats['shops_updated']}\n"
@@ -233,9 +251,9 @@ class SimulationEngine:
                 f"  New last tick time: {self.last_tick_time}",
                 "debug"
             )
-            
+
             return stats
-            
+
         except Exception as e:
             self._log_tick(f"Error during tick: {str(e)}", "error")
             db.session.rollback()
@@ -243,23 +261,21 @@ class SimulationEngine:
 
     def run_time_period(self, gm_profile_id: int, time_period: str) -> Dict:
         """
-        Run multiple ticks to simulate a specific time period.
+        Run multiple ticks to simulate a specific time period. One tick = one game day.
         Args:
             gm_profile_id: The ID of the GM whose shops should be updated
-            time_period: One of "hour", "day", "week", "month"
+            time_period: One of "day", "week", "month", "year"
         Returns a dictionary containing simulation results and statistics.
         """
-        # Map time periods to number of ticks
         ticks_per_period = {
-            "hour": 1,
-            "day": 24,
-            "week": 168,
-            "month": 720  # Assuming 30 days
+            "day": 1,
+            "week": 7,
+            "month": 30,
+            "year": 365
         }
-        
         if time_period not in ticks_per_period:
             raise ValueError(f"Invalid time period: {time_period}. Must be one of {list(ticks_per_period.keys())}")
-            
+
         total_ticks = ticks_per_period[time_period]
         total_stats = {
             'shops_updated': 0,
@@ -268,12 +284,12 @@ class SimulationEngine:
             'total_duration': 0,
             'ticks_completed': 0
         }
-        
+
         self._log_tick(f"Starting {time_period} simulation ({total_ticks} ticks)", "debug")
-        
+
         for i in range(total_ticks):
             try:
-                tick_stats = self.run_tick(gm_profile_id)
+                tick_stats = self.run_tick(gm_profile_id, commit=False)
                 total_stats['shops_updated'] += tick_stats['shops_updated']
                 total_stats['items_updated'] += tick_stats['items_updated']
                 total_stats['price_changes'].extend(tick_stats['price_changes'])
@@ -281,8 +297,11 @@ class SimulationEngine:
                 total_stats['ticks_completed'] += 1
             except Exception as e:
                 self._log_tick(f"Error during tick {i+1}/{total_ticks}: {str(e)}", "error")
+                db.session.rollback()
                 break
-                
+        else:
+            db.session.commit()
+
         self._log_tick(
             f"Time period simulation completed:\n"
             f"  Period: {time_period}\n"
@@ -292,5 +311,5 @@ class SimulationEngine:
             f"  Total duration: {total_stats['total_duration']:.2f}s",
             "debug"
         )
-        
+
         return total_stats 

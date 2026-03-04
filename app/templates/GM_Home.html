@@ -216,20 +216,20 @@
                 <button type="submit" class="speed-button {% if current_speed == 'pause' %}active{% endif %}">Pause</button>
             </form>
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="speed" value="1x">
-                <button type="submit" class="speed-button {% if current_speed == '1x' %}active{% endif %}">Simulate 1 Hour</button>
+                <input type="hidden" name="speed" value="day">
+                <button type="submit" class="speed-button {% if current_speed == 'day' %}active{% endif %}">Simulate 1 Day</button>
             </form>
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="speed" value="5x">
-                <button type="submit" class="speed-button {% if current_speed == '5x' %}active{% endif %}">Simulate 1 Day</button>
+                <input type="hidden" name="speed" value="week">
+                <button type="submit" class="speed-button {% if current_speed == 'week' %}active{% endif %}">Simulate 1 Week</button>
             </form>
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="speed" value="100x">
-                <button type="submit" class="speed-button {% if current_speed == '100x' %}active{% endif %}">Simulate 1 Week</button>
+                <input type="hidden" name="speed" value="month">
+                <button type="submit" class="speed-button {% if current_speed == 'month' %}active{% endif %}">Simulate 1 Month</button>
             </form>
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="speed" value="1000x">
-                <button type="submit" class="speed-button {% if current_speed == '1000x' %}active{% endif %}">Simulate 1 Month</button>
+                <input type="hidden" name="speed" value="year">
+                <button type="submit" class="speed-button {% if current_speed == 'year' %}active{% endif %}">Simulate 1 Year</button>
             </form>
             <form action="{{ url_for('gm.gm_run_simulation_tick') }}" method="post" style="display: inline;">
                 <button type="submit" class="manual-tick-button">Manual Tick</button>

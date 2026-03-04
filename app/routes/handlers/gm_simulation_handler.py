@@ -174,26 +174,20 @@ def update_simulation_speed():
     
     try:
         speed = request.form.get("speed", "pause")
-        
-        # Map speed to time period
-        speed_to_period = {
-            "1x": "hour",
-            "5x": "day",
-            "100x": "week",
-            "1000x": "month"
-        }
-        
+        speed_to_period = {"day": "day", "week": "week", "month": "month", "year": "year"}
+        valid_speeds = ["pause", "day", "week", "month", "year"]
+        if speed not in valid_speeds:
+            flash(f"Invalid simulation option: {speed}.", "error")
+            return redirect(url_for("gm.gm_home"))
+
         if speed == "pause":
             simulation_engine.set_speed(speed)
             flash("Simulation paused", "info")
         else:
-            time_period = speed_to_period.get(speed)
-            if not time_period:
-                raise ValueError(f"Invalid speed setting: {speed}")
-                
-            # Run the simulation for the selected time period
+            time_period = speed_to_period[speed]
+            simulation_engine.set_speed(speed)
             stats = simulation_engine.run_time_period(gm_profile.id, time_period)
-            
+
             # Log the simulation results
             gm_logger.debug(
                 f"Time period simulation completed:\n"
