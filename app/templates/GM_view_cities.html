@@ -160,7 +160,7 @@
         }
     </script>
 </head>
-<body>
+<body class="gm-list-page">
     <h1>View Cities</h1>
     <div class="nav-buttons">
         <button onclick="navigateTo('{{ url_for('gm.gm_add_city') }}')" class="button">Add New City</button>
@@ -170,7 +170,7 @@
         <div class="section">
             <h2>Available Cities</h2>
             {% if cities %}
-            <table>
+            <table class="gm-list-table">
                 <thead>
                     <tr>
                         <th>Name</th>

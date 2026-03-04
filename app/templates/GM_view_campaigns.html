@@ -82,7 +82,7 @@
         }
     </style>
 </head>
-<body>
+<body class="gm-list-page">
     <h1>Your Campaigns</h1>
     <div class="nav-buttons">
         <a href="{{ url_for('gm.gm_add_campaign') }}" class="button">Add New Campaign</a>
@@ -90,7 +90,7 @@
     </div>
     <div class="content-container">
         {% if campaigns_info %}
-            <table>
+            <table class="gm-list-table">
                 <thead>
                     <tr>
                         <th>Name</th>

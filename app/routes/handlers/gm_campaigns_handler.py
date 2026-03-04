@@ -52,7 +52,7 @@ def create_campaign():
 
             allowed, message = can_create_campaign(gm_profile)
             if not allowed:
-                flash(message, "error")
+                flash(message, "system")
                 return render_template("GM_add_campaign.html")
         except Exception as e:
             flash(f"Error processing campaign creation: {str(e)}", "error")
@@ -92,7 +92,7 @@ def create_campaign():
                     players_added += 1
             else:
                 # If we hit the limit, stop adding players
-                flash(f"Note: {seat_message} Only added {players_added} players to the campaign.", "warning")
+                flash(f"Note: {seat_message} Only added {players_added} players to the campaign.", "system")
                 break
 
         db.session.commit()
@@ -157,7 +157,7 @@ def sync_players_to_campaign(campaign_id: int):
             players_added += 1
         else:
             # If we hit the limit, stop adding players
-            flash(f"Reached seat limit for campaign '{campaign.name}'. Added {players_added} player(s), skipped {players_skipped} already in campaign.", "warning")
+            flash(f"Reached seat limit for campaign '{campaign.name}'. Added {players_added} player(s), skipped {players_skipped} already in campaign.", "system")
             db.session.commit()
             return redirect(url_for("gm.gm_view_campaigns"))
 

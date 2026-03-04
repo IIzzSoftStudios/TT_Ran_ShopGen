@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models.users import Player, PlayerCharacter, CharacterEquipmentSlot, CharacterStat, PlayerInventory
-from app.config.system_config import seed_default_stats_for_character
+from app.config.system_config import seed_default_stats_for_character, get_system_schema
 from app.models.backend import Item
 from app.models.campaigns import Campaign, CampaignPlayer
 from app.routes.handlers.player_helpers import get_current_player
@@ -18,6 +18,12 @@ from flask import session
 # --- Helpers -----------------------------------------------------------------
 
 DEFAULT_SYSTEM_TYPE = "generic"
+
+# Single source of truth for equipment slots (Head, Neck, Torso, Hands, Finger x2, Legs, Feet, Main Hand, Off Hand)
+DEFAULT_EQUIPMENT_SLOTS = [
+    "head", "neck", "torso", "hands", "finger_1", "finger_2",
+    "legs", "feet", "main_hand", "off_hand",
+]
 
 
 def _get_or_create_active_character(player: Player) -> PlayerCharacter:
@@ -61,11 +67,10 @@ def _get_or_create_active_character(player: Player) -> PlayerCharacter:
     db.session.flush()  # Ensure character.id is available
 
     # Seed stats from the configured system schema
-    seed_default_stats_for_character(character, character.system_type, db)
+    seed_default_stats_for_character(character, character.system_type, db.session)
 
-    # Pre-create a few common equipment slots used by the SVG body model
-    default_slots = ["head", "chest", "legs", "main_hand", "off_hand"]
-    for slot_name in default_slots:
+    # Pre-create equipment slots (shared schema with create_character)
+    for slot_name in DEFAULT_EQUIPMENT_SLOTS:
         db.session.add(
             CharacterEquipmentSlot(
                 character_id=character.id,
@@ -80,6 +85,7 @@ def _get_or_create_active_character(player: Player) -> PlayerCharacter:
 
 def _serialize_character(character: PlayerCharacter):
     """Serialize character core data, stats, and equipment slots for JSON responses."""
+    stats_list = list(character.stats) if character.stats else []
     stats = [
         {
             "id": stat.id,
@@ -87,18 +93,22 @@ def _serialize_character(character: PlayerCharacter):
             "category": stat.category,
             "value": stat.value,
         }
-        for stat in character.stats
+        for stat in stats_list
     ]
 
     slots = []
-    for slot in character.equipment_slots:
+    for slot in (character.equipment_slots or []):
         item_data = None
         if slot.item:
+            desc = (slot.item.description or "")[:100]
+            if len(slot.item.description or "") > 100:
+                desc += "..."
             item_data = {
                 "item_id": slot.item.item_id,
                 "name": slot.item.name,
                 "type": slot.item.type,
                 "rarity": slot.item.rarity,
+                "description_short": desc,
             }
         slots.append(
             {
@@ -108,6 +118,23 @@ def _serialize_character(character: PlayerCharacter):
             }
         )
 
+    schema = get_system_schema(character.system_type or "generic")
+    stat_schema = [
+        {"key": f.key, "label": f.label, "category": f.category}
+        for f in schema
+    ]
+    stats_by_key = {s["key"]: s for s in stats}
+    stat_display = []
+    for f in schema:
+        s = stats_by_key.get(f.key)
+        stat_display.append({
+            "id": s["id"] if s else None,
+            "key": f.key,
+            "label": f.label,
+            "category": f.category,
+            "value": s["value"] if s else None,
+        })
+
     return {
         "id": character.id,
         "name": character.name,
@@ -116,30 +143,39 @@ def _serialize_character(character: PlayerCharacter):
         "notes": character.notes,
         "stats": stats,
         "equipment_slots": slots,
+        "stat_schema": stat_schema,
+        "stat_display": stat_display,
     }
 
 
 def _find_slot_for_item_type(item_type: str) -> str | None:
     """
-    Very simple mapping from item.type to a character slot.
-    This can be expanded/adjusted as you refine item categories.
+    Map item.type to a character equipment slot.
+    Supports: head, neck, torso, hands, finger_1, finger_2, legs, feet, main_hand, off_hand.
     """
     if not item_type:
         return None
 
     normalized = item_type.lower()
-    if "helm" in normalized or "head" in normalized:
+    if "helm" in normalized or "head" in normalized or "hat" in normalized:
         return "head"
-    if "armor" in normalized or "chest" in normalized:
-        return "chest"
-    if "boots" in normalized or "legs" in normalized:
+    if "amulet" in normalized or "necklace" in normalized or "neck" in normalized:
+        return "neck"
+    if "armor" in normalized or "chest" in normalized or "torso" in normalized or "body" in normalized:
+        return "torso"
+    if "glove" in normalized or "gauntlet" in normalized or "hands" in normalized:
+        return "hands"
+    if "ring" in normalized:
+        return "finger_1"  # UI can allow choosing finger_2 if needed
+    if "boots" in normalized or "feet" in normalized or "shoes" in normalized:
+        return "feet"
+    if "legs" in normalized or "greave" in normalized or "pants" in normalized:
         return "legs"
     if "shield" in normalized or "off-hand" in normalized or "off hand" in normalized:
         return "off_hand"
-    if "weapon" in normalized or "sword" in normalized or "main-hand" in normalized:
+    if "weapon" in normalized or "sword" in normalized or "main-hand" in normalized or "main hand" in normalized:
         return "main_hand"
 
-    # Fallback: treat as main_hand
     return "main_hand"
 
 
@@ -363,11 +399,10 @@ def create_character():
         db.session.flush()
         
         # Seed stats based on system
-        seed_default_stats_for_character(character, campaign.system_type, db)
+        seed_default_stats_for_character(character, campaign.system_type, db.session)
         
-        # Create default equipment slots
-        default_slots = ["head", "chest", "legs", "main_hand", "off_hand"]
-        for slot_name in default_slots:
+        # Create default equipment slots (same schema as _get_or_create_active_character)
+        for slot_name in DEFAULT_EQUIPMENT_SLOTS:
             db.session.add(
                 CharacterEquipmentSlot(
                     character_id=character.id,

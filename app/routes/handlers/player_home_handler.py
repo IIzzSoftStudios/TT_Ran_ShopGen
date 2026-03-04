@@ -7,41 +7,31 @@ from flask_login import current_user
 from app.extensions import db
 from app.models.users import Player, PlayerInventory
 from app.models.backend import City, Shop, ShopInventory, Item
+from app.routes.handlers.player_character_handler import (
+    _get_or_create_active_character,
+    _serialize_character,
+)
+from app.routes.handlers.player_helpers import get_current_player
 
 
 def player_home():
     """Render the player home dashboard"""
     print("[DEBUG] Starting player_home route")
     print(f"[DEBUG] Current user: {current_user.username}, Role: {current_user.role}")
-    
-    # Check if campaign is selected in session
-    campaign_id = session.get('campaign_id')
-    if not campaign_id:
-        flash("Please select a campaign first.", "info")
-        return redirect(url_for("main.campaigns"))
-    
-    try:
-        # Fetch player details for the selected campaign
-        player = Player.query.filter_by(
-            user_id_player=current_user.id,
-            gm_profile_id=campaign_id
-        ).first()
-        if not player:
-            print("[DEBUG] Player not found for campaign")
-            flash("Player profile not found for this campaign. Please contact your GM.", "error")
-            session.pop('campaign_id', None)
-            return redirect(url_for("main.campaigns"))
-        
-        print(f"[DEBUG] Found player: {player.id}, User ID: {player.user_id_player}, GM Profile ID: {player.gm_profile_id}")
 
-        # Verify GM profile exists
+    try:
+        player, redirect_response = get_current_player()
+        if redirect_response:
+            return redirect_response
+
         gm_profile = player.gm_profile
         if not gm_profile:
             print("[DEBUG] GM Profile not found")
             flash("GM profile not found. Please contact support.", "error")
             session.pop('campaign_id', None)
             return redirect(url_for("main.campaigns"))
-        
+
+        print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
         print(f"[DEBUG] Found GM Profile: {gm_profile.id}, User ID: {gm_profile.user_id}")
 
         # Get all cities for the GM
@@ -105,6 +95,9 @@ def player_home():
         )
         print(f"[DEBUG] Found {len(inventory_items)} items in player's inventory")
 
+        character = _get_or_create_active_character(player)
+        character_data = _serialize_character(character)
+
         return render_template(
             "Player_Home.html",
             player=player,
@@ -115,7 +108,8 @@ def player_home():
             items=shop_items,
             shop_items=shop_items,
             inventory_items=inventory_items,
-            market_data=market_data
+            market_data=market_data,
+            character=character_data,
         )
     except Exception as e:
         print(f"[ERROR] Error in player_home: {str(e)}")

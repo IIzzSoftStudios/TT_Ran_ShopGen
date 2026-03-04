@@ -134,11 +134,12 @@ html.dark-mode [class*="card"] {
   box-shadow: var(--shadow-panel);
 }
 
+/* Base table colors (cities-style): high-contrast rows and white text for all tables */
 html.dark-mode .inventory-table,
 html.dark-mode .results-table,
 html.dark-mode table {
   background-color: var(--color-surface);
-  color: var(--color-text);
+  color: #FFFFFF;
 }
 
 html.dark-mode th {
@@ -148,13 +149,19 @@ html.dark-mode th {
 
 html.dark-mode td {
   border-color: var(--color-border);
+  color: #FFFFFF !important;
 }
 
-html.dark-mode tr:nth-child(even) {
-  background-color: var(--color-table-stripe) !important;
+html.dark-mode tbody tr {
+  background-color: rgba(30, 30, 46, 0.8) !important;
+  color: #FFFFFF !important;
 }
 
-html.dark-mode tr:hover {
+html.dark-mode tbody tr:nth-child(even) {
+  background-color: #252538 !important;
+}
+
+html.dark-mode tbody tr:hover {
   background-color: var(--color-table-hover) !important;
 }
 
@@ -227,6 +234,23 @@ html.dark-mode .simulation-status {
   border: 1px solid var(--color-border);
 }
 
+/* GM Dashboard: header and simulation control legibility in dark mode */
+html.dark-mode .gm-dashboard h1,
+html.dark-mode .gm-dashboard h2,
+html.dark-mode .gm-dashboard .simulation-panel h2 {
+  color: #F8F9FA !important;
+}
+
+html.dark-mode .gm-dashboard .status-label {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+html.dark-mode .gm-dashboard .status-value {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
 html.dark-mode .market-header {
   background: linear-gradient(135deg, rgba(124, 58, 237, 0.6), rgba(168, 85, 247, 0.7));
 }
@@ -272,3 +296,116 @@ html.dark-mode .rarity-very-rare { background-color: rgba(192, 132, 252, 0.35); 
 html.dark-mode .rarity-legendary { background-color: rgba(250, 204, 21, 0.5); }
 html.dark-mode .rarity-unique { background-color: rgba(251, 146, 60, 0.45); }
 
+/* GM list/table dark mode: high-contrast rows and text */
+html.dark-mode .gm-list-page .gm-list-table,
+html.dark-mode .gm-list-page table {
+  background-color: transparent;
+}
+html.dark-mode .gm-list-page .gm-list-table tbody tr,
+html.dark-mode .gm-list-page table tbody tr {
+  background-color: rgba(30, 30, 46, 0.8) !important;
+  color: #FFFFFF !important;
+}
+html.dark-mode .gm-list-page .gm-list-table tbody tr:nth-child(even),
+html.dark-mode .gm-list-page table tbody tr:nth-child(even) {
+  background-color: #252538 !important;
+}
+html.dark-mode .gm-list-page .gm-list-table tbody td,
+html.dark-mode .gm-list-page table tbody td {
+  color: #FFFFFF !important;
+  border-color: var(--color-border);
+}
+html.dark-mode .gm-list-page .gm-list-table tbody td:nth-child(2),
+html.dark-mode .gm-list-page table tbody td:nth-child(2) {
+  color: #A0A0A0 !important;
+}
+
+/* GM item detail page: same table-like colors for detail rows and sections */
+html.dark-mode .gm-detail-page .detail-container,
+html.dark-mode .gm-detail-page .content-container {
+  background-color: var(--color-surface) !important;
+  color: #FFFFFF !important;
+  border-color: var(--color-border);
+}
+
+html.dark-mode .gm-detail-page .detail-section h2 {
+  color: var(--color-accent) !important;
+  border-bottom-color: var(--color-accent);
+}
+
+html.dark-mode .gm-detail-page .detail-row {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark-mode .gm-detail-page .detail-label {
+  color: #A0A0A0 !important;
+}
+
+html.dark-mode .gm-detail-page .detail-value {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .detail-value.empty {
+  color: var(--color-muted) !important;
+}
+
+html.dark-mode .gm-detail-page .property-item {
+  background-color: rgba(30, 30, 46, 0.8) !important;
+  border-left-color: var(--color-accent);
+}
+
+html.dark-mode .gm-detail-page .property-label {
+  color: #A0A0A0 !important;
+}
+
+html.dark-mode .gm-detail-page .property-value {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .city-group {
+  border-color: var(--color-border);
+}
+
+html.dark-mode .gm-detail-page .city-header {
+  background-color: #252538 !important;
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .city-content {
+  background-color: rgba(30, 30, 46, 0.6);
+  color: #FFFFFF;
+}
+
+html.dark-mode .gm-detail-page .shop-type-header {
+  background-color: rgba(37, 37, 56, 0.9) !important;
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .shop-item {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .magic-indicator {
+  background-color: var(--color-warning);
+  color: #0f172a;
+}
+
+html.dark-mode .gm-detail-page h1 {
+  color: #F8F9FA !important;
+}
+
+/* Player routes: same table and panel styling as GM cities */
+html.dark-mode .items-table,
+html.dark-mode .shop-info {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border);
+}
+
+html.dark-mode .shop-name {
+  color: var(--color-accent) !important;
+}
+
+html.dark-mode .shop-type {
+  color: var(--color-muted) !important;
+}

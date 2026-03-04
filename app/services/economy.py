@@ -47,14 +47,14 @@ def update_shop_prices():
 
     for inventory in inventory_list:
         shop = inventory.shop
-        city_id = shop.cities[0].city_id if shop.cities else None
+        city_id = shop.cities[0].city_id if (shop and shop.cities) else None
 
         base_price = inventory.item.base_price
         rarity = int(inventory.item.rarity) if inventory.item.rarity.isdigit() else 5
         stock_level = inventory.stock
 
         new_price = calculate_dynamic_price(
-            base_price, rarity, stock_level, shop.shop_id, city_id
+            base_price, rarity, stock_level, shop.shop_id if shop else None, city_id
         )
         inventory.dynamic_price = new_price
 

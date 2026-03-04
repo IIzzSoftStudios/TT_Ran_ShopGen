@@ -71,7 +71,7 @@ def load_campaign(campaign_id):
         campaign = Campaign.query.filter_by(id=campaign_id).first()
         if not campaign:
             flash("Campaign not found.", "error")
-            return redirect(url_for("main.select_campaign"))
+            return redirect(url_for("main.campaigns"))
 
         if current_user.role == "GM":
             gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
@@ -90,23 +90,24 @@ def load_campaign(campaign_id):
         
         if not has_access:
             flash("You do not have access to this campaign.", "error")
-            return redirect(url_for("main.select_campaign"))
+            return redirect(url_for("main.campaigns"))
         
-        # Store campaign ID in session
+        # Store campaign ID in session (ensure it is saved before redirect)
         session['campaign_id'] = campaign_id
         session['system_type'] = campaign.system_type
+        session.permanent = True
         session.modified = True
         
-        # Redirect to appropriate home page
+        # Redirect with 303 so browser follows with GET and session cookie is sent
         if current_user.role == "GM":
-            return redirect(url_for("gm.gm_home"))
+            return redirect(url_for("gm.gm_home"), code=303)
         else:
-            return redirect(url_for("player.player_home"))
+            return redirect(url_for("player.player_home"), code=303)
             
     except Exception as e:
         print(f"[ERROR] Error in load_campaign: {str(e)}")
         import traceback
         print(f"[ERROR] Traceback: {traceback.format_exc()}")
         flash("An error occurred while loading the campaign. Please try again.", "error")
-        return redirect(url_for("main.select_campaign"))
+        return redirect(url_for("main.campaigns"))
 

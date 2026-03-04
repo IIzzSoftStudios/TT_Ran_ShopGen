@@ -189,7 +189,7 @@
         }
     </script>
 </head>
-<body>
+<body class="gm-list-page">
     <h1>View Shops</h1>
     <div class="nav-buttons">
         <button onclick="navigateTo('{{ url_for('gm.gm_add_shop') }}')" class="button">Add New Shop</button>
@@ -199,7 +199,7 @@
         <div class="section">
             <h2>Available Shops</h2>
             {% if shops %}
-            <table>
+            <table class="gm-list-table">
                 <thead>
                     <tr>
                         <th>Name</th>

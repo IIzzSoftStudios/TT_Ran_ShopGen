@@ -5,6 +5,7 @@ Utility functions for GM-related handlers
 from flask import redirect, url_for, flash, session
 from flask_login import current_user
 from app.models.users import GMProfile
+from app.models.campaigns import Campaign
 
 def get_current_gm_profile():
     """
@@ -18,12 +19,14 @@ def get_current_gm_profile():
         flash("Please select a campaign first.", "info")
         return None, redirect(url_for("main.campaigns"))
     
-    gm_profile = GMProfile.query.filter_by(
-        user_id=current_user.id,
-        id=campaign_id
-    ).first()
+    campaign = Campaign.query.filter_by(id=campaign_id).first()
+    if not campaign:
+        session.pop('campaign_id', None)
+        flash("Campaign not found.", "error")
+        return None, redirect(url_for("main.campaigns"))
     
-    if not gm_profile:
+    gm_profile = campaign.gm_profile
+    if not gm_profile or gm_profile.user_id != current_user.id:
         flash("You do not have access to this campaign.", "error")
         session.pop('campaign_id', None)
         return None, redirect(url_for("main.campaigns"))

@@ -77,8 +77,8 @@ def view_shop(shop_id):
 
         print(f"[DEBUG] Found city: {city.name}")
 
-        # Get shop inventory with item details
-        shop_items = (
+        # Get shop inventory with item details (explicit dicts so template always has item_id)
+        rows = (
             db.session.query(
                 Item.name,
                 Item.type,
@@ -91,17 +91,29 @@ def view_shop(shop_id):
             .filter(ShopInventory.shop_id == shop_id)
             .all()
         )
+        shop_items = [
+            {
+                "name": r.name,
+                "type": r.type,
+                "stock": r.stock,
+                "dynamic_price": r.dynamic_price,
+                "item_id": r.item_id,
+                "base_price": r.base_price,
+            }
+            for r in rows
+        ]
 
         print(f"[DEBUG] Found {len(shop_items)} items in shop")
 
         # Get player's inventory quantities for each item
         player_inventory = {}
         for item in shop_items:
+            iid = item["item_id"]
             inventory_entry = PlayerInventory.query.filter_by(
                 player_id=player.id,
-                item_id=item.item_id
+                item_id=iid
             ).first()
-            player_inventory[item.item_id] = inventory_entry.quantity if inventory_entry else 0
+            player_inventory[iid] = inventory_entry.quantity if inventory_entry else 0
 
         def getStockStatus(stock):
             if stock <= 0:
@@ -170,8 +182,14 @@ def buy_item(shop_id, item_id):
         if redirect_response:
             return jsonify({'success': False, 'message': 'Please select a campaign first'})
 
-        # Get the shop and verify it belongs to the player's GM
-        shop = Shop.query.get_or_404(shop_id)
+        # Validate item_id (must be a valid positive id)
+        if not item_id or item_id < 1:
+            return jsonify({'success': False, 'message': 'Invalid item'})
+
+        # Get the shop and verify it belongs to the player's GM (avoid get_or_404 so we return JSON, not HTML 404)
+        shop = Shop.query.get(shop_id)
+        if not shop:
+            return jsonify({'success': False, 'message': 'Shop not found'})
         if shop.gm_profile_id != player.gm_profile_id:
             return jsonify({'success': False, 'message': 'You do not have access to this shop'})
 

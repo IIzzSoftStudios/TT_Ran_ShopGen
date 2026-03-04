@@ -160,7 +160,7 @@
         }
     </script>
 </head>
-<body>
+<body class="gm-list-page">
     <h1>View Items</h1>
     <div class="nav-buttons">
         <button onclick="navigateTo('{{ url_for('gm.gm_add_item') }}')" class="button">Add New Item</button>
@@ -170,7 +170,7 @@
         <div class="section">
             <h2>Available Items</h2>
             {% if items %}
-            <table>
+            <table class="gm-list-table">
                 <thead>
                     <tr>
                         <th>Name</th>

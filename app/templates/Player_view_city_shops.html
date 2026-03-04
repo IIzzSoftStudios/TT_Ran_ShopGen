@@ -231,8 +231,16 @@
     </style>
     <script>
         function buyItem(shopId, itemId) {
-            const quantity = document.getElementById(`quantity-${itemId}`).value;
-            fetch(`{{ url_for('player.buy_item', shop_id=0, item_id=0) }}`.replace('0', shopId).replace('0', itemId), {
+            shopId = parseInt(shopId, 10);
+            itemId = parseInt(itemId, 10);
+            if (!itemId || itemId < 1) {
+                alert("Invalid item. Please refresh the page and try again.");
+                return;
+            }
+            const quantityInput = document.getElementById(`quantity-${itemId}`);
+            const quantity = quantityInput ? Math.max(1, parseInt(quantityInput.value, 10) || 1) : 1;
+            const url = `/player/shop/${shopId}/buy/${itemId}`;
+            fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -243,12 +251,14 @@
             .then(data => {
                 if (data.success) {
                     alert(data.message);
-                    // Update currency display
                     document.querySelector('.amount').textContent = data.new_currency;
                     location.reload();
                 } else {
-                    alert("Purchase failed: " + data.message);
+                    alert("Purchase failed: " + (data.message || "Unknown error"));
                 }
+            })
+            .catch(function(err) {
+                alert("Purchase failed: " + (err.message || "Network error"));
             });
         }
 
@@ -310,8 +320,11 @@
                                 {% if item.stock <= 0 %}disabled{% endif %}
                             >
                             <button 
+                                type="button"
                                 class="buy-button" 
-                                onclick="buyItem('{{ shop.shop_id }}', '{{ item.item_id }}')"
+                                data-shop-id="{{ shop.shop_id }}"
+                                data-item-id="{{ item.item_id }}"
+                                onclick="buyItem(this.dataset.shopId, this.dataset.itemId)"
                                 {% if item.stock <= 0 %}disabled{% endif %}
                             >
                                 Buy
