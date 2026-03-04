@@ -181,39 +181,38 @@ class SimulationEngine:
             for shop in shops:
                 # Get all cities this shop operates in
                 cities = City.query.join(Shop.cities).filter(Shop.shop_id == shop.shop_id).all()
-                
-                # Get all inventory items for this shop (eager-load item to avoid N+1)
+                primary_city_id = cities[0].city_id if cities else None
+
+                # Mandatory for O(n) performance: eager-load item so base_price/rarity avoid N+1
                 inventory_items = (
                     ShopInventory.query
                     .filter_by(shop_id=shop.shop_id)
                     .options(db.joinedload(ShopInventory.item))
                     .all()
                 )
-                
+
                 for item in inventory_items:
-                    # For each city the shop operates in, calculate the price
-                    for city in cities:
-                        # Get the item's base price and rarity
-                        base_price = item.item.base_price
-                        rarity = int(item.item.rarity) if item.item.rarity.isdigit() else 5
-                        
-                        # Calculate new price based on cities and other factors
-                        new_price = calculate_dynamic_price(
-                            base_price=base_price,
-                            rarity=rarity,
-                            stock_level=item.stock,
-                            shop_id=shop.shop_id,
-                            city_id=city.city_id
-                        )
-                        item.dynamic_price = new_price
-                        stats['items_updated'] += 1
+                    old_price = item.dynamic_price
+                    base_price = item.item.base_price
+                    rarity = int(item.item.rarity) if item.item.rarity.isdigit() else 5
+
+                    new_price = calculate_dynamic_price(
+                        base_price=base_price,
+                        rarity=rarity,
+                        stock_level=item.stock,
+                        shop_id=shop.shop_id,
+                        city_id=primary_city_id
+                    )
+                    item.dynamic_price = new_price
+                    stats['items_updated'] += 1
+                    if old_price > 0 and abs(new_price - old_price) / old_price > 0.10:
                         stats['price_changes'].append({
                             'item_id': item.item_id,
-                            'city_id': city.city_id,
-                            'old_price': item.dynamic_price,
+                            'city_id': primary_city_id,
+                            'old_price': old_price,
                             'new_price': new_price
                         })
-                
+
                 stats['shops_updated'] += 1
             
             # Commit all changes
