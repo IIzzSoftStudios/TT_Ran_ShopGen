@@ -182,8 +182,13 @@ class SimulationEngine:
                 # Get all cities this shop operates in
                 cities = City.query.join(Shop.cities).filter(Shop.shop_id == shop.shop_id).all()
                 
-                # Get all inventory items for this shop
-                inventory_items = ShopInventory.query.filter_by(shop_id=shop.shop_id).all()
+                # Get all inventory items for this shop (eager-load item to avoid N+1)
+                inventory_items = (
+                    ShopInventory.query
+                    .filter_by(shop_id=shop.shop_id)
+                    .options(db.joinedload(ShopInventory.item))
+                    .all()
+                )
                 
                 for item in inventory_items:
                     # For each city the shop operates in, calculate the price
