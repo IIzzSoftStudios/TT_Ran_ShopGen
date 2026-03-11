@@ -1,34 +1,4 @@
 import os
-import sys
-import importlib.util
-# #region agent log
-try:
-    _ws = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".."))
-    _log = os.path.join(_ws, "debug-2d6ee8.log")
-    _spec = importlib.util.find_spec("flask_wtf")
-    with open(_log, "a", encoding="utf-8") as _f:
-        _f.write(
-            __import__("json").dumps(
-                {
-                    "sessionId": "2d6ee8",
-                    "hypothesisId": "H1_H2",
-                    "location": "app/__init__.py:import",
-                    "message": "pre-import env and flask_wtf findability",
-                    "data": {
-                        "executable": sys.executable,
-                        "path_count": len(sys.path),
-                        "path_sample": sys.path[:3] if len(sys.path) >= 3 else sys.path,
-                        "flask_wtf_found": _spec is not None,
-                        "cwd": os.getcwd(),
-                    },
-                    "timestamp": __import__("time").time_ns() // 1_000_000,
-                }
-            )
-            + "\n"
-        )
-except Exception as _e:
-    pass
-# #endregion
 from flask import Flask
 from dotenv import load_dotenv
 from app.extensions import db, migrate, bcrypt, login_manager, csrf
