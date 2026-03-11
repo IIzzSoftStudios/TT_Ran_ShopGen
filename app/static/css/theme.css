@@ -251,6 +251,12 @@ html.dark-mode .gm-dashboard .status-value {
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
+/* Character panel: make class/level and stat section headers white in dark mode */
+html.dark-mode .character-class-level,
+html.dark-mode .stat-section-title {
+  color: #FFFFFF !important;
+}
+
 html.dark-mode .market-header {
   background: linear-gradient(135deg, rgba(124, 58, 237, 0.6), rgba(168, 85, 247, 0.7));
 }

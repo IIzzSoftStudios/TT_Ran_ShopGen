@@ -52,6 +52,17 @@
             flex: 1;
         }
 
+        .character-side-column {
+            flex: 0 0 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-section {
+            margin-bottom: 14px;
+        }
+
         .stat-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -76,6 +87,59 @@
             font-size: 1.3em;
         }
 
+        .character-header-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .saving-throws-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-section-title {
+            font-size: 1.17em; /* match h3 default */
+            font-weight: bold;
+            color: var(--color-accent);
+            margin: 0 0 4px 0;
+            text-align: center;
+        }
+
+        .saving-throws-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .character-name-block {
+            flex: 1 1 auto;
+        }
+
+        .character-class-level {
+            font-size: 1.17em; /* match h3 default */
+            font-weight: 600;
+            color: var(--color-accent);
+            margin: 4px 0 0 0;
+        }
+
+        .stat-blocks h3 {
+            text-align: center;
+        }
+
+        .header-derived-stats {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .header-derived-stats .stat-card {
+            min-width: 80px;
+        }
+
         .body-model-container {
             flex: 1;
             display: flex;
@@ -84,7 +148,7 @@
         }
 
         .body-svg {
-            max-width: 240px;
+            max-width: 180px;
             width: 100%;
         }
 
@@ -261,9 +325,15 @@
 
         .filter-container {
             display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .filter-row {
+            display: flex;
             gap: 15px;
             align-items: flex-end;
-            margin-top: 15px;
         }
 
         .filter-group {
@@ -582,14 +652,10 @@
             .content-container {
                 flex-direction: column;
             }
-            
-            .filter-container {
+
+            .filter-row {
                 flex-direction: column;
-                gap: 10px;
-            }
-            
-            .filter-group {
-                flex: none;
+                align-items: stretch;
             }
         }
     </style>
@@ -604,18 +670,24 @@
             return 'in-stock';
         }
 
+        const SHOP_ITEMS_BY_SHOP = {{ shop_items_by_shop|tojson|safe }};
+
         function searchItems() {
             const city = document.getElementById("cityFilter").value;
             const shop = document.getElementById("shopFilter").value;
             const item = document.getElementById("itemFilter").value;
+            const itemType = document.getElementById("itemTypeFilter").value;
+            const rarity = document.getElementById("rarityFilter").value;
+            const itemName = document.getElementById("itemNameFilter").value.trim();
 
-            // Build query string
             const params = new URLSearchParams();
             if (city) params.append('city', city);
             if (shop) params.append('shop', shop);
             if (item) params.append('item', item);
+            if (itemType) params.append('item_type', itemType);
+            if (rarity) params.append('rarity', rarity);
+            if (itemName) params.append('item_name', itemName);
 
-            // Fetch results
             fetch(`{{ url_for('player.search_item') }}?${params.toString()}`)
                 .then(response => response.json())
                 .then(data => {
@@ -655,6 +727,165 @@
                 });
         }
 
+        function getSelectedShopIdsForFilters() {
+            const citySelect = document.getElementById("cityFilter");
+            const shopSelect = document.getElementById("shopFilter");
+            const cityId = citySelect ? citySelect.value : "";
+            const shopId = shopSelect ? shopSelect.value : "";
+
+            // If a specific shop is chosen, only use that one
+            if (shopId) {
+                return [parseInt(shopId, 10)];
+            }
+
+            const allShopIds = [];
+            if (!shopSelect) {
+                return allShopIds;
+            }
+
+            // Otherwise, consider all shops (optionally filtered by city)
+            Array.from(shopSelect.options).forEach((opt) => {
+                if (!opt.value) {
+                    return;
+                }
+                const valueId = parseInt(opt.value, 10);
+                if (Number.isNaN(valueId)) {
+                    return;
+                }
+
+                if (!cityId) {
+                    allShopIds.push(valueId);
+                    return;
+                }
+
+                const cityIdsAttr = opt.getAttribute("data-city-ids") || "";
+                const cityIds = cityIdsAttr.split(",").map((id) => id.trim()).filter(Boolean);
+                if (cityIds.includes(cityId)) {
+                    allShopIds.push(valueId);
+                }
+            });
+
+            return allShopIds;
+        }
+
+        function updateShopOptionsForCity() {
+            const citySelect = document.getElementById("cityFilter");
+            const shopSelect = document.getElementById("shopFilter");
+            if (!citySelect || !shopSelect) {
+                return;
+            }
+
+            const cityId = citySelect.value;
+            Array.from(shopSelect.options).forEach((opt) => {
+                if (!opt.value) {
+                    // Always show the "All Shops" option
+                    opt.hidden = false;
+                    return;
+                }
+
+                const cityIdsAttr = opt.getAttribute("data-city-ids") || "";
+                if (!cityId) {
+                    opt.hidden = false;
+                    return;
+                }
+
+                const cityIds = cityIdsAttr.split(",").map((id) => id.trim()).filter(Boolean);
+                opt.hidden = !cityIds.includes(cityId);
+            });
+
+            // Reset selection when city changes
+            shopSelect.value = "";
+        }
+
+        function updateItemOptions() {
+            const itemSelect = document.getElementById("itemFilter");
+            const itemType = document.getElementById("itemTypeFilter").value;
+            const rarity = document.getElementById("rarityFilter").value;
+            const itemName = document.getElementById("itemNameFilter").value.trim().toLowerCase();
+
+            if (!itemSelect) {
+                return;
+            }
+
+            // Clear current options
+            itemSelect.innerHTML = "";
+            const allOption = document.createElement("option");
+            allOption.value = "";
+            allOption.textContent = "All Items";
+            itemSelect.appendChild(allOption);
+
+            const shopIds = getSelectedShopIdsForFilters();
+
+            const seenItemIds = new Set();
+            shopIds.forEach((shopId) => {
+                const items = SHOP_ITEMS_BY_SHOP[String(shopId)] || SHOP_ITEMS_BY_SHOP[shopId] || [];
+                items.forEach((item) => {
+                    if (seenItemIds.has(item.id)) {
+                        return;
+                    }
+
+                    if (itemType && item.type !== itemType) {
+                        return;
+                    }
+                    if (rarity && item.rarity !== rarity) {
+                        return;
+                    }
+                    if (itemName && !String(item.name || "").toLowerCase().includes(itemName)) {
+                        return;
+                    }
+
+                    const opt = document.createElement("option");
+                    opt.value = item.id;
+                    opt.textContent = item.name;
+                    itemSelect.appendChild(opt);
+                    seenItemIds.add(item.id);
+                });
+            });
+        }
+
+        function initSearchFilters() {
+            const citySelect = document.getElementById("cityFilter");
+            const shopSelect = document.getElementById("shopFilter");
+            const itemTypeSelect = document.getElementById("itemTypeFilter");
+            const raritySelect = document.getElementById("rarityFilter");
+            const itemNameInput = document.getElementById("itemNameFilter");
+
+            if (citySelect) {
+                citySelect.addEventListener("change", () => {
+                    updateShopOptionsForCity();
+                    updateItemOptions();
+                });
+            }
+
+            if (shopSelect) {
+                shopSelect.addEventListener("change", () => {
+                    updateItemOptions();
+                });
+            }
+
+            if (itemTypeSelect) {
+                itemTypeSelect.addEventListener("change", () => {
+                    updateItemOptions();
+                });
+            }
+
+            if (raritySelect) {
+                raritySelect.addEventListener("change", () => {
+                    updateItemOptions();
+                });
+            }
+
+            if (itemNameInput) {
+                itemNameInput.addEventListener("input", () => {
+                    updateItemOptions();
+                });
+            }
+
+            // Initial population
+            updateShopOptionsForCity();
+            updateItemOptions();
+        }
+
         // --- Character model & stats ---
         function loadCharacterData() {
             fetch("{{ url_for('player.character_data') }}")
@@ -665,25 +896,105 @@
                         return;
                     }
 
-                    // Populate stats from schema (system_type-driven: D&D 5e, Pathfinder, etc.)
-                    const statGrid = document.getElementById("statGrid");
-                    if (statGrid) {
-                        statGrid.innerHTML = "";
-                        const statsByKey = {};
-                        (data.stats || []).forEach(stat => {
-                            statsByKey[stat.key] = stat;
+                    // Pre-index displays and schema
+                    const statDisplay = data.stat_display || [];
+                    const schema = data.stat_schema || [];
+
+                    // Keys we want pinned in the header between the name and saving throws
+                    const headerDerivedKeys = new Set(["HP", "AC", "PB"]);
+
+                    // --- Core Stats grid (abilities + non-header derived, no skills or proficiency tiers) ---
+                    const coreStatGrid = document.getElementById("coreStatGrid");
+                    const skillsGrid = document.getElementById("skillsGrid");
+                    if (coreStatGrid) {
+                        coreStatGrid.innerHTML = "";
+                        const coreStats = statDisplay.filter(function (s) {
+                            // Only show abilities and derived stats here, excluding header-pinned ones
+                            return (s.category === "ability" || s.category === "derived") &&
+                                   !headerDerivedKeys.has(s.key);
                         });
-                        const schema = data.stat_schema || [];
-                        schema.forEach(function(field) {
-                            const stat = statsByKey[field.key];
-                            const value = stat && stat.value !== null && stat.value !== undefined ? stat.value : "-";
+
+                        coreStats.forEach(function (s) {
+                            const value = (s.value !== null && s.value !== undefined) ? s.value : "-";
                             const card = document.createElement("div");
                             card.className = "stat-card";
                             card.innerHTML = `
-                                <div class="stat-key">${field.label || field.key}</div>
+                                <div class="stat-key">${s.label || s.key}</div>
                                 <div class="stat-value">${value}</div>
                             `;
-                            statGrid.appendChild(card);
+                            coreStatGrid.appendChild(card);
+                        });
+                    }
+
+                    // --- Skills grid (computed modifiers) ---
+                    if (skillsGrid) {
+                        skillsGrid.innerHTML = "";
+                        const skillStats = statDisplay.filter(function (s) {
+                            return s.category === "skill";
+                        });
+
+                        skillStats.forEach(function (s) {
+                            let displayValue = "-";
+                            if (s.computed_value !== null && s.computed_value !== undefined) {
+                                const n = s.computed_value;
+                                displayValue = (n >= 0 ? "+" + n : String(n));
+                            } else if (s.value !== null && s.value !== undefined) {
+                                displayValue = s.value;
+                            }
+
+                            const card = document.createElement("div");
+                            card.className = "stat-card";
+                            card.innerHTML = `
+                                <div class="stat-key">${s.label || s.key}</div>
+                                <div class="stat-value">${displayValue}</div>
+                            `;
+                            skillsGrid.appendChild(card);
+                        });
+                    }
+
+                    // Header derived stats (HP, AC, Proficiency Bonus): between name and saving throws
+                    const headerDerivedStats = document.getElementById("headerDerivedStats");
+                    if (headerDerivedStats) {
+                        headerDerivedStats.innerHTML = "";
+                        const headerStats = statDisplay.filter(function (s) {
+                            return headerDerivedKeys.has(s.key);
+                        });
+                        headerStats.forEach(function (s) {
+                            const value = (s.value !== null && s.value !== undefined) ? s.value : "-";
+                            const card = document.createElement("div");
+                            card.className = "stat-card";
+                            card.innerHTML = `
+                                <div class="stat-key">${s.label || s.key}</div>
+                                <div class="stat-value">${value}</div>
+                            `;
+                            headerDerivedStats.appendChild(card);
+                        });
+                    }
+
+                    // Saving throws: top bar (yellow-outline area)
+                    const savingThrowsGrid = document.getElementById("savingThrowsGrid");
+                    if (savingThrowsGrid) {
+                        savingThrowsGrid.innerHTML = "";
+                        const saveStats = statDisplay.filter(function (s) {
+                            return s.category === "save";
+                        });
+                        saveStats.forEach(function (s) {
+                            // Prefer computed save modifier when present
+                            let displayValue = "-";
+                            if (s.computed_value !== null && s.computed_value !== undefined) {
+                                const n = s.computed_value;
+                                displayValue = (n >= 0 ? "+" + n : String(n));
+                            } else if (s.value !== null && s.value !== undefined) {
+                                displayValue = s.value;
+                            }
+
+                            const card = document.createElement("div");
+                            card.className = "stat-card";
+                            card.innerHTML = `
+                                <div class="stat-key">${s.label || s.key}</div>
+                                <div class="stat-value">${displayValue}</div>
+                            `;
+                            savingThrowsGrid.appendChild(card);
                         });
                     }
 
@@ -766,135 +1077,153 @@
         <div class="dashboard-panel">
             <!-- Character Panel -->
             <div class="section">
-                <h2>Your Character</h2>
-                <div class="character-panel" id="characterPanel">
-                    <div class="stat-blocks">
-                        <h3 style="margin-top: 0;">Core Stats</h3>
-                        <div class="stat-grid" id="statGrid">
-                            <!-- Filled via character data -->
-                        </div>
+                <div class="character-header-row">
+                    <div class="character-name-block">
+                        <h2>{{ character.name|default('Your Character') }}</h2>
+                        <p class="character-class-level">{% if character.class_name %}{{ character.class_name }}{% endif %}{% if character.class_name and character.level %} · {% endif %}{% if character.level %}Level {{ character.level }}{% endif %}</p>
+                        <div id="headerDerivedStats" class="header-derived-stats" style="margin-top: 8px;"></div>
                     </div>
-                    <div class="body-model-container" style="position: relative;">
-                        <div id="equipmentTooltip" class="equipment-tooltip" style="display: none; position: absolute; background: rgba(30,30,46,0.95); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 200px; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none;"></div>
-                        <svg class="body-svg" viewBox="0 0 120 260" id="characterBodySvg">
-                            <!-- Base outline layers -->
-                            <g id="slot-head" data-slot="head"><circle cx="60" cy="40" r="18" class="slot-outline" /></g>
-                            <g id="visual-head" class="visual-layer" style="visibility:hidden"><circle cx="60" cy="40" r="18" class="slot-equipped" /></g>
-                            <g id="slot-neck" data-slot="neck"><rect x="54" y="56" width="12" height="8" rx="2" class="slot-outline" /></g>
-                            <g id="visual-neck" class="visual-layer" style="visibility:hidden"><rect x="54" y="56" width="12" height="8" rx="2" class="slot-equipped" /></g>
-                            <g id="slot-torso" data-slot="torso"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-outline" /></g>
-                            <g id="slot-chest" data-slot="chest"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-outline" /></g>
-                            <g id="visual-torso" class="visual-layer" style="visibility:hidden"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-equipped" /></g>
-                            <g id="slot-hands" data-slot="hands"><rect x="38" y="72" width="10" height="14" rx="4" class="slot-outline" /><rect x="72" y="72" width="10" height="14" rx="4" class="slot-outline" /></g>
-                            <g id="visual-hands" class="visual-layer" style="visibility:hidden"><rect x="38" y="72" width="10" height="14" rx="4" class="slot-equipped" /><rect x="72" y="72" width="10" height="14" rx="4" class="slot-equipped" /></g>
-                            <g id="slot-finger_1" data-slot="finger_1"><circle cx="42" cy="88" r="5" class="slot-outline" /></g>
-                            <g id="visual-finger_1" class="visual-layer" style="visibility:hidden"><circle cx="42" cy="88" r="5" class="slot-equipped" /></g>
-                            <g id="slot-finger_2" data-slot="finger_2"><circle cx="78" cy="88" r="5" class="slot-outline" /></g>
-                            <g id="visual-finger_2" class="visual-layer" style="visibility:hidden"><circle cx="78" cy="88" r="5" class="slot-equipped" /></g>
-                            <g id="slot-legs" data-slot="legs">
-                                <rect x="48" y="120" width="12" height="58" rx="6" class="slot-outline" />
-                                <rect x="60" y="120" width="12" height="58" rx="6" class="slot-outline" />
-                            </g>
-                            <g id="visual-legs" class="visual-layer" style="visibility:hidden">
-                                <rect x="48" y="120" width="12" height="58" rx="6" class="slot-equipped" />
-                                <rect x="60" y="120" width="12" height="58" rx="6" class="slot-equipped" />
-                            </g>
-                            <g id="slot-feet" data-slot="feet"><rect x="46" y="176" width="14" height="10" rx="3" class="slot-outline" /><rect x="60" y="176" width="14" height="10" rx="3" class="slot-outline" /></g>
-                            <g id="visual-feet" class="visual-layer" style="visibility:hidden"><rect x="46" y="176" width="14" height="10" rx="3" class="slot-equipped" /><rect x="60" y="176" width="14" height="10" rx="3" class="slot-equipped" /></g>
-                            <g id="slot-main_hand" data-slot="main_hand"><rect x="80" y="70" width="16" height="50" rx="6" class="slot-outline" /></g>
-                            <g id="visual-main_hand" class="visual-layer" style="visibility:hidden"><rect x="80" y="70" width="16" height="50" rx="6" class="slot-equipped" /></g>
-                            <g id="slot-off_hand" data-slot="off_hand"><rect x="24" y="70" width="16" height="50" rx="6" class="slot-outline" /></g>
-                            <g id="visual-off_hand" class="visual-layer" style="visibility:hidden"><rect x="24" y="70" width="16" height="50" rx="6" class="slot-equipped" /></g>
-                        </svg>
+                    <div class="saving-throws-block">
+                        <p class="stat-section-title">Saves</p>
+                        <div id="savingThrowsGrid" class="saving-throws-grid"></div>
                     </div>
                 </div>
-                <div class="equipment-slots" style="margin-top: 12px;">
-                    <h3 style="margin: 0 0 8px 0;">Equipment</h3>
-                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9em;">
-                        {% for slot in character.equipment_slots|default([]) %}
-                        <li style="display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #eee;">
-                            <span>{{ slot.slot_name|replace('_', ' ')|title }}: {% if slot.item %}{{ slot.item.name }}{% else %}—{% endif %}</span>
-                            {% if slot.item %}
-                            <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST" style="display: inline;">
-                                <button type="submit" class="button" style="padding: 2px 8px; font-size: 0.8em;">Unequip</button>
-                            </form>
-                            {% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    <a href="{{ url_for('player.view_character') }}" class="button" style="margin-top: 8px; display: inline-block; font-size: 0.85em;">Full Character Sheet</a>
+                <div class="character-panel" id="characterPanel">
+                    <div class="stat-blocks">
+                        <div class="stat-section">
+                            <h3 style="margin-top: 0;">Core Stats</h3>
+                            <div class="stat-grid" id="coreStatGrid">
+                                <!-- Filled via character data -->
+                            </div>
+                        </div>
+                        <div class="stat-section">
+                            <h3>Skills</h3>
+                            <div class="stat-grid" id="skillsGrid">
+                                <!-- Filled via character data -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="character-side-column">
+                        <div class="body-model-container" style="position: relative;">
+                            <div id="equipmentTooltip" class="equipment-tooltip" style="display: none; position: absolute; background: rgba(30,30,46,0.95); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 200px; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none;"></div>
+                            <svg class="body-svg" viewBox="0 0 120 260" id="characterBodySvg">
+                                <!-- Base outline layers -->
+                                <g id="slot-head" data-slot="head"><circle cx="60" cy="40" r="18" class="slot-outline" /></g>
+                                <g id="visual-head" class="visual-layer" style="visibility:hidden"><circle cx="60" cy="40" r="18" class="slot-equipped" /></g>
+                                <g id="slot-neck" data-slot="neck"><rect x="54" y="56" width="12" height="8" rx="2" class="slot-outline" /></g>
+                                <g id="visual-neck" class="visual-layer" style="visibility:hidden"><rect x="54" y="56" width="12" height="8" rx="2" class="slot-equipped" /></g>
+                                <g id="slot-torso" data-slot="torso"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-outline" /></g>
+                                <g id="slot-chest" data-slot="chest"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-outline" /></g>
+                                <g id="visual-torso" class="visual-layer" style="visibility:hidden"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-equipped" /></g>
+                                <g id="slot-hands" data-slot="hands"><rect x="38" y="72" width="10" height="14" rx="4" class="slot-outline" /><rect x="72" y="72" width="10" height="14" rx="4" class="slot-outline" /></g>
+                                <g id="visual-hands" class="visual-layer" style="visibility:hidden"><rect x="38" y="72" width="10" height="14" rx="4" class="slot-equipped" /><rect x="72" y="72" width="10" height="14" rx="4" class="slot-equipped" /></g>
+                                <g id="slot-finger_1" data-slot="finger_1"><circle cx="42" cy="88" r="5" class="slot-outline" /></g>
+                                <g id="visual-finger_1" class="visual-layer" style="visibility:hidden"><circle cx="42" cy="88" r="5" class="slot-equipped" /></g>
+                                <g id="slot-finger_2" data-slot="finger_2"><circle cx="78" cy="88" r="5" class="slot-outline" /></g>
+                                <g id="visual-finger_2" class="visual-layer" style="visibility:hidden"><circle cx="78" cy="88" r="5" class="slot-equipped" /></g>
+                                <g id="slot-legs" data-slot="legs">
+                                    <rect x="48" y="120" width="12" height="58" rx="6" class="slot-outline" />
+                                    <rect x="60" y="120" width="12" height="58" rx="6" class="slot-outline" />
+                                </g>
+                                <g id="visual-legs" class="visual-layer" style="visibility:hidden">
+                                    <rect x="48" y="120" width="12" height="58" rx="6" class="slot-equipped" />
+                                    <rect x="60" y="120" width="12" height="58" rx="6" class="slot-equipped" />
+                                </g>
+                                <g id="slot-feet" data-slot="feet"><rect x="46" y="176" width="14" height="10" rx="3" class="slot-outline" /><rect x="60" y="176" width="14" height="10" rx="3" class="slot-outline" /></g>
+                                <g id="visual-feet" class="visual-layer" style="visibility:hidden"><rect x="46" y="176" width="14" height="10" rx="3" class="slot-equipped" /><rect x="60" y="176" width="14" height="10" rx="3" class="slot-equipped" /></g>
+                                <g id="slot-main_hand" data-slot="main_hand"><rect x="80" y="70" width="16" height="50" rx="6" class="slot-outline" /></g>
+                                <g id="visual-main_hand" class="visual-layer" style="visibility:hidden"><rect x="80" y="70" width="16" height="50" rx="6" class="slot-equipped" /></g>
+                                <g id="slot-off_hand" data-slot="off_hand"><rect x="24" y="70" width="16" height="50" rx="6" class="slot-outline" /></g>
+                                <g id="visual-off_hand" class="visual-layer" style="visibility:hidden"><rect x="24" y="70" width="16" height="50" rx="6" class="slot-equipped" /></g>
+                            </svg>
+                        </div>
+                        <div class="equipment-slots" style="margin-top: 12px;">
+                            <h3 style="margin: 0 0 8px 0;">Equipment</h3>
+                            <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9em;">
+                                {% for slot in character.equipment_slots|default([]) %}
+                                <li style="display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #eee;">
+                                    <span>{{ slot.slot_name|replace('_', ' ')|title }}: {% if slot.item %}{{ slot.item.name }}{% else %}—{% endif %}</span>
+                                    {% if slot.item %}
+                                    <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST" style="display: inline;">
+                                        <button type="submit" class="button" style="padding: 2px 8px; font-size: 0.8em;">Unequip</button>
+                                    </form>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            <a href="{{ url_for('player.view_character') }}" class="button" style="margin-top: 8px; display: inline-block; font-size: 0.85em;">Full Character Sheet</a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Content Layout -->
-            <div class="content-container">
-                <!-- Player Inventory Section (Left) -->
-                <div class="section">
-                    <h2>Your Inventory</h2>
-                    <div class="currency-container">
-                        Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
-                        <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
-                    </div>
-                    <div class="inventory-container">
-                        {% if inventory_items %}
-                            <table class="inventory-table">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Type</th>
-                                        <th>Rarity</th>
-                                        <th>Quantity</th>
-                                        <th>Description</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in inventory_items %}
-                                    <tr>
-                                        <td class="item-name">{{ item.name }}</td>
-                                        <td class="item-type">{{ item.type }}</td>
-                                        <td class="item-rarity">
-                                            <span class="rarity-badge {{ item.rarity.lower() }}">
-                                                {{ item.rarity }}
-                                            </span>
-                                        </td>
-                                        <td class="item-quantity">{{ item.quantity }}</td>
-                                        <td>{{ item.description }}</td>
-                                        <td>
-                                            <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST" style="margin-bottom: 4px;">
-                                                <input type="number" 
-                                                       name="quantity" 
-                                                       class="quantity-input" 
-                                                       min="1" 
-                                                       max="{{ item.quantity }}" 
-                                                       value="1"
-                                                       required>
-                                                <button type="submit" class="sell-button">
-                                                    Sell
-                                                </button>
-                                                <div class="sell-price">
-                                                    ({{ (item.base_price * 0.75)|int }} credits each)
-                                                </div>
-                                            </form>
-                                            <form action="{{ url_for('player.equip_item', item_id=item.item_id) }}" method="POST">
-                                                <button type="submit" class="button" style="padding: 4px 8px; font-size: 0.85em;">
-                                                    Equip on Character
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        {% else %}
-                            <div class="empty-state">
-                                <p>Your inventory is currently empty.</p>
-                                <p class="small-text">Visit shops to purchase items!</p>
-                            </div>
-                        {% endif %}
-                    </div>
+            <!-- Player Inventory: full-width under character panel -->
+            <div class="section inventory-container">
+                <h2>Your Inventory</h2>
+                <div class="currency-container">
+                    Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
+                    <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
                 </div>
+                {% if inventory_items %}
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Type</th>
+                                <th>Rarity</th>
+                                <th>Quantity</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in inventory_items %}
+                            <tr>
+                                <td class="item-name">{{ item.name }}</td>
+                                <td class="item-type">{{ item.type }}</td>
+                                <td class="item-rarity">
+                                    <span class="rarity-badge rarity-{{ item.rarity|lower|replace(' ', '-') }}">
+                                        {{ item.rarity }}
+                                    </span>
+                                </td>
+                                <td class="item-quantity">{{ item.quantity }}</td>
+                                <td>{{ item.description }}</td>
+                                <td>
+                                    <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST" style="margin-bottom: 4px;">
+                                        <input type="number" 
+                                               name="quantity" 
+                                               class="quantity-input" 
+                                               min="1" 
+                                               max="{{ item.quantity }}" 
+                                               value="1"
+                                               required>
+                                        <button type="submit" class="sell-button">
+                                            Sell
+                                        </button>
+                                        <div class="sell-price">
+                                            ({{ (item.base_price * 0.75)|int }} credits each)
+                                        </div>
+                                    </form>
+                                    <form action="{{ url_for('player.equip_item', item_id=item.item_id) }}" method="POST">
+                                        <button type="submit" class="button" style="padding: 4px 8px; font-size: 0.85em;">
+                                            Equip on Character
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state">
+                        <p>Your inventory is currently empty.</p>
+                        <p class="small-text">Visit shops to purchase items!</p>
+                    </div>
+                {% endif %}
+            </div>
 
+            <!-- Content Layout (now only cities in lower row) -->
+            <div class="content-container">
                 <!-- Cities Section -->
                 <div class="section">
                     <h2>Available Cities <a href="{{ url_for('player.view_cities') }}" class="button" style="font-size: 12px; padding: 5px 10px;">View All</a></h2>
@@ -920,37 +1249,70 @@
             <div class="search-section">
                 <h2>Search Items</h2>
                 <div class="filter-container">
-                    <div class="filter-group">
-                        <label class="filter-label" for="cityFilter">City:</label>
-                        <select id="cityFilter" class="filter-select">
-                            <option value="">All Cities</option>
-                            {% for city in cities %}
-                            <option value="{{ city.city_id }}">{{ city.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label" for="cityFilter">City:</label>
+                            <select id="cityFilter" class="filter-select">
+                                <option value="">All Cities</option>
+                                {% for city in cities %}
+                                <option value="{{ city.city_id }}">{{ city.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label" for="shopFilter">Shop:</label>
+                            <select id="shopFilter" class="filter-select">
+                                <option value="">All Shops</option>
+                                {% for shop in shops %}
+                                <option
+                                    value="{{ shop.shop_id }}"
+                                    data-city-ids="{% for city in shop.cities %}{{ city.city_id }}{% if not loop.last %},{% endif %}{% endfor %}"
+                                >
+                                    {{ shop.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label" for="itemTypeFilter">Item Type:</label>
+                            <select id="itemTypeFilter" class="filter-select">
+                                <option value="">All Types</option>
+                                {% for t in item_types %}
+                                <option value="{{ t }}">{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label" for="rarityFilter">Rarity:</label>
+                            <select id="rarityFilter" class="filter-select">
+                                <option value="">All Rarities</option>
+                                {% for r in rarities %}
+                                <option value="{{ r }}">{{ r }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="filter-group">
-                        <label class="filter-label" for="shopFilter">Shop:</label>
-                        <select id="shopFilter" class="filter-select">
-                            <option value="">All Shops</option>
-                            {% for shop in shops %}
-                            <option value="{{ shop.shop_id }}">{{ shop.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label" for="itemNameFilter">Item Name:</label>
+                            <input id="itemNameFilter" type="text" class="filter-select" placeholder="Type to filter items by name">
+                        </div>
 
-                    <div class="filter-group">
-                        <label class="filter-label" for="itemFilter">Item:</label>
-                        <select id="itemFilter" class="filter-select">
-                            <option value="">All Items</option>
-                            {% for item in items %}
-                            <option value="{{ item.item_id }}">{{ item.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                        <div class="filter-group">
+                            <label class="filter-label" for="itemFilter">Item:</label>
+                            <select id="itemFilter" class="filter-select">
+                                <option value="">All Items</option>
+                            </select>
+                        </div>
 
-                    <button onclick="searchItems()" class="search-button">Search</button>
+                        <div class="filter-group" style="flex: 0 0 auto;">
+                            <button onclick="searchItems()" class="search-button">Search</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1043,9 +1405,10 @@
     </div>
 
     <script>
-        // Load character data when the dashboard is ready
+        // Load character data and initialize search filters when the dashboard is ready
         document.addEventListener("DOMContentLoaded", function () {
             loadCharacterData();
+            initSearchFilters();
         });
     </script>
 </body>

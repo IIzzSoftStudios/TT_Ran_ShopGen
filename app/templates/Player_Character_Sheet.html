@@ -96,9 +96,47 @@
     <div class="sheet-container">
         <form method="POST" action="{{ url_for('player.update_character') }}">
             <div class="section">
+                <h2>Defense & Saves</h2>
+                <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px;">
+                    {% for stat in character.defenses_display or [] %}
+                    <div class="stat-card" style="background: #f8f9fa; border-radius: 6px; padding: 12px; text-align: center;">
+                        <div class="stat-label" style="font-size: 0.85em; color: #555; margin-bottom: 4px;">{{ stat.label }}</div>
+                        {% if stat.id %}
+                        <input type="number" step="any" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" style="width: 100%; font-size: 1.1em; text-align: center; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                        {% if stat.category == 'save' and stat.computed_value is not none %}
+                        <div class="stat-computed" style="margin-top: 4px; font-size: 0.8em; color: #333;">
+                            Computed: {{ '%+d'|format(stat.computed_value) }}
+                        </div>
+                        {% endif %}
+                        {% if stat.category == 'save' and character.system_type in ['dnd5e', 'dnd', '5e'] %}
+                        <div style="margin-top: 4px; font-size: 0.75em; text-align: left;">
+                            {% set save_flag = character.save_prof_flags.get(stat.key) if character.save_prof_flags is defined else None %}
+                            <label style="display: flex; align-items: center; gap: 4px;">
+                                <input type="checkbox" name="save_prof_flag_{{ stat.key }}" value="1" {% if save_flag and save_flag >= 0.5 %}checked{% endif %}>
+                                <span>Proficient</span>
+                            </label>
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="stat-value" style="font-size: 1.1em; font-weight: bold;">
+                            {{ stat.value if stat.value is not none else '-' }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="section">
                 <h2>Identity</h2>
                 <label for="name">Name</label>
                 <input type="text" id="name" name="name" value="{{ character.name }}">
+
+                <label for="class_name">Class</label>
+                <input type="text" id="class_name" name="class_name" value="{{ character.class_name or '' }}" placeholder="Class or archetype (e.g. Fighter)">
+
+                <label for="species">Species / Ancestry</label>
+                <input type="text" id="species" name="species" value="{{ character.species or '' }}" placeholder="Species or ancestry (e.g. Human)">
 
                 <label for="level">Level</label>
                 <input type="number" id="level" name="level" value="{{ character.level or '' }}" min="1">
@@ -110,17 +148,78 @@
             <div class="section">
                 <h2>Core Stats</h2>
                 <div class="stat-grid" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px;">
-                    {% for stat in character.stat_display|default([]) %}
+                    {% for stat in character.abilities_display|default(character.stat_display) %}
                     <div class="stat-card" style="background: #f8f9fa; border-radius: 6px; padding: 12px; text-align: center;">
                         <div class="stat-label" style="font-size: 0.85em; color: #555; margin-bottom: 4px;">{{ stat.label }}</div>
                         {% if stat.id %}
-                        <input type="number" step="any" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" style="width: 100%; font-size: 1.3em; text-align: center; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 6px;">
+                            <input type="number" step="any" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" style="width: 60px; font-size: 1.1em; text-align: center; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                            {% if stat.modifier is not none %}
+                            <span style="font-size: 1.1em; font-weight: bold;">
+                                {{ '%+d'|format(stat.modifier) }}
+                            </span>
+                            {% endif %}
+                        </div>
                         {% else %}
-                        <div class="stat-value" style="font-size: 1.3em; font-weight: bold;">{{ stat.value if stat.value is not none else '-' }}</div>
+                        <div class="stat-value" style="font-size: 1.3em; font-weight: bold;">
+                            {% if stat.value is not none %}
+                                {{ stat.value }}
+                                {% if stat.modifier is not none %}
+                                    | {{ '%+d'|format(stat.modifier) }}
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
                         {% endif %}
                     </div>
                     {% endfor %}
                 </div>
+            </div>
+
+            <div class="section">
+                <h2>Skills</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Skill</th>
+                            <th>Total</th>
+                            {% if character.system_type in ['dnd5e', 'dnd', '5e'] %}
+                            <th>Proficiency</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for skill in character.skills_display or [] %}
+                        <tr>
+                            <td>{{ skill.label }}</td>
+                            <td>
+                                {% if skill.computed_value is not none %}
+                                <span>{{ '%+d'|format(skill.computed_value) }}</span>
+                                {% else %}
+                                <span>{{ skill.value if skill.value is not none else '-' }}</span>
+                                {% endif %}
+                            </td>
+                            {% if character.system_type in ['dnd5e', 'dnd', '5e'] %}
+                            <td>
+                                {% set tier = character.skill_prof_tiers.get(skill.key) if character.skill_prof_tiers is defined else 0 %}
+                                {% set tier_int = tier|int if tier is not none else 0 %}
+                                {% set is_proficient = tier_int > 0 %}
+                                <label style="display: flex; align-items: center; gap: 4px;">
+                                    <input type="checkbox" name="skill_prof_flag_{{ skill.key }}" value="1" {% if is_proficient %}checked{% endif %} onchange="this.closest('tr').querySelector('.tier-select-{{ skill.key }}').disabled = !this.checked;">
+                                    <span>Proficient</span>
+                                </label>
+                                <select name="skill_prof_tier_{{ skill.key }}" class="tier-select-{{ skill.key }}" style="margin-top: 4px; width: 120px;" {% if not is_proficient %}disabled{% endif %}>
+                                    <option value="1" {% if tier_int == 1 %}selected{% endif %}>Half</option>
+                                    <option value="2" {% if tier_int == 2 or tier_int == 0 %}selected{% endif %}>Normal</option>
+                                    <option value="3" {% if tier_int == 3 %}selected{% endif %}>Expertise</option>
+                                </select>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
 
             <div class="section">

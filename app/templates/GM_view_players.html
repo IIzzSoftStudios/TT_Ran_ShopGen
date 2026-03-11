@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>GM - Players & Characters</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        h2 {
+            font-size: 1.25rem;
+            color: #555;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .content-container {
+            width: 80%;
+            max-width: 1000px;
+            margin: 0 auto 40px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: purple;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.05);
+        }
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 20px 0;
+        }
+        .character-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .character-link {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+        }
+        .character-link:hover {
+            text-decoration: underline;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            background-color: #e0e0e0;
+            margin-left: 4px;
+        }
+    </style>
+</head>
+<body class="gm-list-page">
+    <h1>Player Manager</h1>
+    <h2>Campaign: {{ campaign.name }} ({{ campaign.system_type }})</h2>
+    <div class="nav-buttons">
+        <a href="{{ url_for('gm.gm_home') }}" class="button">Back to Dashboard</a>
+        <a href="{{ url_for('gm.gm_view_campaigns') }}" class="button">Manage Campaigns</a>
+    </div>
+    <div class="content-container">
+        {% if player_entries %}
+            <table class="gm-list-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Currency</th>
+                        <th>Characters in Campaign</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in player_entries %}
+                        {% set player = entry.player %}
+                        {% set characters = entry.characters %}
+                        <tr>
+                            <td>{{ player.player_user.username if player.player_user else 'Unknown' }}</td>
+                            <td>{{ player.currency }}</td>
+                            <td>
+                                {% if characters %}
+                                    <div class="character-list">
+                                        {% for character in characters %}
+                                            <a href="{{ url_for('gm.gm_view_character', character_id=character.id) }}" class="character-link">
+                                                {{ character.name }}
+                                                {% if character.class_name %}
+                                                    <span class="tag">{{ character.class_name }}</span>
+                                                {% endif %}
+                                                {% if character.level %}
+                                                    <span class="tag">Lv {{ character.level }}</span>
+                                                {% endif %}
+                                            </a>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">No character yet for this campaign.</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                <p>No players are currently assigned to this campaign.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+

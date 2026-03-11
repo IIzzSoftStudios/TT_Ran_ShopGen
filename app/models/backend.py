@@ -182,3 +182,21 @@ class PriceHistory(db.Model):
 
     def __repr__(self):
         return f"<PriceHistory shop_id={self.shop_id} item_id={self.item_id} price={self.price} at {self.recorded_at}>"
+
+
+class MarketPulse(db.Model):
+    """Aggregated Market Pulse per tick for NumPy sim; warm storage for UI charts. Index on (sim_id, tick)."""
+    __tablename__ = "market_pulse"
+    __table_args__ = (Index("ix_market_pulse_sim_tick", "sim_id", "tick"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    sim_id = db.Column(db.String(64), nullable=False, index=True)
+    tick = db.Column(db.Integer, nullable=False)
+    mean_price = db.Column(db.Float, nullable=False)
+    median_gold = db.Column(db.Float, nullable=False)
+    volume = db.Column(db.Float, nullable=False)
+    std_price = db.Column(db.Float, nullable=False)
+    recorded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<MarketPulse sim_id={self.sim_id} tick={self.tick} mean_price={self.mean_price}>"

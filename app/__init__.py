@@ -2,6 +2,8 @@ import os
 from flask import Flask
 from dotenv import load_dotenv
 from app.extensions import db, migrate, bcrypt, login_manager
+from flask.cli import with_appcontext
+import click
 
 # Load environment variables
 load_dotenv("config.env")
@@ -47,16 +49,36 @@ def create_app():
     from app.routes.auth_routes import auth
     from app.routes.player_routes import player_bp
     from app.routes.gm_routes import gm_bp
+    from app.routes.sim_api_routes import sim_api_bp
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
     app.register_blueprint(gm_bp)  # GM routes already have /gm prefix
     app.register_blueprint(player_bp, url_prefix="/player")
+    app.register_blueprint(sim_api_bp)
 
     # Debugging: Print registered routes
     print("\nRegistered Routes:")
     for rule in app.url_map.iter_rules():
         print(f"{rule.endpoint}: {rule.methods} {rule}")
+
+    # CLI commands
+    from app.cli.price_history_cleanup import cleanup_price_history
+    from app.cli.price_history_aggregate import aggregate_old_price_history
+
+    @app.cli.command("price-history-cleanup")
+    @with_appcontext
+    def price_history_cleanup_command():
+        """Run a batched cleanup of old PriceHistory rows based on retention config."""
+        deleted = cleanup_price_history()
+        click.echo(f"Deleted {deleted} PriceHistory rows older than retention window.")
+
+    @app.cli.command("price-history-aggregate-old")
+    @with_appcontext
+    def price_history_aggregate_old_command():
+        """Aggregate very old PriceHistory rows into monthly buckets for long-term trends."""
+        groups = aggregate_old_price_history()
+        click.echo(f"Created {groups} aggregated monthly price history groups.")
 
     return app
 

@@ -19,6 +19,14 @@ from app.routes.handlers.gm_campaigns_handler import (
 from app.routes.handlers.gm_simulation_handler import (
     home, seed_world, run_simulation_tick, update_simulation_speed, debug_form
 )
+from app.routes.handlers.gm_players_handler import (
+    list_players,
+    view_character,
+    update_character,
+    equip_item,
+    unequip_item,
+    update_inventory,
+)
 
 gm_bp = Blueprint("gm", __name__, url_prefix="/gm") 
 
@@ -186,6 +194,49 @@ def gm_run_simulation_tick():
 def gm_update_simulation_speed():
     """Update the simulation speed setting and run the appropriate time period"""
     return update_simulation_speed()
+
+
+# Player / Character management routes
+@gm_bp.route("/players/")
+@login_required
+def gm_view_players():
+    """List players and characters for the current campaign."""
+    return list_players()
+
+
+@gm_bp.route("/characters/<int:character_id>")
+@login_required
+def gm_view_character(character_id):
+    """View and edit a specific character as GM."""
+    return view_character(character_id)
+
+
+@gm_bp.route("/characters/<int:character_id>/update", methods=["POST"])
+@login_required
+def gm_update_character(character_id):
+    """Apply GM-side updates to a character."""
+    return update_character(character_id)
+
+
+@gm_bp.route("/characters/<int:character_id>/equip", methods=["POST"])
+@login_required
+def gm_equip_item_for_character(character_id):
+    """Equip an item for a character (GM-side)."""
+    return equip_item(character_id)
+
+
+@gm_bp.route("/characters/<int:character_id>/unequip", methods=["POST"])
+@login_required
+def gm_unequip_item_for_character(character_id):
+    """Unequip an item from a character slot (GM-side)."""
+    return unequip_item(character_id)
+
+
+@gm_bp.route("/characters/<int:character_id>/inventory/update", methods=["POST"])
+@login_required
+def gm_update_inventory_for_character(character_id):
+    """Adjust a character's player inventory (GM-side)."""
+    return update_inventory(character_id)
 
 
 # # Resource Node routes

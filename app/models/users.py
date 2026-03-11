@@ -158,6 +158,8 @@ class PlayerCharacter(db.Model):
 
     # Basic identity
     name = db.Column(db.String(100), nullable=False)
+    class_name = db.Column(db.String(100), nullable=True)
+    species = db.Column(db.String(100), nullable=True)
 
     # System this character is using (DnD 5e, Pathfinder 2e, Savage Worlds, etc.).
     # For consistency, this should usually mirror Campaign.system_type.

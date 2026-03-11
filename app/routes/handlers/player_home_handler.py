@@ -59,6 +59,36 @@ def player_home():
         for item in shop_items:
             print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
 
+        # Build distinct item types and rarities for search filters
+        item_types = sorted({item.type for item in shop_items if getattr(item, "type", None)})
+        rarities = sorted({item.rarity for item in shop_items if getattr(item, "rarity", None)})
+
+        # Build a mapping of shop_id -> items (for cascading item dropdowns)
+        shop_items_by_shop = {}
+        shop_inventory_rows = (
+            db.session.query(
+                ShopInventory.shop_id,
+                Item.item_id,
+                Item.name,
+                Item.type,
+                Item.rarity,
+            )
+            .join(Item, ShopInventory.item_id == Item.item_id)
+            .join(Shop, Shop.shop_id == ShopInventory.shop_id)
+            .filter(Shop.gm_profile_id == gm_profile.id)
+            .all()
+        )
+        for row in shop_inventory_rows:
+            shop_list = shop_items_by_shop.setdefault(row.shop_id, [])
+            shop_list.append(
+                {
+                    "id": row.item_id,
+                    "name": row.name,
+                    "type": row.type,
+                    "rarity": row.rarity,
+                }
+            )
+
         # Get market data for visualizations - top items by average price
         market_data = (
             db.session.query(
@@ -107,6 +137,9 @@ def player_home():
             shops=shops,
             items=shop_items,
             shop_items=shop_items,
+            item_types=item_types,
+            rarities=rarities,
+            shop_items_by_shop=shop_items_by_shop,
             inventory_items=inventory_items,
             market_data=market_data,
             character=character_data,

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>GM - Edit Character {{ character.name }}</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            font-size: 2.2rem;
+            color: black;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        h2 {
+            font-size: 1.4rem;
+            color: purple;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.05);
+        }
+        .content-wrapper {
+            width: 90%;
+            max-width: 1200px;
+            margin: 10px auto 30px auto;
+            display: grid;
+            grid-template-columns: 2fr 1.5fr;
+            gap: 20px;
+        }
+        .panel {
+            background-color: white;
+            padding: 16px 20px;
+            border-radius: 6px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
+        }
+        .field-group {
+            margin-bottom: 12px;
+        }
+        .field-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #555;
+        }
+        .field-group input[type="text"],
+        .field-group input[type="number"],
+        .field-group textarea,
+        .field-group select {
+            width: 100%;
+            padding: 6px 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+        .field-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        .stat-card {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 8px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        .equipment-slot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .equipment-slot-name {
+            font-weight: bold;
+            min-width: 120px;
+        }
+        .equipment-slot-item {
+            flex: 1;
+            color: #333;
+        }
+        .equipment-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .small-button {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .small-button.danger {
+            background-color: #dc3545;
+        }
+        .small-button:hover {
+            opacity: 0.9;
+        }
+        .inventory-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .inventory-table th,
+        .inventory-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        .inventory-table th {
+            background-color: #f0f0f0;
+        }
+        .inline-form {
+            display: inline-block;
+            margin-right: 4px;
+        }
+        .inline-form input[type="number"] {
+            width: 60px;
+            padding: 3px 5px;
+            font-size: 0.85rem;
+        }
+        .section-subtitle {
+            font-size: 0.85rem;
+            color: #777;
+            margin-bottom: 8px;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            background-color: #e0e0e0;
+            margin-left: 4px;
+        }
+    </style>
+</head>
+<body class="gm-character-page">
+    <h1>Editing {{ character.name }} for {{ player.player_user.username if player.player_user else 'Unknown Player' }}</h1>
+    <div class="nav-buttons">
+        <a href="{{ url_for('gm.gm_view_players') }}" class="button">Back to Player Manager</a>
+        <a href="{{ url_for('gm.gm_home') }}" class="button">GM Dashboard</a>
+    </div>
+
+    <div class="content-wrapper">
+        <!-- Left column: core info + stats -->
+        <div>
+            <div class="panel">
+                <h2>Core Information</h2>
+                <form method="POST" action="{{ url_for('gm.gm_update_character', character_id=character.id) }}">
+                    <div class="field-group">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" value="{{ character.name or '' }}">
+                    </div>
+                    <div class="field-group">
+                        <label for="class_name">Class</label>
+                        <input type="text" id="class_name" name="class_name" value="{{ character.class_name or '' }}">
+                    </div>
+                    <div class="field-group">
+                        <label for="species">Species</label>
+                        <input type="text" id="species" name="species" value="{{ character.species or '' }}">
+                    </div>
+                    <div class="field-group">
+                        <label for="level">Level</label>
+                        <input type="number" id="level" name="level" value="{{ character.level or '' }}" min="0">
+                    </div>
+                    <div class="field-group">
+                        <label for="notes">Notes</label>
+                        <textarea id="notes" name="notes">{{ character.notes or '' }}</textarea>
+                    </div>
+
+                    <h2>Stats</h2>
+                    <p class="section-subtitle">Edit any stat value. Leave blank to clear.</p>
+                    <div class="stats-grid">
+                        {% for stat in character.stat_display %}
+                            <div class="stat-card">
+                                <div class="stat-label">
+                                    {{ stat.label or stat.key }}
+                                    {% if stat.category %}
+                                        <span class="tag">{{ stat.category }}</span>
+                                    {% endif %}
+                                </div>
+                                {% if stat.id %}
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        name="stat_{{ stat.id }}"
+                                        value="{{ stat.value if stat.value is not none else '' }}"
+                                    >
+                                {% else %}
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        disabled
+                                        placeholder="No backing stat row"
+                                    >
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div style="margin-top: 16px;">
+                        <button type="submit" class="button">Save Character</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right column: equipment + inventory -->
+        <div>
+            <div class="panel">
+                <h2>Equipment</h2>
+                <p class="section-subtitle">
+                    Change what this character has equipped in each slot.
+                </p>
+                {% if character.equipment_slots %}
+                    {% for slot in character.equipment_slots %}
+                        <div class="equipment-slot">
+                            <div class="equipment-slot-name">
+                                {{ slot.slot_name.replace('_', ' ').title() }}
+                            </div>
+                            <div class="equipment-slot-item">
+                                {% if slot.item %}
+                                    {{ slot.item.name }} <span class="tag">{{ slot.item.type }}</span>
+                                {% else %}
+                                    <span class="section-subtitle">Empty</span>
+                                {% endif %}
+                            </div>
+                            <div class="equipment-actions">
+                                {% if inventory_entries %}
+                                    <form method="POST"
+                                          action="{{ url_for('gm.gm_equip_item_for_character', character_id=character.id) }}">
+                                        <input type="hidden" name="slot_name" value="{{ slot.slot_name }}">
+                                        <select name="item_id">
+                                            {% for inv in inventory_entries %}
+                                                <option value="{{ inv.item.item_id }}">
+                                                    {{ inv.item.name }} (x{{ inv.quantity }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="small-button">Equip</button>
+                                    </form>
+                                {% else %}
+                                    <span class="section-subtitle">
+                                        No items to equip. Grant items first below.
+                                    </span>
+                                {% endif %}
+                                <form method="POST"
+                                      action="{{ url_for('gm.gm_unequip_item_for_character', character_id=character.id) }}">
+                                    <input type="hidden" name="slot_name" value="{{ slot.slot_name }}">
+                                    <button type="submit" class="small-button danger">Unequip</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="section-subtitle">No equipment slots defined for this character.</p>
+                {% endif %}
+            </div>
+
+            <div class="panel" style="margin-top: 16px;">
+                <h2>Inventory</h2>
+                <p class="section-subtitle">
+                    Adjust items in this player's inventory for the current campaign.
+                </p>
+
+                {% if inventory_entries %}
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                                <th>Adjust</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in inventory_entries %}
+                                <tr>
+                                    <td>{{ inv.item.name }}</td>
+                                    <td>{{ inv.quantity }}</td>
+                                    <td>
+                                        <!-- Give 1 -->
+                                        <form method="POST"
+                                              class="inline-form"
+                                              action="{{ url_for('gm.gm_update_inventory_for_character', character_id=character.id) }}">
+                                            <input type="hidden" name="item_id" value="{{ inv.item.item_id }}">
+                                            <input type="hidden" name="delta_quantity" value="1">
+                                            <button type="submit" class="small-button">+1</button>
+                                        </form>
+                                        <!-- Remove 1 -->
+                                        <form method="POST"
+                                              class="inline-form"
+                                              action="{{ url_for('gm.gm_update_inventory_for_character', character_id=character.id) }}">
+                                            <input type="hidden" name="item_id" value="{{ inv.item.item_id }}">
+                                            <input type="hidden" name="delta_quantity" value="-1">
+                                            <button type="submit" class="small-button danger">-1</button>
+                                        </form>
+                                        <!-- Custom delta -->
+                                        <form method="POST"
+                                              class="inline-form"
+                                              action="{{ url_for('gm.gm_update_inventory_for_character', character_id=character.id) }}">
+                                            <input type="hidden" name="item_id" value="{{ inv.item.item_id }}">
+                                            <input type="number" name="delta_quantity" value="0">
+                                            <button type="submit" class="small-button">Apply</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="section-subtitle">This player currently has no items.</p>
+                {% endif %}
+
+                <h3 style="margin-top: 16px; margin-bottom: 6px;">Grant New Item</h3>
+                <p class="section-subtitle">
+                    Choose any item you own as GM and grant it to this player.
+                </p>
+                <form method="POST"
+                      action="{{ url_for('gm.gm_update_inventory_for_character', character_id=character.id) }}">
+                    <div class="field-group">
+                        <label for="grant_item_id">Item</label>
+                        <select id="grant_item_id" name="item_id">
+                            {% for item in gm_items %}
+                                <option value="{{ item.item_id }}">
+                                    {{ item.name }} ({{ item.type }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label for="grant_quantity">Quantity</label>
+                        <input type="number" id="grant_quantity" name="delta_quantity" value="1" min="1">
+                    </div>
+                    <button type="submit" class="button">Grant Item</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

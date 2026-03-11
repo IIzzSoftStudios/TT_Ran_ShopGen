@@ -7,7 +7,8 @@
 from .users import User
 
 # Then import other models that might depend on User
-from .backend import City, Shop, Item, ShopInventory, PriceHistory, shop_cities
+from .backend import City, Shop, Item, ShopInventory, PriceHistory, MarketPulse, shop_cities
+from .price_history_aggregated import AggregatedPriceHistory
 from .users import GMProfile, Player, PlayerInventory, PlayerCharacter, CharacterEquipmentSlot, CharacterStat
 from .campaigns import Campaign, CampaignPlayer
 from .market import RegionalMarket, GlobalMarket, DemandModifier, ModifierTarget
@@ -26,7 +27,7 @@ __all__ = [
     # users.py (most fundamental)
     'User',
     # backend.py
-    'City', 'Shop', 'Item', 'ShopInventory', 'PriceHistory', 'shop_cities',
+    'City', 'Shop', 'Item', 'ShopInventory', 'PriceHistory', 'MarketPulse', 'shop_cities', 'AggregatedPriceHistory',
     # users.py (other models)
     'GMProfile', 'Player', 'PlayerInventory', 'PlayerCharacter', 'CharacterEquipmentSlot', 'CharacterStat',
     # campaigns.py

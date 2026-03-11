@@ -123,6 +123,12 @@
                 <label for="name">Character Name</label>
                 <input type="text" id="name" name="name" required placeholder="Enter your character's name">
 
+                <label for="class_name">Class (optional)</label>
+                <input type="text" id="class_name" name="class_name" placeholder="Enter class or archetype (e.g. Fighter, Wizard)">
+
+                <label for="species">Species / Ancestry (optional)</label>
+                <input type="text" id="species" name="species" placeholder="Enter species or ancestry (e.g. Human, Elf)">
+
                 <div class="buttons">
                     <a href="{{ url_for('main.campaigns') }}" class="button button-secondary">Back</a>
                     <button type="submit" class="button">Create Character</button>

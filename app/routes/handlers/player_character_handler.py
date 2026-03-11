@@ -9,6 +9,7 @@ from flask_login import current_user, login_required
 from app.extensions import db
 from app.models.users import Player, PlayerCharacter, CharacterEquipmentSlot, CharacterStat, PlayerInventory
 from app.config.system_config import seed_default_stats_for_character, get_system_schema
+from app.services.character_math import compute_character_derived_stats, ability_modifier
 from app.models.backend import Item
 from app.models.campaigns import Campaign, CampaignPlayer
 from app.routes.handlers.player_helpers import get_current_player
@@ -118,26 +119,71 @@ def _serialize_character(character: PlayerCharacter):
             }
         )
 
+    # Compute system-specific derived values (skills and saves)
+    computed = compute_character_derived_stats(character, character.stats or [])
+
+    # Proficiency metadata (kept out of the main stat_display groups)
+    skill_prof_tiers = {
+        stat.stat_key: stat.value
+        for stat in stats_list
+        if stat.category == "skill_prof_tier"
+    }
+    save_prof_flags = {
+        stat.stat_key: stat.value
+        for stat in stats_list
+        if stat.category == "save_prof_flag"
+    }
+
     schema = get_system_schema(character.system_type or "generic")
     stat_schema = [
         {"key": f.key, "label": f.label, "category": f.category}
         for f in schema
     ]
-    stats_by_key = {s["key"]: s for s in stats}
+    # Index stats by (category, key) so that parallel fields like
+    # "Athletics" (skill) and "Athletics" (skill_prof) do not overwrite
+    # each other when we look up display values.
+    stats_by_key = {(s["category"], s["key"]): s for s in stats}
     stat_display = []
     for f in schema:
-        s = stats_by_key.get(f.key)
-        stat_display.append({
+        s = stats_by_key.get((f.category, f.key))
+        base_entry = {
             "id": s["id"] if s else None,
             "key": f.key,
             "label": f.label,
             "category": f.category,
             "value": s["value"] if s else None,
-        })
+        }
+
+        # Attach computed skill/save modifiers when available
+        if f.category == "skill":
+            base_entry["computed_value"] = computed.skills.get(f.key)
+        elif f.category == "save":
+            base_entry["computed_value"] = computed.saves.get(f.key)
+        elif f.category == "ability":
+            # Also attach the derived ability modifier for display (always an int)
+            score = s["value"] if s else None
+            base_entry["modifier"] = ability_modifier(score)
+
+        stat_display.append(base_entry)
+
+    # Split stats into logical groups for the template
+    abilities_display = [
+        s for s in stat_display if s.get("category") == "ability"
+    ]
+    skills_display = [
+        s for s in stat_display if s.get("category") == "skill"
+    ]
+    defenses_display = [
+        s
+        for s in stat_display
+        if s.get("category") in {"derived", "save", "defense"}
+    ]
 
     return {
         "id": character.id,
         "name": character.name,
+        "class_name": getattr(character, "class_name", None),
+        "species": getattr(character, "species", None),
         "system_type": character.system_type,
         "level": character.level,
         "notes": character.notes,
@@ -145,6 +191,11 @@ def _serialize_character(character: PlayerCharacter):
         "equipment_slots": slots,
         "stat_schema": stat_schema,
         "stat_display": stat_display,
+        "abilities_display": abilities_display or stat_display,
+        "skills_display": skills_display,
+        "defenses_display": defenses_display,
+        "skill_prof_tiers": skill_prof_tiers,
+        "save_prof_flags": save_prof_flags,
     }
 
 
@@ -217,6 +268,8 @@ def update_character():
     name = request.form.get("name", "").strip()
     level_raw = request.form.get("level", "").strip()
     notes = request.form.get("notes", "").strip()
+    class_name = request.form.get("class_name", "").strip()
+    species = request.form.get("species", "").strip()
 
     if name:
         character.name = name
@@ -228,11 +281,20 @@ def update_character():
             flash("Level must be a number.", "error")
 
     character.notes = notes or None
+    if hasattr(character, "class_name"):
+        character.class_name = class_name or None
+    if hasattr(character, "species"):
+        character.species = species or None
 
-    # Stats: iterate through existing stats and update from form inputs
+    # Stats: iterate through existing stats and update from form inputs.
+    # Only update stats that actually have a corresponding form field so
+    # that derived-only stats (like skills for 5e) are not accidentally cleared.
     for stat in character.stats:
         field_name = f"stat_{stat.id}"
-        raw_value = request.form.get(field_name, "").strip()
+        raw_value = request.form.get(field_name, None)
+        if raw_value is None:
+            continue
+        raw_value = raw_value.strip()
         if raw_value == "":
             # Allow clearing a value
             stat.value = None
@@ -242,6 +304,43 @@ def update_character():
             except ValueError:
                 # Leave previous value intact but notify the user
                 flash(f"Invalid value for {stat.stat_key}; expected a number.", "error")
+
+    # 5e-specific proficiency wiring (skills and saves)
+    system_type = (character.system_type or "").lower()
+    if system_type in {"dnd", "dnd5e", "5e"}:
+        # Skill proficiency tiers
+        skill_tier_stats = {
+            (s.stat_key): s
+            for s in character.stats
+            if s.category == "skill_prof_tier"
+        }
+        for skill_key, stat in skill_tier_stats.items():
+            flag_field = f"skill_prof_flag_{skill_key}"
+            tier_field = f"skill_prof_tier_{skill_key}"
+            flag_raw = request.form.get(flag_field)
+            if not flag_raw:
+                # Unchecked -> untrained
+                stat.value = 0.0
+                continue
+            tier_raw = request.form.get(tier_field, "2")
+            try:
+                tier_int = int(tier_raw)
+            except ValueError:
+                tier_int = 2
+            if tier_int not in (1, 2, 3):
+                tier_int = 2
+            stat.value = float(tier_int)
+
+        # Save proficiency flags (binary)
+        save_flag_stats = {
+            (s.stat_key): s
+            for s in character.stats
+            if s.category == "save_prof_flag"
+        }
+        for save_key, stat in save_flag_stats.items():
+            flag_field = f"save_prof_flag_{save_key}"
+            flag_raw = request.form.get(flag_field)
+            stat.value = 1.0 if flag_raw else 0.0
 
     db.session.commit()
     flash("Character updated.", "success")
@@ -380,9 +479,20 @@ def create_character():
         player_id=player.id,
         campaign_id=campaign.id
     ).first()
+
+    # Prevent duplicate characters per player/campaign, but ensure session context
+    # is set to this campaign so the existing character is shown correctly.
+    if existing_character:
+        session["campaign_id"] = campaign.id
+        session["system_type"] = campaign.system_type
+        session.modified = True
+        flash("You already have a character for this campaign.", "info")
+        return redirect(url_for("player.view_character"))
     
     if request.method == "POST":
         name = request.form.get("name", "").strip()
+        class_name = request.form.get("class_name", "").strip()
+        species = request.form.get("species", "").strip()
         if not name:
             flash("Character name is required.", "error")
             return render_template("Player_Create_Character.html", campaigns=available_campaigns, has_campaigns=True, campaign=campaign, system_type=campaign.system_type)
@@ -394,6 +504,8 @@ def create_character():
             name=name,
             system_type=campaign.system_type,
             level=1,
+            class_name=class_name or None,
+            species=species or None,
         )
         db.session.add(character)
         db.session.flush()
@@ -429,57 +541,4 @@ def create_character():
         campaign=campaign,
         system_type=campaign.system_type
     )
-
-
-@login_required
-def update_character():
-    """
-    Update character information (name, level, notes, stats).
-    """
-    player, redirect_response = get_current_player()
-    if redirect_response:
-        return redirect_response
-    
-    campaign_id = session.get('campaign_id')
-    if not campaign_id:
-        flash("No campaign selected.", "error")
-        return redirect(url_for("main.campaigns"))
-    
-    character = PlayerCharacter.query.filter_by(
-        player_id=player.id,
-        campaign_id=campaign_id
-    ).first()
-    
-    if not character:
-        flash("Character not found.", "error")
-        return redirect(url_for("player.create_character"))
-    
-    if request.method == "POST":
-        # Update basic fields
-        character.name = request.form.get("name", character.name).strip()
-        level_str = request.form.get("level", "")
-        if level_str:
-            try:
-                character.level = int(level_str)
-            except ValueError:
-                pass
-        character.notes = request.form.get("notes", character.notes or "")
-        
-        # Update stats
-        for stat in character.stats:
-            stat_value = request.form.get(f"stat_{stat.id}", "")
-            if stat_value == "":
-                stat.value = None
-            else:
-                try:
-                    stat.value = float(stat_value)
-                except ValueError:
-                    pass
-        
-        db.session.commit()
-        flash("Character updated successfully!", "success")
-        return redirect(url_for("player.view_character"))
-    
-    # GET request - redirect to view
-    return redirect(url_for("player.view_character"))
 

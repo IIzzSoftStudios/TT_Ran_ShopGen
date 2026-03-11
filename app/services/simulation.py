@@ -7,6 +7,7 @@ from app.extensions import db
 from app.models.backend import Shop, ShopInventory, City, PriceHistory
 from app.services.economy import calculate_dynamic_price
 from app.config.simulation_config import SimulationConfig, default_config
+from app.config.price_history_config import default_price_history_retention
 
 class SimulationEngine:
     """Handles the simulation of the game economy."""
@@ -27,6 +28,8 @@ class SimulationEngine:
         self._setup_logging()
         self.current_speed = "pause"
         self.last_tick_time = datetime.now()
+        # Retention configuration for PriceHistory snapshots
+        self.price_history_retention = default_price_history_retention
         self._initialized = True
         self._log_tick("SimulationEngine initialized")
         self._debug_state()

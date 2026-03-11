@@ -77,8 +77,15 @@ def search_item():
         city_id = request.args.get("city")
         shop_id = request.args.get("shop")
         item_id = request.args.get("item")
+        item_type = request.args.get("item_type")
+        rarity = request.args.get("rarity")
+        item_name = request.args.get("item_name")
 
-        print(f"[DEBUG] Search filters - City: {city_id}, Shop: {shop_id}, Item: {item_id}")
+        print(
+            "[DEBUG] Search filters - "
+            f"City: {city_id}, Shop: {shop_id}, Item: {item_id}, "
+            f"Type: {item_type}, Rarity: {rarity}, Name: {item_name}"
+        )
 
         # Base query
         query = (
@@ -105,6 +112,13 @@ def search_item():
             query = query.filter(Shop.shop_id == shop_id)
         if item_id:
             query = query.filter(Item.item_id == item_id)
+        if item_type:
+            query = query.filter(Item.type == item_type)
+        if rarity:
+            query = query.filter(Item.rarity == rarity)
+        if item_name:
+            # Case-insensitive partial match on item name
+            query = query.filter(Item.name.ilike(f"%{item_name}%"))
 
         # Execute query
         results = query.all()
