@@ -3,6 +3,7 @@
 <head>
     <title>GM - View Items</title>
     {% include 'partials/theme_head.html' %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <style>
@@ -146,6 +147,11 @@
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = `/gm/items/delete/${window.itemIdToDelete}`;
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                form.appendChild(csrfInput);
                 document.body.appendChild(form);
                 form.submit();
             }

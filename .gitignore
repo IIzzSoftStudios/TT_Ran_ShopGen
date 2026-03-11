@@ -39,11 +39,12 @@ flask_session/
 *.sqlite3
 *.sqlite
 
-# Environment variables
+# Environment variables and local config (never commit real secrets)
 .env
 .env.local
 .env.*.local
 config.env
+config.example.env
 
 # IDE and editor files
 .vscode/

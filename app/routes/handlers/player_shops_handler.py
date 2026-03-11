@@ -207,8 +207,14 @@ def buy_item(shop_id, item_id):
         if inventory.stock < quantity:
             return jsonify({'success': False, 'message': 'Not enough items in stock'})
 
-        # Process the purchase
         total_cost = inventory.dynamic_price * quantity
+        if player.currency < total_cost:
+            return jsonify({
+                'success': False,
+                'message': 'You do not have enough gold to complete this purchase',
+            })
+
+        # Process the purchase
         player.currency -= total_cost
         inventory.stock -= quantity
 

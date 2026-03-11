@@ -197,6 +197,7 @@
         <h2>World Management</h2>
         <p>Populate your game world with cities, shops, and items automatically.</p>
         <form action="{{ url_for('gm.gm_seed_world') }}" method="POST" onsubmit="return confirm('Are you sure you want to seed your world? This will DELETE any existing cities, shops, and items associated with your GM profile and create new ones!');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn btn-primary">Seed My World Now!</button>
         </form>
         <small class="text-muted mt-2">
@@ -214,26 +215,32 @@
         <h2>Simulation Controls</h2>
         <div class="simulation-controls">
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="speed" value="pause">
                 <button type="submit" class="speed-button {% if current_speed == 'pause' %}active{% endif %}">Pause</button>
             </form>
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="speed" value="day">
                 <button type="submit" class="speed-button {% if current_speed == 'day' %}active{% endif %}">Simulate 1 Day</button>
             </form>
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="speed" value="week">
                 <button type="submit" class="speed-button {% if current_speed == 'week' %}active{% endif %}">Simulate 1 Week</button>
             </form>
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="speed" value="month">
                 <button type="submit" class="speed-button {% if current_speed == 'month' %}active{% endif %}">Simulate 1 Month</button>
             </form>
             <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="speed" value="year">
                 <button type="submit" class="speed-button {% if current_speed == 'year' %}active{% endif %}">Simulate 1 Year</button>
             </form>
             <form action="{{ url_for('gm.gm_run_simulation_tick') }}" method="post" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <button type="submit" class="manual-tick-button">Manual Tick</button>
             </form>
         </div>
@@ -255,16 +262,6 @@
                 <span class="status-value">{{ simulation_status }}</span>
             </div>
         </div>
-    </div>
-
-    <!-- Admin Utilities Section -->
-    <div class="card p-4 shadow-sm" style="margin-bottom: 20px;">
-        <h2>Admin Utilities</h2>
-        <p style="margin-bottom: 15px; color: #666;">Quick password reset for testing:</p>
-        <form method="POST" action="{{ url_for('auth.admin_reset') }}" style="display: flex; gap: 10px; align-items: center;">
-            <input type="text" name="username" placeholder="Enter username" required style="padding: 8px; border: 1px solid #ccc; border-radius: 5px; flex: 1;">
-            <button type="submit" style="background-color: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Generate Reset Token</button>
-        </form>
     </div>
 
     <!-- Button container for navigation -->

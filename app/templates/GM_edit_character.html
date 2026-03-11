@@ -190,6 +190,7 @@
             <div class="panel">
                 <h2>Core Information</h2>
                 <form method="POST" action="{{ url_for('gm.gm_update_character', character_id=character.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="field-group">
                         <label for="name">Name</label>
                         <input type="text" id="name" name="name" value="{{ character.name or '' }}">
@@ -272,6 +273,7 @@
                                 {% if inventory_entries %}
                                     <form method="POST"
                                           action="{{ url_for('gm.gm_equip_item_for_character', character_id=character.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <input type="hidden" name="slot_name" value="{{ slot.slot_name }}">
                                         <select name="item_id">
                                             {% for inv in inventory_entries %}
@@ -289,6 +291,7 @@
                                 {% endif %}
                                 <form method="POST"
                                       action="{{ url_for('gm.gm_unequip_item_for_character', character_id=character.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <input type="hidden" name="slot_name" value="{{ slot.slot_name }}">
                                     <button type="submit" class="small-button danger">Unequip</button>
                                 </form>
@@ -325,6 +328,7 @@
                                         <form method="POST"
                                               class="inline-form"
                                               action="{{ url_for('gm.gm_update_inventory_for_character', character_id=character.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <input type="hidden" name="item_id" value="{{ inv.item.item_id }}">
                                             <input type="hidden" name="delta_quantity" value="1">
                                             <button type="submit" class="small-button">+1</button>
@@ -333,6 +337,7 @@
                                         <form method="POST"
                                               class="inline-form"
                                               action="{{ url_for('gm.gm_update_inventory_for_character', character_id=character.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <input type="hidden" name="item_id" value="{{ inv.item.item_id }}">
                                             <input type="hidden" name="delta_quantity" value="-1">
                                             <button type="submit" class="small-button danger">-1</button>
@@ -341,6 +346,7 @@
                                         <form method="POST"
                                               class="inline-form"
                                               action="{{ url_for('gm.gm_update_inventory_for_character', character_id=character.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <input type="hidden" name="item_id" value="{{ inv.item.item_id }}">
                                             <input type="number" name="delta_quantity" value="0">
                                             <button type="submit" class="small-button">Apply</button>
@@ -360,6 +366,7 @@
                 </p>
                 <form method="POST"
                       action="{{ url_for('gm.gm_update_inventory_for_character', character_id=character.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="field-group">
                         <label for="grant_item_id">Item</label>
                         <select id="grant_item_id" name="item_id">

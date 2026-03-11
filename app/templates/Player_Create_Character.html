@@ -115,6 +115,7 @@
             </div>
         {% else %}
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="info-box">
                     <p><strong>Campaign:</strong> {{ campaign.name }}</p>
                     <p><strong>System:</strong> {{ system_type|upper }}</p>

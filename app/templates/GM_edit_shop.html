@@ -185,6 +185,7 @@
 
     <!-- Centered Form -->
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <label for="name">Shop Name:</label>
         <input type="text" id="name" name="name" value="{{ shop.name }}" required>
 
@@ -243,6 +244,7 @@
 
     <!-- Form for Deleting the Shop -->
     <form method="POST" action="{{ url_for('gm.gm_delete_shop', shop_id=shop.shop_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" style="background-color: red;">Delete Shop</button>
     </form>
 

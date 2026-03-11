@@ -72,6 +72,7 @@
     <h1>Create Campaign</h1>
     <div class="form-container">
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <label for="name">Campaign Name</label>
             <input type="text" id="name" name="name" required>
 

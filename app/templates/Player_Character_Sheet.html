@@ -95,6 +95,7 @@
 
     <div class="sheet-container">
         <form method="POST" action="{{ url_for('player.update_character') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="section">
                 <h2>Defense & Saves</h2>
                 <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px;">
@@ -236,6 +237,7 @@
                             </span>
                             {% if slot.item %}
                             <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="button" style="padding: 4px 10px; font-size: 0.85em;">Unequip</button>
                             </form>
                             {% endif %}

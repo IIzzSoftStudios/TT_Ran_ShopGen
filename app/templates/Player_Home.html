@@ -1145,6 +1145,7 @@
                                     <span>{{ slot.slot_name|replace('_', ' ')|title }}: {% if slot.item %}{{ slot.item.name }}{% else %}—{% endif %}</span>
                                     {% if slot.item %}
                                     <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="button" style="padding: 2px 8px; font-size: 0.8em;">Unequip</button>
                                     </form>
                                     {% endif %}
@@ -1190,6 +1191,7 @@
                                 <td>{{ item.description }}</td>
                                 <td>
                                     <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST" style="margin-bottom: 4px;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <input type="number" 
                                                name="quantity" 
                                                class="quantity-input" 
@@ -1205,6 +1207,7 @@
                                         </div>
                                     </form>
                                     <form action="{{ url_for('player.equip_item', item_id=item.item_id) }}" method="POST">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="button" style="padding: 4px 8px; font-size: 0.85em;">
                                             Equip on Character
                                         </button>

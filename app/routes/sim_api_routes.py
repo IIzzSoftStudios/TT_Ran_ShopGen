@@ -4,10 +4,16 @@ Aggregation only - never stream 300k rows.
 """
 import queue
 import threading
-from flask import Blueprint, request, jsonify, current_app
-from flask_login import login_required
+from flask import Blueprint, request, jsonify, current_app, abort
+from flask_login import login_required, current_user
 
 from app.services.sim_runner import SimRunner
+
+
+def _require_gm():
+    """Abort with 403 if the current user is not a GM."""
+    if getattr(current_user, "role", None) != "GM":
+        abort(403)
 
 sim_api_bp = Blueprint("sim_api", __name__, url_prefix="/api/sim")
 
@@ -44,6 +50,7 @@ def get_runner() -> SimRunner:
 @login_required
 def start():
     """Start the simulation loop in the background (1 tick/sec, fixed timestep + catch-up)."""
+    _require_gm()
     get_runner().start_background()
     return jsonify({"status": "started"})
 
@@ -52,18 +59,33 @@ def start():
 @login_required
 def stop():
     """Stop the simulation and cold worker."""
+    _require_gm()
     get_runner().stop()
     return jsonify({"status": "stopped"})
+
+
+def _parse_city_id():
+    """Extract and validate city_id from JSON body or query string. Returns (city_id, error_response)."""
+    data = request.get_json() or {}
+    raw = data.get("city_id")
+    if raw is None:
+        raw = request.args.get("city_id")
+    if raw is None:
+        return None, (jsonify({"error": "city_id required"}), 400)
+    try:
+        return int(raw), None
+    except (TypeError, ValueError):
+        return None, (jsonify({"error": "city_id must be an integer"}), 400)
 
 
 @sim_api_bp.route("/subscribe_city", methods=["POST"])
 @login_required
 def subscribe_city():
     """Add city_id to the Watch List; each tick the server will include that city's slice in broadcast."""
-    data = request.get_json() or {}
-    city_id = data.get("city_id") or request.args.get("city_id", type=int)
-    if city_id is None:
-        return jsonify({"error": "city_id required"}), 400
+    _require_gm()
+    city_id, err = _parse_city_id()
+    if err is not None:
+        return err
     get_runner().subscribe_city(city_id)
     return jsonify({"subscribed": city_id})
 
@@ -72,10 +94,10 @@ def subscribe_city():
 @login_required
 def unsubscribe_city():
     """Remove city_id from the Watch List."""
-    data = request.get_json() or {}
-    city_id = data.get("city_id") or request.args.get("city_id", type=int)
-    if city_id is None:
-        return jsonify({"error": "city_id required"}), 400
+    _require_gm()
+    city_id, err = _parse_city_id()
+    if err is not None:
+        return err
     get_runner().unsubscribe_city(city_id)
     return jsonify({"unsubscribed": city_id})
 

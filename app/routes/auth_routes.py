@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, abort
 from flask_login import login_required
 
 from app.routes.handlers.auth_handler import (
@@ -7,7 +7,6 @@ from app.routes.handlers.auth_handler import (
     handle_register,
     handle_forgot_password,
     handle_reset_password,
-    handle_admin_reset,
 )
 
 auth = Blueprint("auth", __name__)
@@ -47,8 +46,10 @@ def reset_password(token):
     """Reset password route - delegates to handler."""
     return handle_reset_password(token)
 
+# Admin-reset disabled for security: exposed reset tokens to any caller.
+# Use forgot-password flow; token is logged to server console for local testing only.
 @auth.route("/admin-reset", methods=["GET", "POST"])
 def admin_reset():
-    """Admin reset route - delegates to handler."""
-    return handle_admin_reset()
+    """Disabled - returns 404."""
+    abort(404)
 

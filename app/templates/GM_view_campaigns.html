@@ -110,10 +110,12 @@
                             <td>
                                 {% if info.player_count < info.total_players %}
                                     <form method="POST" action="{{ url_for('gm.gm_sync_players_to_campaign', campaign_id=info.campaign.id) }}" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="button" style="background-color: #28a745; margin-right: 5px;" title="Add all players to this campaign">Sync Players</button>
                                     </form>
                                 {% endif %}
                                 <form method="POST" action="{{ url_for('gm.gm_delete_campaign', campaign_id=info.campaign.id) }}" style="display:inline;" onsubmit="return confirm('Delete this campaign? This cannot be undone.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="button delete-button">Delete</button>
                                 </form>
                             </td>

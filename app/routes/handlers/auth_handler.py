@@ -180,7 +180,7 @@ def handle_register():
 
 
 def handle_forgot_password():
-    """Handle password reset requests."""
+    """Handle password reset requests. Token is never shown in browser; log to console for local testing."""
     if request.method == "POST":
         username = request.form.get("username")
         auth_logger.info(f"Password reset requested for username: {username}")
@@ -191,23 +191,18 @@ def handle_forgot_password():
 
         user = User.query.filter_by(username=username).first()
         if user:
-            # Generate reset token
             token = user.generate_reset_token()
             auth_logger.info(f"Generated reset token for user: {username}")
+            # For local testing only: log token to console. Do NOT expose in UI or redirect with token in URL.
+            print(f"[Auth] Password reset token for {username} (use within 1 hour): {token}")
+            # In production, send email with reset link here instead.
 
-            # For now, we'll show the token on the page (in production, this would be emailed)
-            flash(
-                f"Password reset token generated! Use this token to reset your password: {token}",
-                "info",
-            )
-            return redirect(url_for("auth.reset_password", token=token))
-        else:
-            # Don't reveal if username exists for security
-            flash(
-                "If the username exists, a password reset token has been generated.",
-                "info",
-            )
-            return redirect(url_for("auth.login"))
+        # Always respond generically to avoid user enumeration and token exposure
+        flash(
+            "If that username exists, a password reset link has been sent. Check your email (or server console for local testing).",
+            "info",
+        )
+        return redirect(url_for("auth.login"))
 
     return render_template("forgot_password.html")
 
@@ -248,32 +243,6 @@ def handle_reset_password(token):
     return render_template("reset_password.html", token=token)
 
 
-def handle_admin_reset():
-    """Admin utility to generate reset token for testing."""
-    auth_logger.info(f"Admin reset called with method: {request.method}")
-    auth_logger.info(f"Form data: {request.form}")
-    auth_logger.info(f"Args data: {request.args}")
-
-    if request.method == "POST":
-        username = request.form.get("username")
-        auth_logger.info(f"POST - Username from form: {username}")
-    else:
-        username = request.args.get("username")
-        auth_logger.info(f"GET - Username from args: {username}")
-
-    if not username:
-        auth_logger.warning("No username provided")
-        flash("Username is required!", "warning")
-        return redirect(url_for("gm.gm_home"))
-
-    user = User.query.filter_by(username=username).first()
-    if not user:
-        auth_logger.warning(f"User not found: {username}")
-        flash(f"User '{username}' not found!", "error")
-        return redirect(url_for("gm.gm_home"))
-
-    token = user.generate_reset_token()
-    auth_logger.info(f"Admin generated reset token for user: {username}")
-    flash(f"Reset token for {username}: {token}", "info")
-    return redirect(url_for("auth.reset_password", token=token))
+# handle_admin_reset removed: endpoint disabled (returns 404) to prevent token exposure.
+# For local testing, use forgot-password; token is printed to server console.
 

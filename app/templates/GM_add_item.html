@@ -239,6 +239,7 @@
 
     <!-- Centered Form -->
     <form method="POST" id="item-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Name Field -->
         <label for="name">Name:</label>
         <input type="text" id="name" name="name" placeholder="Enter item name" required>

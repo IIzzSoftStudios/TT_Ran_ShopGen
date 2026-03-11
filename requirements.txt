@@ -1,0 +1,20 @@
+# Core
+Flask>=2.3,<4
+python-dotenv>=1.0
+
+# Database
+flask-sqlalchemy>=3.0
+flask-migrate>=4.0
+psycopg2-binary>=2.9
+
+# Auth & security
+flask-login>=0.6
+flask-bcrypt>=1.0
+flask-wtf>=1.2.0
+
+# Session (imported in app.extensions)
+flask-session>=0.5
+
+# App dependencies
+Faker>=20.0
+numpy>=1.24

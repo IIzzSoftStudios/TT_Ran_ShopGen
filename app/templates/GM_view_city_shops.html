@@ -117,6 +117,7 @@
                 <a href="{{ url_for('gm.gm_edit_shop', shop_id=shop.shop_id) }}" class="button">Edit Shop</a>
                 <a href="{{ url_for('gm.gm_view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
                 <form method="POST" action="{{ url_for('gm.gm_delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="from_view_all" value="false">
                     <button type="submit" class="delete-button">Delete</button>
                 </form>
