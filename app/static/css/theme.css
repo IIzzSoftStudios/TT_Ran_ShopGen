@@ -54,6 +54,12 @@ body {
   min-height: 100vh;
 }
 
+html.dark-mode h1,
+html.dark-mode h2,
+html.dark-mode h3 {
+  color: #F8F9FA !important;
+}
+
 a {
   color: var(--color-accent);
   transition: color 0.25s ease;
@@ -167,7 +173,6 @@ html.dark-mode tbody tr:hover {
 
 html.dark-mode .item-quantity,
 html.dark-mode .city-name,
-html.dark-mode .item-price,
 html.dark-mode .status-value {
   color: var(--color-accent);
 }
@@ -414,4 +419,50 @@ html.dark-mode .shop-name {
 
 html.dark-mode .shop-type {
   color: var(--color-muted) !important;
+}
+
+/* Campaign selection page: subtitle and logout link text in dark mode */
+html.dark-mode .subtitle {
+  color: #F8F9FA !important;
+}
+
+html.dark-mode .logout-link a {
+  color: #F8F9FA !important;
+}
+
+/* Player Home: market price text should match other white text in dark mode */
+html.dark-mode .market-panel .price-value {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .market-panel .price-coin {
+  color: #facc15 !important;
+}
+
+html.dark-mode .market-panel .item-name {
+  color: #FFFFFF !important;
+}
+
+/* Character sheet: Defense & Saves labels and values in dark mode */
+html.dark-mode .sheet-container .stat-label,
+html.dark-mode .sheet-container .stat-computed,
+html.dark-mode .sheet-container .stat-value {
+  color: #FFFFFF !important;
+}
+
+/* Player Home: main funds color by sign */
+#playerCurrency.currency-positive {
+  color: #111827;
+}
+
+#playerCurrency.currency-negative {
+  color: var(--color-danger);
+}
+
+html.dark-mode #playerCurrency.currency-positive {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode #playerCurrency.currency-negative {
+  color: var(--color-danger) !important;
 }

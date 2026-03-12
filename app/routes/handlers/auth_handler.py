@@ -11,12 +11,9 @@ from app.services.logging_config import auth_logger
 
 def handle_login():
     """Handle user login logic."""
-    print(f"DEBUG: Request method: {request.method}")
-
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        print(f"DEBUG: Attempting login for {username}")
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
@@ -28,21 +25,19 @@ def handle_login():
                 user.last_active = datetime.utcnow()
                 db.session.commit()
 
-                print(f"DEBUG: User authenticated, ID: {user.id}, Role: {user.role}")
-                print(f"DEBUG: Current user authenticated: {current_user.is_authenticated}")
+                # Decide redirect target based on role
+                target_endpoint = "main.campaigns"
+                if user.role == "vault_keeper":
+                    target_endpoint = "admin.keys_overview"
+
                 flash("Logged in successfully.", "success")
-                # Redirect to campaign selection page
-                print("DEBUG: Redirecting to campaign selection")
-                return redirect(url_for("main.campaigns"))
+                return redirect(url_for(target_endpoint))
             except Exception as e:
                 flash(f"An error occurred: {str(e)}", "danger")
-                print(f"DEBUG: Exception during login: {str(e)}")
                 return redirect(url_for("auth.login"))
         else:
             flash("Invalid username or password.", "error")
-            print("DEBUG: Invalid credentials")
 
-    print("DEBUG: Rendering login.html")
     return render_template("login.html")
 
 

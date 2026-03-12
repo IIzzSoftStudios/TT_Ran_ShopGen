@@ -672,6 +672,20 @@
 
         const SHOP_ITEMS_BY_SHOP = {{ shop_items_by_shop|tojson|safe }};
 
+        function stylePlayerCurrency() {
+            const el = document.getElementById("playerCurrency");
+            if (!el) return;
+            const raw = (el.textContent || "").replace(/[^0-9.-]/g, "");
+            const value = parseFloat(raw);
+            if (isNaN(value)) return;
+            el.classList.remove("currency-positive", "currency-negative");
+            if (value < 0) {
+                el.classList.add("currency-negative");
+            } else {
+                el.classList.add("currency-positive");
+            }
+        }
+
         function searchItems() {
             const city = document.getElementById("cityFilter").value;
             const shop = document.getElementById("shopFilter").value;
@@ -1352,7 +1366,10 @@
                     <div class="item-icon">{{ item.name[0].upper() }}</div>
                     <div class="item-details">
                         <div class="item-name">{{ item.name }}</div>
-                        <div class="item-price">₵ {{ "%.0f"|format(item.avg_price) }}</div>
+                        <div class="item-price">
+                            <span class="price-coin">₵</span>
+                            <span class="price-value">{{ "%.0f"|format(item.avg_price) }}</span>
+                        </div>
                         <div class="price-change">
                             {% set price_change = ((item.avg_price - item.base_price) / item.base_price * 100) %}
                             <span class="change-percentage {% if price_change > 0 %}change-positive{% elif price_change < 0 %}change-negative{% else %}change-neutral{% endif %}">
@@ -1412,6 +1429,7 @@
         document.addEventListener("DOMContentLoaded", function () {
             loadCharacterData();
             initSearchFilters();
+            stylePlayerCurrency();
         });
     </script>
 </body>
