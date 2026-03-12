@@ -11,10 +11,16 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), nullable=False) # Consider Enum('GM', 'Player', 'Admin')?
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Password reset fields
+    # Email for OTP reset and communication
+    email = db.Column(db.String(255), nullable=True, unique=True)
+
+    # Password reset fields (legacy token; OTP preferred)
     reset_token = db.Column(db.String(100), nullable=True)
     reset_token_expires = db.Column(db.DateTime, nullable=True)
-    
+    # 10-minute OTP reset (hashed, never store plaintext)
+    reset_otp_hash = db.Column(db.String(128), nullable=True)
+    reset_otp_expires = db.Column(db.DateTime, nullable=True)
+
     # For GMs: Their players
     # Use primaryjoin for clarity when multiple relationships point to Player
     managed_players = db.relationship("Player", back_populates="gm_user", foreign_keys="Player.user_id_gm") 
@@ -56,7 +62,25 @@ class User(db.Model, UserMixin):
         self.reset_token = None
         self.reset_token_expires = None
         db.session.commit()
-        
+
+    def set_reset_otp(self, plaintext_code):
+        """Store hashed OTP and set 10-minute expiry. Caller must commit."""
+        self.reset_otp_hash = bcrypt.generate_password_hash(plaintext_code).decode("utf-8")
+        self.reset_otp_expires = datetime.utcnow() + timedelta(minutes=10)
+
+    def verify_reset_otp(self, plaintext_code):
+        """Check OTP hash and that it has not expired."""
+        if not self.reset_otp_hash or not self.reset_otp_expires:
+            return False
+        if datetime.utcnow() > self.reset_otp_expires:
+            return False
+        return bcrypt.check_password_hash(self.reset_otp_hash, plaintext_code)
+
+    def clear_reset_otp(self):
+        """Clear OTP fields after successful reset. Caller must commit."""
+        self.reset_otp_hash = None
+        self.reset_otp_expires = None
+
     @property
     def is_active(self):
         """Check if the user is currently active (active in last 5 minutes)"""
@@ -66,6 +90,20 @@ class User(db.Model, UserMixin):
 
     def __repr__(self):
         return f"<User {self.username} (Role: {self.role})>"
+
+
+class RegistrationKey(db.Model):
+    """Vault of single-use registration keys (FORGE-XXXX-XXXX)."""
+    __tablename__ = "registration_key"
+    id = db.Column(db.Integer, primary_key=True)
+    key_code = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    is_used = db.Column(db.Boolean, default=False, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref=db.backref("registration_key_used", uselist=False))
+
 
 class GMProfile(db.Model):
     __tablename__ = "gm_profile"

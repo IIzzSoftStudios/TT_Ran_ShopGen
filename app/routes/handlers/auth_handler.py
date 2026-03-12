@@ -1,9 +1,11 @@
-from flask import render_template, redirect, url_for, flash, request, session
+from flask import render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db, bcrypt  # bcrypt kept for potential future use
-from app.models.users import User, Player, GMProfile
+from app.models.users import User, Player, GMProfile, RegistrationKey
+from app.utils.validators import is_password_strong
 from app.services.logging_config import auth_logger
 
 
@@ -64,17 +66,25 @@ def handle_register():
         password = request.form.get("password")
         role = request.form.get("role")
         gm_id = request.form.get("gm_id") if role == "Player" else None
+        registration_key = request.form.get("registration_key", "").strip().replace("_", "-").upper()
 
         auth_logger.debug(
             f"Registration attempt - Username: {username}, Role: {role}, GM ID: {gm_id}"
         )
 
         # Validate required fields
-        if not username or not password or not role:
+        if not username or not password or not role or not registration_key:
             auth_logger.warning(
                 f"Registration failed - Missing required fields. Username: {username}, Role: {role}"
             )
             flash("All fields are required!", "warning")
+            return redirect(url_for("auth.register"))
+
+        # Password complexity (Wave 5)
+        is_strong, msg = is_password_strong(password)
+        if not is_strong:
+            auth_logger.warning(f"Registration failed - Weak password for user: {username}")
+            flash(msg, "danger")
             return redirect(url_for("auth.register"))
 
         # Validate role
@@ -88,14 +98,32 @@ def handle_register():
             flash("Username already exists!", "warning")
             return redirect(url_for("auth.register"))
 
+        email = (request.form.get("email") or "").strip().lower() or None
+        if email and User.query.filter_by(email=email).first():
+            flash("That email is already registered.", "warning")
+            return redirect(url_for("auth.register"))
+
         try:
-            auth_logger.debug("Starting user creation process")
-            # Create the user
-            new_user = User(username=username, role=role)
+            # Lock the key row (SELECT FOR UPDATE) to prevent concurrent use of the same key
+            key_row = RegistrationKey.query.filter_by(key_code=registration_key).with_for_update().first()
+            if not key_row or key_row.is_used:
+                db.session.rollback()
+                auth_logger.warning(f"Registration failed - Invalid or used key for user: {username}")
+                flash("Invalid or already used registration key.", "danger")
+                return redirect(url_for("auth.register"))
+
+            auth_logger.debug("Starting user creation process (atomic handshake)")
+            # 1. Create the user
+            new_user = User(username=username, role=role, email=email)
             new_user.set_password(password)
             db.session.add(new_user)
-            db.session.flush()  # This assigns the ID to new_user
+            db.session.flush()  # Get ID without committing
             auth_logger.debug(f"Created new user with ID: {new_user.id}")
+
+            # 2. Consume the registration key
+            key_row.is_used = True
+            key_row.user_id = new_user.id
+            key_row.used_at = datetime.utcnow()
 
             if role == "GM":
                 auth_logger.debug("Creating GM Profile")
@@ -158,7 +186,7 @@ def handle_register():
                 if campaigns_added > 0:
                     auth_logger.debug(f"Added new player to {campaigns_added} existing campaign(s)")
 
-            # Commit the transaction
+            # 4. Commit the transaction (atomic handshake)
             db.session.commit()
             auth_logger.info(
                 f"Successfully registered new user: {username} with role: {role}"
@@ -166,10 +194,15 @@ def handle_register():
             flash("Account created! You can now log in.", "success")
             return redirect(url_for("auth.login"))
 
+        except (IntegrityError, OperationalError, ValueError) as e:
+            db.session.rollback()
+            auth_logger.error(f"Database/validation error during registration: {e}", exc_info=True)
+            flash("A database error occurred. Please try again later.", "danger")
+            return redirect(url_for("auth.register"))
         except Exception as e:
             db.session.rollback()
             auth_logger.error(f"Error during registration: {str(e)}", exc_info=True)
-            flash(f"Error creating account: {str(e)}", "danger")
+            flash("Error creating account. Please try again.", "danger")
             return redirect(url_for("auth.register"))
 
     # GET request - show registration form
@@ -180,26 +213,41 @@ def handle_register():
 
 
 def handle_forgot_password():
-    """Handle password reset requests. Token is never shown in browser; log to console for local testing."""
+    """Handle password reset requests. Send 6-digit OTP via email (or log to console if SMTP not configured)."""
     if request.method == "POST":
-        username = request.form.get("username")
-        auth_logger.info(f"Password reset requested for username: {username}")
+        email = request.form.get("email", "").strip().lower()
+        auth_logger.info(f"Password reset requested for email: {email}")
 
-        if not username:
-            flash("Username is required!", "warning")
+        if not email:
+            flash("Email is required!", "warning")
             return redirect(url_for("auth.forgot_password"))
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(email=email).first()
         if user:
-            token = user.generate_reset_token()
-            auth_logger.info(f"Generated reset token for user: {username}")
-            # For local testing only: log token to console. Do NOT expose in UI or redirect with token in URL.
-            print(f"[Auth] Password reset token for {username} (use within 1 hour): {token}")
-            # In production, send email with reset link here instead.
+            import secrets
+            code = "".join(secrets.choice("0123456789") for _ in range(6))
+            user.set_reset_otp(code)
+            db.session.commit()
+            auth_logger.info(f"Generated OTP for user: {user.username}")
 
-        # Always respond generically to avoid user enumeration and token exposure
+            try:
+                from app.extensions import mail
+                from flask_mailman import EmailMessage
+                sender = current_app.config.get("MAIL_DEFAULT_SENDER", "noreply@example.com")
+                msg = EmailMessage(
+                    "Your password reset code",
+                    f"Your one-time password reset code is: {code}\n\nIt expires in 10 minutes.",
+                    sender,
+                    [email],
+                )
+                msg.send()
+            except Exception as e:
+                auth_logger.warning(f"Could not send OTP email: {e}. Logging code to console for testing.")
+                print(f"[Auth] OTP for {email} (use within 10 min): {code}")
+
+        # Always respond generically to avoid user enumeration
         flash(
-            "If that username exists, a password reset link has been sent. Check your email (or server console for local testing).",
+            "If an account exists for that email, we sent a 6-digit code. Check your email (or server console for local testing).",
             "info",
         )
         return redirect(url_for("auth.login"))
@@ -207,40 +255,40 @@ def handle_forgot_password():
     return render_template("forgot_password.html")
 
 
-def handle_reset_password(token):
-    """Handle password reset with token."""
+def handle_reset_password():
+    """Handle password reset with email + OTP code. New password must pass is_password_strong."""
     if request.method == "POST":
-        new_password = request.form.get("password")
-        confirm_password = request.form.get("confirm_password")
+        email = request.form.get("email", "").strip().lower()
+        otp_code = request.form.get("otp_code", "").strip()
+        new_password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
 
-        if not new_password or not confirm_password:
+        if not email or not otp_code or not new_password or not confirm_password:
             flash("All fields are required!", "warning")
-            return redirect(url_for("auth.reset_password", token=token))
+            return redirect(url_for("auth.reset_password"))
 
         if new_password != confirm_password:
             flash("Passwords do not match!", "warning")
-            return redirect(url_for("auth.reset_password", token=token))
+            return redirect(url_for("auth.reset_password"))
 
-        # Find user with this token
-        user = User.query.filter_by(reset_token=token).first()
-        if not user or not user.verify_reset_token(token):
-            flash("Invalid or expired reset token!", "error")
+        user = User.query.filter_by(email=email).first()
+        if not user or not user.verify_reset_otp(otp_code):
+            flash("Invalid or expired reset code. Request a new code from the forgot password page.", "error")
             return redirect(url_for("auth.forgot_password"))
 
-        # Update password
+        is_strong, msg = is_password_strong(new_password)
+        if not is_strong:
+            flash(msg, "danger")
+            return redirect(url_for("auth.reset_password"))
+
         user.set_password(new_password)
-        user.clear_reset_token()
+        user.clear_reset_otp()
+        db.session.commit()
         auth_logger.info(f"Password reset successful for user: {user.username}")
         flash("Password updated successfully! You can now log in.", "success")
         return redirect(url_for("auth.login"))
 
-    # GET request - show reset form
-    user = User.query.filter_by(reset_token=token).first()
-    if not user or not user.verify_reset_token(token):
-        flash("Invalid or expired reset token!", "error")
-        return redirect(url_for("auth.forgot_password"))
-
-    return render_template("reset_password.html", token=token)
+    return render_template("reset_password.html")
 
 
 # handle_admin_reset removed: endpoint disabled (returns 404) to prevent token exposure.

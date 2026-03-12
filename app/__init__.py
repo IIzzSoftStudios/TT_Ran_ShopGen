@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from dotenv import load_dotenv
-from app.extensions import db, migrate, bcrypt, login_manager, csrf
+from app.extensions import db, migrate, bcrypt, login_manager, csrf, mail
 from flask.cli import with_appcontext
 import click
 
@@ -28,7 +28,17 @@ def create_app():
 
     app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
-    
+
+    # Mail (OTP reset)
+    app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "localhost")
+    app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
+    app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "true").lower() in ("true", "1", "yes")
+    app.config["MAIL_USE_SSL"] = os.getenv("MAIL_USE_SSL", "false").lower() in ("true", "1", "yes")
+    app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
+    app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
+    app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com")
+    mail.init_app(app)
+
     # Initialize database and migration extensions
     db.init_app(app)
     login_manager.init_app(app)
@@ -56,12 +66,14 @@ def create_app():
     from app.routes.auth_routes import auth
     from app.routes.player_routes import player_bp
     from app.routes.gm_routes import gm_bp
+    from app.routes.admin_routes import admin_bp
     from app.routes.sim_api_routes import sim_api_bp
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
     app.register_blueprint(gm_bp)  # GM routes already have /gm prefix
     app.register_blueprint(player_bp, url_prefix="/player")
+    app.register_blueprint(admin_bp)
     app.register_blueprint(sim_api_bp)
 
     # Debugging: Print registered routes

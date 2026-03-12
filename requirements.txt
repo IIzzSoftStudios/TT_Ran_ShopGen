@@ -11,6 +11,7 @@ psycopg2-binary>=2.9
 flask-login>=0.6
 flask-bcrypt>=1.0
 flask-wtf>=1.2.0
+flask-mailman>=1.0
 
 # Session (imported in app.extensions)
 flask-session>=0.5

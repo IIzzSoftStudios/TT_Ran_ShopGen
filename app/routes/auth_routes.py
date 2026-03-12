@@ -41,10 +41,10 @@ def forgot_password():
     """Forgot password route - delegates to handler."""
     return handle_forgot_password()
 
-@auth.route("/reset-password/<token>", methods=["GET", "POST"])
-def reset_password(token):
-    """Reset password route - delegates to handler."""
-    return handle_reset_password(token)
+@auth.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    """Reset password route (email + OTP) - delegates to handler."""
+    return handle_reset_password()
 
 # Admin-reset disabled for security: exposed reset tokens to any caller.
 # Use forgot-password flow; token is logged to server console for local testing only.
