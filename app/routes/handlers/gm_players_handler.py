@@ -186,10 +186,21 @@ def update_character(character_id: int):
     if hasattr(character, "species"):
         character.species = species or None
 
-    # Stats: iterate through existing stats and update from form inputs
+    # Stats: iterate through existing stats and update from form inputs.
+    # Only update stats that actually have a corresponding form field so
+    # that derived-only stats (like skills for 5e) are not accidentally cleared.
+    # Armor Class and other derived defenses remain read-only from the GM side.
     for stat in character.stats:
+        # Server-side guard: never update armor class-derived stats from this form.
+        if stat.stat_key in ("armor_class", "ac", "armor_class_base"):
+            continue
+
         field_name = f"stat_{stat.id}"
-        raw_value = request.form.get(field_name, "").strip()
+        raw_value = request.form.get(field_name, None)
+        if raw_value is None:
+            continue
+
+        raw_value = raw_value.strip()
         if raw_value == "":
             # Allow clearing a value
             stat.value = None
@@ -197,7 +208,45 @@ def update_character(character_id: int):
             try:
                 stat.value = float(raw_value)
             except ValueError:
+                # Leave previous value intact but notify the user
                 flash(f"Invalid value for {stat.stat_key}; expected a number.", "error")
+
+    # 5e-specific proficiency wiring (skills and saves), mirrored from the player handler
+    system_type = (character.system_type or "").lower()
+    if system_type in {"dnd", "dnd5e", "5e"}:
+        # Skill proficiency tiers
+        skill_tier_stats = {
+            (s.stat_key): s
+            for s in character.stats
+            if s.category == "skill_prof_tier"
+        }
+        for skill_key, stat in skill_tier_stats.items():
+            flag_field = f"skill_prof_flag_{skill_key}"
+            tier_field = f"skill_prof_tier_{skill_key}"
+            flag_raw = request.form.get(flag_field)
+            if not flag_raw:
+                # Unchecked -> untrained
+                stat.value = 0.0
+                continue
+            tier_raw = request.form.get(tier_field, "2")
+            try:
+                tier_int = int(tier_raw)
+            except ValueError:
+                tier_int = 2
+            if tier_int not in (1, 2, 3):
+                tier_int = 2
+            stat.value = float(tier_int)
+
+        # Save proficiency flags (binary)
+        save_flag_stats = {
+            (s.stat_key): s
+            for s in character.stats
+            if s.category == "save_prof_flag"
+        }
+        for save_key, stat in save_flag_stats.items():
+            flag_field = f"save_prof_flag_{save_key}"
+            flag_raw = request.form.get(flag_field)
+            stat.value = 1.0 if flag_raw else 0.0
 
     db.session.commit()
     flash("Character updated.", "success")

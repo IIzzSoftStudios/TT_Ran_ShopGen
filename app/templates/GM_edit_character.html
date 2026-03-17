@@ -213,9 +213,9 @@
                     </div>
 
                     <h2>Stats</h2>
-                    <p class="section-subtitle">Edit any stat value. Leave blank to clear.</p>
+                    <p class="section-subtitle">Edit any core ability score. Leave blank to clear.</p>
                     <div class="stats-grid">
-                        {% for stat in character.stat_display %}
+                        {% for stat in character.abilities_display|default(character.stat_display) %}
                             <div class="stat-card">
                                 <div class="stat-label">
                                     {{ stat.label or stat.key }}
@@ -241,6 +241,88 @@
                             </div>
                         {% endfor %}
                     </div>
+
+                    <h2>Defense &amp; Saves</h2>
+                    <p class="section-subtitle">Adjust saves and other defenses. Armor Class is display-only.</p>
+                    <div class="stats-grid">
+                        {% for stat in character.defenses_display or [] %}
+                            <div class="stat-card">
+                                <div class="stat-label">
+                                    {{ stat.label }}
+                                </div>
+                                {% if stat.id and stat.key not in ['armor_class', 'ac'] %}
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        name="stat_{{ stat.id }}"
+                                        value="{{ stat.value if stat.value is not none else '' }}"
+                                    >
+                                {% else %}
+                                    <div class="stat-value">
+                                        {{ stat.value if stat.value is not none else '-' }}
+                                    </div>
+                                {% endif %}
+
+                                {% if stat.category == 'save' and stat.computed_value is not none %}
+                                    <div class="section-subtitle">
+                                        Computed: {{ '%+d'|format(stat.computed_value) }}
+                                    </div>
+                                {% endif %}
+
+                                {% if stat.category == 'save' and character.system_type in ['dnd5e', 'dnd', '5e'] %}
+                                    {% set save_flag = character.save_prof_flags.get(stat.key) if character.save_prof_flags is defined else None %}
+                                    <label class="section-subtitle" style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="checkbox" name="save_prof_flag_{{ stat.key }}" value="1" {% if save_flag and save_flag >= 0.5 %}checked{% endif %}>
+                                        <span>Proficient</span>
+                                    </label>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <h2>Skills</h2>
+                    <p class="section-subtitle">Set skill proficiencies and tiers for this character.</p>
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Skill</th>
+                                <th>Total</th>
+                                {% if character.system_type in ['dnd5e', 'dnd', '5e'] %}
+                                <th>Proficiency</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for skill in character.skills_display or [] %}
+                            <tr>
+                                <td>{{ skill.label }}</td>
+                                <td>
+                                    {% if skill.computed_value is not none %}
+                                        <span>{{ '%+d'|format(skill.computed_value) }}</span>
+                                    {% else %}
+                                        <span>{{ skill.value if skill.value is not none else '-' }}</span>
+                                    {% endif %}
+                                </td>
+                                {% if character.system_type in ['dnd5e', 'dnd', '5e'] %}
+                                <td>
+                                    {% set tier = character.skill_prof_tiers.get(skill.key) if character.skill_prof_tiers is defined else 0 %}
+                                    {% set tier_int = tier|int if tier is not none else 0 %}
+                                    {% set is_proficient = tier_int > 0 %}
+                                    <label style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="checkbox" name="skill_prof_flag_{{ skill.key }}" value="1" {% if is_proficient %}checked{% endif %} onchange="this.closest('tr').querySelector('.tier-select-{{ skill.key }}').disabled = !this.checked;">
+                                        <span>Proficient</span>
+                                    </label>
+                                    <select name="skill_prof_tier_{{ skill.key }}" class="tier-select-{{ skill.key }}" style="margin-top: 4px; width: 120px;" {% if not is_proficient %}disabled{% endif %}>
+                                        <option value="1" {% if tier_int == 1 %}selected{% endif %}>Half</option>
+                                        <option value="2" {% if tier_int == 2 or tier_int == 0 %}selected{% endif %}>Normal</option>
+                                        <option value="3" {% if tier_int == 3 %}selected{% endif %}>Expertise</option>
+                                    </select>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
 
                     <div style="margin-top: 16px;">
                         <button type="submit" class="button">Save Character</button>

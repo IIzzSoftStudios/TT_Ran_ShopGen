@@ -331,6 +331,11 @@ html.dark-mode .gm-list-page table tbody td:nth-child(2) {
   color: #A0A0A0 !important;
 }
 
+/* GM player manager: ensure character links match high-contrast row text */
+html.dark-mode .gm-list-page .character-link {
+  color: #FFFFFF !important;
+}
+
 /* GM item detail page: same table-like colors for detail rows and sections */
 html.dark-mode .gm-detail-page .detail-container,
 html.dark-mode .gm-detail-page .content-container {

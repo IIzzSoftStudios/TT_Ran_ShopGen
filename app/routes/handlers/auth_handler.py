@@ -11,6 +11,19 @@ from app.services.logging_config import auth_logger
 
 def handle_login():
     """Handle user login logic."""
+    # If the user is already authenticated, respect any explicit next parameter
+    # or fall back to the standard post-login targets.
+    next_url = request.args.get("next") or request.form.get("next")
+    if current_user.is_authenticated:
+        # Optional: avoid redirecting to external hosts
+        if next_url and next_url.startswith("/"):
+            return redirect(next_url)
+
+        target_endpoint = "main.campaigns"
+        if current_user.role == "vault_keeper":
+            target_endpoint = "admin.keys_overview"
+        return redirect(url_for(target_endpoint))
+
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
@@ -25,6 +38,12 @@ def handle_login():
                 user.last_active = datetime.utcnow()
                 db.session.commit()
 
+                # If we were sent here from a protected endpoint, honor the
+                # original destination when it is a local URL.
+                if next_url and next_url.startswith("/"):
+                    flash("Logged in successfully.", "success")
+                    return redirect(next_url)
+
                 # Decide redirect target based on role
                 target_endpoint = "main.campaigns"
                 if user.role == "vault_keeper":
@@ -38,7 +57,8 @@ def handle_login():
         else:
             flash("Invalid username or password.", "error")
 
-    return render_template("login.html")
+    # GET request or failed POST: render login form, preserving any next param
+    return render_template("login.html", next=next_url)
 
 
 @login_required

@@ -82,8 +82,8 @@ class User(db.Model, UserMixin):
         self.reset_otp_expires = None
 
     @property
-    def is_active(self):
-        """Check if the user is currently active (active in last 5 minutes)"""
+    def is_recently_active(self):
+        """Whether the user has been active in the last 5 minutes."""
         if not self.last_active:
             return False
         return (datetime.utcnow() - self.last_active).total_seconds() < 300  # 5 minutes
