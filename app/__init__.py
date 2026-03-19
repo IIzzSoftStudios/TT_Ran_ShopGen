@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, request
 from dotenv import load_dotenv
 from app.extensions import db, migrate, bcrypt, login_manager, csrf, mail
 from flask.cli import with_appcontext
@@ -75,6 +75,29 @@ def create_app():
     app.register_blueprint(player_bp, url_prefix="/player")
     app.register_blueprint(admin_bp)
     app.register_blueprint(sim_api_bp)
+
+    @app.after_request
+    def add_no_store_headers(response):
+        # Prevent stale authenticated UI on back/forward navigation by
+        # ensuring sensitive pages are never cached by the browser/proxies.
+        sensitive_prefixes = (
+            "/auth/",
+            "/player/",
+            "/gm/",
+            "/admin/",
+            "/campaigns",
+            "/home",
+            "/player_dashboard",
+        )
+        try:
+            if request.path.startswith(sensitive_prefixes):
+                response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+        except Exception:
+            # Never fail the request due to header-setting issues.
+            pass
+        return response
 
     # Debugging: Print registered routes
     print("\nRegistered Routes:")

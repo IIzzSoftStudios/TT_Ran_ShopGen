@@ -17,7 +17,7 @@ def generate_secure_code(prefix="FORGE", segments=2, segment_len=4):
     return f"{prefix}-{body}"
 
 
-def create_bulk_keys(count):
+def create_bulk_keys(count, email=None):
     """
     Create `count` RegistrationKey rows. Caller must commit.
     Returns list of plaintext key codes (for audit/flash).
@@ -25,7 +25,7 @@ def create_bulk_keys(count):
     new_keys = []
     for _ in range(count):
         code = generate_secure_code()
-        key_obj = RegistrationKey(key_code=code)
+        key_obj = RegistrationKey(key_code=code, email=email)
         db.session.add(key_obj)
         new_keys.append(code)
     return new_keys

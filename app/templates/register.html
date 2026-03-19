@@ -125,11 +125,22 @@
 </head>
 <body>
     <h2>Register</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div style="width: 100%; max-width: 520px; margin-bottom: 14px;">
+                {% for category, message in messages %}
+                    <div style="padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(30, 41, 59, 0.15);">
+                        <strong>{{ category|capitalize }}:</strong> {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-group">
             <label for="registration_key">Registration Key:</label>
-            <input type="text" id="registration_key" name="registration_key" required placeholder="FORGE-XXXX-XXXX">
+            <input type="text" id="registration_key" name="registration_key" required placeholder="FORGE-XXXX-XXXX" value="{{ vault_key_prefill or '' }}">
         </div>
         <div class="form-group">
             <label for="username">Username:</label>

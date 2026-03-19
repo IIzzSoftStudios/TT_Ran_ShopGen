@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Documentation (WIP) — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        .docs-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 18px 60px;
+        }
+
+        .docs-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .docs-back {
+            text-decoration: none;
+            font-weight: 700;
+            color: var(--color-accent);
+        }
+
+        .docs-card {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 14px;
+        }
+
+        .docs-search {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .docs-search input {
+            width: 280px;
+            padding: 10px 12px;
+            border-radius: 12px;
+        }
+
+        .coming {
+            display: inline-block;
+            font-weight: 800;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            color: var(--color-muted);
+            margin-left: 10px;
+        }
+
+        .docs-section-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+
+        .conversion-callout {
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+            margin-top: 22px;
+            padding-top: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            padding: 10px 14px;
+            border: 1px solid transparent;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="docs-wrap">
+        <div class="docs-top">
+            <a class="docs-back" href="{{ url_for('main.index') }}">← Back to Home</a>
+            <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
+                <div class="docs-search">
+                    <form method="GET" action="{{ url_for('main.docs') }}" style="display:flex; gap:10px; align-items:center;">
+                        <input type="search" name="q" placeholder="Search docs..." value="{{ q or '' }}">
+                        <button type="submit" class="btn btn-secondary" style="padding:10px 12px;">Search</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="docs-card">
+            <div class="docs-section-title">
+                <h1 style="margin:0;">Documentation (WIP)</h1>
+                <span class="coming">Under Construction</span>
+            </div>
+            <p style="margin: 0; color: var(--color-muted); line-height: 1.65;">
+                This page exists now so Search has a destination and users can learn the system as it grows.
+                Content is incomplete; sections below are placeholders.
+            </p>
+
+            {% if q %}
+                <p style="margin-top: 10px; color: var(--color-muted); font-weight: 650;">
+                    Showing guidance for query: <span style="color: var(--color-text);">{{ q }}</span>
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="docs-card">
+            <div class="docs-section-title">
+                <h2 style="margin:0;">Getting Started</h2>
+                <span class="coming">Coming soon</span>
+            </div>
+            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
+                WIP — onboarding steps, campaign setup, and first successful price read.
+            </p>
+        </div>
+
+        <div class="docs-card">
+            <div class="docs-section-title">
+                <h2 style="margin:0;">GM Management Hub</h2>
+                <span class="coming">Coming soon</span>
+            </div>
+            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
+                WIP — create items, manage players, and run your table from one place.
+            </p>
+        </div>
+
+        <div class="docs-card">
+            <div class="docs-section-title">
+                <h2 style="margin:0;">Player Use</h2>
+                <span class="coming">Coming soon</span>
+            </div>
+            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
+                WIP — how players view markets, buy inventory, and keep the world ledger consistent.
+            </p>
+        </div>
+
+        <div class="docs-card">
+            <div class="docs-section-title">
+                <h2 style="margin:0;">Item & Inventory Concepts</h2>
+                <span class="coming">Coming soon</span>
+            </div>
+            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
+                WIP — inventory state, transactional integrity, and why prices make sense.
+            </p>
+        </div>
+
+        <div class="docs-card">
+            <div class="docs-section-title">
+                <h2 style="margin:0;">FAQ / Known Limitations</h2>
+                <span class="coming">Coming soon</span>
+            </div>
+            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
+                WIP — performance, supported rulesets, and what is still evolving.
+            </p>
+        </div>
+
+        <div class="conversion-callout">
+            <div>
+                <div style="font-weight: 900; font-size: 1.05rem;">Bring your world’s economy to life.</div>
+                <div style="color: var(--color-muted); margin-top: 6px;">
+                    Register to request early access, then track updates in Discord.
+                </div>
+            </div>
+            <div class="btn-row">
+                <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

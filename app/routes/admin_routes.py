@@ -7,6 +7,9 @@ from app.routes.handlers.admin_handler import (
     handle_admin_keys,
     handle_generate_bulk,
     handle_reveal_key,
+    handle_approve_access_request,
+    handle_hold_access_request,
+    handle_reject_access_request,
 )
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -34,3 +37,27 @@ def keys_generate():
 def keys_reveal(key_id):
     """On-demand reveal one key as JSON. GM only."""
     return handle_reveal_key(key_id)
+
+
+@admin_bp.route("/vault/access-requests/<int:request_id>/approve", methods=["POST"])
+@login_required
+@admin_required
+def access_request_approve(request_id):
+    """Approve an access request card: generates a one-time vault key + emails applicant."""
+    return handle_approve_access_request(request_id)
+
+
+@admin_bp.route("/vault/access-requests/<int:request_id>/hold", methods=["POST"])
+@login_required
+@admin_required
+def access_request_hold(request_id):
+    """Hold an access request: moves it to the bottom of the current rank order."""
+    return handle_hold_access_request(request_id)
+
+
+@admin_bp.route("/vault/access-requests/<int:request_id>/reject", methods=["POST"])
+@login_required
+@admin_required
+def access_request_reject(request_id):
+    """Reject an access request: remove it from the actionable list (no email)."""
+    return handle_reject_access_request(request_id)

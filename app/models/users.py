@@ -97,12 +97,47 @@ class RegistrationKey(db.Model):
     __tablename__ = "registration_key"
     id = db.Column(db.Integer, primary_key=True)
     key_code = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    # When issued via the Register For Access workflow, tie the key to the applicant email.
+    # This enables backend validation during /register and prevents URL-guessing abuse.
+    email = db.Column(db.String(255), nullable=True, index=True)
     is_used = db.Column(db.Boolean, default=False, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", backref=db.backref("registration_key_used", uselist=False))
+
+
+class AccessRequest(db.Model):
+    """
+    Applicant requests for registration access.
+    Staff can triage these and approve/reject by generating a one-time-use vault key.
+    """
+    __tablename__ = "access_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    email = db.Column(db.String(255), nullable=False, index=True)
+    user_role = db.Column(db.String(50), nullable=False)  # GM, Player, Both
+    player_count = db.Column(db.Integer, default=0)  # If GM/Both
+    total_expected_users = db.Column(db.Integer, default=1)
+    is_homebrew = db.Column(db.Boolean, default=False)
+    primary_ruleset = db.Column(db.String(100))
+    discovery_source = db.Column(db.String(255))
+    notes = db.Column(db.Text)
+
+    status = db.Column(db.String(20), default="pending")  # pending, approved, hold, rejected
+    processed_at = db.Column(db.DateTime, nullable=True)  # set when approved/rejected
+
+    # Generated vault key for this request (used to pre-fill /register). One-time-use.
+    vault_key = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    vault_key_used = db.Column(db.Boolean, default=False, nullable=False)
+    vault_key_used_at = db.Column(db.DateTime, nullable=True)
+
+    # Updated whenever staff clicks Hold; used for "move to bottom" ordering.
+    queue_sort_ts = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
 class GMProfile(db.Model):
