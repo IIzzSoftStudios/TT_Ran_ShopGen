@@ -10,6 +10,7 @@ from app.services.simulation import SimulationEngine
 from app.scripts.seeder import seed_gm_data
 from app.extensions import db
 from app.routes.handlers.gm_helpers import get_current_gm_profile
+from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
 from datetime import datetime
 
 
@@ -54,12 +55,14 @@ def home():
         f"  Time since last tick: {datetime.now() - simulation_engine.last_tick_time}"
     )
 
+    shops_panel = get_shop_city_panel_context(gm_profile)
     return render_template(
         "GM_Home.html",
         gm_profile=gm_profile,
         current_speed=simulation_engine.current_speed,
         last_tick_time=simulation_engine.last_tick_time,
         simulation_status="active" if simulation_engine.current_speed != "pause" else "paused",
+        **shops_panel,
     )
 
 

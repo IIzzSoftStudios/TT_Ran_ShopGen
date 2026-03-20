@@ -119,7 +119,6 @@ html.dark-mode .results-section,
 html.dark-mode .search-section,
 html.dark-mode .currency-container,
 html.dark-mode .simulation-panel,
-html.dark-mode .simulation-status,
 html.dark-mode .inventory-container,
 html.dark-mode .content-container,
 html.dark-mode .city-list li,
@@ -172,14 +171,12 @@ html.dark-mode tbody tr:hover {
 }
 
 html.dark-mode .item-quantity,
-html.dark-mode .city-name,
-html.dark-mode .status-value {
+html.dark-mode .city-name {
   color: var(--color-accent);
 }
 
 html.dark-mode .item-type,
 html.dark-mode .city-details,
-html.dark-mode .status-label,
 html.dark-mode .filter-label,
 html.dark-mode .small-text,
 html.dark-mode [class*="details"],
@@ -191,7 +188,6 @@ html.dark-mode .button,
 html.dark-mode .nav-button,
 html.dark-mode .search-button,
 html.dark-mode .speed-button,
-html.dark-mode .manual-tick-button,
 html.dark-mode .btn,
 html.dark-mode button[type="submit"],
 html.dark-mode button[type="button"] {
@@ -204,7 +200,6 @@ html.dark-mode .button:hover,
 html.dark-mode .nav-button:hover,
 html.dark-mode .search-button:hover,
 html.dark-mode .speed-button:hover,
-html.dark-mode .manual-tick-button:hover,
 html.dark-mode .btn:hover {
   background-color: var(--color-accent-hover);
 }
@@ -235,25 +230,11 @@ html.dark-mode .flash-message.info {
   background-color: #38bdf8;
 }
 
-html.dark-mode .simulation-status {
-  border: 1px solid var(--color-border);
-}
-
 /* GM Dashboard: header and simulation control legibility in dark mode */
 html.dark-mode .gm-dashboard h1,
 html.dark-mode .gm-dashboard h2,
 html.dark-mode .gm-dashboard .simulation-panel h2 {
   color: #F8F9FA !important;
-}
-
-html.dark-mode .gm-dashboard .status-label {
-  color: #FFFFFF !important;
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
-}
-
-html.dark-mode .gm-dashboard .status-value {
-  color: #FFFFFF !important;
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
 /* Character panel: make class/level and stat section headers white in dark mode */
@@ -473,23 +454,14 @@ html.dark-mode #playerCurrency.currency-negative {
 }
 
 /* GM simulation: pressed / locked controls */
-.speed-button.running,
-.manual-tick-button.running {
+.speed-button.running {
   box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.35);
   transform: translateY(2px);
   border: 1px solid rgba(0, 0, 0, 0.2);
-}
-
-.speed-button.running {
   background-color: #1b5e20;
 }
 
-.manual-tick-button.running {
-  background-color: #1565c0;
-}
-
-.speed-button.disabled,
-.manual-tick-button.disabled {
+.speed-button.disabled {
   opacity: 0.6;
   pointer-events: none;
   filter: grayscale(0.35);

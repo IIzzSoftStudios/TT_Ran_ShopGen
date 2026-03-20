@@ -4,6 +4,7 @@
     <title>Game Master Dashboard</title>
     {% include 'partials/theme_head.html' %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_shops_city_list.css') }}">
 
     <style>
         /* Center everything */
@@ -12,7 +13,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start; /* Align to top */
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
@@ -25,12 +26,15 @@
             margin-bottom: 20px; /* Space between heading and buttons */
         }
 
-        /* Button Container */
-        .button-container {
+        /* Primary actions: match simulation panel width */
+        .gm-primary-actions {
             display: flex;
             justify-content: center;
-            gap: 15px; /* Space between buttons */
-            margin-bottom: 30px;
+            gap: 15px;
+            flex-wrap: wrap;
+            width: 80%;
+            max-width: 800px;
+            margin: 0 auto 30px;
         }
 
         /* Button Styling */
@@ -43,6 +47,8 @@
             font-size: 16px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .button:hover {
@@ -72,6 +78,7 @@
             justify-content: center;
             gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .speed-button {
@@ -92,50 +99,14 @@
             background-color: #2E7D32;
         }
 
-        .simulation-status {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            margin-top: 15px;
-        }
-
-        .status-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .status-label {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        .status-value {
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .manual-tick-button {
-            background-color: #2196F3;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .manual-tick-button:hover {
-            background-color: #1976D2;
-        }
-
-        .simulation-controls.busy .speed-button,
-        .simulation-controls.busy .manual-tick-button {
+        .simulation-controls.busy .speed-button {
             pointer-events: none;
+        }
+
+        .gm-world-quick-nav--dashboard {
+            width: 80%;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
         /* Flash message styling */
@@ -197,22 +168,10 @@
 
     <h1>Welcome {{ current_user.username }} the Game Master Interface</h1>
 
-    <!-- World Seeder Button -->
-    <div class="card p-4 shadow-sm mb-4">
-        <h2>World Management</h2>
-        <p>Populate your game world with cities, shops, and items automatically.</p>
-        <form action="{{ url_for('gm.gm_seed_world') }}" method="POST" onsubmit="return confirm('Are you sure you want to seed your world? This will DELETE any existing cities, shops, and items associated with your GM profile and create new ones!');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <button type="submit" class="btn btn-primary">Seed My World Now!</button>
-        </form>
-        <small class="text-muted mt-2">
-            Warning: This action will clear out your current GM's cities, shops, and items before seeding new ones.
-        </small>
-    </div>
-
-    <div class="card p-4 shadow-sm">
-        <h2>Your Game Statistics (Coming Soon)</h2>
-        <p>Stats about your players, economy, and world will appear here.</p>
+    <div class="gm-primary-actions">
+        <a href="{{ url_for('gm.gm_view_campaigns') }}" class="button">Campaign Overview</a>
+        <a href="{{ url_for('gm.gm_view_players') }}" class="button">Player Overview</a>
+        <a href="{{ url_for('auth.logout') }}" class="button">Logout</a>
     </div>
 
     <!-- Simulation Control Panel -->
@@ -221,12 +180,10 @@
         <h2>Simulation Controls</h2>
         <p id="sim-feedback" class="text-muted small mb-2" style="text-align:center;min-height:1.25rem;"></p>
         <div class="simulation-controls" id="simulation-controls">
-            <button type="button" class="speed-button sim-action-btn {% if current_speed == 'pause' %}active{% endif %}" data-action="pause">Pause</button>
             <button type="button" class="speed-button sim-action-btn {% if current_speed == 'day' %}active{% endif %}" data-action="run-period" data-period="day">Simulate 1 Day</button>
             <button type="button" class="speed-button sim-action-btn {% if current_speed == 'week' %}active{% endif %}" data-action="run-period" data-period="week">Simulate 1 Week</button>
             <button type="button" class="speed-button sim-action-btn {% if current_speed == 'month' %}active{% endif %}" data-action="run-period" data-period="month">Simulate 1 Month</button>
             <button type="button" class="speed-button sim-action-btn {% if current_speed == 'year' %}active{% endif %}" data-action="run-period" data-period="year">Simulate 1 Year</button>
-            <button type="button" class="manual-tick-button sim-action-btn" data-action="manual-tick">Manual Tick</button>
         </div>
 
         <div class="gm-calendar-container">
@@ -243,36 +200,17 @@
                 {% endfor %}
             </div>
         </div>
-
-        <div class="simulation-status">
-            <div class="status-item">
-                <span class="status-label">Current game day</span>
-                <span class="status-value" id="gm-current-game-day">{{ gm_profile.current_game_day }}</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Speed</span>
-                <span class="status-value">{{ current_speed }}</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Last Tick Time</span>
-                <span class="status-value">{{ last_tick_time.strftime('%Y-%m-%d %H:%M:%S') }}</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Status</span>
-                <span class="status-value">{{ simulation_status }}</span>
-            </div>
-        </div>
     </div>
 
-    <!-- Button container for navigation -->
-    <div class="button-container">
-        <a href="{{ url_for('gm.gm_view_campaigns') }}" class="button">Manage Campaigns</a>
-        <a href="{{ url_for('gm.gm_view_players') }}" class="button">Player Manager</a>
-        <a href="{{ url_for('gm.gm_view_cities') }}" class="button">Manage Cities</a>
-        <a href="{{ url_for('gm.gm_view_shops') }}" class="button">Manage Shops</a>
-        <a href="{{ url_for('gm.gm_view_items') }}" class="button">Manage Items</a>
-        <a href="{{ url_for('auth.logout') }}" class="button">Logout</a>
+    {% include 'partials/gm_shops_city_list_panel.html' %}
+
+    <div class="gm-world-quick-nav--dashboard">
+        {% with show_back_to_dashboard=false, show_add_city=true %}
+        {% include 'partials/gm_world_quick_nav.html' %}
+        {% endwith %}
     </div>
+
+    {% include 'partials/gm_shops_city_list_scripts.html' %}
 
     <script>
     (function () {
@@ -282,9 +220,7 @@
         var csrf = document.querySelector('meta[name="csrf-token"]');
         var csrfToken = csrf ? csrf.getAttribute('content') : '';
         var urls = {
-            runPeriod: "{{ url_for('gm.gm_simulation_run_period') }}",
-            tick: "{{ url_for('gm.gm_run_simulation_tick') }}",
-            speed: "{{ url_for('gm.gm_update_simulation_speed') }}"
+            runPeriod: "{{ url_for('gm.gm_simulation_run_period') }}"
         };
 
         function setSimState(busy, activeBtn) {
@@ -302,10 +238,8 @@
         function updateCalendarDisplay(totalDay) {
             var n = parseInt(totalDay, 10);
             if (isNaN(n) || n < 1) return;
-            var elDay = document.getElementById('gm-current-game-day');
             var elTotal = document.getElementById('cal-total-days');
             var elMonth = document.getElementById('cal-month-name');
-            if (elDay) elDay.textContent = String(n);
             if (elTotal) elTotal.textContent = 'Day: ' + n;
             var dayOfMonth = ((n - 1) % 30) + 1;
             var month = Math.floor((n - 1) / 30) + 1;
@@ -382,57 +316,6 @@
             }
         }
 
-        async function manualTick(btn) {
-            if (simBusy) return;
-            setSimState(true, btn);
-            showFeedback('Running tick…', false);
-            try {
-                var response = await fetch(urls.tick, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: '{}'
-                });
-                var data = await response.json().catch(function () { return {}; });
-                if (response.status === 409) throw new Error(data.error || 'Simulation already running');
-                if (!response.ok) throw new Error(data.error || 'Tick failed');
-                if (data.current_game_day != null) updateCalendarDisplay(data.current_game_day);
-                showFeedback(data.message || 'Tick complete.', false);
-            } catch (e) {
-                console.error(e);
-                showFeedback(e.message || 'Tick failed', true);
-            } finally {
-                setSimState(false, null);
-            }
-        }
-
-        async function pauseSim(btn) {
-            if (simBusy) return;
-            setSimState(true, btn);
-            try {
-                var response = await fetch(urls.speed, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({ speed: 'pause' })
-                });
-                var data = await response.json().catch(function () { return {}; });
-                if (!response.ok) throw new Error(data.error || 'Pause failed');
-                showFeedback(data.message || 'Paused.', false);
-            } catch (e) {
-                console.error(e);
-                showFeedback(e.message || 'Pause failed', true);
-            } finally {
-                setSimState(false, null);
-            }
-        }
-
         if (controls) {
             controls.addEventListener('click', function (ev) {
                 var btn = ev.target.closest('.sim-action-btn');
@@ -440,10 +323,6 @@
                 var action = btn.getAttribute('data-action');
                 if (action === 'run-period') {
                     runPeriod(btn.getAttribute('data-period'), btn);
-                } else if (action === 'manual-tick') {
-                    manualTick(btn);
-                } else if (action === 'pause') {
-                    pauseSim(btn);
                 }
             });
         }
@@ -451,4 +330,3 @@
     </script>
 </body>
 </html>
-

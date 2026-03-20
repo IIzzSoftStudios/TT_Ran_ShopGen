@@ -4,11 +4,27 @@ Handles all shop-related business logic for GM routes
 """
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user
+from sqlalchemy.orm import subqueryload
+
+from app.constants.shops import SHOP_TYPE_DEFAULTS
 from app.extensions import db
 from app.models.backend import City, Shop, Item, ShopInventory
 from app.services.logging_config import gm_logger
 from app.routes.handlers.gm_helpers import get_current_gm_profile
 from collections import defaultdict
+
+
+def _normalize_shop_type(raw):
+    """Strip and title-case shop type for consistent grouping and display."""
+    if raw is None:
+        return ""
+    return str(raw).strip().title()
+
+
+def _normalize_shop_name(raw):
+    if raw is None:
+        return ""
+    return str(raw).strip()
 
 
 def group_cities_for_display(cities):
@@ -32,18 +48,72 @@ def group_cities_for_display(cities):
     return {region: dict(sizes) for region, sizes in grouped.items()}
 
 
+def get_shop_city_panel_context(gm_profile):
+    """
+    Build city_data and type_suggestions for the nested shops-by-city UI.
+    Used by GM View Shops and the GM Home dashboard.
+    """
+    cities = (
+        City.query.filter_by(gm_profile_id=gm_profile.id)
+        .options(subqueryload(City.shops))
+        .order_by(City.name)
+        .all()
+    )
+
+    discovered_rows = (
+        db.session.query(Shop.type)
+        .filter_by(gm_profile_id=gm_profile.id)
+        .distinct()
+        .all()
+    )
+    discovered_normalized = {
+        _normalize_shop_type(row[0]) for row in discovered_rows if row[0]
+    }
+    discovered_normalized.discard("")
+    type_suggestions = sorted(SHOP_TYPE_DEFAULTS | discovered_normalized)
+
+    city_data = []
+    for city in cities:
+        by_type = {}
+        for shop in sorted(city.shops, key=lambda s: (s.name or "").lower()):
+            type_key = _normalize_shop_type(shop.type) or "Unspecified"
+            by_type.setdefault(type_key, []).append(shop)
+        shop_type_rows = [
+            {
+                "type": type_key,
+                "count": len(shops),
+                "shops": sorted(shops, key=lambda s: (s.name or "").lower()),
+            }
+            for type_key, shops in by_type.items()
+        ]
+        shop_type_rows.sort(key=lambda r: (-r["count"], r["type"].lower()))
+        city_data.append(
+            {
+                "city": city,
+                "shop_count": len(city.shops),
+                "shop_type_rows": shop_type_rows,
+            }
+        )
+
+    return {"city_data": city_data, "type_suggestions": type_suggestions}
+
+
 def view_shops():
-    """View all shops for the current GM"""
+    """View shops grouped by city for nested card UI."""
     try:
         gm_profile, redirect_response = get_current_gm_profile()
         if redirect_response:
             return redirect_response
         gm_logger.info(f"view_shops called for user: {current_user.username}, GM Profile ID: {gm_profile.id}")
-        shops = Shop.query.filter_by(gm_profile_id=gm_profile.id).all()
-        gm_logger.info(f"Found {len(shops)} shops")
-        for shop in shops:
-            gm_logger.debug(f"Shop: {shop.name} (ID: {shop.shop_id}), Type: {shop.type}, Cities: {len(shop.cities)}")
-        return render_template("GM_view_shops.html", shops=shops)
+
+        ctx = get_shop_city_panel_context(gm_profile)
+        gm_logger.info(
+            f"view_shops: {len(ctx['city_data'])} cities, {len(ctx['type_suggestions'])} type suggestions"
+        )
+        return render_template(
+            "GM_view_shops.html",
+            **ctx,
+        )
     except Exception as e:
         gm_logger.error(f"Error in view_shops: {str(e)}", exc_info=True)
         flash(f"Error loading shops: {str(e)}", "danger")
@@ -53,8 +123,8 @@ def view_shops():
 def add_shop():
     """Add a new shop"""
     if request.method == "POST":
-        shop_name = request.form.get("name")
-        shop_type = request.form.get("type")
+        shop_name = _normalize_shop_name(request.form.get("name"))
+        shop_type = _normalize_shop_type(request.form.get("type"))
         city_ids = request.form.getlist("city_ids")
 
         print("DEBUG: Shop Name:", shop_name)
@@ -64,6 +134,10 @@ def add_shop():
         gm_profile, redirect_response = get_current_gm_profile()
         if redirect_response:
             return redirect_response
+
+        if not shop_name or not shop_type:
+            flash("Shop name and type are required.", "warning")
+            return redirect(url_for("gm.gm_add_shop"))
         
         try:
             gm_profile_id = gm_profile.id
@@ -112,9 +186,12 @@ def edit_shop(shop_id):
     shop = Shop.query.get_or_404(shop_id)
     
     if request.method == "POST":
-        shop.name = request.form["name"]
-        shop.type = request.form["type"]
-        
+        shop.name = _normalize_shop_name(request.form.get("name"))
+        shop.type = _normalize_shop_type(request.form.get("type"))
+        if not shop.name or not shop.type:
+            flash("Name and type are required.", "warning")
+            return redirect(url_for("gm.gm_edit_shop", shop_id=shop_id))
+
         # Handle city associations
         city_ids = request.form.getlist("city_ids")
         # Get current city associations
@@ -149,6 +226,37 @@ def edit_shop(shop_id):
     grouped_cities = group_cities_for_display(cities)
     linked_city_ids = [city.city_id for city in shop.cities]
     return render_template("GM_edit_shop.html", shop=shop, cities=cities, grouped_cities=grouped_cities, linked_city_ids=linked_city_ids)
+
+
+def update_shop_basic(shop_id):
+    """Update shop name and type only; preserves city M2M links."""
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+
+    shop = Shop.query.get_or_404(shop_id)
+    if shop.gm_profile_id != gm_profile.id:
+        flash("You don't have permission to update this shop.", "danger")
+        return redirect(url_for("gm.gm_view_shops"))
+
+    new_name = _normalize_shop_name(request.form.get("name"))
+    new_type = _normalize_shop_type(request.form.get("type"))
+
+    if not new_name or not new_type:
+        flash("Name and type are required.", "warning")
+        return redirect(url_for("gm.gm_view_shops"))
+
+    try:
+        shop.name = new_name
+        shop.type = new_type
+        db.session.commit()
+        flash(f"Updated {shop.name}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        gm_logger.error(f"update_shop_basic failed: {e}", exc_info=True)
+        flash(f"Error updating shop: {e}", "danger")
+
+    return redirect(url_for("gm.gm_view_shops"))
 
 
 def delete_shop(shop_id):

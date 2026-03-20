@@ -1,0 +1,364 @@
+/* Shared: GM View Shops + GM Home shops-by-city panel */
+
+.gm-shops-city-panel .button {
+  background-color: purple;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.gm-shops-city-panel .button:hover {
+  background-color: #2980b9;
+  transform: scale(1.1);
+}
+
+.gm-shops-city-panel .delete-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+.gm-shops-city-panel .delete-button:hover {
+  background-color: #c82333;
+  transform: scale(1.05);
+}
+
+.gm-shops-city-panel .content-container {
+  width: 80%;
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  background-color: white;
+  padding: 20px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.gm-shops-city-panel .content-container h2 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #212529;
+}
+
+.gm-shops-city-panel .m2m-banner {
+  background: #e7f1ff;
+  border: 1px solid #b8d4f0;
+  color: #1a3a5c;
+  padding: 12px 14px;
+  border-radius: 6px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.gm-shops-city-panel .city-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gm-shops-city-panel .city-block {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gm-shops-city-panel .city-block > summary {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.gm-shops-city-panel .city-block > summary::-webkit-details-marker {
+  display: none;
+}
+
+.gm-shops-city-panel .city-block > summary::before {
+  content: "\25B6";
+  font-size: 0.65rem;
+  color: #6c757d;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.gm-shops-city-panel .city-block[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.gm-shops-city-panel .city-block[open] > summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: #ddd;
+}
+
+.gm-shops-city-panel .city-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.gm-shops-city-panel .city-meta {
+  font-size: 0.95rem;
+  color: #333;
+  flex: 1 1 auto;
+  min-width: 140px;
+}
+
+.gm-shops-city-panel .shop-count-badge {
+  display: inline-block;
+  min-width: 5.5rem;
+  text-align: right;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #000;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.gm-shops-city-panel .city-summary-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-left: auto;
+}
+
+.gm-shops-city-panel .city-summary-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gm-shops-city-panel .city-summary-actions .button,
+.gm-shops-city-panel .city-summary-actions .delete-button {
+  padding: 8px 14px;
+  font-size: 13px;
+  transform: none;
+}
+
+.gm-shops-city-panel .city-summary-actions .button:hover,
+.gm-shops-city-panel .city-summary-actions .delete-button:hover {
+  transform: none;
+}
+
+.gm-shops-city-panel .city-panel {
+  padding: 0;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 5px 5px;
+  background: #fff;
+}
+
+.gm-shops-city-panel .type-table-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: normal;
+  background-color: purple;
+  color: #fff;
+  border-bottom: 1px solid #ddd;
+}
+
+.gm-shops-city-panel .type-block {
+  border-bottom: 1px solid #ddd;
+}
+
+.gm-shops-city-panel .type-block:last-child {
+  border-bottom: none;
+}
+
+.gm-shops-city-panel .city-panel > .type-block:nth-child(2n + 2) > summary {
+  background-color: #fff;
+}
+
+.gm-shops-city-panel .city-panel > .type-block:nth-child(2n + 3) > summary {
+  background-color: #f9f9f9;
+}
+
+.gm-shops-city-panel .type-block > summary {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: normal;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+
+.gm-shops-city-panel .type-block > summary::-webkit-details-marker {
+  display: none;
+}
+
+.gm-shops-city-panel .type-block > summary::before {
+  content: "\25B6";
+  font-size: 0.6rem;
+  color: #adb5bd;
+  flex-shrink: 0;
+  width: 1rem;
+  transition: transform 0.15s ease;
+}
+
+.gm-shops-city-panel .type-block[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.gm-shops-city-panel .type-name {
+  font-weight: 600;
+  color: #000;
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.gm-shops-city-panel .type-count {
+  font-variant-numeric: tabular-nums;
+  min-width: 3rem;
+  text-align: right;
+  padding: 4px 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #000;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.gm-shops-city-panel .shop-panel {
+  padding: 0 12px 12px 2.25rem;
+  background: #fff;
+  border-top: 1px solid #ddd;
+}
+
+.gm-shops-city-panel .shop-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.gm-shops-city-panel .shop-row:last-child {
+  border-bottom: none;
+}
+
+.gm-shops-city-panel .inline-update-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  max-width: 420px;
+}
+
+.gm-shops-city-panel .inline-update-form input[type="text"],
+.gm-shops-city-panel .inline-update-form input[list] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  background: #fff;
+  color: #212529;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.gm-shops-city-panel .btn-save-sm {
+  align-self: flex-start;
+  background-color: purple;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.gm-shops-city-panel .btn-save-sm:hover {
+  background-color: #2980b9;
+}
+
+.gm-shops-city-panel .shop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gm-shops-city-panel .shop-actions .button {
+  padding: 8px 14px;
+  font-size: 13px;
+  transform: none;
+}
+
+.gm-shops-city-panel .shop-actions .button:hover {
+  transform: none;
+}
+
+.gm-shops-city-panel .empty-city {
+  padding: 16px;
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+
+.gm-shops-city-panel .empty-state {
+  text-align: center;
+  padding: 24px;
+  color: #666;
+}
+
+.gm-shops-city-panel .modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.gm-shops-city-panel .modal-content {
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 500px;
+  border-radius: 5px;
+}
+
+.gm-shops-city-panel .modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Dashboard: space above panel (below simulation) */
+.gm-dashboard .gm-shops-city-panel {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0 8px;
+}

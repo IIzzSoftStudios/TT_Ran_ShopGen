@@ -4,8 +4,14 @@ from app.routes.handlers.gm_cities_handler import (
     view_cities, add_city, edit_city, delete_city
 )
 from app.routes.handlers.gm_shops_handler import (
-    view_shops, add_shop, edit_shop, delete_shop, view_city_shops, 
-    view_shop_items, remove_item_from_shop
+    view_shops,
+    add_shop,
+    edit_shop,
+    update_shop_basic,
+    delete_shop,
+    view_city_shops,
+    view_shop_items,
+    remove_item_from_shop,
 )
 from app.routes.handlers.gm_items_handler import (
     view_items, add_item, edit_item, item_detail, delete_item
@@ -93,6 +99,12 @@ def gm_add_shop():
 def gm_edit_shop(shop_id):
     """Edit an existing shop"""
     return edit_shop(shop_id)
+
+@gm_bp.route("/shops/update-basic/<int:shop_id>", methods=["POST"])
+@login_required
+def gm_update_shop_basic(shop_id):
+    """Inline update of shop name and type only."""
+    return update_shop_basic(shop_id)
 
 @gm_bp.route("/shops/delete/<int:shop_id>", methods=["POST"])
 @login_required
