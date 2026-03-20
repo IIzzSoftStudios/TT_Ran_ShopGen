@@ -1,10 +1,12 @@
 import random
 import logging
+import threading
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models.backend import Shop, ShopInventory, City, PriceHistory
+from app.models.users import GMProfile
 from app.services.economy import calculate_dynamic_price
 from app.config.simulation_config import SimulationConfig, default_config
 from app.config.price_history_config import default_price_history_retention
@@ -13,7 +15,12 @@ class SimulationEngine:
     """Handles the simulation of the game economy."""
     
     _instance = None
-    
+    _lock = threading.Lock()
+
+    @classmethod
+    def get_lock(cls) -> threading.Lock:
+        return cls._lock
+
     def __new__(cls, config: Optional[SimulationConfig] = None):
         if cls._instance is None:
             cls._instance = super(SimulationEngine, cls).__new__(cls)
@@ -238,6 +245,12 @@ class SimulationEngine:
                 if shop and shop.shop_id not in shops_seen:
                     shops_seen.add(shop.shop_id)
                     stats['shops_updated'] += 1
+
+            profile = GMProfile.query.filter_by(id=gm_profile_id).first()
+            if profile is None:
+                raise ValueError(f"No GMProfile found for id {gm_profile_id}")
+            profile.current_game_day = (profile.current_game_day or 1) + 1
+            stats["current_game_day"] = profile.current_game_day
 
             if commit:
                 db.session.commit()

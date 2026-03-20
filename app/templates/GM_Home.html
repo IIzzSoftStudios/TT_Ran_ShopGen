@@ -3,6 +3,7 @@
 <head>
     <title>Game Master Dashboard</title>
     {% include 'partials/theme_head.html' %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <style>
         /* Center everything */
@@ -132,6 +133,11 @@
             background-color: #1976D2;
         }
 
+        .simulation-controls.busy .speed-button,
+        .simulation-controls.busy .manual-tick-button {
+            pointer-events: none;
+        }
+
         /* Flash message styling */
         .flash-messages {
             position: fixed;
@@ -210,43 +216,38 @@
     </div>
 
     <!-- Simulation Control Panel -->
+    {% set cal = gm_profile.calendar_state %}
     <div class="simulation-panel">
         <h2>Simulation Controls</h2>
-        <div class="simulation-controls">
-            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <input type="hidden" name="speed" value="pause">
-                <button type="submit" class="speed-button {% if current_speed == 'pause' %}active{% endif %}">Pause</button>
-            </form>
-            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <input type="hidden" name="speed" value="day">
-                <button type="submit" class="speed-button {% if current_speed == 'day' %}active{% endif %}">Simulate 1 Day</button>
-            </form>
-            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <input type="hidden" name="speed" value="week">
-                <button type="submit" class="speed-button {% if current_speed == 'week' %}active{% endif %}">Simulate 1 Week</button>
-            </form>
-            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <input type="hidden" name="speed" value="month">
-                <button type="submit" class="speed-button {% if current_speed == 'month' %}active{% endif %}">Simulate 1 Month</button>
-            </form>
-            <form action="{{ url_for('gm.gm_update_simulation_speed') }}" method="post" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <input type="hidden" name="speed" value="year">
-                <button type="submit" class="speed-button {% if current_speed == 'year' %}active{% endif %}">Simulate 1 Year</button>
-            </form>
-            <form action="{{ url_for('gm.gm_run_simulation_tick') }}" method="post" style="display: inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <button type="submit" class="manual-tick-button">Manual Tick</button>
-            </form>
+        <p id="sim-feedback" class="text-muted small mb-2" style="text-align:center;min-height:1.25rem;"></p>
+        <div class="simulation-controls" id="simulation-controls">
+            <button type="button" class="speed-button sim-action-btn {% if current_speed == 'pause' %}active{% endif %}" data-action="pause">Pause</button>
+            <button type="button" class="speed-button sim-action-btn {% if current_speed == 'day' %}active{% endif %}" data-action="run-period" data-period="day">Simulate 1 Day</button>
+            <button type="button" class="speed-button sim-action-btn {% if current_speed == 'week' %}active{% endif %}" data-action="run-period" data-period="week">Simulate 1 Week</button>
+            <button type="button" class="speed-button sim-action-btn {% if current_speed == 'month' %}active{% endif %}" data-action="run-period" data-period="month">Simulate 1 Month</button>
+            <button type="button" class="speed-button sim-action-btn {% if current_speed == 'year' %}active{% endif %}" data-action="run-period" data-period="year">Simulate 1 Year</button>
+            <button type="button" class="manual-tick-button sim-action-btn" data-action="manual-tick">Manual Tick</button>
         </div>
+
+        <div class="gm-calendar-container">
+            <div class="gm-calendar-header">
+                <span id="cal-month-name">Month {{ cal.month }}</span>
+                <span id="cal-total-days">Day: {{ gm_profile.current_game_day }}</span>
+            </div>
+            <div class="gm-calendar-weekdays" aria-hidden="true">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+            <div class="gm-calendar-grid" id="calendar-grid">
+                {% for d in range(1, 31) %}
+                <div class="cal-day {% if d == cal.day %}active{% endif %}" data-day="{{ d }}">{{ d }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
         <div class="simulation-status">
             <div class="status-item">
-                <span class="status-label">Current Tick</span>
-                <span class="status-value">{{ current_tick }}</span>
+                <span class="status-label">Current game day</span>
+                <span class="status-value" id="gm-current-game-day">{{ gm_profile.current_game_day }}</span>
             </div>
             <div class="status-item">
                 <span class="status-label">Speed</span>
@@ -272,6 +273,182 @@
         <a href="{{ url_for('gm.gm_view_items') }}" class="button">Manage Items</a>
         <a href="{{ url_for('auth.logout') }}" class="button">Logout</a>
     </div>
+
+    <script>
+    (function () {
+        var simBusy = false;
+        var controls = document.getElementById('simulation-controls');
+        var feedback = document.getElementById('sim-feedback');
+        var csrf = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrf ? csrf.getAttribute('content') : '';
+        var urls = {
+            runPeriod: "{{ url_for('gm.gm_simulation_run_period') }}",
+            tick: "{{ url_for('gm.gm_run_simulation_tick') }}",
+            speed: "{{ url_for('gm.gm_update_simulation_speed') }}"
+        };
+
+        function setSimState(busy, activeBtn) {
+            simBusy = busy;
+            if (!controls) return;
+            controls.classList.toggle('busy', busy);
+            var btns = controls.querySelectorAll('.sim-action-btn');
+            btns.forEach(function (b) {
+                b.classList.toggle('disabled', busy);
+                b.classList.toggle('running', busy && b === activeBtn);
+                b.setAttribute('aria-busy', busy ? 'true' : 'false');
+            });
+        }
+
+        function updateCalendarDisplay(totalDay) {
+            var n = parseInt(totalDay, 10);
+            if (isNaN(n) || n < 1) return;
+            var elDay = document.getElementById('gm-current-game-day');
+            var elTotal = document.getElementById('cal-total-days');
+            var elMonth = document.getElementById('cal-month-name');
+            if (elDay) elDay.textContent = String(n);
+            if (elTotal) elTotal.textContent = 'Day: ' + n;
+            var dayOfMonth = ((n - 1) % 30) + 1;
+            var month = Math.floor((n - 1) / 30) + 1;
+            if (elMonth) elMonth.textContent = 'Month ' + month;
+            var prev = document.querySelector('.cal-day.active');
+            if (prev) prev.classList.remove('active');
+            var next = document.querySelector('.cal-day[data-day="' + dayOfMonth + '"]');
+            if (next) next.classList.add('active');
+        }
+
+        function showFeedback(msg, isError) {
+            if (!feedback) return;
+            feedback.textContent = msg || '';
+            feedback.style.color = isError ? 'var(--color-danger, #c00)' : 'var(--color-muted, #666)';
+        }
+
+        async function readNdjsonStream(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            while (true) {
+                var chunk = await reader.read();
+                if (chunk.done) break;
+                buffer += decoder.decode(chunk.value, { stream: true });
+                var lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                    if (!line) continue;
+                    var data = JSON.parse(line);
+                    if (data.error) throw new Error(data.error);
+                    if (data.current_game_day != null) {
+                        updateCalendarDisplay(data.current_game_day);
+                    }
+                }
+            }
+            var tail = buffer.trim();
+            if (tail) {
+                var data = JSON.parse(tail);
+                if (data.error) throw new Error(data.error);
+                if (data.current_game_day != null) updateCalendarDisplay(data.current_game_day);
+            }
+        }
+
+        async function runPeriod(period, btn) {
+            if (simBusy) return;
+            setSimState(true, btn);
+            showFeedback('Running simulation…', false);
+            try {
+                var response = await fetch(urls.runPeriod, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ period: period })
+                });
+                if (response.status === 409) {
+                    var j = await response.json().catch(function () { return {}; });
+                    throw new Error(j.error || 'Simulation already running');
+                }
+                if (!response.ok) {
+                    var errBody = await response.json().catch(function () { return {}; });
+                    throw new Error(errBody.error || 'Simulation request failed');
+                }
+                await readNdjsonStream(response);
+                showFeedback('Simulation finished.', false);
+            } catch (e) {
+                console.error(e);
+                showFeedback(e.message || 'Simulation interrupted', true);
+            } finally {
+                setSimState(false, null);
+            }
+        }
+
+        async function manualTick(btn) {
+            if (simBusy) return;
+            setSimState(true, btn);
+            showFeedback('Running tick…', false);
+            try {
+                var response = await fetch(urls.tick, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: '{}'
+                });
+                var data = await response.json().catch(function () { return {}; });
+                if (response.status === 409) throw new Error(data.error || 'Simulation already running');
+                if (!response.ok) throw new Error(data.error || 'Tick failed');
+                if (data.current_game_day != null) updateCalendarDisplay(data.current_game_day);
+                showFeedback(data.message || 'Tick complete.', false);
+            } catch (e) {
+                console.error(e);
+                showFeedback(e.message || 'Tick failed', true);
+            } finally {
+                setSimState(false, null);
+            }
+        }
+
+        async function pauseSim(btn) {
+            if (simBusy) return;
+            setSimState(true, btn);
+            try {
+                var response = await fetch(urls.speed, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ speed: 'pause' })
+                });
+                var data = await response.json().catch(function () { return {}; });
+                if (!response.ok) throw new Error(data.error || 'Pause failed');
+                showFeedback(data.message || 'Paused.', false);
+            } catch (e) {
+                console.error(e);
+                showFeedback(e.message || 'Pause failed', true);
+            } finally {
+                setSimState(false, null);
+            }
+        }
+
+        if (controls) {
+            controls.addEventListener('click', function (ev) {
+                var btn = ev.target.closest('.sim-action-btn');
+                if (!btn || simBusy) return;
+                var action = btn.getAttribute('data-action');
+                if (action === 'run-period') {
+                    runPeriod(btn.getAttribute('data-period'), btn);
+                } else if (action === 'manual-tick') {
+                    manualTick(btn);
+                } else if (action === 'pause') {
+                    pauseSim(btn);
+                }
+            });
+        }
+    })();
+    </script>
 </body>
 </html>
 

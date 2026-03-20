@@ -2,8 +2,9 @@
 GM Simulation Handler
 Handles all simulation-related business logic for GM routes
 """
-from flask import render_template, request, redirect, url_for, flash, jsonify, session
-from flask_login import current_user
+import json
+
+from flask import render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context
 from app.services.logging_config import gm_logger
 from app.services.simulation import SimulationEngine
 from app.scripts.seeder import seed_gm_data
@@ -33,20 +34,18 @@ def home():
 
     simulation_engine = SimulationEngine()
     _debug_request("GET", "/gm/")
-    
-    # Check if we should run a tick based on current speed
+
     if simulation_engine.should_run_tick():
         try:
             stats = simulation_engine.run_tick(gm_profile.id)
             flash(
                 f"Simulation tick completed: Updated {stats['shops_updated']} shops "
                 f"and {stats['items_updated']} items.",
-                "system"
+                "system",
             )
         except Exception as e:
             flash(f"Error during simulation tick: {str(e)}", "danger")
-    
-    # Log current simulation state
+
     gm_logger.debug(
         f"GM dashboard state:\n"
         f"  User ID: {gm_profile.id}\n"
@@ -54,13 +53,13 @@ def home():
         f"  Last tick: {simulation_engine.last_tick_time}\n"
         f"  Time since last tick: {datetime.now() - simulation_engine.last_tick_time}"
     )
-    
+
     return render_template(
         "GM_Home.html",
-        current_tick=0,  # Will be stored in database
+        gm_profile=gm_profile,
         current_speed=simulation_engine.current_speed,
         last_tick_time=simulation_engine.last_tick_time,
-        simulation_status="active" if simulation_engine.current_speed != "pause" else "paused"
+        simulation_status="active" if simulation_engine.current_speed != "pause" else "paused",
     )
 
 
@@ -68,30 +67,28 @@ def seed_world():
     """Route to trigger the seeding of the GM's world data."""
     simulation_engine = SimulationEngine()
     _debug_request("POST", "/gm/seed_world")
-    
+
     gm_profile, redirect_response = get_current_gm_profile()
     if redirect_response:
         return redirect_response
 
     try:
-        # Call the seeding function with the GM's profile ID
         success = seed_gm_data(
             gm_profile.id,
             num_cities=10,
             num_shops_per_city=10,
-            num_global_items=75, # Global distinct items to choose from
-            num_items_per_shop=10 # Items assigned to each shop
+            num_global_items=75,
+            num_items_per_shop=10,
         )
         if success:
             flash("Your world has been successfully seeded!", "success")
         else:
             flash("Failed to seed world. Check server logs for details.", "error")
     except Exception as e:
-        db.session.rollback() # Ensure rollback on error
+        db.session.rollback()
         gm_logger.error(f"Error during seeding world: {str(e)}", exc_info=True)
         flash(f"An error occurred during seeding: {str(e)}", "error")
 
-    # Redirect back to the GM home page (dashboard)
     return redirect(url_for("gm.gm_home"))
 
 
@@ -99,15 +96,17 @@ def run_simulation_tick():
     """Execute one simulation tick manually from the GM dashboard."""
     simulation_engine = SimulationEngine()
     _debug_request("POST", "/gm/simulation/tick")
-    
+
     gm_profile, redirect_response = get_current_gm_profile()
     if redirect_response:
         return redirect_response
 
+    lock = SimulationEngine.get_lock()
+    if not lock.acquire(blocking=False):
+        return jsonify({"error": "Simulation already running", "status": "busy"}), 409
     try:
         stats = simulation_engine.run_tick(gm_profile.id)
-        
-        # Log the tick execution
+
         gm_logger.debug(
             f"Manual tick execution:\n"
             f"  Campaign ID: {gm_profile.id}\n"
@@ -116,66 +115,98 @@ def run_simulation_tick():
             f"  Last tick time: {simulation_engine.last_tick_time}\n"
             f"  Time since last tick: {datetime.now() - simulation_engine.last_tick_time}"
         )
-        
-        return jsonify({
-            "status": "success",
-            "message": f"Simulation tick completed: Updated {stats['shops_updated']} shops and {stats['items_updated']} items.",
-            "stats": stats
-        })
-        
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": (
+                    f"Simulation tick completed: Updated {stats['shops_updated']} shops "
+                    f"and {stats['items_updated']} items."
+                ),
+                "stats": stats,
+                "current_game_day": stats.get("current_game_day"),
+            }
+        )
     except Exception as e:
         gm_logger.error(f"Error during simulation tick: {str(e)}")
-        flash(f"Error during simulation tick: {str(e)}", "danger")
-    
-    return redirect(url_for("gm.gm_home"))
+        return jsonify({"error": str(e), "status": "error"}), 500
+    finally:
+        lock.release()
 
 
 def update_simulation_speed():
-    """Update the simulation speed setting and run the appropriate time period."""
+    """Pause the simulation engine (period runs use the NDJSON stream endpoint)."""
     simulation_engine = SimulationEngine()
     _debug_request("POST", "/gm/simulation/speed")
-    
+
     gm_profile, redirect_response = get_current_gm_profile()
     if redirect_response:
         return redirect_response
 
     try:
-        speed = request.form.get("speed", "pause")
-        speed_to_period = {"day": "day", "week": "week", "month": "month", "year": "year"}
-        valid_speeds = ["pause", "day", "week", "month", "year"]
-        if speed not in valid_speeds:
-            flash(f"Invalid simulation option: {speed}.", "error")
-            return redirect(url_for("gm.gm_home"))
-
-        if speed == "pause":
-            simulation_engine.set_speed(speed)
-            flash("Simulation paused", "info")
-        else:
-            time_period = speed_to_period[speed]
-            simulation_engine.set_speed(speed)
-            stats = simulation_engine.run_time_period(gm_profile.id, time_period)
-
-            # Log the simulation results
-            gm_logger.debug(
-                f"Time period simulation completed:\n"
-                f"  Period: {time_period}\n"
-                f"  Ticks completed: {stats['ticks_completed']}\n"
-                f"  Shops updated: {stats['shops_updated']}\n"
-                f"  Items updated: {stats['items_updated']}\n"
-                f"  Duration: {stats['total_duration']:.2f}s"
+        payload = request.get_json(silent=True) or {}
+        speed = request.form.get("speed") or payload.get("speed", "pause")
+        if speed != "pause":
+            return (
+                jsonify(
+                    {
+                        "error": "Period simulations use POST /gm/simulation/run-period",
+                        "status": "invalid",
+                    }
+                ),
+                400,
             )
-            
-            flash(
-                f"Simulated {time_period}: Updated {stats['shops_updated']} shops "
-                f"and {stats['items_updated']} items in {stats['total_duration']:.2f}s",
-                "system"
-            )
-        
+
+        simulation_engine.set_speed("pause")
+        return jsonify({"status": "ok", "message": "Simulation paused"})
     except Exception as e:
         gm_logger.error(f"Error during simulation: {str(e)}")
-        flash(f"Error during simulation: {str(e)}", "danger")
-    
-    return redirect(url_for("gm.gm_home"))
+        return jsonify({"error": str(e), "status": "error"}), 500
+
+
+def run_period_stream():
+    """Run day/week/month/year as NDJSON stream (one line per tick, commit per tick)."""
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+
+    payload = request.get_json(silent=True) or {}
+    period = payload.get("period")
+    ticks_map = {"day": 1, "week": 7, "month": 30, "year": 365}
+    if period not in ticks_map:
+        return jsonify({"error": "Invalid or missing period", "status": "invalid"}), 400
+
+    lock = SimulationEngine.get_lock()
+    if not lock.acquire(blocking=False):
+        return jsonify({"error": "Simulation already running", "status": "busy"}), 409
+
+    total_ticks = ticks_map[period]
+
+    def generate():
+        engine = None
+        try:
+            engine = SimulationEngine()
+            engine.set_speed(period)
+            for i in range(1, total_ticks + 1):
+                stats = engine.run_tick(gm_profile.id, commit=True)
+                line = {
+                    "current_game_day": stats["current_game_day"],
+                    "tick": i,
+                    "total": total_ticks,
+                }
+                yield json.dumps(line) + "\n"
+        except Exception as e:
+            gm_logger.error(f"Streamed simulation failed: {str(e)}", exc_info=True)
+            yield json.dumps({"error": str(e), "tick": None}) + "\n"
+        finally:
+            if engine is not None:
+                try:
+                    engine.set_speed("pause")
+                except Exception:
+                    pass
+            lock.release()
+
+    return Response(stream_with_context(generate()), mimetype="application/x-ndjson")
 
 
 def debug_form():

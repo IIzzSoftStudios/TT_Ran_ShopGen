@@ -144,7 +144,8 @@ class GMProfile(db.Model):
     __tablename__ = "gm_profile"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
-    
+    current_game_day = db.Column(db.Integer, default=1, nullable=False, server_default="1")
+
     # Relationship back to the User
     user = db.relationship("User", back_populates="gm_profile")
 
@@ -162,6 +163,20 @@ class GMProfile(db.Model):
     def __repr__(self):
         username = self.user.username if self.user else "N/A"
         return f"<GMProfile (User: {username})>"
+
+    @property
+    def calendar_state(self):
+        """30-day months; one simulation tick advances one game day."""
+        total_days = self.current_game_day or 1
+        month = ((total_days - 1) // 30) + 1
+        day_of_month = ((total_days - 1) % 30) + 1
+        day_of_week = (total_days - 1) % 7
+        return {
+            "month": month,
+            "day": day_of_month,
+            "dow": day_of_week,
+            "total": total_days,
+        }
 
 class Player(db.Model):
     __tablename__ = "player"

@@ -17,7 +17,12 @@ from app.routes.handlers.gm_campaigns_handler import (
     sync_players_to_campaign,
 )
 from app.routes.handlers.gm_simulation_handler import (
-    home, seed_world, run_simulation_tick, update_simulation_speed, debug_form
+    home,
+    seed_world,
+    run_simulation_tick,
+    update_simulation_speed,
+    run_period_stream,
+    debug_form,
 )
 from app.routes.handlers.gm_players_handler import (
     list_players,
@@ -192,8 +197,15 @@ def gm_run_simulation_tick():
 @gm_bp.route("/simulation/speed", methods=["POST"])
 @login_required
 def gm_update_simulation_speed():
-    """Update the simulation speed setting and run the appropriate time period"""
+    """Pause the simulation engine (period runs use the streaming endpoint)."""
     return update_simulation_speed()
+
+
+@gm_bp.route("/simulation/run-period", methods=["POST"])
+@login_required
+def gm_simulation_run_period():
+    """Run a simulation period as NDJSON (one line per game day)."""
+    return run_period_stream()
 
 
 # Player / Character management routes
