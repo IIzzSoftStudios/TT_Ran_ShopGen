@@ -1,0 +1,84 @@
+﻿<script>
+    function showDeleteConfirmation(shopId, shopName) {
+        const modal = document.getElementById('deleteModal');
+        const modalText = document.getElementById('deleteModalText');
+        modalText.textContent = 'Are you sure you want to delete ' + shopName + '? This action cannot be undone.';
+        modal.style.display = 'block';
+        window.shopIdToDelete = shopId;
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').style.display = 'none';
+    }
+
+    function confirmDelete() {
+        if (window.shopIdToDelete) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/gm/shops/delete/' + window.shopIdToDelete;
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function showCityDeleteConfirmation(cityId, cityName) {
+        const modal = document.getElementById('cityDeleteModal');
+        const modalText = document.getElementById('cityDeleteModalText');
+        modalText.textContent = 'Are you sure you want to delete ' + cityName + '? This action cannot be undone.';
+        modal.style.display = 'block';
+        window.cityIdToDelete = cityId;
+    }
+
+    function closeCityDeleteModal() {
+        document.getElementById('cityDeleteModal').style.display = 'none';
+    }
+
+    function confirmCityDelete() {
+        if (window.cityIdToDelete) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/gm/cities/delete/' + window.cityIdToDelete;
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', function () {
+        document.body.addEventListener('click', function (e) {
+            const shopBtn = e.target.closest('.delete-button[data-shop-id]');
+            if (shopBtn) {
+                var sid = parseInt(shopBtn.getAttribute('data-shop-id'), 10);
+                var sname = shopBtn.getAttribute('data-shop-name') || '';
+                showDeleteConfirmation(sid, sname);
+                return;
+            }
+            const cityBtn = e.target.closest('.delete-button[data-city-id]');
+            if (cityBtn) {
+                var cid = parseInt(cityBtn.getAttribute('data-city-id'), 10);
+                var cname = cityBtn.getAttribute('data-city-name') || '';
+                showCityDeleteConfirmation(cid, cname);
+            }
+        });
+    });
+
+    window.addEventListener('click', function (event) {
+        const modal = document.getElementById('deleteModal');
+        if (modal && event.target === modal) {
+            closeDeleteModal();
+        }
+        const cityModal = document.getElementById('cityDeleteModal');
+        if (cityModal && event.target === cityModal) {
+            closeCityDeleteModal();
+        }
+    });
+</script>

@@ -1,7 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Game Master Dashboard</title>
+    {% include 'partials/theme_head.html' %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_shops_city_list.css') }}">
+
     <style>
         /* Center everything */
         body {
@@ -9,7 +13,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start; /* Align to top */
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
@@ -18,17 +22,19 @@
         /* Styling for the heading */
         h1 {
             font-size: 2.5rem;
-            color: black;
             margin-top: 20px; /* Add some space from the top */
             margin-bottom: 20px; /* Space between heading and buttons */
         }
 
-        /* Button Container */
-        .button-container {
+        /* Primary actions: match simulation panel width */
+        .gm-primary-actions {
             display: flex;
             justify-content: center;
-            gap: 15px; /* Space between buttons */
-            margin-bottom: 30px;
+            gap: 15px;
+            flex-wrap: wrap;
+            width: 80%;
+            max-width: 800px;
+            margin: 0 auto 30px;
         }
 
         /* Button Styling */
@@ -41,6 +47,8 @@
             font-size: 16px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .button:hover {
@@ -70,6 +78,7 @@
             justify-content: center;
             gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .speed-button {
@@ -90,189 +99,405 @@
             background-color: #2E7D32;
         }
 
-        .simulation-status {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background-color: #f8f9fa;
+        .simulation-controls.busy .speed-button {
+            pointer-events: none;
+        }
+
+        .gm-world-quick-nav--dashboard {
+            width: 80%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Flash message styling */
+        .flash-messages {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .flash-message {
+            padding: 15px 20px;
             border-radius: 5px;
-            margin-top: 15px;
-        }
-
-        .status-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .status-label {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        .status-value {
-            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: white;
             font-weight: bold;
-            color: #333;
+            animation: slideIn 0.3s ease-out;
         }
 
-        .manual-tick-button {
+        .flash-message.success {
+            background-color: #4CAF50;
+        }
+
+        .flash-message.error {
+            background-color: #f44336;
+        }
+
+        .flash-message.info {
             background-color: #2196F3;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        #simulation-controls.busy { opacity: 0.6; pointer-events: none; }
+        .sim-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 12px; }
+        .sim-action-btn, .manual-tick-button {
+            background-color: #4CAF50;
             color: white;
             border: none;
             padding: 8px 16px;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            font-size: 14px;
         }
-
-        .manual-tick-button:hover {
-            background-color: #1976D2;
+        .manual-tick-button { background-color: #2196F3; }
+        .manual-tick-button:hover { background-color: #1976D2; }
+        .sim-action-btn:hover { background-color: #45a049; }
+        #sim-feedback { min-height: 1.2em; text-align: center; margin: 8px 0; font-size: 14px; }
+        .simulation-status {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-top: 12px;
         }
+        .status-item { display: flex; flex-direction: column; align-items: center; min-width: 100px; }
+        .status-label { font-size: 0.85em; color: #666; }
+        .status-value { font-size: 1.05em; font-weight: bold; color: #333; }
     </style>
-    <script>
-        // Function to navigate to a URL
-        function navigateTo(url) {
-            window.location.href = url;
-        }
-
-        // Function to update simulation speed
-        async function updateSimulationSpeed(speed) {
-            try {
-                const response = await fetch('/api/simulation/speed', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ speed: speed })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to update simulation speed');
-                }
-                
-                // Update UI to show active speed
-                document.querySelectorAll('.speed-button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                document.querySelector(`[data-speed="${speed}"]`).classList.add('active');
-                
-                // Update status
-                updateSimulationStatus();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to update simulation speed');
-            }
-        }
-
-        // Function to perform manual tick
-        async function performManualTick() {
-            try {
-                const response = await fetch('/api/simulation/tick', {
-                    method: 'POST'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to perform manual tick');
-                }
-                
-                // Update status
-                updateSimulationStatus();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to perform manual tick');
-            }
-        }
-
-        // Function to update simulation status
-        async function updateSimulationStatus() {
-            try {
-                console.log('Fetching simulation status...');
-                const response = await fetch('/api/simulation/status');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch simulation status');
-                }
-                
-                const status = await response.json();
-                console.log('Received status:', status);
-                
-                // Get current values before update
-                const currentTick = document.getElementById('current-tick').textContent;
-                const newTick = status.current_tick;
-                
-                // Update status display
-                document.getElementById('current-tick').textContent = newTick;
-                document.getElementById('current-speed').textContent = status.speed;
-                document.getElementById('last-tick-time').textContent = new Date(status.last_tick_time).toLocaleString();
-                document.getElementById('simulation-status').textContent = status.status;
-                
-                // Log if tick changed
-                if (currentTick !== newTick) {
-                    console.log(`Tick updated: ${currentTick} -> ${newTick}`);
-                }
-            } catch (error) {
-                console.error('Error updating simulation status:', error);
-            }
-        }
-
-        // Update status every 5 seconds
-        const statusInterval = setInterval(updateSimulationStatus, 5000);
-        
-        // Clean up interval when page is unloaded
-        window.addEventListener('beforeunload', () => {
-            clearInterval(statusInterval);
-        });
-
-        // Initial status update
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Page loaded, performing initial status update');
-            updateSimulationStatus();
-        });
-    </script>
 </head>
-<body>
-    <!-- Styled and centered heading -->
-    <h1>Welcome to the Game Master Interface</h1>
+<body class="gm-dashboard">
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    {% if category != 'system' %}
+                    <div class="flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
 
-    <!-- Simulation Control Panel -->
+    <h1>Welcome {{ current_user.username }} the Game Master Interface</h1>
+
+    <div class="gm-primary-actions">
+        <a href="{{ url_for('gm.view_campaigns') }}" class="button">Campaign Overview</a>
+        <a href="{{ url_for('gm.gm_view_players') }}" class="button">Player Overview</a>
+        <a href="{{ url_for('auth.logout') }}" class="button">Logout</a>
+    </div>
+
+    <!-- Simulation Control Panel (Celery job polling — workspace behavior) -->
+    {% set cal = gm_profile.calendar_state %}
     <div class="simulation-panel">
-        <h2>Simulation Controls</h2>
-        <div class="simulation-controls">
-            <button class="speed-button" data-speed="pause" onclick="updateSimulationSpeed('pause')">Pause</button>
-            <button class="speed-button" data-speed="1x" onclick="updateSimulationSpeed('1x')">1x</button>
-            <button class="speed-button" data-speed="5x" onclick="updateSimulationSpeed('5x')">5x</button>
-            <button class="speed-button" data-speed="100x" onclick="updateSimulationSpeed('100x')">100x</button>
-            <button class="speed-button" data-speed="1000x" onclick="updateSimulationSpeed('1000x')">1000x</button>
-            <button class="manual-tick-button" onclick="performManualTick()">Manual Tick</button>
+        <h2>Simulation</h2>
+        <div id="simulation-controls">
+            <div class="sim-row">
+                <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('day', this)">Run day</button>
+                <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('week', this)">Run week</button>
+                <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('month', this)">Run month</button>
+                <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('year', this)">Run year</button>
+            </div>
+            <div class="sim-row">
+                <button type="button" class="manual-tick-button" onclick="performManualTick()">Manual tick</button>
+                <button type="button" class="sim-action-btn" onclick="pauseSimulation()">Pause</button>
+            </div>
         </div>
+        <div id="sim-feedback"></div>
         <div class="simulation-status">
             <div class="status-item">
-                <span class="status-label">Current Tick</span>
-                <span class="status-value" id="current-tick">-</span>
+                <span class="status-label">Sim tick</span>
+                <span class="status-value" id="current-tick">—</span>
             </div>
             <div class="status-item">
                 <span class="status-label">Speed</span>
-                <span class="status-value" id="current-speed">-</span>
+                <span class="status-value" id="current-speed">—</span>
             </div>
             <div class="status-item">
-                <span class="status-label">Last Tick Time</span>
-                <span class="status-value" id="last-tick-time">-</span>
+                <span class="status-label">Last tick</span>
+                <span class="status-value" id="last-tick-time">—</span>
             </div>
             <div class="status-item">
                 <span class="status-label">Status</span>
-                <span class="status-value" id="simulation-status">-</span>
+                <span class="status-value" id="simulation-status">—</span>
+            </div>
+        </div>
+
+        <div class="gm-calendar-container">
+            <div class="gm-calendar-header">
+                <span id="cal-year-name">Year {{ cal.year }}</span>
+                <span id="cal-month-name">Month {{ cal.month_of_year }}</span>
+                <span id="cal-total-days">Day: {{ gm_profile.current_game_day }}</span>
+            </div>
+            <div class="gm-calendar-weekdays" aria-hidden="true">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+            <div class="gm-calendar-grid" id="calendar-grid">
+                {% for d in range(1, 31) %}
+                <div class="cal-day {% if d == cal.day %}active{% endif %}" data-day="{{ d }}">{{ d }}</div>
+                {% endfor %}
             </div>
         </div>
     </div>
 
-    <!-- Button container for navigation -->
-    <div class="button-container">
-        <a href="{{ url_for('gm.view_cities') }}" class="button">Manage Cities</a>
-        <a href="{{ url_for('gm.view_shops') }}" class="button">Manage Shops</a>
-        <a href="{{ url_for('gm.view_items') }}" class="button">Manage Items</a>
-        <a href="{{ url_for('auth.logout') }}" class="button">Logout</a>
+    <div class="gm-world-quick-nav--dashboard">
+        {% with show_back_to_dashboard=false, show_add_city=true %}
+        {% include 'partials/gm_world_quick_nav.html' %}
+        {% endwith %}
     </div>
+
+    {% include 'partials/gm_shops_city_list_panel.html' %}
+
+    {% include 'partials/gm_shops_city_list_scripts.html' %}
+
+    <script>
+    (function () {
+        var simBusy = false;
+        var controls = document.getElementById('simulation-controls');
+        var feedback = document.getElementById('sim-feedback');
+        var csrf = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrf ? csrf.getAttribute('content') : '';
+        var urls = {
+            runPeriod: "{{ url_for('gm.gm_simulation_run_period') }}",
+            jobStatus: "{{ url_for('gm.gm_simulation_job_status', job_id='__JOB_ID__') }}",
+            manualTick: "{{ url_for('gm.gm_run_simulation_tick') }}",
+            simSpeed: "{{ url_for('gm.gm_update_simulation_speed') }}",
+            apiStatus: "{{ url_for('simulation.get_simulation_status') }}"
+        };
+
+        function setSimState(busy) {
+            simBusy = busy;
+            if (controls) controls.classList.toggle('busy', busy);
+        }
+
+        function showFeedback(msg, isError) {
+            if (!feedback) return;
+            feedback.textContent = msg || '';
+            feedback.style.color = isError ? '#c00' : '#555';
+        }
+
+        function jobStatusUrl(jobId) {
+            return urls.jobStatus.replace('__JOB_ID__', encodeURIComponent(jobId));
+        }
+
+        function updateCalendarDisplay(totalDay) {
+            var n = parseInt(totalDay, 10);
+            if (isNaN(n) || n < 1) return;
+            var elTotal = document.getElementById('cal-total-days');
+            var elMonth = document.getElementById('cal-month-name');
+            var elYear = document.getElementById('cal-year-name');
+            if (elTotal) elTotal.textContent = 'Day: ' + n;
+            // 30-day months, 12 months/year (360 days/year). Keep this math in
+            // sync with GMProfile.calendar_state on the server.
+            var dayOfMonth = ((n - 1) % 30) + 1;
+            var year = Math.floor((n - 1) / 360) + 1;
+            var monthOfYear = Math.floor(((n - 1) % 360) / 30) + 1;
+            if (elMonth) elMonth.textContent = 'Month ' + monthOfYear;
+            if (elYear) elYear.textContent = 'Year ' + year;
+            var prev = document.querySelector('.cal-day.active');
+            if (prev) prev.classList.remove('active');
+            var next = document.querySelector('.cal-day[data-day="' + dayOfMonth + '"]');
+            if (next) next.classList.add('active');
+        }
+
+        async function pollJobUntilDone(jobId) {
+            var delayMs = 2000;
+            var maxDelayMs = 8000;
+            var startedAt = Date.now();
+            var maxWallMs = 2 * 60 * 60 * 1000;
+            var unknownStreak = 0;
+            var maxUnknownStreak = 8;
+
+            function isTerminalSuccess(st) {
+                return st === 'success' || st === 'done' || st === 'complete' || st === 'finished';
+            }
+
+            function isProgress(st) {
+                return st === 'queued' || st === 'running' || st === 'busy';
+            }
+
+            while (true) {
+                if (Date.now() - startedAt > maxWallMs) {
+                    throw new Error('Simulation polling timed out. The job may still be running on the server.');
+                }
+
+                var resp = await fetch(jobStatusUrl(jobId), {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (resp.status === 404) {
+                    await new Promise(function (r) { setTimeout(r, delayMs); });
+                    delayMs = Math.min(maxDelayMs, Math.floor(delayMs * 1.25));
+                    continue;
+                }
+                var j = await resp.json().catch(function () { return {}; });
+                if (j.current_game_day != null) updateCalendarDisplay(j.current_game_day);
+
+                var st = j.status;
+                if (typeof st === 'string') {
+                    st = st.trim();
+                }
+
+                if (isTerminalSuccess(st)) {
+                    return;
+                }
+                if (st === 'error' || j.error) {
+                    throw new Error(j.error || 'Simulation failed');
+                }
+
+                var td = j.ticks_done;
+                var tt = j.ticks_total;
+                if (typeof td === 'number' && typeof tt === 'number' && tt > 0 && td >= tt && st !== 'error') {
+                    return;
+                }
+
+                if (isProgress(st) || st === undefined || st === null || st === '') {
+                    unknownStreak = 0;
+                } else {
+                    unknownStreak += 1;
+                    if (unknownStreak >= maxUnknownStreak) {
+                        throw new Error(
+                            'Unexpected job status from server: ' + String(st) + '. Stopping poll to avoid an infinite loop.'
+                        );
+                    }
+                }
+
+                await new Promise(function (r) { setTimeout(r, delayMs); });
+                delayMs = Math.min(maxDelayMs, Math.floor(delayMs * 1.25));
+            }
+        }
+
+        window.runSimulationPeriod = async function (period, btn) {
+            if (simBusy) return;
+            setSimState(true);
+            showFeedback('Running simulation…', false);
+            try {
+                var response = await fetch(urls.runPeriod, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ period: period })
+                });
+                if (response.status === 409) {
+                    var b = await response.json().catch(function () { return {}; });
+                    throw new Error(b.error || 'Simulation already running');
+                }
+                if (response.status === 202) {
+                    var j = await response.json();
+                    if (!j.job_id) throw new Error('No job id');
+                    await pollJobUntilDone(j.job_id);
+                    showFeedback('Simulation finished.', false);
+                    updateSimulationStatus();
+                    return;
+                }
+                if (!response.ok) {
+                    var err = await response.json().catch(function () { return {}; });
+                    throw new Error(err.error || 'Simulation request failed');
+                }
+                showFeedback('Simulation finished.', false);
+                updateSimulationStatus();
+            } catch (err) {
+                console.error(err);
+                showFeedback(err.message || 'Simulation failed', true);
+            } finally {
+                setSimState(false);
+            }
+        };
+
+        window.performManualTick = async function () {
+            if (simBusy) return;
+            setSimState(true);
+            showFeedback('Running manual tick…', false);
+            try {
+                var response = await fetch(urls.manualTick, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({})
+                });
+                var j = await response.json().catch(function () { return {}; });
+                if (j.current_game_day != null) updateCalendarDisplay(j.current_game_day);
+                if (!response.ok) throw new Error(j.error || 'Tick failed');
+                showFeedback('Tick complete.', false);
+                updateSimulationStatus();
+            } catch (e) {
+                showFeedback(e.message || 'Tick failed', true);
+            } finally {
+                setSimState(false);
+            }
+        };
+
+        window.pauseSimulation = async function () {
+            if (simBusy) return;
+            try {
+                await fetch(urls.simSpeed, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ speed: 'pause' })
+                });
+                showFeedback('Pause requested.', false);
+                updateSimulationStatus();
+            } catch (e) {
+                showFeedback(e.message || 'Pause failed', true);
+            }
+        };
+
+        async function updateSimulationStatus() {
+            try {
+                var resp = await fetch(urls.apiStatus, { credentials: 'same-origin' });
+                var status = await resp.json();
+                var tickEl = document.getElementById('current-tick');
+                var speedEl = document.getElementById('current-speed');
+                var timeEl = document.getElementById('last-tick-time');
+                var statEl = document.getElementById('simulation-status');
+                if (tickEl) tickEl.textContent = status.current_tick != null ? status.current_tick : '—';
+                if (speedEl) speedEl.textContent = status.speed != null ? status.speed : '—';
+                if (timeEl) {
+                    if (status.last_tick_time) {
+                        timeEl.textContent = new Date(status.last_tick_time).toLocaleString();
+                    } else {
+                        timeEl.textContent = '—';
+                    }
+                }
+                if (statEl) statEl.textContent = status.status != null ? status.status : '—';
+                if (status.current_game_day != null) updateCalendarDisplay(status.current_game_day);
+            } catch (e) {
+                console.warn('status poll', e);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            updateSimulationStatus();
+            setInterval(updateSimulationStatus, 5000);
+        });
+    })();
+    </script>
 </body>
 </html>
-

@@ -1,15 +1,19 @@
+"""Legacy economic tick: regional/global markets via MarketService (not demand modifiers).
+
+Dashboard/Celery simulation uses ``app.services.simulation.SimulationEngine`` instead.
+"""
 from datetime import datetime
 from typing import Dict, List, Optional
 from sqlalchemy import func
 from app.models import (
     Shop, ShopInventory, Item, City, ResourceNode,
     ProductionHistory, ResourceTransform, MarketEvent,
-    ShopMaintenance, SimulationState, SimulationLog,
+    SimulationState, SimulationLog,
     DemandModifier, ModifierTarget
 )
 from app.extensions import db
-from app.services.economy.demand import calculate_demand
 from app.services.economy.market_service import MarketService
+from app.services.simulation_state_helpers import get_simulation_state_for_gm
 
 class EconomicSimulationTick:
     def __init__(self, gm_profile_id: int):
@@ -22,7 +26,7 @@ class EconomicSimulationTick:
 
     def _get_current_tick(self) -> int:
         """Get the current simulation tick number."""
-        state = SimulationState.query.filter_by(gm_profile_id=self.gm_profile_id).first()
+        state = get_simulation_state_for_gm(db.session, self.gm_profile_id)
         return state.current_tick if state else 0
 
     def _log_event(self, event_type: str, details: dict):
@@ -86,7 +90,9 @@ class EconomicSimulationTick:
     def _process_npc_purchases(self):
         """Simulate NPC purchases from shops."""
         for city_id, demands in self.city_demands.items():
-            city = City.query.get(city_id)
+            city = City.query.filter_by(
+                city_id=city_id, gm_profile_id=self.gm_profile_id
+            ).first()
             if not city:
                 continue
 
@@ -157,21 +163,9 @@ class EconomicSimulationTick:
                     "inventory_value": inventory_value
                 })
 
-    def _process_shop_maintenance(self):
-        """Process daily maintenance costs for shops."""
-        for shop in Shop.query.filter_by(gm_profile_id=self.gm_profile_id).all():
-            maintenance = ShopMaintenance.query.filter_by(shop_id=shop.shop_id).first()
-            if maintenance:
-                # TODO: Implement proper shop balance tracking
-                # For now, just log the maintenance cost
-                self._log_event("maintenance", {
-                    "shop_id": shop.shop_id,
-                    "cost": maintenance.daily_cost
-                })
-
     def _update_simulation_state(self):
         """Update the simulation state for the next tick."""
-        state = SimulationState.query.filter_by(gm_profile_id=self.gm_profile_id).first()
+        state = get_simulation_state_for_gm(db.session, self.gm_profile_id)
         if state:
             state.current_tick += 1
             state.last_tick_time = datetime.utcnow()
@@ -204,14 +198,12 @@ class EconomicSimulationTick:
             # Check shop viability
             self._check_shop_viability()
 
-            # Process shop maintenance
-            self._process_shop_maintenance()
-
             # Update simulation state
             self._update_simulation_state()
 
             # Commit all changes
             db.session.commit()
+            db.session.expire_all()
 
             return True, "Simulation tick completed successfully"
 

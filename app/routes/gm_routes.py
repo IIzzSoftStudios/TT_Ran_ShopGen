@@ -1,13 +1,58 @@
+import traceback
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
-from app.models import db, City, Shop, Item, ShopInventory
+
+from app.extensions import db
+from app.models import City, Shop, Item, ShopInventory
+from app.routes.handlers.gm_helpers import (
+    city_for_gm_or_404,
+    item_for_gm_or_404,
+    shop_for_gm_or_404,
+)
+from app.routes.handlers.gm_players_handler import (
+    list_players,
+    view_character,
+    update_character,
+    equip_item,
+    unequip_item,
+    update_inventory,
+)
+from app.routes.handlers.gm_simulation_handler import (
+    home as gm_dashboard_home,
+    seed_world,
+    run_simulation_tick,
+    update_simulation_speed,
+    run_period_stream,
+    simulation_job_status,
+    debug_form as gm_debug_form_handler,
+)
+from app.routes.handlers.gm_shops_handler import (
+    update_shop_basic as update_shop_basic_handler,
+    get_shop_city_panel_context,
+    get_grouped_shops,
+    get_linked_shop_ids_for_item,
+)
+from app.routes.handlers.gm_campaigns_handler import (
+    list_campaigns,
+    create_campaign,
+    sync_players_to_campaign as sync_players_to_campaign_handler,
+    delete_campaign as delete_campaign_handler,
+)
 
 gm_bp = Blueprint("gm", __name__, url_prefix="/gm")
+
 
 @gm_bp.route("/")
 @login_required
 def home():
-    return render_template("GM_Home.html")
+    return gm_dashboard_home()
+
+
+@gm_bp.route("/seed_world", methods=["POST"])
+@login_required
+def gm_seed_world():
+    return seed_world()
 
 #cities routes
 
@@ -51,7 +96,7 @@ def add_city():
 @gm_bp.route("/cities/edit/<int:city_id>", methods=["GET", "POST"])
 @login_required
 def edit_city(city_id):
-    city = City.query.get_or_404(city_id)
+    city = city_for_gm_or_404(city_id, current_user.gm_profile.id)
     
     if request.method == "POST":
         city.name = request.form.get("name")
@@ -72,7 +117,7 @@ def edit_city(city_id):
 @gm_bp.route("/cities/delete/<int:city_id>", methods=["POST"])
 @login_required
 def delete_city(city_id):
-    city = City.query.get_or_404(city_id)
+    city = city_for_gm_or_404(city_id, current_user.gm_profile.id)
     try:
         db.session.delete(city)
         db.session.commit()
@@ -82,13 +127,12 @@ def delete_city(city_id):
         flash(f"Error deleting city: {e}", "danger")
     return redirect(url_for("gm.view_cities"))
 
-    #shops routes
 
 @gm_bp.route("/shops/")
 @login_required
 def view_shops():
-    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
-    return render_template("GM_view_shops.html", shops=shops)
+    ctx = get_shop_city_panel_context(current_user.gm_profile)
+    return render_template("GM_view_shops.html", **ctx)
 
 @gm_bp.route("/shops/add", methods=["GET", "POST"])
 @login_required
@@ -116,11 +160,14 @@ def add_shop():
 
             for city_id in city_ids:
                 try:
-                    city = City.query.get(int(city_id))
+                    cid = int(city_id)
+                    city = City.query.filter_by(
+                        city_id=cid, gm_profile_id=gm_profile_id
+                    ).first()
                     if city:
                         new_shop.cities.append(city)
                     else:
-                        print(f"[WARNING] City ID {city_id} not found.")
+                        print(f"[WARNING] City ID {city_id} not found or not in campaign.")
                 except ValueError:
                     print(f"[ERROR] Invalid city_id value: {city_id}")
 
@@ -142,7 +189,7 @@ def add_shop():
 @gm_bp.route("/shops/edit/<int:shop_id>", methods=["GET", "POST"])
 @login_required
 def edit_shop(shop_id):
-    shop = Shop.query.get_or_404(shop_id)
+    shop = shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
     
     if request.method == "POST":
         shop.name = request.form["name"]
@@ -158,10 +205,17 @@ def edit_shop(shop_id):
     cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
     return render_template("GM_edit_shop.html", shop=shop, cities=cities)
 
+
+@gm_bp.route("/shops/update-basic/<int:shop_id>", methods=["POST"])
+@login_required
+def update_shop_basic(shop_id):
+    return update_shop_basic_handler(shop_id)
+
+
 @gm_bp.route("/shops/delete/<int:shop_id>", methods=["POST"])
 @login_required
 def delete_shop(shop_id):
-    shop = Shop.query.get_or_404(shop_id)
+    shop = shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
     try:
         db.session.delete(shop)
         db.session.commit()
@@ -174,14 +228,14 @@ def delete_shop(shop_id):
 @gm_bp.route("/shops/city/<int:city_id>/shops")
 @login_required
 def view_city_shops(city_id):
-    city = City.query.get_or_404(city_id)
+    city = city_for_gm_or_404(city_id, current_user.gm_profile.id)
     shops = city.shops
     return render_template("GM_view_city_shops.html", city=city, shops=shops)
 
 @gm_bp.route("/shops/<int:shop_id>/items")
 @login_required
 def view_shop_items(shop_id):
-    shop = Shop.query.get_or_404(shop_id)
+    shop = shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
     city = shop.cities[0] if shop.cities else None
     shop_inventory = ShopInventory.query.filter_by(shop_id=shop_id).all()
     item_ids = [inv.item_id for inv in shop_inventory]
@@ -191,6 +245,7 @@ def view_shop_items(shop_id):
 @gm_bp.route("/shops/remove_item/<int:shop_id>/<int:item_id>", methods=["POST"])
 @login_required
 def remove_item_from_shop(shop_id, item_id):
+    shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
     try:
         inventory = ShopInventory.query.filter_by(shop_id=shop_id, item_id=item_id).first()
         if inventory:
@@ -261,7 +316,9 @@ def add_item():
                 try:
                     sid = int(shop_id)
                     print(f"[DEBUG] Linking to Shop ID: {sid}")
-                    shop = Shop.query.get(sid)
+                    shop = Shop.query.filter_by(
+                        shop_id=sid, gm_profile_id=gm_profile_id
+                    ).first()
                     if shop:
                         print(f"[DEBUG] Found Shop: {shop.name}")
                         print(f"[DEBUG] Stock: {stock} | Dyn Price: {dynamic_price}")  # <-- Add this here
@@ -290,15 +347,14 @@ def add_item():
 
         return redirect(url_for("gm.view_items"))
 
-    # GET route: Load shops
-    shops = Shop.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
-    return render_template("GM_add_item.html", shops=shops)
+    grouped_shops = get_grouped_shops(current_user.gm_profile)
+    return render_template("GM_add_item.html", grouped_shops=grouped_shops)
 
 
 @gm_bp.route("/items/edit/<int:item_id>", methods=["GET", "POST"])
 @login_required
 def edit_item(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = item_for_gm_or_404(item_id, current_user.gm_profile.id)
     
     if request.method == "POST":
         item.name = request.form.get("name")
@@ -315,18 +371,32 @@ def edit_item(item_id):
             db.session.rollback()
             flash(f"Error updating item: {e}", "danger")
 
-    return render_template("GM_edit_item.html", item=item)
+    grouped_shops = get_grouped_shops(current_user.gm_profile)
+    linked_shop_ids = get_linked_shop_ids_for_item(item.item_id)
+    return render_template(
+        "GM_edit_item.html",
+        item=item,
+        grouped_shops=grouped_shops,
+        linked_shop_ids=linked_shop_ids,
+    )
 
 @gm_bp.route("/items/detail/<int:item_id>")
 @login_required
 def item_detail(item_id):
-    item = Item.query.get_or_404(item_id)
-    return render_template("GM_item_detail.html", item=item)
+    item = item_for_gm_or_404(item_id, current_user.gm_profile.id)
+    grouped_shops = get_grouped_shops(current_user.gm_profile)
+    linked_shop_ids = get_linked_shop_ids_for_item(item.item_id)
+    return render_template(
+        "GM_item_detail.html",
+        item=item,
+        grouped_shops=grouped_shops,
+        linked_shop_ids=linked_shop_ids,
+    )
 
 @gm_bp.route("/items/delete/<int:item_id>", methods=["POST"])
 @login_required
 def delete_item(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = item_for_gm_or_404(item_id, current_user.gm_profile.id)
     try:
         db.session.delete(item)
         db.session.commit()
@@ -337,7 +407,184 @@ def delete_item(item_id):
     return redirect(url_for("gm.view_items")) 
 
 @gm_bp.route("/debug/form", methods=["POST"])
-def debug_form():
-    print("FORM KEYS:", request.form.keys())
-    print("FORM DICT:", request.form.to_dict(flat=False))
-    return "Check logs"
+def gm_debug_form():
+    return gm_debug_form_handler()
+
+
+# Campaign routes
+@gm_bp.route("/campaigns/")
+@login_required
+def view_campaigns():
+    return list_campaigns()
+
+
+@gm_bp.route("/campaigns/add", methods=["GET", "POST"])
+@login_required
+def add_campaign():
+    return create_campaign()
+
+
+@gm_bp.route("/campaigns/sync/<int:campaign_id>", methods=["POST"])
+@login_required
+def sync_players_to_campaign(campaign_id):
+    return sync_players_to_campaign_handler(campaign_id)
+
+
+@gm_bp.route("/campaigns/delete/<int:campaign_id>", methods=["POST"])
+@login_required
+def delete_campaign(campaign_id):
+    return delete_campaign_handler(campaign_id)
+
+
+# Simulation routes
+@gm_bp.route("/simulation/tick", methods=["POST"])
+@login_required
+def gm_run_simulation_tick():
+    """Execute one simulation tick manually from the GM dashboard"""
+    return run_simulation_tick()
+
+@gm_bp.route("/simulation/speed", methods=["POST"])
+@login_required
+def gm_update_simulation_speed():
+    """Pause the simulation engine (period runs use the streaming endpoint)."""
+    return update_simulation_speed()
+
+
+@gm_bp.route("/simulation/run-period", methods=["POST"])
+@login_required
+def gm_simulation_run_period():
+    """Run a simulation period as NDJSON (one line per game day)."""
+    return run_period_stream()
+
+@gm_bp.route("/simulation/jobs/<job_id>", methods=["GET"])
+@login_required
+def gm_simulation_job_status(job_id: str):
+    """Return background simulation job status for polling UI."""
+    return simulation_job_status(job_id)
+
+
+# Player / Character management routes
+@gm_bp.route("/players/")
+@login_required
+def gm_view_players():
+    """List players and characters for the current campaign."""
+    return list_players()
+
+
+@gm_bp.route("/characters/<int:character_id>")
+@login_required
+def gm_view_character(character_id):
+    """View and edit a specific character as GM."""
+    return view_character(character_id)
+
+
+@gm_bp.route("/characters/<int:character_id>/update", methods=["POST"])
+@login_required
+def gm_update_character(character_id):
+    """Apply GM-side updates to a character."""
+    return update_character(character_id)
+
+
+@gm_bp.route("/characters/<int:character_id>/equip", methods=["POST"])
+@login_required
+def gm_equip_item_for_character(character_id):
+    """Equip an item for a character (GM-side)."""
+    return equip_item(character_id)
+
+
+@gm_bp.route("/characters/<int:character_id>/unequip", methods=["POST"])
+@login_required
+def gm_unequip_item_for_character(character_id):
+    """Unequip an item from a character slot (GM-side)."""
+    return unequip_item(character_id)
+
+
+@gm_bp.route("/characters/<int:character_id>/inventory/update", methods=["POST"])
+@login_required
+def gm_update_inventory_for_character(character_id):
+    """Adjust a character's player inventory (GM-side)."""
+    return update_inventory(character_id)
+
+
+# # Resource Node routes
+# @gm_bp.route("/resource_nodes/")
+# @login_required
+# def view_resource_nodes():
+#     nodes = ResourceNode.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+#     return render_template("GM_view_resource_nodes.html", nodes=nodes)
+
+# @gm_bp.route("/resource_nodes/add", methods=["GET", "POST"])
+# @login_required
+# def add_resource_node():
+#     if request.method == "POST":
+#         name = request.form.get("name")
+#         type = request.form.get("type")
+#         production_rate = float(request.form.get("production_rate"))
+#         quality = float(request.form.get("quality"))
+#         city_id = int(request.form.get("city_id"))
+#         item_id = int(request.form.get("item_id"))
+
+#         if not all([name, type, production_rate, quality, city_id, item_id]):
+#             flash("All fields are required!", "danger")
+#             return render_template("GM_add_resource_node.html")
+
+#         try:
+#             new_node = ResourceNode(
+#                 name=name,
+#                 type=type,
+#                 production_rate=production_rate,
+#                 quality=quality,
+#                 city_id=city_id,
+#                 item_id=item_id,
+#                 gm_profile_id=current_user.gm_profile.id
+#             )
+#             db.session.add(new_node)
+#             db.session.commit()
+#             flash(f"Resource node '{name}' added successfully!", "success")
+#             return redirect(url_for("gm.view_resource_nodes"))
+#         except Exception as e:
+#             db.session.rollback()
+#             flash(f"Error adding resource node: {e}", "danger")
+
+#     # GET request - show form
+#     cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+#     items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+#     return render_template("GM_add_resource_node.html", cities=cities, items=items)
+
+# @gm_bp.route("/resource_nodes/edit/<int:node_id>", methods=["GET", "POST"])
+# @login_required
+# def edit_resource_node(node_id):
+#     node = ResourceNode.query.get_or_404(node_id)
+    
+#     if request.method == "POST":
+#         node.name = request.form.get("name")
+#         node.type = request.form.get("type")
+#         node.production_rate = float(request.form.get("production_rate"))
+#         node.quality = float(request.form.get("quality"))
+#         node.city_id = int(request.form.get("city_id"))
+#         node.item_id = int(request.form.get("item_id"))
+        
+#         try:
+#             db.session.commit()
+#             flash("Resource node updated successfully!", "success")
+#             return redirect(url_for("gm.view_resource_nodes"))
+#         except Exception as e:
+#             db.session.rollback()
+#             flash(f"Error updating resource node: {e}", "danger")
+
+#     cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+#     items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+#     return render_template("GM_edit_resource_node.html", node=node, cities=cities, items=items)
+
+# @gm_bp.route("/resource_nodes/delete/<int:node_id>", methods=["POST"])
+# @login_required
+# def delete_resource_node(node_id):
+#     node = ResourceNode.query.get_or_404(node_id)
+#     try:
+#         db.session.delete(node)
+#         db.session.commit()
+#         flash("Resource node deleted successfully!", "success")
+#     except Exception as e:
+#         db.session.rollback()
+#         flash(f"Error deleting resource node: {e}", "danger")
+#     return redirect(url_for("gm.view_resource_nodes"))

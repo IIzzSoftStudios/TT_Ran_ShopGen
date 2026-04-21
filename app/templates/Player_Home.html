@@ -1,15 +1,37 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Player Dashboard</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% include 'partials/theme_head.html' %}
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <style>
-        .content-container {
+        .main-layout {
             display: flex;
             gap: 20px;
             padding: 20px;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
+        }
+
+        .market-panel {
+            flex: 0 0 350px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .dashboard-panel {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .content-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
         .section {
@@ -18,6 +40,275 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Character panel */
+        .character-panel {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-blocks {
+            flex: 1;
+        }
+
+        /* Right column on the dashboard: stacks the body/equipment block
+           above the inventory and ABSORBS all remaining width after the
+           character panel. flex-basis: 0 (not auto) means this column
+           doesn't reserve space for its own content during flex
+           distribution — instead it gets everything left over once the
+           character section has its capped width, which is what makes the
+           body/equipment card and inventory card actually stretch to fill
+           the rest of the dashboard. */
+        .inventory-column {
+            flex: 1 1 0;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* .section globally declares `flex: 1`, which in a flex COLUMN
+           (main axis vertical) ends up making the card size itself off
+           main-axis basis 0%, leaving its cross-axis width collapsed to
+           the min-content of its children (~222px — wide enough for the
+           body model + gap only). Reset both axes for the two sections
+           that live inside .inventory-column: width:100% guarantees the
+           cross-axis stretch to the full column width, flex:0 0 auto
+           stops them from trying to grow in the main axis. */
+        .inventory-column > .section {
+            flex: 0 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        /* Push the inventory card to the bottom of the column. The
+           character section dictates the row's height (all the stats /
+           saves / skills), so the column has ~400+ px of empty space
+           after the body+equipment card. margin-top: auto consumes all
+           of that in a flex column, parking the inventory card flush
+           against the bottom edge — i.e. right above the "Shops by
+           city" panel. */
+        .inventory-column > .section.inventory-container {
+            margin-top: auto;
+        }
+
+        /* Body model + equipment slot list sit side-by-side in the top
+           card of the inventory column, above the inventory table. The
+           row itself must fill the full width of the card (the inventory
+           column stretches its children by default). */
+        .body-equipment-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        /* Fixed flex basis for the body model: without an explicit basis,
+           flex: 0 0 auto combined with the SVG's width: 100% produced a
+           zero-size intrinsic width, which shrink-wrapped the whole row
+           to ~200px. A 200px basis keeps the character model legible
+           while leaving the rest of the row for the equipment list. */
+        .body-equipment-row .body-model-container {
+            flex: 0 0 200px;
+        }
+
+        .body-equipment-row .equipment-slots {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .stat-section {
+            margin-bottom: 14px;
+        }
+
+        /* 3-column grid that shrinks with its container. minmax(0, 1fr)
+           (not minmax(max-content, ...)) so cells fit the available width
+           rather than forcing the character panel to balloon outward and
+           crowd the inventory column. Labels that don't fit on one line
+           wrap gracefully via the .stat-key overflow rules below. */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 10px 6px;
+            text-align: center;
+            min-width: 0;
+        }
+
+        .stat-key {
+            font-weight: bold;
+            color: purple;
+            margin-bottom: 4px;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            hyphens: auto;
+            line-height: 1.15;
+        }
+
+        .stat-value {
+            font-size: 1.3em;
+        }
+
+        /* Stack the character name/class/level block above the Saves
+           grid so the name reads as the top-of-card title instead of
+           being squeezed into a narrow left column next to a wide
+           saves grid.
+
+           align-items: flex-start (not stretch) so the saves block
+           doesn't balloon its flex cross-size to the full character
+           panel width, which would inflate the section's flex-basis
+           and push the inventory column too narrow. */
+        .character-header-row {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* The saves grid still wants to span the full panel width so
+           its 3 columns line up with Core Stats / Skills below. */
+        .character-header-row .saving-throws-block {
+            align-self: stretch;
+        }
+
+        /* Save cards can wrap their labels ("Constitution Save" etc.)
+           — they're secondary info and keeping them nowrap forces the
+           saves grid to demand ~450px of width, which inflates the
+           whole character section. */
+        .saving-throws-grid .stat-card {
+            white-space: normal;
+        }
+
+        .saving-throws-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-section-title {
+            font-size: 1.17em; /* match h3 default */
+            font-weight: bold;
+            color: var(--color-accent);
+            margin: 0 0 4px 0;
+            text-align: center;
+        }
+
+        .saving-throws-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        /* Stretch the name block to the full character-header-row width
+           (the saves block already does via align-self: stretch) and
+           center its contents so the P1 h2 + class/level line sit in
+           the middle, matching the centered "Saves" title underneath. */
+        .character-name-block {
+            flex: 1 1 auto;
+            align-self: stretch;
+            text-align: center;
+        }
+
+        /* main.css sets .section h2 { display: flex; justify-content:
+           space-between; } as the site-wide section-header style, which
+           overrides text-align: center on this block — the h2's single
+           text node becomes a flex item pinned to the start edge. Swap
+           in justify-content: center for the character-name h2 only so
+           the rest of the site's section headers stay untouched. */
+        .character-name-block h2 {
+            justify-content: center;
+        }
+
+        /* Re-center the flex row of derived-stat cards; text-align on the
+           parent does not reach flex items, so opt in explicitly. */
+        .character-name-block .header-derived-stats {
+            justify-content: center;
+        }
+
+        .character-class-level {
+            font-size: 1.17em; /* match h3 default */
+            font-weight: 600;
+            color: var(--color-accent);
+            margin: 4px 0 0 0;
+        }
+
+        .stat-blocks h3 {
+            text-align: center;
+        }
+
+        /* Header derived strip (Max HP / Current HP / AC / Initiative /
+           Perception for 5e, smaller sets for pf2e/generic) must stay on
+           a single row above the Saves grid. flex: 1 1 0 + min-width: 0
+           lets every card share the row evenly regardless of count, and
+           flex-wrap: nowrap forbids the Perception card from popping to
+           a second line on the default character-panel width. */
+        .header-derived-stats {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .header-derived-stats .stat-card {
+            flex: 1 1 0;
+            min-width: 0;
+            padding: 6px 4px;
+        }
+
+        .header-derived-stats .stat-key {
+            font-size: 0.82em;
+            margin-bottom: 2px;
+        }
+
+        .header-derived-stats .stat-value {
+            font-size: 1.1em;
+        }
+
+        .body-model-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .body-svg {
+            max-width: 180px;
+            width: 100%;
+        }
+
+        .slot-outline {
+            fill: #eee;
+            stroke: #ccc;
+            stroke-width: 2;
+        }
+
+        .slot-equipped {
+            fill: #c5a3ff;
+            stroke: purple;
+            stroke-width: 2;
+        }
+
+        /* JS adds .slot-equipped alongside .slot-outline on equipped slot
+           groups. Both selectors have the same specificity, so we add a
+           higher-specificity rule to guarantee the highlighted look wins
+           even if .slot-outline is declared after in any future edit. */
+        .body-svg [data-slot].slot-equipped,
+        .body-svg [data-slot] .slot-equipped,
+        .body-svg .visual-layer .slot-equipped {
+            fill: #b286ff;
+            stroke: #5a189a;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 3px rgba(138, 43, 226, 0.55));
         }
 
         .currency-container {
@@ -30,8 +321,45 @@
         }
 
         .inventory-container {
-            margin-top: 20px;
+            margin-top: 0;
         }
+
+        /* align-items: stretch (default, but made explicit here) lets
+           the inventory column grow to match the tall character section,
+           so we can park the inventory card at the bottom of the row —
+           right above the "Shops by city" panel that follows. */
+        .character-inventory-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: stretch;
+        }
+
+        .character-inventory-row > .section {
+            margin: 0;
+        }
+
+        /* Character column: take a fixed portion of the row so the
+           inventory column gets everything that remains. 460px fits 3
+           columns of Core Stats / Skills / Saves cleanly; longer labels
+           (Constitution, Investigation, Passive Perception) wrap to
+           two lines inside their .stat-card via the word-break rules on
+           .stat-key rather than forcing the card wider. */
+        .character-inventory-row > .section:first-child {
+            flex: 0 0 460px;
+            max-width: 460px;
+        }
+
+        /* Legacy rule kept for backward-compat in case the inventory is
+           ever moved back to being a direct flex child of
+           .character-inventory-row. The current layout nests .inventory-
+           container inside .inventory-column instead, whose own flex sizing
+           handles this. */
+        .character-inventory-row > .section.inventory-container {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
 
         .inventory-table {
             width: 100%;
@@ -154,7 +482,10 @@
 
         .nav-buttons {
             margin: 20px 0;
-            text-align: center;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
         }
 
         .nav-button {
@@ -164,27 +495,42 @@
             padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
-            margin: 5px;
         }
 
         .nav-button:hover {
             background-color: #555;
         }
 
+        /* Push Logout to the right edge of the nav bar so it visually
+           separates from the navigational group. */
+        .nav-button-logout {
+            margin-left: auto;
+            background-color: #8a2a2a;
+        }
+
+        .nav-button-logout:hover {
+            background-color: #6d1f1f;
+        }
+
         .search-section {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin: 20px auto;
-            max-width: 1200px;
+            margin: 10px 0;
         }
 
         .filter-container {
             display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .filter-row {
+            display: flex;
             gap: 15px;
             align-items: flex-end;
-            margin-top: 15px;
         }
 
         .filter-group {
@@ -223,11 +569,10 @@
 
         .results-section {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin: 20px auto;
-            max-width: 1200px;
+            margin: 10px 0;
         }
 
         .results-table {
@@ -316,6 +661,483 @@
             font-size: 0.9em;
             margin-top: 4px;
         }
+
+        /* Market Visualization Styles */
+        .market-header {
+            background: linear-gradient(135deg, #6a1b9a, #8e24aa);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .market-header h2 {
+            margin: 0;
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+
+        .market-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+
+        .market-item:hover {
+            background: #f0f0f0;
+            transform: translateX(2px);
+        }
+
+        .item-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #6a1b9a, #8e24aa);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .item-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+            font-size: 0.9em;
+        }
+
+        .item-price {
+            color: #6a1b9a;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .price-change {
+            display: flex;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .change-percentage {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .change-positive {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .change-negative {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .change-neutral {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .price-bar {
+            flex: 1;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .price-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6a1b9a, #8e24aa);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .mini-chart {
+            width: 60px;
+            height: 30px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            margin-left: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #6a1b9a, #8e24aa);
+        }
+
+        .chart-dots {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            transform: translateY(-50%);
+        }
+
+        .chart-dot {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: #6a1b9a;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .market-stats {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .market-stats p {
+            margin: 5px 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .market-panel {
+                flex: none;
+                width: 100%;
+            }
+            
+            .dashboard-panel {
+                flex: none;
+                width: 100%;
+            }
+
+            .character-inventory-row {
+                flex-direction: column;
+            }
+
+            .character-inventory-row > .section:first-child,
+            .character-inventory-row > .section.inventory-container {
+                flex: 1 1 auto;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .character-panel {
+                flex-direction: column;
+            }
+
+            .content-container {
+                flex-direction: column;
+            }
+
+            .character-inventory-row {
+                flex-direction: column;
+            }
+
+            .character-inventory-row > .section:first-child,
+            .character-inventory-row > .section.inventory-container {
+                flex: 1 1 auto;
+                width: 100%;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+        /* ------------------------------------------------------------
+           City -> Shop -> Items browse accordion (mirrors the visuals of
+           .gm-shops-city-panel in static/css/gm_shops_city_list.css).
+           Kept inline here so the player home can change independently
+           from the GM panel if player-side ergonomics diverge later.
+           ------------------------------------------------------------ */
+        .player-shops-browse-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            color: #212529;
+        }
+
+        .player-shops-browse-panel h2 {
+            margin-top: 0;
+            color: #212529;
+        }
+
+        .player-shops-browse-panel .browse-note {
+            background: #e7f1ff;
+            border: 1px solid #b8d4f0;
+            color: #1a3a5c;
+            padding: 12px 14px;
+            border-radius: 6px;
+            margin-bottom: 18px;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .player-shops-browse-panel .city-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .player-shops-browse-panel .city-block {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .player-shops-browse-panel .city-block > summary {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px 16px;
+            padding: 12px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
+        .player-shops-browse-panel .city-block > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .player-shops-browse-panel .city-block > summary::before {
+            content: "\25B6";
+            font-size: 0.65rem;
+            color: #6c757d;
+            transition: transform 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        .player-shops-browse-panel .city-block[open] > summary::before {
+            transform: rotate(90deg);
+        }
+
+        .player-shops-browse-panel .city-block[open] > summary {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .player-shops-browse-panel .city-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #000;
+        }
+
+        .player-shops-browse-panel .city-meta {
+            font-size: 0.95rem;
+            color: #333;
+            flex: 1 1 auto;
+            min-width: 140px;
+        }
+
+        .player-shops-browse-panel .shop-count-badge {
+            display: inline-block;
+            min-width: 5.5rem;
+            text-align: right;
+            padding: 6px 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #000;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-left: auto;
+        }
+
+        .player-shops-browse-panel .city-panel {
+            padding: 0;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            background: #fff;
+        }
+
+        .player-shops-browse-panel .empty-city {
+            padding: 16px;
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+
+        .player-shops-browse-panel .shop-block {
+            border-bottom: 1px solid #ddd;
+        }
+
+        .player-shops-browse-panel .shop-block:last-child {
+            border-bottom: none;
+        }
+
+        .player-shops-browse-panel .city-panel > .shop-block:nth-child(2n + 2) > summary {
+            background-color: #fff;
+        }
+
+        .player-shops-browse-panel .city-panel > .shop-block:nth-child(2n + 3) > summary {
+            background-color: #f9f9f9;
+        }
+
+        .player-shops-browse-panel .shop-block > summary {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 12px;
+            padding: 12px;
+            cursor: pointer;
+            font-weight: normal;
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .player-shops-browse-panel .shop-block > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .player-shops-browse-panel .shop-block > summary::before {
+            content: "\25B6";
+            font-size: 0.6rem;
+            color: #adb5bd;
+            flex-shrink: 0;
+            width: 1rem;
+            transition: transform 0.15s ease;
+        }
+
+        .player-shops-browse-panel .shop-block[open] > summary::before {
+            transform: rotate(90deg);
+        }
+
+        .player-shops-browse-panel .shop-name {
+            font-weight: 600;
+            color: #000;
+            flex: 1 1 auto;
+            min-width: 120px;
+        }
+
+        .player-shops-browse-panel .shop-type {
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .player-shops-browse-panel .item-count {
+            font-variant-numeric: tabular-nums;
+            min-width: 3rem;
+            text-align: right;
+            padding: 4px 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #000;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-left: auto;
+        }
+
+        .player-shops-browse-panel .shop-items {
+            padding: 0 12px 12px 2.25rem;
+            background: #fff;
+            border-top: 1px solid #ddd;
+        }
+
+        .player-shops-browse-panel .shop-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        .player-shops-browse-panel .shop-items-table th,
+        .player-shops-browse-panel .shop-items-table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .player-shops-browse-panel .shop-items-table th {
+            background-color: purple;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .player-shops-browse-panel .shop-items-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .player-shops-browse-panel .browse-buy-button {
+            background-color: purple;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .player-shops-browse-panel .browse-buy-button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+
+        .player-shops-browse-panel .browse-buy-button:not(:disabled):hover {
+            background-color: #6d1f6d;
+        }
+
+        .player-shops-browse-panel .stock-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .player-shops-browse-panel .stock-status.in-stock {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .player-shops-browse-panel .stock-status.low-stock {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .player-shops-browse-panel .stock-status.out-of-stock {
+            background: #f8d7da;
+            color: #721c24;
+        }
     </style>
     <script>
         function navigateTo(url) {
@@ -328,54 +1150,236 @@
             return 'in-stock';
         }
 
-        function searchItems() {
-            const city = document.getElementById("cityFilter").value;
-            const shop = document.getElementById("shopFilter").value;
-            const item = document.getElementById("itemFilter").value;
+        // Buy a single unit of an item from the city->shop->items browse
+        // accordion. Mirrors Player_view_city_shops.html's buyItem(): POSTs
+        // to /player/shop/<shop>/buy/<item> with CSRF, then reloads so the
+        // currency pill, inventory table, and accordion stock counts all
+        // refresh against the new server state together.
+        function browseBuyItem(shopId, itemId, btn) {
+            shopId = parseInt(shopId, 10);
+            itemId = parseInt(itemId, 10);
+            if (!shopId || !itemId) {
+                alert("Invalid shop/item. Please refresh the page and try again.");
+                return;
+            }
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "Buying...";
+            }
+            fetch(`/player/shop/${shopId}/buy/${itemId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `quantity=1&csrf_token=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.success) {
+                    location.reload();
+                } else {
+                    alert("Purchase failed: " + ((data && data.message) || "Unknown error"));
+                    if (btn) { btn.disabled = false; btn.textContent = "Buy"; }
+                }
+            })
+            .catch(err => {
+                alert("Purchase failed: " + (err.message || "Network error"));
+                if (btn) { btn.disabled = false; btn.textContent = "Buy"; }
+            });
+        }
 
-            // Build query string
-            const params = new URLSearchParams();
-            if (city) params.append('city', city);
-            if (shop) params.append('shop', shop);
-            if (item) params.append('item', item);
+        function stylePlayerCurrency() {
+            const el = document.getElementById("playerCurrency");
+            if (!el) return;
+            const raw = (el.textContent || "").replace(/[^0-9.-]/g, "");
+            const value = parseFloat(raw);
+            if (isNaN(value)) return;
+            el.classList.remove("currency-positive", "currency-negative");
+            if (value < 0) {
+                el.classList.add("currency-negative");
+            } else {
+                el.classList.add("currency-positive");
+            }
+        }
 
-            // Fetch results
-            fetch(`{{ url_for('player.search_item') }}?${params.toString()}`)
+        // --- Character model & stats ---
+        function loadCharacterData() {
+            fetch("{{ url_for('player.character_data') }}")
                 .then(response => response.json())
                 .then(data => {
-                    const resultsTable = document.getElementById("searchResults");
-                    resultsTable.innerHTML = "";
-
                     if (data.error) {
-                        resultsTable.innerHTML = `<tr><td colspan="6" style="text-align:center;color:red;">${data.error}</td></tr>`;
+                        console.error("Character error:", data.error);
                         return;
                     }
 
-                    if (data.length === 0) {
-                        resultsTable.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No results found</td></tr>";
-                        return;
+                    // Pre-index displays and schema
+                    const statDisplay = data.stat_display || [];
+                    const schema = data.stat_schema || {};
+
+                    // Keys pinned in the header strip between the name/class line
+                    // and the Saves grid are declared on each ruleset's DerivedDef
+                    // (see app/services/rulesets/*.py). Reading them from the
+                    // schema keeps the dashboard honest when GMs add new rule sets.
+                    const schemaDerived = Array.isArray(schema.derived) ? schema.derived : [];
+                    const headerDerivedKeys = new Set(
+                        schemaDerived.filter(function (d) { return d && d.header; })
+                                     .map(function (d) { return d.key; })
+                    );
+
+                    // --- Core Stats grid (abilities + non-header derived, no skills or proficiency tiers) ---
+                    const coreStatGrid = document.getElementById("coreStatGrid");
+                    const skillsGrid = document.getElementById("skillsGrid");
+                    if (coreStatGrid) {
+                        coreStatGrid.innerHTML = "";
+                        const coreStats = statDisplay.filter(function (s) {
+                            // Only show abilities and derived stats here, excluding header-pinned ones
+                            return (s.category === "ability" || s.category === "derived") &&
+                                   !headerDerivedKeys.has(s.key);
+                        });
+
+                        coreStats.forEach(function (s) {
+                            const value = (s.value !== null && s.value !== undefined) ? s.value : "-";
+                            const card = document.createElement("div");
+                            card.className = "stat-card";
+                            card.innerHTML = `
+                                <div class="stat-key">${s.label || s.key}</div>
+                                <div class="stat-value">${value}</div>
+                            `;
+                            coreStatGrid.appendChild(card);
+                        });
                     }
 
-                    data.forEach(result => {
-                        const stockStatus = getStockStatus(result.stock);
-                        resultsTable.innerHTML += `
-                            <tr>
-                                <td>${result.item_name}</td>
-                                <td>${result.shop_name}</td>
-                                <td>${result.city_name}</td>
-                                <td>${result.price}</td>
-                                <td><span class="stock-status ${stockStatus}">${result.stock}</span></td>
-                                <td>
-                                    <button class="button" onclick="window.location.href='{{ url_for('player.view_shop', shop_id=0) }}'.replace('0', ${result.shop_id})">View in Shop</button>
-                                </td>
-                            </tr>
-                        `;
+                    // --- Skills grid (computed modifiers) ---
+                    if (skillsGrid) {
+                        skillsGrid.innerHTML = "";
+                        const skillStats = statDisplay.filter(function (s) {
+                            return s.category === "skill";
+                        });
+
+                        skillStats.forEach(function (s) {
+                            let displayValue = "-";
+                            if (s.computed_value !== null && s.computed_value !== undefined) {
+                                const n = s.computed_value;
+                                displayValue = (n >= 0 ? "+" + n : String(n));
+                            } else if (s.value !== null && s.value !== undefined) {
+                                displayValue = s.value;
+                            }
+
+                            const card = document.createElement("div");
+                            card.className = "stat-card";
+                            card.innerHTML = `
+                                <div class="stat-key">${s.label || s.key}</div>
+                                <div class="stat-value">${displayValue}</div>
+                            `;
+                            skillsGrid.appendChild(card);
+                        });
+                    }
+
+                    // Header derived stats (HP, AC, Proficiency Bonus): between name and saving throws
+                    const headerDerivedStats = document.getElementById("headerDerivedStats");
+                    if (headerDerivedStats) {
+                        headerDerivedStats.innerHTML = "";
+                        const headerStats = statDisplay.filter(function (s) {
+                            return headerDerivedKeys.has(s.key);
+                        });
+                        headerStats.forEach(function (s) {
+                            const value = (s.value !== null && s.value !== undefined) ? s.value : "-";
+                            const card = document.createElement("div");
+                            card.className = "stat-card";
+                            card.innerHTML = `
+                                <div class="stat-key">${s.label || s.key}</div>
+                                <div class="stat-value">${value}</div>
+                            `;
+                            headerDerivedStats.appendChild(card);
+                        });
+                    }
+
+                    // Saving throws: top bar (yellow-outline area)
+                    const savingThrowsGrid = document.getElementById("savingThrowsGrid");
+                    if (savingThrowsGrid) {
+                        savingThrowsGrid.innerHTML = "";
+                        const saveStats = statDisplay.filter(function (s) {
+                            return s.category === "save";
+                        });
+                        saveStats.forEach(function (s) {
+                            // Prefer computed save modifier when present
+                            let displayValue = "-";
+                            if (s.computed_value !== null && s.computed_value !== undefined) {
+                                const n = s.computed_value;
+                                displayValue = (n >= 0 ? "+" + n : String(n));
+                            } else if (s.value !== null && s.value !== undefined) {
+                                displayValue = s.value;
+                            }
+
+                            const card = document.createElement("div");
+                            card.className = "stat-card";
+                            card.innerHTML = `
+                                <div class="stat-key">${s.label || s.key}</div>
+                                <div class="stat-value">${displayValue}</div>
+                            `;
+                            savingThrowsGrid.appendChild(card);
+                        });
+                    }
+
+                    // Build equipped slots and item tooltip data
+                    const equippedSlots = {};
+                    const slotItems = {};
+                    (data.equipment_slots || []).forEach(slot => {
+                        if (slot.item) {
+                            equippedSlots[slot.slot_name] = true;
+                            slotItems[slot.slot_name] = slot.item;
+                        }
                     });
+
+                    // Backend uses "torso" only (no "chest"); "chest" in SVG is for backward compatibility with old data
+                    const allSlotNames = ["head", "neck", "torso", "hands", "finger_1", "finger_2", "legs", "feet", "main_hand", "off_hand"];
+                    allSlotNames.forEach(slotName => {
+                        const visualId = "visual-" + slotName;
+                        const el = document.getElementById(visualId);
+                        if (el) {
+                            const isEquipped = slotName === "torso" ? (equippedSlots["torso"] || equippedSlots["chest"]) : equippedSlots[slotName];
+                            el.style.visibility = isEquipped ? "visible" : "hidden";
+                        }
+                        const slotGroup = document.querySelector(`[data-slot='${slotName}']`);
+                        if (!slotGroup) return;
+                        const shapes = slotGroup.querySelectorAll("circle, rect, path");
+                        shapes.forEach(shape => {
+                            const isEquipped = slotName === "torso" ? (equippedSlots["torso"] || equippedSlots["chest"]) : equippedSlots[slotName];
+                            if (isEquipped) shape.classList.add("slot-equipped");
+                            else shape.classList.remove("slot-equipped");
+                        });
+                    });
+
+                    // Tooltip on hover over equipped slots
+                    const tooltip = document.getElementById("equipmentTooltip");
+                    const bodyContainer = document.querySelector(".body-model-container");
+                    function showTooltip(e, item) {
+                        if (!item || !tooltip) return;
+                        const text = [item.name, item.rarity].filter(Boolean).join(" / ");
+                        const desc = item.description_short ? "\n" + item.description_short : "";
+                        tooltip.innerHTML = text + (desc ? "<br><small>" + desc + "</small>" : "");
+                        tooltip.style.display = "block";
+                        tooltip.style.position = "fixed";
+                        tooltip.style.left = (e.clientX + 15) + "px";
+                        tooltip.style.top = (e.clientY + 10) + "px";
+                    }
+                    function hideTooltip() {
+                        if (tooltip) tooltip.style.display = "none";
+                    }
+                    allSlotNames.forEach(slotName => {
+                        const slotGroup = document.querySelector(`[data-slot='${slotName}']`);
+                        const item = slotItems[slotName] || (slotName === "chest" ? slotItems["torso"] : null);
+                        if (!slotGroup || !item) return;
+                        slotGroup.addEventListener("mouseenter", function(e) { showTooltip(e, item); });
+                        slotGroup.addEventListener("mouseleave", hideTooltip);
+                        slotGroup.style.cursor = "pointer";
+                    });
+                    if (bodyContainer) {
+                        bodyContainer.addEventListener("mouseleave", hideTooltip);
+                    }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    document.getElementById("searchResults").innerHTML = 
-                        "<tr><td colspan='6' style='text-align:center;color:red;'>An error occurred while searching</td></tr>";
+                    console.error("Error loading character data:", error);
                 });
         }
     </script>
@@ -388,18 +1392,112 @@
         <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_cities') }}')">View Cities</button>
         <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_shops') }}')">View Shops</button>
         <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_market') }}')">Market Overview</button>
+        <button class="nav-button nav-button-logout" onclick="navigateTo('{{ url_for('auth.logout') }}')">Logout</button>
     </div>
 
-    <!-- Content Layout -->
-    <div class="content-container">
-        <!-- Player Inventory Section (Left) -->
-        <div class="section">
-            <h2>Your Inventory</h2>
-            <div class="currency-container">
-                Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
-                <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
+    <!-- Main Layout with Dashboard and Market Panel -->
+    <div class="main-layout">
+        <!-- Dashboard Panel (Left) -->
+        <div class="dashboard-panel">
+            <!-- Character + Inventory side-by-side row -->
+            <div class="character-inventory-row">
+            <!-- Character Panel -->
+            <div class="section">
+                <div class="character-header-row">
+                    <div class="character-name-block">
+                        <h2>{{ character.name|default('Your Character') }}</h2>
+                        <p class="character-class-level">{% if character.class_name %}{{ character.class_name }}{% endif %}{% if character.class_name and character.level %} · {% endif %}{% if character.level %}Level {{ character.level }}{% endif %}</p>
+                        <div id="headerDerivedStats" class="header-derived-stats" style="margin-top: 8px;"></div>
+                    </div>
+                    <div class="saving-throws-block">
+                        <p class="stat-section-title">Saves</p>
+                        <div id="savingThrowsGrid" class="saving-throws-grid"></div>
+                    </div>
+                </div>
+                <div class="character-panel" id="characterPanel">
+                    <div class="stat-blocks">
+                        <div class="stat-section">
+                            <h3 style="margin-top: 0;">Core Stats</h3>
+                            <div class="stat-grid" id="coreStatGrid">
+                                <!-- Filled via character data -->
+                            </div>
+                        </div>
+                        <div class="stat-section">
+                            <h3>Skills</h3>
+                            <div class="stat-grid" id="skillsGrid">
+                                <!-- Filled via character data -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="inventory-container">
+
+            <!-- Right column: body model + equipment slot list stacked
+                 above the inventory table. -->
+            <div class="inventory-column">
+                <div class="section">
+                    <div class="body-equipment-row">
+                        <div class="body-model-container" style="position: relative;">
+                            <div id="equipmentTooltip" class="equipment-tooltip" style="display: none; position: absolute; background: rgba(30,30,46,0.95); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 200px; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none;"></div>
+                            <svg class="body-svg" viewBox="0 0 120 260" id="characterBodySvg">
+                                <!-- Base outline layers -->
+                                <g id="slot-head" data-slot="head"><circle cx="60" cy="40" r="18" class="slot-outline" /></g>
+                                <g id="visual-head" class="visual-layer" style="visibility:hidden"><circle cx="60" cy="40" r="18" class="slot-equipped" /></g>
+                                <g id="slot-neck" data-slot="neck"><rect x="54" y="56" width="12" height="8" rx="2" class="slot-outline" /></g>
+                                <g id="visual-neck" class="visual-layer" style="visibility:hidden"><rect x="54" y="56" width="12" height="8" rx="2" class="slot-equipped" /></g>
+                                <g id="slot-torso" data-slot="torso"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-outline" /></g>
+                                <g id="slot-chest" data-slot="chest"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-outline" /></g>
+                                <g id="visual-torso" class="visual-layer" style="visibility:hidden"><rect x="40" y="64" width="40" height="56" rx="8" class="slot-equipped" /></g>
+                                <g id="slot-hands" data-slot="hands"><rect x="38" y="72" width="10" height="14" rx="4" class="slot-outline" /><rect x="72" y="72" width="10" height="14" rx="4" class="slot-outline" /></g>
+                                <g id="visual-hands" class="visual-layer" style="visibility:hidden"><rect x="38" y="72" width="10" height="14" rx="4" class="slot-equipped" /><rect x="72" y="72" width="10" height="14" rx="4" class="slot-equipped" /></g>
+                                <g id="slot-finger_1" data-slot="finger_1"><circle cx="42" cy="88" r="5" class="slot-outline" /></g>
+                                <g id="visual-finger_1" class="visual-layer" style="visibility:hidden"><circle cx="42" cy="88" r="5" class="slot-equipped" /></g>
+                                <g id="slot-finger_2" data-slot="finger_2"><circle cx="78" cy="88" r="5" class="slot-outline" /></g>
+                                <g id="visual-finger_2" class="visual-layer" style="visibility:hidden"><circle cx="78" cy="88" r="5" class="slot-equipped" /></g>
+                                <g id="slot-legs" data-slot="legs">
+                                    <rect x="48" y="120" width="12" height="58" rx="6" class="slot-outline" />
+                                    <rect x="60" y="120" width="12" height="58" rx="6" class="slot-outline" />
+                                </g>
+                                <g id="visual-legs" class="visual-layer" style="visibility:hidden">
+                                    <rect x="48" y="120" width="12" height="58" rx="6" class="slot-equipped" />
+                                    <rect x="60" y="120" width="12" height="58" rx="6" class="slot-equipped" />
+                                </g>
+                                <g id="slot-feet" data-slot="feet"><rect x="46" y="176" width="14" height="10" rx="3" class="slot-outline" /><rect x="60" y="176" width="14" height="10" rx="3" class="slot-outline" /></g>
+                                <g id="visual-feet" class="visual-layer" style="visibility:hidden"><rect x="46" y="176" width="14" height="10" rx="3" class="slot-equipped" /><rect x="60" y="176" width="14" height="10" rx="3" class="slot-equipped" /></g>
+                                <g id="slot-main_hand" data-slot="main_hand"><rect x="80" y="70" width="16" height="50" rx="6" class="slot-outline" /></g>
+                                <g id="visual-main_hand" class="visual-layer" style="visibility:hidden"><rect x="80" y="70" width="16" height="50" rx="6" class="slot-equipped" /></g>
+                                <g id="slot-off_hand" data-slot="off_hand"><rect x="24" y="70" width="16" height="50" rx="6" class="slot-outline" /></g>
+                                <g id="visual-off_hand" class="visual-layer" style="visibility:hidden"><rect x="24" y="70" width="16" height="50" rx="6" class="slot-equipped" /></g>
+                            </svg>
+                        </div>
+                        <div class="equipment-slots" style="margin-top: 12px;">
+                            <h3 style="margin: 0 0 8px 0;">Equipment</h3>
+                            <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9em;">
+                                {% for slot in character.equipment_slots|default([]) %}
+                                <li style="display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #eee;">
+                                    <span>{{ slot.slot_name|replace('_', ' ')|title }}: {% if slot.item %}{{ slot.item.name }}{% else %}—{% endif %}</span>
+                                    {% if slot.item %}
+                                    <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="button" style="padding: 2px 8px; font-size: 0.8em;">Unequip</button>
+                                    </form>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            <a href="{{ url_for('player.view_character') }}" class="button" style="margin-top: 8px; display: inline-block; font-size: 0.85em;">Full Character Sheet</a>
+                        </div>
+                    </div><!-- /.body-equipment-row -->
+                </div><!-- /.section (body + equipment card) -->
+
+            <!-- Player Inventory: sits below the body/equipment card in the
+                 inventory column. -->
+            <div class="section inventory-container">
+                <h2>Your Inventory</h2>
+                <div class="currency-container">
+                    Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
+                    <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
+                </div>
                 {% if inventory_items %}
                     <table class="inventory-table">
                         <thead>
@@ -418,14 +1516,15 @@
                                 <td class="item-name">{{ item.name }}</td>
                                 <td class="item-type">{{ item.type }}</td>
                                 <td class="item-rarity">
-                                    <span class="rarity-badge {{ item.rarity.lower() }}">
+                                    <span class="rarity-badge rarity-{{ item.rarity|lower|replace(' ', '-') }}">
                                         {{ item.rarity }}
                                     </span>
                                 </td>
                                 <td class="item-quantity">{{ item.quantity }}</td>
                                 <td>{{ item.description }}</td>
                                 <td>
-                                    <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST">
+                                    <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST" style="margin-bottom: 4px;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <input type="number" 
                                                name="quantity" 
                                                class="quantity-input" 
@@ -437,8 +1536,14 @@
                                             Sell
                                         </button>
                                         <div class="sell-price">
-                                            ({{ (item.base_price * 0.75)|int }} gold each)
+                                            ({{ (item.base_price * 0.75)|int }} credits each)
                                         </div>
+                                    </form>
+                                    <form action="{{ url_for('player.equip_item', item_id=item.item_id) }}" method="POST">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="button" style="padding: 4px 8px; font-size: 0.85em;">
+                                            Equip on Character
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
@@ -451,91 +1556,113 @@
                         <p class="small-text">Visit shops to purchase items!</p>
                     </div>
                 {% endif %}
+            </div><!-- /.section.inventory-container -->
+            </div><!-- /.inventory-column -->
+            </div>
+            <!-- /character-inventory-row -->
+
+            <!-- City -> Shop -> Items browse accordion (replaces the old
+                 filter-based Search Items / Search Results UI). Mirrors the
+                 GM Shops-by-city panel so players and GMs share the same
+                 mental model when browsing campaign inventory. -->
+            <div class="player-shops-browse-panel">
+                <h2>Shops by city</h2>
+                <div class="browse-note">
+                    <strong>Tip:</strong> Expand a city to see its shops, then expand a shop to browse items. Buy purchases a single unit; visit the shop page for bulk purchases.
+                </div>
+
+                {% if city_browse %}
+                <div class="city-list">
+                    {% for entry in city_browse %}
+                    {% set city = entry.city %}
+                    {% set shop_count = entry.shops|length %}
+                    <details class="city-block">
+                        <summary>
+                            <span class="city-name">{{ city.name }}</span>
+                            <span class="city-meta">
+                                {{ city.region or 'Unspecified' }}{% if city.size %} | {{ city.size }}{% endif %}
+                            </span>
+                            <span class="shop-count-badge">{{ shop_count }} shop{% if shop_count != 1 %}s{% endif %}</span>
+                        </summary>
+                        <div class="city-panel">
+                            {% if shop_count == 0 %}
+                            <p class="empty-city">No shops in this city yet.</p>
+                            {% else %}
+                            {% for shop_entry in entry.shops %}
+                            {% set shop = shop_entry.shop %}
+                            {% set items = shop_entry.item_rows %}
+                            <details class="shop-block">
+                                <summary>
+                                    <span class="shop-name">{{ shop.name }}</span>
+                                    <span class="shop-type">{{ shop.type or '' }}</span>
+                                    <span class="item-count">{{ items|length }} item{% if items|length != 1 %}s{% endif %}</span>
+                                </summary>
+                                <div class="shop-items">
+                                    {% if items %}
+                                    <table class="shop-items-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Item</th>
+                                                <th>Price</th>
+                                                <th>Stock</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for it in items %}
+                                            <tr>
+                                                <td>{{ it.name }}</td>
+                                                <td>{{ "%.0f"|format(it.price) }}</td>
+                                                <td>
+                                                    {% set status = 'out-of-stock' if it.stock <= 0 else ('low-stock' if it.stock <= 5 else 'in-stock') %}
+                                                    <span class="stock-status {{ status }}">{{ it.stock }}</span>
+                                                </td>
+                                                <td>
+                                                    <button type="button"
+                                                            class="browse-buy-button"
+                                                            data-shop-id="{{ shop.shop_id }}"
+                                                            data-item-id="{{ it.item_id }}"
+                                                            onclick="browseBuyItem({{ shop.shop_id }}, {{ it.item_id }}, this)"
+                                                            {% if it.stock <= 0 %}disabled{% endif %}>
+                                                        {% if it.stock <= 0 %}Out of stock{% else %}Buy{% endif %}
+                                                    </button>
+                                                    <a href="{{ url_for('player.view_shop', shop_id=shop.shop_id) }}" class="button" style="margin-left: 6px; padding: 5px 10px; font-size: 12px;">View Shop</a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    {% else %}
+                                    <p class="empty-city" style="padding: 12px 0;">This shop has no items stocked yet.</p>
+                                    {% endif %}
+                                </div>
+                            </details>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No cities available. Ask your GM to set up cities and shops.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
 
-        <!-- Cities Section -->
-        <div class="section">
-            <h2>Available Cities <a href="{{ url_for('player.view_cities') }}" class="button" style="font-size: 12px; padding: 5px 10px;">View All</a></h2>
-            {% if cities %}
-            <ul class="city-list">
-                {% for city in cities[:3] %}
-                <li onclick="window.location.href='{{ url_for('player.view_city', city_id=city.city_id) }}'">
-                    <div class="city-name">{{ city.name }}</div>
-                    <div class="city-details">
-                        <span class="city-size">{{ city.size }}</span>
-                        <span class="city-region">{{ city.region }}</span>
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p>No cities available.</p>
-            {% endif %}
-        </div>
+        <!-- Market Prices panel moved to the Market Overview page. -->
     </div>
 
-    <!-- Search & Filters Section -->
-    <div class="search-section">
-        <h2>Search Items</h2>
-        <div class="filter-container">
-            <div class="filter-group">
-                <label class="filter-label" for="cityFilter">City:</label>
-                <select id="cityFilter" class="filter-select">
-                    <option value="">All Cities</option>
-                    {% for city in cities %}
-                    <option value="{{ city.city_id }}">{{ city.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label class="filter-label" for="shopFilter">Shop:</label>
-                <select id="shopFilter" class="filter-select">
-                    <option value="">All Shops</option>
-                    {% for shop in shops %}
-                    <option value="{{ shop.shop_id }}">{{ shop.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label class="filter-label" for="itemFilter">Item:</label>
-                <select id="itemFilter" class="filter-select">
-                    <option value="">All Items</option>
-                    {% for item in items %}
-                    <option value="{{ item.item_id }}">{{ item.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <button onclick="searchItems()" class="search-button">Search</button>
-        </div>
-    </div>
-
-    <!-- Search Results -->
-    <div class="results-section">
-        <h2>Search Results</h2>
-        <table class="results-table">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Shop</th>
-                    <th>City</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="searchResults">
-                <!-- Results will be dynamically inserted -->
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Navigation -->
-    <div class="nav-buttons">
-        <button onclick="navigateTo('{{ url_for('auth.logout') }}')" class="nav-button">Logout</button>
-    </div>
+    <script>
+        // Load character data when the dashboard is ready. The old
+        // initSearchFilters() is gone - the filter UI was replaced by the
+        // server-rendered City -> Shop -> Items browse accordion, so there
+        // is nothing client-side to wire up for search.
+        document.addEventListener("DOMContentLoaded", function () {
+            loadCharacterData();
+            stylePlayerCurrency();
+        });
+    </script>
 </body>
 </html>

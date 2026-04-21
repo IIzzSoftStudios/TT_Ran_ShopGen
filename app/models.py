@@ -1,4 +1,5 @@
 from sqlalchemy.orm import relationship
+from sqlalchemy import UniqueConstraint
 from app.extensions import db, SQLAlchemy, bcrypt, UserMixin
 from datetime import datetime
 
@@ -88,6 +89,24 @@ class ShopInventory(db.Model):
     def __repr__(self):
         return f"<ShopInventory (Shop: {self.shop.name}, Item: {self.item.name}, Stock: {self.stock}, Price: {self.dynamic_price})>"
 
+
+class PriceHistory(db.Model):
+    __tablename__ = "price_history"
+    # Existing PostgreSQL deployments use PK column name `id`; map Python attr history_id to that column.
+    history_id = db.Column("id", db.Integer, primary_key=True, autoincrement=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    recorded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+
+    shop = db.relationship("Shop", backref="price_history_entries")
+    item = db.relationship("Item", backref="price_history_entries")
+
+    def __repr__(self):
+        return f"<PriceHistory shop={self.shop_id} item={self.item_id} price={self.price}>"
+
+
 class RegionalMarket(db.Model):
     """Tracks supply and demand for items within a region."""
     __tablename__ = "regional_markets"
@@ -149,9 +168,11 @@ class DemandModifier(db.Model):
         return True
 
     @staticmethod
-    def get_active_modifiers():
-        """Fetches all currently active modifiers."""
-        return DemandModifier.query.filter_by(is_active=True).all()
+    def get_active_modifiers(gm_profile_id: int):
+        """Fetches active modifiers for one campaign."""
+        return DemandModifier.query.filter_by(
+            is_active=True, gm_profile_id=gm_profile_id
+        ).all()
 
 class ModifierTarget(db.Model):
     __tablename__ = "modifier_targets"
@@ -173,7 +194,13 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(100), nullable=False, unique=True)
     password = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(50), nullable=False)
-    
+    email = db.Column(db.String(255), nullable=True, unique=True)
+    last_active = db.Column(db.DateTime, nullable=True)
+    reset_token = db.Column(db.String(100), nullable=True)
+    reset_token_expires = db.Column(db.DateTime, nullable=True)
+    reset_otp_hash = db.Column(db.String(128), nullable=True)
+    reset_otp_expires = db.Column(db.DateTime, nullable=True)
+
     # For GMs: Their players
     players = db.relationship("Player", backref="user", foreign_keys="Player.user_id")
     # GM Profile if they are a GM
@@ -184,7 +211,11 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password, password)
-    
+
+    def update_activity(self):
+        self.last_active = datetime.utcnow()
+        db.session.commit()
+
     def get_id(self):
         return str(self.id)
 
@@ -196,7 +227,8 @@ class GMProfile(db.Model):
     __tablename__ = "gm_profile"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
-    
+    current_game_day = db.Column(db.Integer, nullable=True, default=1)
+
     # Relationships with game entities
     cities = db.relationship("City", backref="gm_profile")
     shops = db.relationship("Shop", backref="gm_profile")
@@ -205,19 +237,133 @@ class GMProfile(db.Model):
     modifier_targets = db.relationship("ModifierTarget", backref="gm_profile")
     # Players managed by this GM
     players = db.relationship("Player", backref="gm_profile")
+    campaigns = db.relationship(
+        "Campaign", back_populates="gm_profile", cascade="all, delete-orphan"
+    )
+
+    @property
+    def calendar_state(self):
+        """30-day months, 12 months/year (360 days/year); one tick = one game day.
+
+        `month` is kept as a global (non-wrapping) counter for backward compat
+        with any existing consumer. `year` and `month_of_year` are the
+        year-relative values the UI renders."""
+        total_days = self.current_game_day or 1
+        month = ((total_days - 1) // 30) + 1
+        day_of_month = ((total_days - 1) % 30) + 1
+        day_of_week = (total_days - 1) % 7
+        year = ((total_days - 1) // 360) + 1
+        month_of_year = (((total_days - 1) % 360) // 30) + 1
+        return {
+            "month": month,
+            "month_of_year": month_of_year,
+            "year": year,
+            "day": day_of_month,
+            "dow": day_of_week,
+            "total": total_days,
+        }
 
     def __repr__(self):
         return f"<GMProfile (User: {self.user.username})>"
 
+
+class Campaign(db.Model):
+    __tablename__ = "campaign"
+
+    id = db.Column(db.Integer, primary_key=True)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    system_type = db.Column(db.String(50), nullable=False, default="generic")
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_free_tier = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    gm_profile = db.relationship("GMProfile", back_populates="campaigns")
+    players = db.relationship(
+        "CampaignPlayer", back_populates="campaign", cascade="all, delete-orphan"
+    )
+
+
+class CampaignPlayer(db.Model):
+    __tablename__ = "campaign_player"
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey("campaign.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False, default="active")
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    campaign = db.relationship("Campaign", back_populates="players")
+    player = db.relationship("Player", back_populates="campaign_memberships")
+
+    __table_args__ = (
+        db.UniqueConstraint("campaign_id", "player_id", name="uq_campaign_player_membership"),
+    )
+
+
+class AccessRequest(db.Model):
+    __tablename__ = "access_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    user_role = db.Column(db.String(50), nullable=False)
+    player_count = db.Column(db.Integer, default=0)
+    total_expected_users = db.Column(db.Integer, default=1)
+    is_homebrew = db.Column(db.Boolean, default=False)
+    primary_ruleset = db.Column(db.String(100))
+    discovery_source = db.Column(db.String(255))
+    notes = db.Column(db.Text)
+    status = db.Column(db.String(20), default="pending")
+    processed_at = db.Column(db.DateTime, nullable=True)
+    vault_key = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    vault_key_used = db.Column(db.Boolean, default=False, nullable=False)
+    vault_key_used_at = db.Column(db.DateTime, nullable=True)
+    queue_sort_ts = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class RegistrationKey(db.Model):
+    __tablename__ = "registration_key"
+    id = db.Column(db.Integer, primary_key=True)
+    key_code = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(255), nullable=True, index=True)
+    is_used = db.Column(db.Boolean, default=False, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref=db.backref("registration_key_used", uselist=False))
+
+
 class Player(db.Model):
     __tablename__ = "player"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
+    # DB column is `user_id_player` (see initial migration 405dc230924f); the
+    # ORM attribute stays `user_id` so existing queries/constructors keep working.
+    user_id = db.Column(
+        "user_id_player",
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        unique=True,
+    )
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     currency = db.Column(db.Integer, default=0)
-    
+
+    campaign_memberships = db.relationship(
+        "CampaignPlayer",
+        back_populates="player",
+        cascade="all, delete-orphan",
+    )
+
     # Relationship to player's inventory
     inventory = db.relationship("PlayerInventory", back_populates="player")
+    equipment_slots = db.relationship(
+        "PlayerEquipment", back_populates="player", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Player (User: {self.user.username}, GM: {self.gm_profile.user.username})>"
@@ -228,6 +374,10 @@ class PlayerInventory(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
     quantity = db.Column(db.Integer, default=1)
+    # Provenance tag: "GM" when the row was created by a GM equip/grant action,
+    # NULL for rows the player earned/purchased normally. Keep short + nullable
+    # so future sources ("LOOT", "SHOP", ...) can be added without migration.
+    source = db.Column(db.String(16), nullable=True)
 
     # Relationships
     player = db.relationship("Player", back_populates="inventory")
@@ -235,6 +385,65 @@ class PlayerInventory(db.Model):
 
     def __repr__(self):
         return f"<PlayerInventory (Player: {self.player.user.username}, Item: {self.item.name}, Quantity: {self.quantity})>"
+
+
+class PlayerEquipment(db.Model):
+    __tablename__ = "player_equipment"
+    __table_args__ = (UniqueConstraint("player_id", "slot", name="uq_player_equipment_slot"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False)
+    slot = db.Column(db.String(50), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=True)
+    # "GM" when a GM equipped this slot for the player; NULL when the player
+    # equipped it themselves. Rendered as a badge in GM_view_character.html.
+    source = db.Column(db.String(16), nullable=True)
+
+    player = db.relationship("Player", back_populates="equipment_slots")
+    item = db.relationship("Item")
+
+    def __repr__(self):
+        return f"<PlayerEquipment player={self.player_id} slot={self.slot} item={self.item_id}>"
+
+
+class PlayerCharacterSheet(db.Model):
+    """Per-(player, campaign) character sheet blob.
+
+    Shape of ``sheet_json`` is validated in Python against the rule set
+    registry in app/services/rulesets, not at the DB level. Keeping this as
+    a single JSON column means new rule sets (or GM-configurable rule sets)
+    do not require schema migrations.
+    """
+
+    __tablename__ = "player_character_sheet"
+    __table_args__ = (
+        UniqueConstraint("player_id", "campaign_id", name="uq_sheet_player_campaign"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(
+        db.Integer, db.ForeignKey("player.id"), nullable=False, index=True
+    )
+    campaign_id = db.Column(
+        db.Integer, db.ForeignKey("campaign.id"), nullable=False, index=True
+    )
+    sheet_json = db.Column(db.JSON, nullable=False, default=dict)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    player = db.relationship("Player", backref="character_sheets")
+    campaign = db.relationship("Campaign", backref="character_sheets")
+
+    def __repr__(self):
+        return (
+            f"<PlayerCharacterSheet player={self.player_id} "
+            f"campaign={self.campaign_id}>"
+        )
+
 
 class ResourceNode(db.Model):
     __tablename__ = "resource_nodes"
@@ -296,32 +505,6 @@ class MarketEvent(db.Model):
     # Relationships
     city = db.relationship("City", backref="market_events")
 
-class PlayerInvestment(db.Model):
-    __tablename__ = "player_investments"
-    investment_id = db.Column(db.Integer, primary_key=True)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
-    amount_invested = db.Column(db.Float, nullable=False)
-    stake_percentage = db.Column(db.Float, nullable=False)
-    income_yield = db.Column(db.Float, nullable=False)
-    last_payout = db.Column(db.DateTime, nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
-    
-    # Relationships
-    player = db.relationship("Player", backref="investments")
-    shop = db.relationship("Shop", backref="investments")
-
-class ShopMaintenance(db.Model):
-    __tablename__ = "shop_maintenance"
-    maintenance_id = db.Column(db.Integer, primary_key=True)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
-    daily_cost = db.Column(db.Float, nullable=False)
-    last_payment = db.Column(db.DateTime, nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
-    
-    # Relationships
-    shop = db.relationship("Shop", backref="maintenance")
-
 class SimulationState(db.Model):
     __tablename__ = "simulation_state"
     state_id = db.Column(db.Integer, primary_key=True)
@@ -331,10 +514,30 @@ class SimulationState(db.Model):
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     
     # Relationships
-    gm_profile = db.relationship("GMProfile", backref="simulation_state")
+    gm_profile = db.relationship(
+        "GMProfile", backref=db.backref("simulation_state", uselist=False)
+    )
     
     def __repr__(self):
         return f"<SimulationState (Tick: {self.current_tick}, Speed: {self.speed})>"
+
+
+class GMWorldState(db.Model):
+    """Unified per-GM simulation snapshot (JSON keyed by ShopInventory.inventory_id). Phase 2+ authoritative writes."""
+
+    __tablename__ = "gm_world_state"
+
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), primary_key=True)
+    state_json = db.Column(db.JSON, nullable=True)
+    schema_version = db.Column(db.Integer, nullable=False, default=1)
+    tick_seq = db.Column(db.Integer, nullable=True)
+    tick_generation_id = db.Column(db.String(36), nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=True, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    gm_profile = db.relationship("GMProfile", backref=db.backref("gm_world_state", uselist=False))
+
+    def __repr__(self):
+        return f"<GMWorldState gm={self.gm_profile_id} tick_seq={self.tick_seq}>"
 
 class SimulationLog(db.Model):
     __tablename__ = "simulation_logs"

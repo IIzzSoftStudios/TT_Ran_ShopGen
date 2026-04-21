@@ -1,0 +1,529 @@
+:root {
+  color-scheme: light;
+  --color-bg: #f3f4f6;
+  --color-surface: #ffffff;
+  --color-border: #e5e7eb;
+  --color-text: #111827;
+  --color-muted: #4b5563;
+  --color-table-stripe: #f1f5f9;
+  --color-table-hover: #e2e8f0;
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-accent-contrast: #ffffff;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-success: #16a34a;
+  --color-warning: #fb923c;
+  --color-input-bg: #ffffff;
+  --color-input-border: #d1d5db;
+  --shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+:root.dark-mode {
+  color-scheme: dark;
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-border: #334155;
+  --color-text: #e2e8f0;
+  --color-muted: #94a3b8;
+  --color-table-stripe: rgba(148, 163, 184, 0.08);
+  --color-table-hover: rgba(148, 163, 184, 0.18);
+  --color-accent: #c084fc;
+  --color-accent-hover: #a855f7;
+  --color-accent-contrast: #0f172a;
+  --color-danger: #f87171;
+  --color-danger-hover: #ef4444;
+  --color-success: #4ade80;
+  --color-warning: #fdba74;
+  --color-input-bg: #0f172a;
+  --color-input-border: #475569;
+  --shadow-panel: 0 6px 30px rgba(2, 6, 23, 0.6);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 0.25s ease, color 0.25s ease;
+  min-height: 100vh;
+}
+
+html.dark-mode h1,
+html.dark-mode h2,
+html.dark-mode h3 {
+  color: #F8F9FA !important;
+}
+
+a {
+  color: var(--color-accent);
+  transition: color 0.25s ease;
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+input,
+select,
+textarea {
+  background-color: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
+  color: var(--color-text);
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 1500;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background-color: rgba(15, 23, 42, 0.7);
+  color: #f8fafc;
+  font-size: 0.9rem;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.3);
+  transition: transform 0.2s ease, background-color 0.3s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-2px);
+}
+
+:root.dark-mode .theme-toggle {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: #f4f4f5;
+}
+
+html.dark-mode body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+html.dark-mode header,
+html.dark-mode main,
+html.dark-mode .card,
+html.dark-mode .section,
+html.dark-mode .market-panel,
+html.dark-mode .dashboard-panel,
+html.dark-mode .results-section,
+html.dark-mode .search-section,
+html.dark-mode .currency-container,
+html.dark-mode .simulation-panel,
+html.dark-mode .inventory-container,
+html.dark-mode .content-container,
+html.dark-mode .city-list li,
+html.dark-mode .market-item,
+html.dark-mode .market-header,
+html.dark-mode .button-container,
+html.dark-mode form,
+html.dark-mode .panel,
+html.dark-mode .modal,
+html.dark-mode .nav-buttons,
+html.dark-mode [class*="container"],
+html.dark-mode [class*="section"],
+html.dark-mode [class*="panel"],
+html.dark-mode [class*="card"] {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-panel);
+}
+
+/* Base table colors (cities-style): high-contrast rows and white text for all tables */
+html.dark-mode .inventory-table,
+html.dark-mode .results-table,
+html.dark-mode table {
+  background-color: var(--color-surface);
+  color: #FFFFFF;
+}
+
+html.dark-mode th {
+  background-color: var(--color-accent) !important;
+  color: var(--color-accent-contrast) !important;
+}
+
+html.dark-mode td {
+  border-color: var(--color-border);
+  color: #FFFFFF !important;
+}
+
+html.dark-mode tbody tr {
+  background-color: rgba(30, 30, 46, 0.8) !important;
+  color: #FFFFFF !important;
+}
+
+html.dark-mode tbody tr:nth-child(even) {
+  background-color: #252538 !important;
+}
+
+html.dark-mode tbody tr:hover {
+  background-color: var(--color-table-hover) !important;
+}
+
+html.dark-mode .item-quantity,
+html.dark-mode .city-name {
+  color: var(--color-accent);
+}
+
+html.dark-mode .item-type,
+html.dark-mode .city-details,
+html.dark-mode .filter-label,
+html.dark-mode .small-text,
+html.dark-mode [class*="details"],
+html.dark-mode [class*="info"] {
+  color: var(--color-muted) !important;
+}
+
+html.dark-mode .button,
+html.dark-mode .nav-button,
+html.dark-mode .search-button,
+html.dark-mode .speed-button,
+html.dark-mode .btn,
+html.dark-mode button[type="submit"],
+html.dark-mode button[type="button"] {
+  background-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border-color: transparent;
+}
+
+html.dark-mode .button:hover,
+html.dark-mode .nav-button:hover,
+html.dark-mode .search-button:hover,
+html.dark-mode .speed-button:hover,
+html.dark-mode .btn:hover {
+  background-color: var(--color-accent-hover);
+}
+
+html.dark-mode .sell-button {
+  background-color: var(--color-danger);
+  color: var(--color-accent-contrast);
+}
+
+html.dark-mode .sell-button:hover {
+  background-color: var(--color-danger-hover);
+}
+
+html.dark-mode .sell-button:disabled {
+  background-color: rgba(148, 163, 184, 0.4);
+}
+
+html.dark-mode .flash-message.success {
+  background-color: var(--color-success);
+  color: #0f172a;
+}
+
+html.dark-mode .flash-message.error {
+  background-color: var(--color-danger);
+}
+
+html.dark-mode .flash-message.info {
+  background-color: #38bdf8;
+}
+
+/* GM Dashboard: header and simulation control legibility in dark mode */
+html.dark-mode .gm-dashboard h1,
+html.dark-mode .gm-dashboard h2,
+html.dark-mode .gm-dashboard .simulation-panel h2 {
+  color: #F8F9FA !important;
+}
+
+/* Character panel: make class/level and stat section headers white in dark mode */
+html.dark-mode .character-class-level,
+html.dark-mode .stat-section-title {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .market-header {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.6), rgba(168, 85, 247, 0.7));
+}
+
+html.dark-mode .item-icon {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.9), rgba(168, 85, 247, 0.9));
+}
+
+html.dark-mode .currency-container {
+  background-color: rgba(148, 163, 184, 0.08) !important;
+}
+
+html.dark-mode .inventory-table th,
+html.dark-mode .results-table th {
+  border: none;
+}
+
+html.dark-mode .inventory-table tr:nth-child(even),
+html.dark-mode .results-table tr:nth-child(even),
+html.dark-mode .market-item:nth-child(even) {
+  background-color: var(--color-table-stripe);
+}
+
+html.dark-mode .market-item:hover,
+html.dark-mode .city-list li:hover {
+  background-color: var(--color-table-hover);
+}
+
+html.dark-mode .shop-quality,
+html.dark-mode .shop-size,
+html.dark-mode .badge,
+html.dark-mode .tag,
+html.dark-mode [class*="pill"] {
+  background-color: rgba(148, 163, 184, 0.2);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+html.dark-mode .rarity-common { background-color: rgba(148, 163, 184, 0.4); }
+html.dark-mode .rarity-uncommon { background-color: rgba(52, 211, 153, 0.35); }
+html.dark-mode .rarity-rare { background-color: rgba(56, 189, 248, 0.35); }
+html.dark-mode .rarity-very-rare { background-color: rgba(192, 132, 252, 0.35); }
+html.dark-mode .rarity-legendary { background-color: rgba(250, 204, 21, 0.5); }
+html.dark-mode .rarity-unique { background-color: rgba(251, 146, 60, 0.45); }
+
+/* GM list/table dark mode: high-contrast rows and text */
+html.dark-mode .gm-list-page .gm-list-table,
+html.dark-mode .gm-list-page table {
+  background-color: transparent;
+}
+html.dark-mode .gm-list-page .gm-list-table tbody tr,
+html.dark-mode .gm-list-page table tbody tr {
+  background-color: rgba(30, 30, 46, 0.8) !important;
+  color: #FFFFFF !important;
+}
+html.dark-mode .gm-list-page .gm-list-table tbody tr:nth-child(even),
+html.dark-mode .gm-list-page table tbody tr:nth-child(even) {
+  background-color: #252538 !important;
+}
+html.dark-mode .gm-list-page .gm-list-table tbody td,
+html.dark-mode .gm-list-page table tbody td {
+  color: #FFFFFF !important;
+  border-color: var(--color-border);
+}
+html.dark-mode .gm-list-page .gm-list-table tbody td:nth-child(2),
+html.dark-mode .gm-list-page table tbody td:nth-child(2) {
+  color: #A0A0A0 !important;
+}
+
+/* GM player manager: ensure character links match high-contrast row text */
+html.dark-mode .gm-list-page .character-link {
+  color: #FFFFFF !important;
+}
+
+/* GM item detail page: same table-like colors for detail rows and sections */
+html.dark-mode .gm-detail-page .detail-container,
+html.dark-mode .gm-detail-page .content-container {
+  background-color: var(--color-surface) !important;
+  color: #FFFFFF !important;
+  border-color: var(--color-border);
+}
+
+html.dark-mode .gm-detail-page .detail-section h2 {
+  color: var(--color-accent) !important;
+  border-bottom-color: var(--color-accent);
+}
+
+html.dark-mode .gm-detail-page .detail-row {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark-mode .gm-detail-page .detail-label {
+  color: #A0A0A0 !important;
+}
+
+html.dark-mode .gm-detail-page .detail-value {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .detail-value.empty {
+  color: var(--color-muted) !important;
+}
+
+html.dark-mode .gm-detail-page .property-item {
+  background-color: rgba(30, 30, 46, 0.8) !important;
+  border-left-color: var(--color-accent);
+}
+
+html.dark-mode .gm-detail-page .property-label {
+  color: #A0A0A0 !important;
+}
+
+html.dark-mode .gm-detail-page .property-value {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .city-group {
+  border-color: var(--color-border);
+}
+
+html.dark-mode .gm-detail-page .city-header {
+  background-color: #252538 !important;
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .city-content {
+  background-color: rgba(30, 30, 46, 0.6);
+  color: #FFFFFF;
+}
+
+html.dark-mode .gm-detail-page .shop-type-header {
+  background-color: rgba(37, 37, 56, 0.9) !important;
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .shop-item {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .gm-detail-page .magic-indicator {
+  background-color: var(--color-warning);
+  color: #0f172a;
+}
+
+html.dark-mode .gm-detail-page h1 {
+  color: #F8F9FA !important;
+}
+
+/* Player routes: same table and panel styling as GM cities */
+html.dark-mode .items-table,
+html.dark-mode .shop-info {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border);
+}
+
+html.dark-mode .shop-name {
+  color: var(--color-accent) !important;
+}
+
+html.dark-mode .shop-type {
+  color: var(--color-muted) !important;
+}
+
+/* Campaign selection page: subtitle and logout link text in dark mode */
+html.dark-mode .subtitle {
+  color: #F8F9FA !important;
+}
+
+html.dark-mode .logout-link a {
+  color: #F8F9FA !important;
+}
+
+/* Player Home: market price text should match other white text in dark mode */
+html.dark-mode .market-panel .price-value {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode .market-panel .price-coin {
+  color: #facc15 !important;
+}
+
+html.dark-mode .market-panel .item-name {
+  color: #FFFFFF !important;
+}
+
+/* Character sheet: Defense & Saves labels and values in dark mode */
+html.dark-mode .sheet-container .stat-label,
+html.dark-mode .sheet-container .stat-computed,
+html.dark-mode .sheet-container .stat-value {
+  color: #FFFFFF !important;
+}
+
+/* Player Home: main funds color by sign */
+#playerCurrency.currency-positive {
+  color: #111827;
+}
+
+#playerCurrency.currency-negative {
+  color: var(--color-danger);
+}
+
+html.dark-mode #playerCurrency.currency-positive {
+  color: #FFFFFF !important;
+}
+
+html.dark-mode #playerCurrency.currency-negative {
+  color: var(--color-danger) !important;
+}
+
+/* GM simulation: pressed / locked controls */
+.speed-button.running {
+  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.35);
+  transform: translateY(2px);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background-color: #1b5e20;
+}
+
+.speed-button.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  filter: grayscale(0.35);
+}
+
+.gm-dashboard .gm-calendar-container {
+  margin: 1rem auto 0;
+  max-width: 420px;
+}
+
+.gm-calendar-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.gm-calendar-header > :nth-child(1) { text-align: left; }
+.gm-calendar-header > :nth-child(2) { text-align: center; }
+.gm-calendar-header > :nth-child(3) { text-align: right; }
+
+.gm-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.gm-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  background: var(--color-bg);
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.gm-dashboard .cal-day {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  border-radius: 4px;
+  background: var(--color-surface);
+}
+
+.gm-dashboard .cal-day.active {
+  background-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: bold;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.35);
+  border-color: var(--color-accent-hover);
+}
+
+html.dark-mode .gm-dashboard .cal-day.active {
+  box-shadow: 0 0 12px rgba(192, 132, 252, 0.45);
+}

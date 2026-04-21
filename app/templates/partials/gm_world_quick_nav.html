@@ -1,0 +1,30 @@
+﻿{# Defaults when variables omitted from {% include ... with %} #}
+{% set _show_back = show_back_to_dashboard|default(false) %}
+{% set _show_add_city = show_add_city|default(true) %}
+<style>
+    .gm-world-quick-nav .nav-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+</style>
+<div class="gm-world-quick-nav">
+    <div class="nav-buttons">
+        <button type="button" onclick="MapsTo('{{ url_for('gm.add_shop') }}')" class="button">Add New Shop</button>
+        {% if _show_add_city %}
+        <button type="button" onclick="MapsTo('{{ url_for('gm.add_city') }}')" class="button">Add City</button>
+        {% endif %}
+        {% if _show_back %}
+        <button type="button" onclick="MapsTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
+        {% endif %}
+    </div>
+</div>
+<script>
+    function MapsTo(url) {
+        if (url && url.trim() !== '') {
+            window.location.href = url;
+        }
+    }
+</script>

@@ -1,7 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>{% if city %}{{ city.name }} Shops{% endif %}</title>
+    {% include 'partials/theme_head.html' %}
+
     <style>
         /* Center everything */
         body {

@@ -1,0 +1,325 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>GM — Character</title>
+    {% include 'partials/theme_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            color: #111827;
+            margin: 0;
+            padding: 20px;
+        }
+        .content-container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+        }
+        h1, h2 { margin-top: 0; }
+        .section {
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        label {
+            display: block;
+            margin-top: 8px;
+            font-weight: bold;
+        }
+        input, select {
+            padding: 6px 10px;
+            margin-top: 4px;
+        }
+        .button {
+            padding: 8px 14px;
+            margin-top: 10px;
+            cursor: pointer;
+            background: #6a1b9a;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .button:hover { background: #5a148a; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th { background: #f5f5f5; }
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .page-title {
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 4px;
+        }
+        .row { display: flex; gap: 24px; flex-wrap: wrap; }
+        .card {
+            flex: 1;
+            min-width: 260px;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        .flash-message {
+            padding: 10px 14px;
+            border-radius: 4px;
+            margin: 8px 0;
+        }
+        .flash-message.success { background: #dcfce7; color: #166534; }
+        .flash-message.error,
+        .flash-message.danger { background: #fee2e2; color: #991b1b; }
+        .tag {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+        .tag-gm { background: #6a1b9a; color: #fff; }
+    </style>
+</head>
+<body class="gm-detail-page">
+    <h1 class="page-title">{{ player.user.username if player.user else 'Player' }}</h1>
+    <div class="nav-buttons">
+        <a href="{{ url_for('gm.gm_view_players') }}" class="button">All players</a>
+        <a href="{{ url_for('gm.home') }}" class="button">Dashboard</a>
+    </div>
+    <div class="content-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for cat, msg in messages %}
+                    <div class="flash-message {{ cat }}">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <section class="section">
+            <h2>Currency</h2>
+            <form method="post" action="{{ url_for('gm.gm_update_character', character_id=player.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <label>Currency</label>
+                <input type="number" name="currency" value="{{ player.currency or 0 }}" min="0" required />
+                <button type="submit" class="button">Save</button>
+            </form>
+        </section>
+
+        {% if character %}
+        <section class="section">
+            <h2>Character Sheet <small style="font-weight: normal; color: #666;">({{ character.ruleset_meta.display_name if character.ruleset_meta else character.system_type }})</small></h2>
+            <form method="post" action="{{ url_for('gm.gm_update_character', character_id=player.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_section" value="sheet"/>
+
+                <h3>Identity</h3>
+                <div class="row">
+                    <div class="card">
+                        <label>Class</label>
+                        <input type="text" name="class_name" value="{{ character.class_name or '' }}"/>
+                    </div>
+                    <div class="card">
+                        <label>Species / Ancestry</label>
+                        <input type="text" name="species" value="{{ character.species or '' }}"/>
+                    </div>
+                    <div class="card">
+                        <label>Level</label>
+                        <input type="number" name="level" value="{{ character.level or '' }}" min="0" max="40"/>
+                    </div>
+                </div>
+                <label>Notes</label>
+                <textarea name="notes" style="width: 100%; min-height: 60px;">{{ character.notes or '' }}</textarea>
+
+                {% if character.abilities_display %}
+                <h3>Abilities</h3>
+                <div class="row">
+                    {% for stat in character.abilities_display %}
+                    <div class="card" style="text-align: center;">
+                        <div style="font-size: 0.85em; color: #555;">{{ stat.label }}</div>
+                        <input type="number" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" style="width: 70px; text-align: center;"/>
+                        {% if stat.modifier is not none %}
+                        <div style="font-weight: bold; margin-top: 4px;">{{ '%+d'|format(stat.modifier) }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if character.defenses_display %}
+                <h3>Defenses &amp; Saves</h3>
+                <div class="row">
+                    {% for stat in character.defenses_display %}
+                    <div class="card" style="text-align: center;">
+                        <div style="font-size: 0.85em; color: #555;">{{ stat.label }}</div>
+                        {% if stat.category == 'save' %}
+                            <div style="font-size: 1.1em; font-weight: bold;">
+                                {{ '%+d'|format(stat.computed_value) if stat.computed_value is not none else '-' }}
+                            </div>
+                            {% if character.ruleset_meta and character.ruleset_meta.supports_save_proficiency %}
+                                {% set save_flag = character.save_prof_flags.get(stat.key) if character.save_prof_flags is defined else None %}
+                                <label style="display: flex; align-items: center; gap: 4px; justify-content: center; margin-top: 4px;">
+                                    <input type="checkbox" name="save_prof_flag_{{ stat.key }}" value="1" {% if save_flag and save_flag >= 0.5 %}checked{% endif %}/>
+                                    <span>Proficient</span>
+                                </label>
+                            {% endif %}
+                        {% else %}
+                            <input type="number" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" style="width: 80px; text-align: center;"/>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if character.skills_display %}
+                <h3>Skills</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Skill</th>
+                            <th>Total</th>
+                            {% if character.ruleset_meta and character.ruleset_meta.supports_skill_proficiency %}
+                            <th>Proficiency</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for skill in character.skills_display %}
+                        <tr>
+                            <td>{{ skill.label }}</td>
+                            <td>
+                                {% if skill.computed_value is not none %}
+                                    {{ '%+d'|format(skill.computed_value) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            {% if character.ruleset_meta and character.ruleset_meta.supports_skill_proficiency %}
+                            {% set tier = character.skill_prof_tiers.get(skill.key) if character.skill_prof_tiers is defined else 0 %}
+                            {% set tier_int = tier|int if tier is not none else 0 %}
+                            {% set is_proficient = tier_int > 0 %}
+                            <td>
+                                <label style="display: flex; align-items: center; gap: 4px;">
+                                    <input type="checkbox" name="skill_prof_flag_{{ skill.key }}" value="1" {% if is_proficient %}checked{% endif %} onchange="this.closest('tr').querySelector('.tier-select-{{ skill.key }}').disabled = !this.checked;"/>
+                                    <span>Proficient</span>
+                                </label>
+                                <select name="skill_prof_tier_{{ skill.key }}" class="tier-select-{{ skill.key }}" style="margin-top: 4px;" {% if not is_proficient %}disabled{% endif %}>
+                                    {% for t in character.ruleset_meta.proficiency_tiers %}
+                                        {% if t.value > 0 %}
+                                        <option value="{{ t.value }}" {% if tier_int == t.value %}selected{% endif %}>{{ t.label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+
+                <button type="submit" class="button" style="margin-top: 16px;">Save character sheet</button>
+            </form>
+        </section>
+        {% endif %}
+
+        <section class="section">
+            <h2>Inventory</h2>
+            <table>
+                <thead><tr><th>Item</th><th>Qty</th><th>Source</th></tr></thead>
+                <tbody>
+                    {% for row in inventory_rows %}
+                    <tr>
+                        <td>{{ row.item.name if row.item else row.item_id }}</td>
+                        <td>{{ row.quantity }}</td>
+                        <td>{% if row.source == 'GM' %}<span class="tag tag-gm">GM</span>{% else %}—{% endif %}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3">Empty</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <h3>Add or set stack</h3>
+            {% if campaign_items %}
+            <form method="post" action="{{ url_for('gm.gm_update_inventory_for_character', character_id=player.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <label>Item</label>
+                <select name="item_id" required>
+                    {% for it in campaign_items %}
+                    <option value="{{ it.item_id }}">{{ it.name }}</option>
+                    {% endfor %}
+                </select>
+                <label>Quantity</label>
+                <input type="number" name="quantity" value="1" min="0" required />
+                <label>Action</label>
+                <select name="action">
+                    <option value="add">Add to existing</option>
+                    <option value="set">Set quantity</option>
+                    <option value="remove">Remove row</option>
+                </select>
+                <button type="submit" class="button">Apply</button>
+            </form>
+            {% else %}
+            <p>Create items in your campaign before adding inventory.</p>
+            {% endif %}
+        </section>
+
+        <section class="section">
+            <h2>Equipment</h2>
+            <div class="row">
+                {% for slot in equipment_slots %}
+                <div class="card">
+                    <h3>{{ slot|capitalize }}</h3>
+                    {% set eq = equipment.get(slot) %}
+                    <p>Equipped:
+                        {% if eq and eq.item_id %}
+                            {{ eq.item.name if eq.item else eq.item_id }}
+                            {% if eq.source == 'GM' %}<span class="tag tag-gm">GM</span>{% endif %}
+                        {% else %}—{% endif %}
+                    </p>
+                    {% if campaign_items %}
+                    <form method="post" action="{{ url_for('gm.gm_equip_item_for_character', character_id=player.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="slot" value="{{ slot }}" />
+                        <label>Item from inventory</label>
+                        <select name="item_id" required>
+                            {% for it in campaign_items %}
+                            <option value="{{ it.item_id }}">{{ it.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="button">Equip</button>
+                    </form>
+                    {% else %}
+                    <p><small>No items defined.</small></p>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('gm.gm_unequip_item_for_character', character_id=player.id) }}" style="margin-top:8px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="slot" value="{{ slot }}" />
+                        <button type="submit" class="button">Clear slot</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</body>
+</html>

@@ -1,7 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <title>Register</title>
+    {% include 'partials/theme_head.html' %}
+
     <style>
         /* Center everything */
         body {
@@ -18,7 +20,6 @@
         /* Styling for the heading */
         h2 {
             font-size: 2.5rem;
-            color: black;
             margin-bottom: 20px;
         }
 
@@ -36,14 +37,21 @@
         label {
             font-size: 1rem;
             margin-top: 10px;
+            display: block;
+            text-align: center;
         }
 
         input, select {
             padding: 8px;
-            margin-top: 5px;
+            margin-top: 7px;
             border: 1px solid #ccc;
             border-radius: 5px;
             width: 100%;
+        }
+
+        .form-group {
+            width: 100%;
+            margin-bottom: 10px;
         }
 
         button {
@@ -70,6 +78,40 @@
         .gm-select {
             display: none;
         }
+
+        .password-info {
+            display: inline-block;
+            margin-left: 4px;
+            font-weight: bold;
+            color: purple;
+            cursor: help;
+            position: relative;
+        }
+
+        .password-info::after {
+            content: "Must be at least 8 characters, include one uppercase, one lowercase, and one special character.";
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 120%;
+            background-color: rgba(15, 23, 42, 0.95);
+            color: #ffffff;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            width: 220px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease-in-out;
+            z-index: 100;
+            white-space: normal;
+        }
+
+        .password-info:hover::after,
+        .password-info:focus::after {
+            opacity: 1;
+        }
     </style>
     <script>
         function toggleGMSelect() {
@@ -83,15 +125,38 @@
 </head>
 <body>
     <h2>Register</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div style="width: 100%; max-width: 520px; margin-bottom: 14px;">
+                {% for category, message in messages %}
+                    <div style="padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(30, 41, 59, 0.15);">
+                        <strong>{{ category|capitalize }}:</strong> {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="form-group">
+            <label for="registration_key">Registration Key:</label>
+            <input type="text" id="registration_key" name="registration_key" required placeholder="FORGE-XXXX-XXXX" value="{{ vault_key_prefill or '' }}">
+        </div>
         <div class="form-group">
             <label for="username">Username:</label>
             <input type="text" id="username" name="username" required>
         </div>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" required>
+        </div>
         
         <div class="form-group">
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
+            <label for="password">Password <span class="password-info" tabindex="0" aria-label="Password requirements">!</span>:</label>
+            <input type="password" id="password" name="password" required
+                   minlength="8"
+                   pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+]).{8,}"
+                   title="Must be at least 8 characters, include one uppercase, one lowercase, and one special character.">
         </div>
         
         <div class="form-group">

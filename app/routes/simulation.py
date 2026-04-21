@@ -1,8 +1,10 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
+from app.constants.simulation_flags import ALLOWED_SIMULATION_SPEEDS
 from app.services.economy.simulation_tick import EconomicSimulationTick
 from app.models import SimulationState
 from app.extensions import db
+from app.services.simulation_state_helpers import get_simulation_state_for_gm
 
 simulation_bp = Blueprint('simulation', __name__)
 
@@ -17,7 +19,7 @@ def run_simulation_tick():
         }), 403
 
     # Check if simulation is paused
-    state = SimulationState.query.filter_by(gm_profile_id=current_user.gm_profile.id).first()
+    state = get_simulation_state_for_gm(db.session, current_user.gm_profile.id)
     if state and state.speed == 'pause':
         return jsonify({
             'success': False,
@@ -50,7 +52,7 @@ def get_simulation_state():
             'message': 'Only GMs can access simulation state'
         }), 403
 
-    state = SimulationState.query.filter_by(gm_profile_id=current_user.gm_profile.id).first()
+    state = get_simulation_state_for_gm(db.session, current_user.gm_profile.id)
     
     if not state:
         return jsonify({
@@ -82,13 +84,13 @@ def set_simulation_speed():
         }), 403
 
     speed = request.json.get('speed')
-    if speed not in ['pause', '1x', '5x', '10x', '100x']:
+    if speed not in ALLOWED_SIMULATION_SPEEDS:
         return jsonify({
             'success': False,
             'message': 'Invalid simulation speed'
         }), 400
 
-    state = SimulationState.query.filter_by(gm_profile_id=current_user.gm_profile.id).first()
+    state = get_simulation_state_for_gm(db.session, current_user.gm_profile.id)
     if not state:
         state = SimulationState(gm_profile_id=current_user.gm_profile.id)
         db.session.add(state)

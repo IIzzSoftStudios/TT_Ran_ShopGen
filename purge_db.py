@@ -3,7 +3,8 @@ from app.models import (
     City, Shop, Item, ShopInventory, RegionalMarket, GlobalMarket,
     DemandModifier, ModifierTarget, User, GMProfile, Player, PlayerInventory,
     ResourceNode, ProductionHistory, ResourceTransform, MarketEvent,
-    PlayerInvestment, ShopMaintenance, SimulationState, SimulationLog, SimRule
+    SimulationState, SimulationLog, SimRule,
+    GMWorldState,
 )
 from sqlalchemy import text
 
@@ -19,9 +20,8 @@ def purge_database():
             ModifierTarget,  # Junction for DemandModifier
             PlayerInventory,  # Junction between Player and Item
             ProductionHistory,  # Depends on ResourceNode
-            PlayerInvestment,  # Depends on Player and Shop
-            ShopMaintenance,  # Depends on Shop
             SimulationLog,  # Depends on GMProfile
+            GMWorldState,  # Depends on GMProfile
             SimRule,  # Depends on GMProfile
             RegionalMarket,  # Depends on City and Item
             GlobalMarket,  # Depends on Item

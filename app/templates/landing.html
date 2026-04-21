@@ -1,0 +1,442 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        /* Landing page layout */
+        .landing-page {
+            padding-bottom: 48px;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        html.dark-mode .topbar {
+            background: rgba(15, 23, 42, 0.65);
+        }
+
+        .topbar-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+        }
+
+        .brand-badge {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: rgba(124, 58, 237, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-accent);
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        .brand a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--color-muted);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .nav-links a:hover {
+            color: var(--color-accent-hover);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            padding: 10px 14px;
+            border: 1px solid transparent;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-accent-hover);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border-color: rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(124, 58, 237, 0.7);
+        }
+
+        .search-form {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-form input {
+            width: 210px;
+            padding: 9px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .hero {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 48px 18px 10px;
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 26px;
+            align-items: center;
+        }
+
+        .hero h1 {
+            font-size: 3.2rem;
+            line-height: 1.05;
+            margin: 0 0 14px;
+        }
+
+        .hero p {
+            margin: 0 0 20px;
+            color: var(--color-muted);
+            font-size: 1.08rem;
+            line-height: 1.55;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .hero-card {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 18px;
+            padding: 18px;
+            background: rgba(30, 41, 59, 0.55);
+        }
+
+        .hero-card h3 {
+            margin: 0 0 10px;
+        }
+
+        .hero-card .preview {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.9rem;
+            color: var(--color-muted);
+            line-height: 1.5;
+        }
+
+        .section {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 28px 18px;
+        }
+
+        .section h2 {
+            margin: 0 0 10px;
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.35);
+            border-radius: 16px;
+            padding: 18px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .feature {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .feature strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 1.02rem;
+        }
+
+        .cta-band {
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+        }
+
+        .cta-band-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 18px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        footer {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 28px 18px 0;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .footer-col a {
+            display: block;
+            text-decoration: none;
+            color: var(--color-muted);
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .footer-col a:hover {
+            color: var(--color-accent-hover);
+        }
+
+        /* Mobile: single column stack and prioritise Login + Search */
+        @media (max-width: 900px) {
+            .hero { grid-template-columns: 1fr; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .split { grid-template-columns: 1fr; }
+            .footer-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 600px) {
+            .nav-links { display: none; }
+            .search-form input { width: 140px; }
+            .hero h1 { font-size: 2.3rem; }
+            .footer-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="landing-page">
+        <div class="topbar">
+            <div class="topbar-inner">
+                <div class="brand">
+                    <div class="brand-badge">EF</div>
+                    <a href="{{ url_for('main.index') }}">Econo-Forge</a>
+                </div>
+
+                <div class="nav-actions">
+                    <nav class="nav-links" aria-label="Primary">
+                        <a href="{{ url_for('main.docs') }}">Docs</a>
+                    </nav>
+
+                    <form class="search-form" method="GET" action="{{ url_for('main.docs') }}" role="search" aria-label="Search docs">
+                        <input type="search" name="q" placeholder="Search">
+                        <button class="btn btn-secondary" type="submit" style="padding:9px 12px;">Search</button>
+                    </form>
+
+                    {% if current_user.is_authenticated %}
+                        <a class="btn btn-secondary" href="{{ url_for('main.home') }}">Dashboard</a>
+                        <a class="btn btn-primary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+                    {% else %}
+                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login</a>
+                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <section class="hero">
+            <div>
+                <h1>Stop Guessing. Start Simulating.</h1>
+                <p>Econo-Forge is the first professional-grade economic engine built for TTRPG verisimilitude. Manage tens of thousands of market data points, automate scarcity, and keep your world’s commerce alive—without drowning in spreadsheets.</p>
+                <div class="hero-ctas">
+                    {% if current_user.is_authenticated %}
+                        <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+                    {% else %}
+                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login to Dashboard</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hero-card">
+                <h3>Designed for GMs at the table</h3>
+                <div class="preview">
+                    Two things matter:<br>
+                    1) fast access to Login/Search on mobile<br>
+                    2) world-consistent prices—without spreadsheet fatigue
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="split">
+                <div class="panel">
+                    <h2>The Problem</h2>
+                    <p style="color: var(--color-muted); margin: 0; line-height: 1.55;">
+                        Most fantasy economies collapse the moment a player tests them. Static magic-shop lists, flat prices, and hand-waved scarcity break immersion and put all the burden on the GM.
+                    </p>
+                </div>
+                <div class="panel">
+                    <h2>The Forge</h2>
+                    <p style="color: var(--color-muted); margin: 0; line-height: 1.55;">
+                        Econo-Forge replaces brittle tables with a living simulation. It tracks supply, demand, and regional variance in real time so you can focus on the story while the engine handles the numbers.
+                    </p>
+                </div>
+            </div>
+
+            <div style="margin-top: 18px;">
+                <h2>Core Features</h2>
+                <div class="feature-grid">
+                    <div class="feature">
+                        <strong>Algorithmic Pricing</strong>
+                        Dynamic price scaling from regional scarcity and history; no flat-rate longswords.
+                    </div>
+                    <div class="feature">
+                        <strong>Inventory State-Management</strong>
+                        Persistent inventories across entities with transactional integrity.
+                    </div>
+                    <div class="feature">
+                        <strong>GM Management Hub</strong>
+                        Create items, manage players, and run the table from one place.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" style="padding-top:0;">
+            <div class="panel">
+                <h2>Built for Systems-Heavy Narratives</h2>
+                <p style="color: var(--color-muted); margin: 0; line-height: 1.65;">
+                    Econo-Forge isn’t a random loot table. It’s a simulation engine informed by systems like Pathfinder and D&D 5E, tuned for GMs who treat economies as first-class. Whether you’re running a long campaign or a sandbox of competing factions, Econo-Forge keeps the numbers consistent so your players can take the fiction seriously.
+                </p>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px;">
+                    <span style="padding:8px 12px; border-radius: 999px; background: rgba(124, 58, 237, 0.18); border: 1px solid rgba(124, 58, 237, 0.35); font-weight: 800;">Pathfinder</span>
+                    <span style="padding:8px 12px; border-radius: 999px; background: rgba(124, 58, 237, 0.18); border: 1px solid rgba(124, 58, 237, 0.35); font-weight: 800;">D&D 5E</span>
+                    <span style="padding:8px 12px; border-radius: 999px; background: rgba(148, 163, 184, 0.12); border: 1px solid rgba(148, 163, 184, 0.25); font-weight: 800;">More systems soon</span>
+                </div>
+
+                <div style="margin-top: 18px; display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="hero-card" style="padding:16px; background: rgba(30, 41, 59, 0.35);">
+                        <div style="font-weight:900; margin-bottom: 6px;">Testimonial (placeholder)</div>
+                        <div style="color: var(--color-muted); line-height: 1.6;">“This kept my economy coherent without killing session flow.”</div>
+                    </div>
+                    <div class="hero-card" style="padding:16px; background: rgba(30, 41, 59, 0.35);">
+                        <div style="font-weight:900; margin-bottom: 6px;">Testimonial (placeholder)</div>
+                        <div style="color: var(--color-muted); line-height: 1.6;">“The prices feel alive. Players buy in harder.”</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="cta-band">
+            <div class="cta-band-inner">
+                <div style="color: var(--color-muted); font-weight: 650;">Ready when you are.</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                    {% if current_user.is_authenticated %}
+                        <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}" style="background:transparent;">Log out</a>
+                    {% else %}
+                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}" style="background:transparent;">Or go straight to Login</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div style="font-weight:800;">Product</div>
+                    <a href="{{ url_for('main.docs') }}">Overview</a>
+                    <a href="{{ url_for('main.docs') }}">Changelog</a>
+                    <a href="{{ url_for('main.docs') }}">Roadmap</a>
+                </div>
+                <div class="footer-col">
+                    <div style="font-weight:800;">Resources</div>
+                    <a href="{{ url_for('main.docs') }}">Documentation</a>
+                    <a href="{{ url_for('main.docs') }}">API</a>
+                    <a href="{{ url_for('main.docs') }}">Guides</a>
+                </div>
+                <div class="footer-col">
+                    <div style="font-weight:800;">Community</div>
+                    <a href="https://discord.gg/dkNVnBXMMB" target="_blank" rel="noreferrer">Discord</a>
+                </div>
+                <div class="footer-col">
+                    <div style="font-weight:800;">Legal</div>
+                    <a href="{{ url_for('main.docs') }}">Terms of Service</a>
+                    <a href="{{ url_for('main.docs') }}">Privacy Policy</a>
+                </div>
+            </div>
+
+            <div style="margin-top: 18px; color: var(--color-muted); font-weight:600; font-size: 0.95rem;">
+                © 2026 Econo-Forge
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
+

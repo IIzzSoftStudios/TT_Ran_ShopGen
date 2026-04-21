@@ -1,7 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Add New City</title>
+    {% include 'partials/theme_head.html' %}
+
     <style>
         /* Center everything */
         body {
@@ -102,6 +104,7 @@
 
     <!-- Centered Form -->
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- City Name -->
         <label for="name">City Name:</label>
         <input type="text" id="name" name="name" required>

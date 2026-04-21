@@ -1,0 +1,134 @@
+"""GM shop-related handler utilities and inline shop updates."""
+
+from flask import request, redirect, url_for, flash
+from sqlalchemy.orm import subqueryload
+
+from app.constants.shops import SHOP_TYPE_DEFAULTS
+from app.extensions import db
+from app.models import City, Shop, ShopInventory
+from app.routes.handlers.gm_helpers import get_current_gm_profile
+
+
+def _normalize_shop_type(raw):
+    if raw is None:
+        return ""
+    return str(raw).strip().title()
+
+
+def _normalize_shop_name(raw):
+    if raw is None:
+        return ""
+    return str(raw).strip()
+
+
+def get_shop_city_panel_context(gm_profile):
+    """Build city_data and type_suggestions for the nested shops-by-city UI."""
+    cities = (
+        City.query.filter_by(gm_profile_id=gm_profile.id)
+        .options(subqueryload(City.shops))
+        .order_by(City.name)
+        .all()
+    )
+
+    discovered_rows = (
+        db.session.query(Shop.type)
+        .filter_by(gm_profile_id=gm_profile.id)
+        .distinct()
+        .all()
+    )
+    discovered_normalized = {
+        _normalize_shop_type(row[0]) for row in discovered_rows if row[0]
+    }
+    discovered_normalized.discard("")
+    type_suggestions = sorted(SHOP_TYPE_DEFAULTS | discovered_normalized)
+
+    city_data = []
+    for city in cities:
+        by_type = {}
+        for shop in sorted(city.shops, key=lambda s: (s.name or "").lower()):
+            type_key = _normalize_shop_type(shop.type) or "Unspecified"
+            by_type.setdefault(type_key, []).append(shop)
+        shop_type_rows = [
+            {
+                "type": type_key,
+                "count": len(shops),
+                "shops": sorted(shops, key=lambda s: (s.name or "").lower()),
+            }
+            for type_key, shops in by_type.items()
+        ]
+        shop_type_rows.sort(key=lambda r: (-r["count"], r["type"].lower()))
+        city_data.append(
+            {
+                "city": city,
+                "shop_count": len(city.shops),
+                "shop_type_rows": shop_type_rows,
+            }
+        )
+
+    return {"city_data": city_data, "type_suggestions": type_suggestions}
+
+
+def get_grouped_shops(gm_profile):
+    """
+    Materialized dict: city_name -> { shop_type -> [Shop, ...] }.
+    Used by GM item add/edit/detail templates; same grouping rules as the city panel.
+    """
+    cities = (
+        City.query.filter_by(gm_profile_id=gm_profile.id)
+        .options(subqueryload(City.shops))
+        .order_by(City.name)
+        .all()
+    )
+    grouped = {}
+    for city in cities:
+        by_type = {}
+        for shop in sorted(city.shops, key=lambda s: (s.name or "").lower()):
+            type_key = _normalize_shop_type(shop.type) or "Unspecified"
+            by_type.setdefault(type_key, []).append(shop)
+        city_name = city.name or "Unknown"
+        grouped[city_name] = by_type
+    return grouped
+
+
+def get_linked_shop_ids_for_item(item_id: int) -> set:
+    """Distinct shop_ids from shop_inventory for this item (single source of truth)."""
+    rows = (
+        db.session.query(ShopInventory.shop_id)
+        .filter(
+            ShopInventory.item_id == item_id,
+            ShopInventory.shop_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    return {r[0] for r in rows}
+
+
+def update_shop_basic(shop_id):
+    """Update shop name and type from dashboard inline form; redirect to GM home."""
+    gm_profile, redirect_response = get_current_gm_profile()
+    if redirect_response:
+        return redirect_response
+
+    shop = Shop.query.get_or_404(shop_id)
+    if shop.gm_profile_id != gm_profile.id:
+        flash("You don't have permission to update this shop.", "danger")
+        return redirect(url_for("gm.home"))
+
+    new_name = _normalize_shop_name(request.form.get("name"))
+    new_type = _normalize_shop_type(request.form.get("type"))
+
+    if not new_name or not new_type:
+        flash("Name and type are required.", "warning")
+        return redirect(url_for("gm.home"))
+
+    try:
+        shop.name = new_name
+        shop.type = new_type
+        db.session.commit()
+        flash(f"Updated {shop.name}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error updating shop: {e}", "danger")
+
+    return redirect(url_for("gm.home"))

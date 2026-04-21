@@ -1,7 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Shops in {{ city.name }}</title>
+    {% include 'partials/theme_head.html' %}
+
     <style>
         body {
             display: flex;
@@ -22,37 +24,44 @@
             text-align: center;
         }
 
+        .content-container {
+            width: 80%;
+            max-width: 1200px;
+            margin: 0 auto 20px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
         .button-container {
             display: flex;
             justify-content: center;
             gap: 15px;
             margin-bottom: 20px;
-            width: 80%;
-            max-width: 1200px;
         }
 
-        ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            width: 80%;
-            max-width: 1200px;
-            background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
         }
 
-        li {
-            padding: 15px;
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
             border-bottom: 1px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            position: relative;
         }
 
-        li:last-child {
-            border-bottom: none;
+        th {
+            background-color: purple;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
         }
 
         .button {
@@ -86,41 +95,48 @@
             background-color: darkred;
             transform: scale(1.1);
         }
-
-        a {
-            color: purple;
-            text-decoration: none;
-            margin-right: 10px;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
     </style>
 </head>
-<body>
+<body class="gm-list-page">
     <h1>Shops in {{ city.name }}</h1>
 
     <div class="button-container">
-        <a href="{{ url_for('gm.add_shop') }}" class="button">Add New Shop</a>
-        <a href="{{ url_for('gm.view_cities') }}" class="button">All Cities</a>
-        <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
+        <button onclick="window.location.href='{{ url_for('gm.add_shop') }}'" class="button">Add New Shop</button>
+        <button onclick="window.location.href='{{ url_for('gm.view_cities') }}'" class="button">All Cities</button>
+        <button onclick="window.location.href='{{ url_for('gm.home') }}'" class="button">Game Master Interface</button>
     </div>
 
-    <ul>
-        {% for shop in shops %}
-        <li>
-            <span>{{ shop.name }} - {{ shop.type }}</span>
-            <div>
-                <a href="{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}" class="button">Edit Shop</a>
-                <a href="{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
-                <form method="POST" action="{{ url_for('gm.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
-                    <input type="hidden" name="from_view_all" value="false">
-                    <button type="submit" class="delete-button">Delete</button>
-                </form>
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
+    <div class="content-container">
+        {% if shops %}
+        <table class="gm-list-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for shop in shops %}
+                <tr>
+                    <td>{{ shop.name }}</td>
+                    <td>{{ shop.type }}</td>
+                    <td>
+                        <button type="button" class="button" onclick="window.location.href='{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}'">Edit Shop</button>
+                        <button type="button" class="button" onclick="window.location.href='{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}'">View Items</button>
+                        <form method="POST" action="{{ url_for('gm.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="from_view_all" value="false">
+                            <button type="submit" class="delete-button">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No shops found for this city.</p>
+        {% endif %}
+    </div>
 </body>
 </html>

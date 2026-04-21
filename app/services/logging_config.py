@@ -25,8 +25,14 @@ def setup_logging():
     rollback_logger = logging.getLogger('rollback')
     rollback_logger.setLevel(logging.INFO)
     rollback_logger.addHandler(rollback_handler)
-    
-    return simulation_logger, rollback_logger
 
-# Create loggers
-simulation_logger, rollback_logger = setup_logging() 
+    gm_handler = logging.FileHandler('app/services/logs/gm.log')
+    gm_handler.setFormatter(formatter)
+    gm_logger = logging.getLogger('gm')
+    gm_logger.setLevel(logging.INFO)
+    gm_logger.addHandler(gm_handler)
+
+    return simulation_logger, rollback_logger, gm_logger
+
+
+simulation_logger, rollback_logger, gm_logger = setup_logging()

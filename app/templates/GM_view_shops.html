@@ -1,8 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>GM - View Shops</title>
+    {% include 'partials/theme_head.html' %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_shops_city_list.css') }}">
     <style>
         body {
             display: flex;
@@ -19,201 +23,47 @@
             font-size: 2.5rem;
             color: black;
             margin-top: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             text-align: center;
         }
 
-        .content-container {
+        .flash-messages {
             width: 80%;
             max-width: 1200px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
+            margin: 0 auto 12px;
+        }
+
+        .flash-message {
+            padding: 10px 14px;
             border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 8px;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
-            background-color: purple;
-            color: white;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        .nav-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .button {
-            background-color: purple;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .button:hover {
-            background-color: #2980b9;
-            transform: scale(1.1);
-        }
-
-        .delete-button {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .delete-button:hover {
-            background-color: #c82333;
-            transform: scale(1.1);
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.4);
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 500px;
-            border-radius: 5px;
-        }
-
-        .modal-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
+        .flash-message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-message.danger, .flash-message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-message.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .flash-message.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
     </style>
-    <script>
-        function navigateTo(url) {
-            window.location.href = url;
-        }
-
-        function showDeleteConfirmation(shopId, shopName) {
-            const modal = document.getElementById('deleteModal');
-            const modalText = document.getElementById('deleteModalText');
-            modalText.textContent = `Are you sure you want to delete ${shopName}? This action cannot be undone.`;
-            modal.style.display = "block";
-            window.shopIdToDelete = shopId;
-        }
-
-        function closeDeleteModal() {
-            const modal = document.getElementById('deleteModal');
-            modal.style.display = "none";
-        }
-
-        function confirmDelete() {
-            if (window.shopIdToDelete) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = `/gm/shops/delete/${window.shopIdToDelete}`;
-                document.body.appendChild(form);
-                form.submit();
-            }
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('deleteModal');
-            if (event.target == modal) {
-                closeDeleteModal();
-            }
-        }
-    </script>
 </head>
-<body>
+<body class="gm-list-page">
     <h1>View Shops</h1>
+    {% with show_back_to_dashboard=true, show_add_city=false %}
+    {% include 'partials/gm_world_quick_nav.html' %}
+    {% endwith %}
 
-    <div class="content-container">
-        <div class="section">
-            <h2>Available Shops</h2>
-            {% if shops %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Quality</th>
-                        <th>Size</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for shop in shops %}
-                    <tr>
-                        <td>{{ shop.name }}</td>
-                        <td>{{ shop.type }}</td>
-                        <td>{{ shop.quality }}</td>
-                        <td>{{ shop.size }}</td>
-                        <td>
-                            <button class="button" onclick="navigateTo('{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}')">Edit</button>
-                            <button class="button" onclick="navigateTo('{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}')">View Items</button>
-                            <button class="delete-button" onclick="showDeleteConfirmation({{ shop.shop_id }}, '{{ shop.name }}')">Delete</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <p>No shops available.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    {% if category != 'system' %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endif %}
+                {% endfor %}
             </div>
-            {% endif %}
-        </div>
-    </div>
+        {% endif %}
+    {% endwith %}
 
-    <div class="nav-buttons">
-        <button onclick="navigateTo('{{ url_for('gm.add_shop') }}')" class="button">Add New Shop</button>
-        <button onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <h2>Confirm Deletion</h2>
-            <p id="deleteModalText"></p>
-            <div class="modal-buttons">
-                <button class="button" onclick="closeDeleteModal()">Cancel</button>
-                <button class="delete-button" onclick="confirmDelete()">Delete</button>
-            </div>
-        </div>
-    </div>
+    {% include 'partials/gm_shops_city_list_panel.html' %}
+    {% include 'partials/gm_shops_city_list_scripts.html' %}
 </body>
 </html>

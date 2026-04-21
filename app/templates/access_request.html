@@ -1,0 +1,223 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register For Access — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        .page-wrap {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 22px 18px 60px;
+        }
+
+        .topbar-simple {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .topbar-inner-simple {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .title {
+            font-size: 2rem;
+            margin: 0 0 6px;
+        }
+
+        .subtitle {
+            margin: 0 0 18px;
+            color: var(--color-muted);
+            line-height: 1.6;
+        }
+
+        .form-card {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            padding: 18px;
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 12px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .field label {
+            font-weight: 800;
+            color: var(--color-text);
+        }
+
+        .field input, .field select, .field textarea {
+            padding: 10px 12px;
+            border-radius: 12px;
+        }
+
+        .field textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            padding: 10px 14px;
+            border: 1px solid transparent;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .hide-until-gm {
+            display: none;
+        }
+
+        @media (max-width: 720px) {
+            .field-row { grid-template-columns: 1fr; }
+            .title { font-size: 1.7rem; }
+        }
+    </style>
+    <script>
+        function updateRoleFields() {
+            const role = document.getElementById('user_role').value;
+            const gmOnlyWraps = document.querySelectorAll('.hide-until-gm');
+            const show = (role === 'GM' || role === 'Both');
+            gmOnlyWraps.forEach(el => {
+                el.style.display = show ? 'block' : 'none';
+            });
+            // Optional: toggle required attributes
+            const playerCount = document.getElementById('player_count');
+            const homebrew = document.getElementById('is_homebrew');
+            if (playerCount) playerCount.required = show;
+            if (homebrew) homebrew.required = show;
+        }
+        document.addEventListener('DOMContentLoaded', updateRoleFields);
+    </script>
+</head>
+
+<body>
+    <div class="topbar-simple">
+        <div class="topbar-inner-simple">
+            <div style="font-weight:900; letter-spacing:0.2px;">Econo-Forge</div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login</a>
+                <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-wrap">
+        <h1 class="title">Register For Access</h1>
+        <p class="subtitle">
+            Tell us how you run your table. We’ll use your request to prioritize early access and support for your ruleset.
+        </p>
+
+        <div class="form-card">
+            <form method="POST" action="{{ url_for('main.access_request') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <input type="email" id="email" name="email" required placeholder="you@example.com">
+                    </div>
+                    <div class="field">
+                        <label for="user_role">I am a…</label>
+                        <select id="user_role" name="user_role" required onchange="updateRoleFields()">
+                            <option value="GM">GM only</option>
+                            <option value="Player">Player only</option>
+                            <option value="Both">Both</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field-row hide-until-gm" aria-hidden="true">
+                    <div class="field">
+                        <label for="player_count">If GM: How many players do you have?</label>
+                        <input type="number" id="player_count" name="player_count" min="1">
+                    </div>
+                    <div class="field">
+                        <label for="is_homebrew">Are you a homebrew GM?</label>
+                        <select id="is_homebrew" name="is_homebrew" required>
+                            <option value="no" selected>No</option>
+                            <option value="yes">Yes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="total_expected_users">How many people will be using the app?</label>
+                        <input type="number" id="total_expected_users" name="total_expected_users" min="1" required value="1">
+                    </div>
+                    <div class="field">
+                        <label for="primary_ruleset">Primary ruleset</label>
+                        <select id="primary_ruleset" name="primary_ruleset" required>
+                            <option value="Pathfinder">Pathfinder</option>
+                            <option value="D&D 5E">D&D 5E</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="discovery_source">How did you hear about Econo-Forge? (optional)</label>
+                        <input type="text" id="discovery_source" name="discovery_source" placeholder="Discord, friend, Twitter, etc.">
+                    </div>
+                    <div class="field">
+                        <label for="notes">Anything else we should know? (optional)</label>
+                        <textarea id="notes" name="notes" placeholder="Campaign type, questions, and what would make this indispensable."></textarea>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-primary" type="submit">Submit Request</button>
+                    <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Back to Home</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+

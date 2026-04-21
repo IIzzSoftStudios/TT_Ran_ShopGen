@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: trsg_db
+    environment:
+      POSTGRES_USER: trsg_user
+      POSTGRES_PASSWORD: trsg_pass
+      POSTGRES_DB: trsg_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./TTRSG_TableCreation.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trsg_user -d trsg_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: trsg_redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: .
+    container_name: trsg_web
+    command: flask run --host=0.0.0.0 --port=5000
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      FLASK_APP: app.py
+      FLASK_DEBUG: "1"
+      REDIS_URL: redis://redis:6379/0
+      SQLALCHEMY_DATABASE_URI: postgresql://trsg_user:trsg_pass@db:5432/trsg_db
+      SECRET_KEY: dev_secret_key_change_me
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    container_name: trsg_worker
+    command: celery -A celery_app.celery worker --loglevel=info --concurrency=1
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      SQLALCHEMY_DATABASE_URI: postgresql://trsg_user:trsg_pass@db:5432/trsg_db
+      SECRET_KEY: dev_secret_key_change_me
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

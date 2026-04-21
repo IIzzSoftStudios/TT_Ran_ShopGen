@@ -1,7 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>GM - View Cities</title>
+    {% include 'partials/theme_head.html' %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <style>
         body {
@@ -144,6 +147,11 @@
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = `/gm/cities/delete/${window.cityIdToDelete}`;
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                form.appendChild(csrfInput);
                 document.body.appendChild(form);
                 form.submit();
             }
@@ -158,14 +166,17 @@
         }
     </script>
 </head>
-<body>
+<body class="gm-list-page">
     <h1>View Cities</h1>
-
+    <div class="nav-buttons">
+        <button onclick="navigateTo('{{ url_for('gm.add_city') }}')" class="button">Add New City</button>
+        <button onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
+    </div>
     <div class="content-container">
         <div class="section">
             <h2>Available Cities</h2>
             {% if cities %}
-            <table>
+            <table class="gm-list-table">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -195,11 +206,6 @@
             </div>
             {% endif %}
         </div>
-    </div>
-
-    <div class="nav-buttons">
-        <button onclick="navigateTo('{{ url_for('gm.add_city') }}')" class="button">Add New City</button>
-        <button onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
     </div>
 
     <!-- Delete Confirmation Modal -->
