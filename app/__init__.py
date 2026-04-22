@@ -1,7 +1,8 @@
+import logging
 import os
 from flask import Flask, request
 from dotenv import load_dotenv
-from app.extensions import db, migrate, bcrypt, login_manager, session, csrf, mail
+from app.extensions import db, migrate, bcrypt, login_manager, session, csrf, mail, limiter
 from app.models import User
 # Load environment variables
 load_dotenv("config.env")
@@ -42,6 +43,17 @@ def create_app():
     migrate.init_app(app, db)
     mail.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)
+
+    # So INFO from app.* (e.g. world generation phases) shows on stderr with flask run.
+    _app_log = logging.getLogger("app")
+    _app_log.setLevel(logging.INFO)
+    if not _app_log.handlers:
+        _sh = logging.StreamHandler()
+        _sh.setLevel(logging.INFO)
+        _sh.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+        _app_log.addHandler(_sh)
+    _app_log.propagate = False
 
     @login_manager.user_loader
     def load_user(user_id):

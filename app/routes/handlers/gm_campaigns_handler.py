@@ -1,12 +1,31 @@
 """GM campaign CRUD and player sync."""
 
-from flask import render_template, request, redirect, url_for, flash
+import hashlib
+import json
+import logging
+import sys
+import time
+import traceback
+
+from flask import render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
-from app.models import GMProfile, Player, Campaign, CampaignPlayer
+from app.models import (
+    GMProfile, Player, Campaign, CampaignPlayer, CampaignWorldConfig,
+)
 from app.scripts.seeder import seed_gm_data
 from app.services.billing_rules import can_create_campaign, can_add_player_to_campaign
+from app.services.world_generator import (
+    defaults as wg_defaults,
+    generator as wg_generator,
+    validator as wg_validator,
+)
+from app.services.world_generator.generator import GenerationTimeoutError
+from app.services.world_generator.validator import ValidationError
+
+log = logging.getLogger(__name__)
 
 
 @login_required
@@ -200,3 +219,274 @@ def delete_campaign(campaign_id: int):
     db.session.commit()
     flash("Campaign deleted.", "success")
     return redirect(url_for("gm.view_campaigns"))
+
+
+# ---------------------------------------------------------------------------
+# World generation form (GET)
+# ---------------------------------------------------------------------------
+_RANGE_LABELS = {
+    "num_cities": "Number of Cities",
+    "num_regions": "Number of Regions",
+    "global_item_pool_size": "Global Item Pool Size",
+    "shops_per_city": "Shops per City",
+    "items_per_shop": "Items per Shop",
+    "resource_nodes_per_city": "Resource Nodes per City",
+    "tech_magic_balance": "Magic <-> Tech Balance",
+}
+
+
+def _build_defaults_payload(form_override=None):
+    """Assemble the template context for `GM_generate_world.html`.
+
+    `form_override` (optional) is used when re-rendering after a
+    validation failure so the GM's previous entries are preserved.
+    """
+    override = form_override or {}
+
+    ranges = {}
+    for key, (floor, ceiling, d_min, d_max) in wg_defaults.RANGE_SETTINGS.items():
+        lo = override.get(f"{key}_min", d_min)
+        hi = override.get(f"{key}_max", d_max)
+        try:
+            lo_i = int(lo)
+            hi_i = int(hi)
+        except (TypeError, ValueError):
+            lo_i, hi_i = d_min, d_max
+        ranges[key] = {
+            "floor": floor,
+            "ceiling": ceiling,
+            "min": max(floor, min(ceiling, lo_i)),
+            "max": max(floor, min(ceiling, hi_i)),
+        }
+
+    defaults_json = {
+        "ranges": {
+            k: {"min": v[2], "max": v[3]}
+            for k, v in wg_defaults.RANGE_SETTINGS.items()
+        },
+        "system_type": "dnd5e",
+    }
+
+    return {
+        "ranges": ranges,
+        "labels": _RANGE_LABELS,
+        "system_types": wg_defaults.SYSTEM_TYPES,
+        "shop_inventory_cap": wg_defaults.SHOP_INVENTORY_CAP,
+        "defaults_json": defaults_json,
+        "form_values": {
+            "campaign_name": override.get("campaign_name", ""),
+            "system_type": override.get("system_type", "dnd5e"),
+            "world_seed": override.get("world_seed", ""),
+        },
+    }
+
+
+@login_required
+def generate_world_form():
+    """GET handler for `/gm/generate_world`.
+
+    Only GMs may render this page. Anyone else is redirected to the
+    main campaign selection screen.
+    """
+    if getattr(current_user, "role", None) != "GM":
+        flash("Only GMs can create campaigns.", "error")
+        return redirect(url_for("main.campaigns"))
+
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
+    if not gm_profile:
+        flash("GM profile not found.", "error")
+        return redirect(url_for("main.campaigns"))
+
+    ctx = _build_defaults_payload()
+    return render_template("GM_generate_world.html", **ctx)
+
+
+# ---------------------------------------------------------------------------
+# World generation submit (POST)
+# ---------------------------------------------------------------------------
+def _flash_and_reshow(form, category, message):
+    flash(message, category)
+    ctx = _build_defaults_payload(form)
+    return render_template("GM_generate_world.html", **ctx)
+
+
+@login_required
+def generate_world_submit():
+    """POST handler for `/gm/generate_world`.
+
+    Pipeline:
+      1. Role + GM profile re-check.
+      2. Validate form -> normalized settings dict.
+      3. Billing: can_create_campaign.
+      4. Open transaction -> create Campaign + CampaignWorldConfig ->
+         generator.generate() -> commit.
+      5. Redirect to GM dashboard (`gm.home`) with session campaign set.
+
+    All failures roll back and re-render the form with a flash message.
+    """
+    if getattr(current_user, "role", None) != "GM":
+        flash("Only GMs can create campaigns.", "error")
+        return redirect(url_for("main.campaigns")), 403
+
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
+    if not gm_profile:
+        flash("GM profile not found.", "error")
+        return redirect(url_for("main.campaigns")), 403
+
+    form = request.form.to_dict(flat=True)
+    log.info(
+        "world_generation_post_received user_id=%s gm_profile_id=%s",
+        current_user.id,
+        gm_profile.id,
+    )
+    print(
+        f"[TT Shop Gen] world_generation POST started user_id={current_user.id} "
+        f"gm_profile_id={gm_profile.id} (this line means the server is handling your click)",
+        file=sys.stderr,
+        flush=True,
+    )
+
+    # -- Step 1: Validate --------------------------------------------------
+    try:
+        settings = wg_validator.validate(form)
+    except ValidationError as exc:
+        return _flash_and_reshow(form, "error", f"{exc.field}: {exc.message}"), 400
+
+    # -- Step 2: Billing ---------------------------------------------------
+    allowed, message = can_create_campaign(gm_profile)
+    if not allowed:
+        log.info(
+            "world_generation_billing_denied gm_profile_id=%s reason=%s",
+            gm_profile.id,
+            message[:200] if message else "",
+        )
+        print(
+            "[TT Shop Gen] world_generation blocked (HTTP 402): " + (message or "billing"),
+            file=sys.stderr,
+            flush=True,
+        )
+        return _flash_and_reshow(form, "system", message), 402
+
+    # -- Step 3: Transactional world build --------------------------------
+    campaign_name = settings["campaign_name"]
+    system_type = settings["system_type"]
+    started_at = time.monotonic()
+
+    try:
+        with db.session.no_autoflush:
+            campaign = Campaign(
+                gm_profile_id=gm_profile.id,
+                name=campaign_name,
+                system_type=system_type,
+                is_active=True,
+            )
+            db.session.add(campaign)
+            db.session.flush()  # assign campaign.id
+
+            config = CampaignWorldConfig(
+                campaign_id=campaign.id,
+                settings_json=settings,
+                schema_version=settings.get("schema_version", 1),
+                world_seed=settings.get("world_seed"),
+            )
+            db.session.add(config)
+            db.session.flush()
+
+            # Add existing players to the new campaign up to the seat cap.
+            existing_players = Player.query.filter_by(gm_profile_id=gm_profile.id).all()
+            players_added = 0
+            for player in existing_players:
+                can_add, _seat_msg = can_add_player_to_campaign(campaign)
+                if not can_add:
+                    break
+                membership = CampaignPlayer(
+                    campaign_id=campaign.id,
+                    player_id=player.id,
+                    status="active",
+                    is_active=True,
+                )
+                db.session.add(membership)
+                players_added += 1
+
+            result = wg_generator.generate(
+                gm_profile_id=gm_profile.id,
+                campaign_id=campaign.id,
+                settings=settings,
+            )
+
+            # Persist resolved seed back onto the config row.
+            config.world_seed = result.effective_seed
+            # Update settings_json with the resolved seed so round-trips reflect it.
+            settings["world_seed"] = result.effective_seed
+            config.settings_json = settings
+
+        db.session.commit()
+
+    except ValidationError as exc:
+        db.session.rollback()
+        return _flash_and_reshow(form, "error", f"{exc.field}: {exc.message}"), 400
+    except GenerationTimeoutError as exc:
+        db.session.rollback()
+        log.warning("world_generation_timeout gm=%s err=%s", gm_profile.id, exc)
+        return _flash_and_reshow(
+            form,
+            "error",
+            "Generation timed out. Try a smaller world (reduce cities, shops, or items).",
+        ), 503
+    except IntegrityError as exc:
+        db.session.rollback()
+        log.warning("world_generation_integrity_error gm=%s err=%s", gm_profile.id, exc)
+        return _flash_and_reshow(
+            form, "error", "Name conflict detected, please retry with a different seed or name."
+        ), 409
+    except OperationalError as exc:
+        db.session.rollback()
+        log.error("world_generation_operational_error gm=%s err=%s", gm_profile.id, exc)
+        return _flash_and_reshow(
+            form, "error", "Database temporarily unavailable. Please try again."
+        ), 503
+    except Exception as exc:  # noqa: BLE001
+        db.session.rollback()
+        log.exception("world_generation_unexpected_error gm=%s", gm_profile.id)
+        _ = traceback.format_exc()
+        return _flash_and_reshow(
+            form, "error", f"Unexpected error during world generation: {exc}"
+        ), 500
+
+    elapsed = time.monotonic() - started_at
+
+    # Audit log (no PII).
+    settings_digest = hashlib.sha256(
+        json.dumps(settings, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:12]
+    log.info(
+        "world_generated gm_profile_id=%s campaign_id=%s "
+        "settings_digest=%s seed=%s elapsed=%.2fs "
+        "regions=%d cities=%d shops=%d items=%d inv=%d nodes=%d players_added=%d",
+        gm_profile.id,
+        campaign.id,
+        settings_digest,
+        result.effective_seed,
+        elapsed,
+        result.n_regions,
+        result.n_cities,
+        result.n_shops,
+        result.n_items,
+        result.n_inventory_rows,
+        result.n_resource_nodes,
+        players_added,
+    )
+
+    flash(
+        f"Campaign '{campaign_name}' generated in {elapsed:.1f}s "
+        f"(seed {result.effective_seed}, {result.n_cities} cities, "
+        f"{result.n_shops} shops, {result.n_items} items).",
+        "success",
+    )
+
+    session["campaign_id"] = campaign.id
+    session["system_type"] = campaign.system_type
+    session.permanent = True
+    session.modified = True
+
+    return redirect(url_for("gm.home"), code=303)

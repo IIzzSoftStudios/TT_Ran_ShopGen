@@ -1,12 +1,39 @@
 """GM shop-related handler utilities and inline shop updates."""
 
+from functools import lru_cache
+
 from flask import request, redirect, url_for, flash
+from sqlalchemy import inspect
 from sqlalchemy.orm import subqueryload
 
 from app.constants.shops import SHOP_TYPE_DEFAULTS
 from app.extensions import db
 from app.models import City, Shop, ShopInventory
 from app.routes.handlers.gm_helpers import get_current_gm_profile
+
+
+@lru_cache(maxsize=1)
+def _region_table_exists() -> bool:
+    """True if PostgreSQL has `region` (enables City.region_obj). Cached per process."""
+    try:
+        return bool(inspect(db.engine).has_table("region"))
+    except Exception:
+        return False
+
+
+def _city_region_label(city: City) -> str:
+    """Label for grouping/filter: denormalized `city.region`, else FK name, else Unspecified."""
+    if city.region:
+        s = str(city.region).strip()
+        if s:
+            return s
+    if _region_table_exists():
+        ro = getattr(city, "region_obj", None)
+        if ro is not None and getattr(ro, "name", None):
+            s = (ro.name or "").strip()
+            if s:
+                return s
+    return "Unspecified"
 
 
 def _normalize_shop_type(raw):
@@ -22,13 +49,13 @@ def _normalize_shop_name(raw):
 
 
 def get_shop_city_panel_context(gm_profile):
-    """Build city_data and type_suggestions for the nested shops-by-city UI."""
-    cities = (
-        City.query.filter_by(gm_profile_id=gm_profile.id)
-        .options(subqueryload(City.shops))
-        .order_by(City.name)
-        .all()
+    """Build city_data, region_labels, and type_suggestions for the shops-by-city UI."""
+    q = City.query.filter_by(gm_profile_id=gm_profile.id).options(
+        subqueryload(City.shops)
     )
+    if _region_table_exists():
+        q = q.options(subqueryload(City.region_obj))
+    cities = q.order_by(City.name).all()
 
     discovered_rows = (
         db.session.query(Shop.type)
@@ -57,15 +84,26 @@ def get_shop_city_panel_context(gm_profile):
             for type_key, shops in by_type.items()
         ]
         shop_type_rows.sort(key=lambda r: (-r["count"], r["type"].lower()))
+        region_label = _city_region_label(city)
         city_data.append(
             {
                 "city": city,
+                "region_label": region_label,
                 "shop_count": len(city.shops),
                 "shop_type_rows": shop_type_rows,
             }
         )
 
-    return {"city_data": city_data, "type_suggestions": type_suggestions}
+    region_labels = sorted(
+        {row["region_label"] for row in city_data},
+        key=lambda s: (s or "").lower(),
+    )
+
+    return {
+        "city_data": city_data,
+        "region_labels": region_labels,
+        "type_suggestions": type_suggestions,
+    }
 
 
 def get_grouped_shops(gm_profile):

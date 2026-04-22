@@ -38,7 +38,10 @@ from app.routes.handlers.gm_campaigns_handler import (
     create_campaign,
     sync_players_to_campaign as sync_players_to_campaign_handler,
     delete_campaign as delete_campaign_handler,
+    generate_world_form as generate_world_form_handler,
+    generate_world_submit as generate_world_submit_handler,
 )
+from app.extensions import limiter
 
 gm_bp = Blueprint("gm", __name__, url_prefix="/gm")
 
@@ -434,6 +437,20 @@ def sync_players_to_campaign(campaign_id):
 @login_required
 def delete_campaign(campaign_id):
     return delete_campaign_handler(campaign_id)
+
+
+# World generation (Phase 1) -- GM-only, rate-limited POST
+@gm_bp.route("/generate_world", methods=["GET"])
+@login_required
+def generate_world_form():
+    return generate_world_form_handler()
+
+
+@gm_bp.route("/generate_world", methods=["POST"])
+@login_required
+@limiter.limit("3 per minute")
+def generate_world_submit():
+    return generate_world_submit_handler()
 
 
 # Simulation routes

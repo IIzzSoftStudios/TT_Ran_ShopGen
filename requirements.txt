@@ -13,6 +13,9 @@ flask-bcrypt>=1.0
 flask-wtf>=1.2.0
 flask-mailman>=1.0
 
+# Rate limiting for expensive endpoints (world-gen POST)
+flask-limiter>=3.5
+
 # Session (imported in app.extensions)
 flask-session>=0.5
 

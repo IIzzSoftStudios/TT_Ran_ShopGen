@@ -21,11 +21,25 @@ audit_logger = logging.getLogger("admin_audit")
 
 
 def handle_admin_keys():
-    keys = RegistrationKey.query.order_by(RegistrationKey.created_at.desc()).all()
+    keys = (
+        RegistrationKey.query.filter_by(is_admin_test_key=False)
+        .order_by(RegistrationKey.created_at.desc())
+        .all()
+    )
+    admin_keys = (
+        RegistrationKey.query.filter_by(is_admin_test_key=True)
+        .order_by(RegistrationKey.created_at.desc())
+        .all()
+    )
     stats = {
         "total": len(keys),
         "used": sum(1 for k in keys if k.is_used),
         "available": sum(1 for k in keys if not k.is_used),
+    }
+    admin_stats = {
+        "total": len(admin_keys),
+        "used": sum(1 for k in admin_keys if k.is_used),
+        "available": sum(1 for k in admin_keys if not k.is_used),
     }
     access_requests = (
         AccessRequest.query.filter(AccessRequest.status.in_(["pending", "hold"])).all()
@@ -46,7 +60,9 @@ def handle_admin_keys():
     return render_template(
         "admin/keys.html",
         keys=keys,
+        admin_keys=admin_keys,
         stats=stats,
+        admin_stats=admin_stats,
         access_requests=access_requests,
     )
 
@@ -57,10 +73,25 @@ def handle_generate_bulk():
     except (TypeError, ValueError):
         count = 5
     count = max(1, min(50, count))
-    create_bulk_keys(count, email=None)
+    create_bulk_keys(count, email=None, is_admin_test_key=False)
     db.session.commit()
     audit_logger.info("Keys generated | Admin ID: %s | Count: %s", current_user.id, count)
     flash(f"Generated {count} new keys.", "success")
+    return redirect(url_for("admin.keys_overview"))
+
+
+def handle_generate_admin_test_keys():
+    try:
+        count = int(request.form.get("count", 3))
+    except (TypeError, ValueError):
+        count = 3
+    count = max(1, min(20, count))
+    create_bulk_keys(count, email=None, is_admin_test_key=True)
+    db.session.commit()
+    audit_logger.info(
+        "Admin test keys generated | Admin ID: %s | Count: %s", current_user.id, count
+    )
+    flash(f"Generated {count} admin test key(s).", "success")
     return redirect(url_for("admin.keys_overview"))
 
 

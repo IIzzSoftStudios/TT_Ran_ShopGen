@@ -1,7 +1,17 @@
 from sqlalchemy.orm import relationship
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, func, Index
+from sqlalchemy.dialects.postgresql import JSONB
 from app.extensions import db, SQLAlchemy, bcrypt, UserMixin
 from datetime import datetime
+
+
+def _json_with_jsonb():
+    """Return a JSON column type that upgrades to JSONB on PostgreSQL.
+
+    Using a factory so each column gets its own type instance (SQLAlchemy
+    requires this for proper reflection).
+    """
+    return db.JSON().with_variant(JSONB, "postgresql")
 
 # Junction table for the many-to-many relationship between Shop and City
 shop_cities = db.Table(
@@ -14,18 +24,61 @@ class City(db.Model):
     __tablename__ = "cities"
     city_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, index=True)
+    government_type = db.Column(db.String(50), nullable=True, index=True)
     size = db.Column(db.String(50))
     population = db.Column(db.Integer)
     region = db.Column(db.String(100), index=True)
+    region_id = db.Column(
+        db.Integer, db.ForeignKey("region.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
 
     # Many-to-Many relationship with Shop
     shops = db.relationship("Shop", secondary=shop_cities, back_populates="cities")
     # One-to-Many relationship with RegionalMarket
     regional_market = db.relationship("RegionalMarket", back_populates="city")
+    region_obj = db.relationship("Region", backref=db.backref("cities", lazy="dynamic"))
 
     def __repr__(self):
         return f"<City {self.name} (Size: {self.size}, Population: {self.population}, Region: {self.region})>"
+
+
+class Region(db.Model):
+    """A campaign-scoped region with per-region axis flavor.
+
+    The fused `tech_magic_balance` axis roll for each region is stored in
+    `local_flavor` as `{"axis_position": int}`. Cities read this at
+    runtime via `City.region_obj.local_flavor["axis_position"]`.
+    """
+
+    __tablename__ = "region"
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "name", name="uq_region_campaign_name"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, index=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    gm_profile_id = db.Column(
+        db.Integer, db.ForeignKey("gm_profile.id"), nullable=False, index=True
+    )
+    local_flavor = db.Column(_json_with_jsonb(), nullable=True)
+    created_at = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref(
+            "regions", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+
+    def __repr__(self):
+        return f"<Region {self.name} campaign={self.campaign_id}>"
 
 class Shop(db.Model):
     __tablename__ = "shops"
@@ -45,6 +98,10 @@ class Shop(db.Model):
 
 class Item(db.Model):
     __tablename__ = "items"
+    __table_args__ = (
+        Index("ix_item_gm_axis", "gm_profile_id", "axis_position"),
+    )
+
     item_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, index=True)
     type = db.Column(db.String(50), nullable=False)
@@ -58,6 +115,10 @@ class Item(db.Model):
     notes = db.Column(db.Text)
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     preferred_regions = db.Column(db.JSON, nullable=True)  # List of regions where this item is commonly produced
+    # System-specific stat block (D&D 5e / PF2E / generic).
+    stats = db.Column(_json_with_jsonb(), nullable=True)
+    # Fused-axis position this item was forged for (0=God Magic .. 10=Post-Apoc Tech).
+    axis_position = db.Column(db.Integer, nullable=True, index=True)
 
     # Many-to-Many relationship with Shop through ShopInventory
     inventory = db.relationship("ShopInventory", back_populates="item")
@@ -330,6 +391,7 @@ class RegistrationKey(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     key_code = db.Column(db.String(64), unique=True, nullable=False, index=True)
     email = db.Column(db.String(255), nullable=True, index=True)
+    is_admin_test_key = db.Column(db.Boolean, default=False, nullable=False)
     is_used = db.Column(db.Boolean, default=False, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
@@ -568,3 +630,41 @@ class SimRule(db.Model):
     
     def __repr__(self):
         return f"<SimRule (Type: {self.rule_type}, Target: {self.target_type})>"
+
+
+class CampaignWorldConfig(db.Model):
+    """Persisted world-generation recipe for a Campaign.
+
+    `settings_json` stores the normalized output of
+    `world_generator.validator.validate` including the `schema_version`,
+    the `ranges` dict (each {min,max}), the fused `tech_magic_balance`
+    range, the chosen `system_type`, and the resolved `world_seed`.
+    Per-city government is stored on `City` rows
+    (generated at world-gen time). A second,
+    top-level `world_seed` column is denormalized for fast lookup.
+    """
+
+    __tablename__ = "campaign_world_config"
+
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    settings_json = db.Column(_json_with_jsonb(), nullable=False)
+    schema_version = db.Column(db.Integer, nullable=False, default=1)
+    world_seed = db.Column(db.BigInteger, nullable=True)
+    generated_at = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref(
+            "world_config",
+            uselist=False,
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+
+    def __repr__(self):
+        return f"<CampaignWorldConfig campaign_id={self.campaign_id} seed={self.world_seed}>"

@@ -7,6 +7,18 @@
 
         <h2>Shops by city</h2>
 
+        {% if city_data and region_labels|default([]) %}
+        <div class="region-filter-bar">
+            <label for="gm-shops-region-filter" class="region-filter-label">Region</label>
+            <select id="gm-shops-region-filter" class="region-filter-select" aria-label="Filter cities by region">
+                <option value="">All regions</option>
+                {% for r in region_labels %}
+                <option value={{ r|tojson }}>{{ r }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
         <datalist id="shop-type-list">
             {% for t in type_suggestions %}
             <option value="{{ t }}">
@@ -16,11 +28,11 @@
         {% if city_data %}
         <div class="city-list">
             {% for item in city_data %}
-            <details class="city-block">
+            <details class="city-block" data-region={{ item.region_label|tojson }}>
                 <summary>
                     <span class="city-name">{{ item.city.name }}</span>
                     <span class="city-meta">
-                        {{ item.city.region or 'Unspecified' }}{% if item.city.size %} | {{ item.city.size }}{% endif %}
+                        {{ item.region_label }}{% if item.city.size %} | {{ item.city.size }}{% endif %}
                     </span>
                     <span class="city-summary-right">
                         <span class="shop-count-badge">{{ item.shop_count }} shop{% if item.shop_count != 1 %}s{% endif %}</span>

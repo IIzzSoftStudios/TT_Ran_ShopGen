@@ -102,6 +102,27 @@
             padding: 40px;
         }
 
+        .create-campaign-btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 28px;
+            background-color: #9b59b6;
+            color: #fff;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.15s;
+        }
+
+        .create-campaign-btn:hover {
+            background-color: #8e44ad;
+            transform: translateY(-2px);
+        }
+
+        .actions-row {
+            text-align: center;
+        }
+
         .logout-link {
             text-align: center;
             margin-top: 20px;
@@ -141,6 +162,12 @@
         {% else %}
             <div class="no-campaigns">
                 <p>No campaigns available. Please contact your GM or support.</p>
+            </div>
+        {% endif %}
+
+        {% if current_user.is_authenticated and current_user.role == 'GM' %}
+            <div class="actions-row">
+                <a href="{{ url_for('gm.generate_world_form') }}" class="create-campaign-btn">Create Campaign</a>
             </div>
         {% endif %}
 

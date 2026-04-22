@@ -120,7 +120,7 @@ def handle_register():
     )
 
     if request.method == "POST":
-        username = request.form.get("username")
+        username_raw = request.form.get("username")
         password = request.form.get("password")
         role = request.form.get("role")
         gm_id = request.form.get("gm_id") if role == "Player" else None
@@ -132,45 +132,68 @@ def handle_register():
                 (request.args.get("vault_key") or "").strip().replace("_", "-").upper()
             )
 
+        keyed = bool(registration_key) or require_key
+        key_row = None
+        registration_relaxed = False
+
+        if keyed:
+            if not registration_key:
+                flash("Registration key is required.", "warning")
+                return redirect(url_for("auth.register"))
+            key_row = RegistrationKey.query.filter_by(
+                key_code=registration_key
+            ).with_for_update().first()
+            if not key_row or key_row.is_used:
+                db.session.rollback()
+                flash("Invalid or already used registration key.", "danger")
+                return _register_redirect_fail(registration_key)
+            registration_relaxed = bool(key_row.is_admin_test_key)
+
+        username = (username_raw or "").strip()
         if not username or not password or not role:
+            if keyed:
+                db.session.rollback()
             flash("All fields are required!", "warning")
             return _register_redirect_fail(registration_key)
 
-        is_strong, msg = is_password_strong(password)
-        if not is_strong:
-            flash(msg, "danger")
-            return _register_redirect_fail(registration_key)
+        if registration_relaxed:
+            if len(username) < 1 or len(username) > 100:
+                db.session.rollback()
+                flash("Username must be 1–100 characters.", "warning")
+                return _register_redirect_fail(registration_key)
+        else:
+            is_strong, msg = is_password_strong(password)
+            if not is_strong:
+                if keyed:
+                    db.session.rollback()
+                flash(msg, "danger")
+                return _register_redirect_fail(registration_key)
 
         if role not in ["GM", "Player"]:
+            if keyed:
+                db.session.rollback()
             flash("Invalid role selected!", "warning")
             return _register_redirect_fail(registration_key)
 
         if User.query.filter_by(username=username).first():
+            if keyed:
+                db.session.rollback()
             flash("Username already exists!", "warning")
             return _register_redirect_fail(registration_key)
 
         email = (request.form.get("email") or "").strip().lower() or None
-        if email and User.query.filter_by(email=email).first():
+        if registration_relaxed:
+            email = None
+        elif email and User.query.filter_by(email=email).first():
+            if keyed:
+                db.session.rollback()
             flash("That email is already registered.", "warning")
             return _register_redirect_fail(registration_key)
 
         # Keyed registration
         if registration_key or require_key:
-            if not registration_key:
-                flash("Registration key is required.", "warning")
-                return redirect(url_for("auth.register"))
-
-            key_row = RegistrationKey.query.filter_by(
-                key_code=registration_key
-            ).with_for_update().first()
-
-            if not key_row or key_row.is_used:
-                db.session.rollback()
-                flash("Invalid or already used registration key.", "danger")
-                return _register_redirect_fail(registration_key)
-
-            key_email_norm = (key_row.email or "").strip().lower()
-            if key_row.email:
+            if not registration_relaxed and key_row.email:
+                key_email_norm = (key_row.email or "").strip().lower()
                 if not email or key_email_norm != email:
                     db.session.rollback()
                     flash(
@@ -189,7 +212,7 @@ def handle_register():
                 key_row.user_id = new_user.id
                 key_row.used_at = datetime.utcnow()
 
-                if key_row.email:
+                if key_row.email and not registration_relaxed:
                     ar = AccessRequest.query.filter_by(vault_key=key_row.key_code).first()
                     if ar:
                         ar.vault_key_used = True

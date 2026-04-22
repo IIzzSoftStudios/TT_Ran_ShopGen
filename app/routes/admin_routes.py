@@ -6,6 +6,7 @@ from app.decorators import admin_required
 from app.routes.handlers.admin_handler import (
     handle_admin_keys,
     handle_generate_bulk,
+    handle_generate_admin_test_keys,
     handle_reveal_key,
     handle_approve_access_request,
     handle_hold_access_request,
@@ -27,6 +28,13 @@ def keys_overview():
 @admin_required
 def keys_generate():
     return handle_generate_bulk()
+
+
+@admin_bp.route("/vault/keys/generate-admin-test", methods=["POST"])
+@login_required
+@admin_required
+def keys_generate_admin_test():
+    return handle_generate_admin_test_keys()
 
 
 @admin_bp.route("/vault/keys/reveal/<int:key_id>", methods=["GET"])

@@ -1,9 +1,23 @@
+import os
 from typing import Tuple
 
 from app.models import Campaign, CampaignPlayer
 
-FREE_CAMPAIGN_LIMIT = 1
 FREE_SEAT_LIMIT = 3
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+# Default 1 free campaign; set FREE_CAMPAIGN_LIMIT in config.env for local testing (e.g. 5).
+FREE_CAMPAIGN_LIMIT = _int_env("FREE_CAMPAIGN_LIMIT", 1)
 
 
 def can_create_campaign(gm_profile) -> Tuple[bool, str]:

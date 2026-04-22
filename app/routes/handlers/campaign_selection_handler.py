@@ -61,7 +61,7 @@ def select_campaign():
                     "You don't have any campaigns yet. Create your first campaign!",
                     "info",
                 )
-                return redirect(url_for("gm.add_campaign"))
+                return redirect(url_for("gm.generate_world_form"))
             flash("You are not assigned to any campaign yet.", "warning")
             return redirect(url_for("auth.logout"))
 

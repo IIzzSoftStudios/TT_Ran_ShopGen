@@ -53,7 +53,22 @@
         }
     }
 
+    function applyCityRegionFilter() {
+        var sel = document.getElementById('gm-shops-region-filter');
+        if (!sel) return;
+        var v = sel.value;
+        document.querySelectorAll('.gm-shops-city-panel .city-block[data-region]').forEach(function (el) {
+            var match = v === '' || el.getAttribute('data-region') === v;
+            el.style.display = match ? '' : 'none';
+        });
+    }
+
     window.addEventListener('DOMContentLoaded', function () {
+        var regionFilter = document.getElementById('gm-shops-region-filter');
+        if (regionFilter) {
+            regionFilter.addEventListener('change', applyCityRegionFilter);
+        }
+
         document.body.addEventListener('click', function (e) {
             const shopBtn = e.target.closest('.delete-button[data-shop-id]');
             if (shopBtn) {
