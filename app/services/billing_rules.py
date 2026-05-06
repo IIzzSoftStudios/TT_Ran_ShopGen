@@ -1,7 +1,10 @@
 import os
 from typing import Tuple
 
-from app.models import Campaign, CampaignPlayer
+from flask import current_app, has_app_context
+
+from app.extensions import db
+from app.models import Campaign, CampaignPlayer, Player
 
 FREE_SEAT_LIMIT = 3
 
@@ -16,27 +19,52 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
-# Default 1 free campaign; set FREE_CAMPAIGN_LIMIT in config.env for local testing (e.g. 5).
+# Legacy env override when phase_config is unavailable (e.g. isolated unit tests).
 FREE_CAMPAIGN_LIMIT = _int_env("FREE_CAMPAIGN_LIMIT", 1)
 
 
+def get_gm_limits(user):
+    """Return (campaign_limit, seat_limit, label) for billing; never None."""
+    phase_slug = "default"
+    key = getattr(user, "registration_key_used", None) if user is not None else None
+    if key is not None and getattr(key, "key_phase", None):
+        phase_slug = key.key_phase
+    if has_app_context() and current_app.extensions.get("phase_config") is not None:
+        cfg = current_app.extensions["phase_config"].get_phase(phase_slug)
+        return cfg["campaign_limit"], cfg["seat_limit"], cfg["label"]
+    return FREE_CAMPAIGN_LIMIT, FREE_SEAT_LIMIT, "default"
+
+
 def can_create_campaign(gm_profile) -> Tuple[bool, str]:
+    user = gm_profile.user
+    cap, _seats, label = get_gm_limits(user)
     existing_count = Campaign.query.filter_by(gm_profile_id=gm_profile.id).count()
-    if existing_count >= FREE_CAMPAIGN_LIMIT:
+    if existing_count >= cap:
         return (
             False,
-            "You have reached the free campaign limit (1). Additional campaigns will require a paid plan in the future.",
+            f"You have reached the free campaign limit ({cap}) for {label}. "
+            "Additional campaigns will require a paid plan in the future.",
         )
     return True, ""
 
 
 def can_add_player_to_campaign(campaign: Campaign) -> Tuple[bool, str]:
+    gm_user = campaign.gm_profile.user
+    _cap, seat_limit, label = get_gm_limits(gm_user)
     active_seats = (
-        CampaignPlayer.query.filter_by(campaign_id=campaign.id, is_active=True).count()
+        db.session.query(CampaignPlayer)
+        .join(Player, Player.id == CampaignPlayer.player_id)
+        .filter(
+            CampaignPlayer.campaign_id == campaign.id,
+            CampaignPlayer.is_active.is_(True),
+            Player.is_npc.is_(False),
+        )
+        .count()
     )
-    if active_seats >= FREE_SEAT_LIMIT:
+    if active_seats >= seat_limit:
         return (
             False,
-            "This campaign has reached the free seat limit (3 players). Additional seats will require a paid plan in the future.",
+            f"This campaign has reached the free seat limit ({seat_limit} players) for {label}. "
+            "Additional seats will require a paid plan in the future.",
         )
     return True, ""

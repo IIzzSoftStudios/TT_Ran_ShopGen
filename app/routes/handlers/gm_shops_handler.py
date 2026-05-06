@@ -8,8 +8,12 @@ from sqlalchemy.orm import subqueryload
 
 from app.constants.shops import SHOP_TYPE_DEFAULTS
 from app.extensions import db
-from app.models import City, Shop, ShopInventory
-from app.routes.handlers.gm_helpers import get_current_gm_profile
+from app.models import City, Shop, ShopInventory, Region
+from app.routes.handlers.gm_helpers import (
+    get_current_gm_profile,
+    active_campaign_id,
+    campaign_scope_columns_available,
+)
 
 
 @lru_cache(maxsize=1)
@@ -53,6 +57,9 @@ def get_shop_city_panel_context(gm_profile):
     q = City.query.filter_by(gm_profile_id=gm_profile.id).options(
         subqueryload(City.shops)
     )
+    campaign_id = active_campaign_id()
+    if campaign_id is not None and campaign_scope_columns_available():
+        q = q.filter(City.campaign_id == campaign_id)
     if _region_table_exists():
         q = q.options(subqueryload(City.region_obj))
     cities = q.order_by(City.name).all()
@@ -60,6 +67,11 @@ def get_shop_city_panel_context(gm_profile):
     discovered_rows = (
         db.session.query(Shop.type)
         .filter_by(gm_profile_id=gm_profile.id)
+        .filter(
+            Shop.campaign_id == campaign_id
+            if campaign_id is not None and campaign_scope_columns_available()
+            else True
+        )
         .distinct()
         .all()
     )
@@ -99,25 +111,48 @@ def get_shop_city_panel_context(gm_profile):
         key=lambda s: (s or "").lower(),
     )
 
+    campaign_regions = []
+    if _region_table_exists() and campaign_id is not None:
+        campaign_regions = (
+            Region.query.filter_by(
+                campaign_id=campaign_id,
+                gm_profile_id=gm_profile.id,
+            )
+            .order_by(Region.name)
+            .all()
+        )
+
     return {
         "city_data": city_data,
         "region_labels": region_labels,
+        "campaign_regions": campaign_regions,
         "type_suggestions": type_suggestions,
     }
 
 
 def get_grouped_shops(gm_profile):
     """
-    Materialized dict: city_name -> { shop_type -> [Shop, ...] }.
-    Used by GM item add/edit/detail templates; same grouping rules as the city panel.
+    Materialized dict: city_name -> { shop_type -> [Shop, ...] }, plus per-city
+    metadata for shop-picker summaries (region, size, counts) aligned with the
+    GM shops-by-city panel.
+
+    Returns:
+        tuple: (grouped_shops, city_shop_meta) where city_shop_meta maps city_name
+        to dict keys: region_label, size, shop_count.
     """
-    cities = (
-        City.query.filter_by(gm_profile_id=gm_profile.id)
-        .options(subqueryload(City.shops))
-        .order_by(City.name)
-        .all()
+    campaign_id = active_campaign_id()
+    q = City.query.filter_by(gm_profile_id=gm_profile.id).filter(
+        City.campaign_id == campaign_id
+        if campaign_id is not None and campaign_scope_columns_available()
+        else True
     )
+    q = q.options(subqueryload(City.shops))
+    if _region_table_exists():
+        q = q.options(subqueryload(City.region_obj))
+    cities = q.order_by(City.name).all()
+
     grouped = {}
+    city_meta = {}
     for city in cities:
         by_type = {}
         for shop in sorted(city.shops, key=lambda s: (s.name or "").lower()):
@@ -125,7 +160,13 @@ def get_grouped_shops(gm_profile):
             by_type.setdefault(type_key, []).append(shop)
         city_name = city.name or "Unknown"
         grouped[city_name] = by_type
-    return grouped
+        shop_count = sum(len(shops) for shops in by_type.values())
+        city_meta[city_name] = {
+            "region_label": _city_region_label(city),
+            "size": (city.size or "").strip(),
+            "shop_count": shop_count,
+        }
+    return grouped, city_meta
 
 
 def get_linked_shop_ids_for_item(item_id: int) -> set:

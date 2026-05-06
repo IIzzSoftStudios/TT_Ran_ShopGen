@@ -36,6 +36,42 @@
             max-width: 800px;
             margin: 0 auto 30px;
         }
+        .gm-join-tools {
+            position: relative;
+            display: inline-block;
+        }
+        .gm-join-tools > summary {
+            list-style: none;
+        }
+        .gm-join-tools > summary::-webkit-details-marker {
+            display: none;
+        }
+        .gm-join-popover {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: calc(100% + 8px);
+            z-index: 50;
+            min-width: 300px;
+            max-width: 420px;
+            padding: 16px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            text-align: left;
+            color: #333;
+            font-size: 14px;
+        }
+        .gm-join-popover label {
+            display: block;
+            margin-top: 10px;
+        }
+        .gm-join-popover input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 4px;
+            padding: 6px 8px;
+        }
 
         /* Button Styling */
         .button {
@@ -108,6 +144,9 @@
             max-width: 800px;
             margin: 0 auto;
         }
+        .gm-world-quick-nav--dashboard .gm-world-quick-nav .nav-buttons {
+            justify-content: center;
+        }
 
         /* Flash message styling */
         .flash-messages {
@@ -151,7 +190,7 @@
 
         #simulation-controls.busy { opacity: 0.6; pointer-events: none; }
         .sim-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 12px; }
-        .sim-action-btn, .manual-tick-button {
+        .sim-action-btn {
             background-color: #4CAF50;
             color: white;
             border: none;
@@ -160,9 +199,9 @@
             cursor: pointer;
             font-size: 14px;
         }
-        .manual-tick-button { background-color: #2196F3; }
-        .manual-tick-button:hover { background-color: #1976D2; }
         .sim-action-btn:hover { background-color: #45a049; }
+        .sim-action-btn.sim-pause-btn { background-color: #607d8b; }
+        .sim-action-btn.sim-pause-btn:hover { background-color: #546e7a; }
         #sim-feedback { min-height: 1.2em; text-align: center; margin: 8px 0; font-size: 14px; }
         .simulation-status {
             display: flex;
@@ -199,7 +238,25 @@
 
     <div class="gm-primary-actions">
         <a href="{{ url_for('gm.view_campaigns') }}" class="button">Campaign Overview</a>
-        <a href="{{ url_for('gm.gm_view_players') }}" class="button">Player Overview</a>
+        <a href="{{ url_for('gm.gm_view_players') }}" class="button">Player &amp; NPC Overview</a>
+        <details class="gm-join-tools">
+            <summary class="button">GM Campaign Code</summary>
+            <div class="gm-join-popover">
+                {% if session.get('campaign_id') %}
+                    <p style="margin:0 0 8px 0;"><strong>Active Campaign</strong> (share with your Players for this Campaign):</p>
+                    {% set reveal_url = url_for('gm.reveal_campaign_join_code', campaign_id=session['campaign_id']) %}
+                    {% include 'partials/code_reveal.html' %}
+                    <form method="POST" action="{{ url_for('gm.redeem_player_code_route', campaign_id=session['campaign_id']) }}" style="margin-top:14px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <label for="gm-home-player-code">Add player by code</label>
+                        <input id="gm-home-player-code" type="text" name="player_join_code" autocomplete="off" placeholder="PLY-XXXX-XXXX-XXXX"/>
+                        <button type="submit" class="button" style="margin-top:10px;width:100%;">Redeem player code</button>
+                    </form>
+                {% else %}
+                    <p style="margin:0;">Choose an active campaign first (open <strong>Campaign Overview</strong> and load a campaign, or create one).</p>
+                {% endif %}
+            </div>
+        </details>
         <a href="{{ url_for('auth.logout') }}" class="button">Logout</a>
     </div>
 
@@ -213,10 +270,7 @@
                 <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('week', this)">Run week</button>
                 <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('month', this)">Run month</button>
                 <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('year', this)">Run year</button>
-            </div>
-            <div class="sim-row">
-                <button type="button" class="manual-tick-button" onclick="performManualTick()">Manual tick</button>
-                <button type="button" class="sim-action-btn" onclick="pauseSimulation()">Pause</button>
+                <button type="button" class="sim-action-btn sim-pause-btn" onclick="pauseSimulation()">Pause</button>
             </div>
         </div>
         <div id="sim-feedback"></div>
@@ -276,7 +330,6 @@
         var urls = {
             runPeriod: "{{ url_for('gm.gm_simulation_run_period') }}",
             jobStatus: "{{ url_for('gm.gm_simulation_job_status', job_id='__JOB_ID__') }}",
-            manualTick: "{{ url_for('gm.gm_run_simulation_tick') }}",
             simSpeed: "{{ url_for('gm.gm_update_simulation_speed') }}",
             apiStatus: "{{ url_for('simulation.get_simulation_status') }}"
         };
@@ -424,36 +477,10 @@
             }
         };
 
-        window.performManualTick = async function () {
-            if (simBusy) return;
-            setSimState(true);
-            showFeedback('Running manual tick…', false);
-            try {
-                var response = await fetch(urls.manualTick, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({})
-                });
-                var j = await response.json().catch(function () { return {}; });
-                if (j.current_game_day != null) updateCalendarDisplay(j.current_game_day);
-                if (!response.ok) throw new Error(j.error || 'Tick failed');
-                showFeedback('Tick complete.', false);
-                updateSimulationStatus();
-            } catch (e) {
-                showFeedback(e.message || 'Tick failed', true);
-            } finally {
-                setSimState(false);
-            }
-        };
-
         window.pauseSimulation = async function () {
             if (simBusy) return;
             try {
-                await fetch(urls.simSpeed, {
+                var response = await fetch(urls.simSpeed, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {
@@ -462,7 +489,9 @@
                     },
                     body: JSON.stringify({ speed: 'pause' })
                 });
-                showFeedback('Pause requested.', false);
+                var j = await response.json().catch(function () { return {}; });
+                if (!response.ok) throw new Error(j.error || 'Pause failed');
+                showFeedback('Simulation paused.', false);
                 updateSimulationStatus();
             } catch (e) {
                 showFeedback(e.message || 'Pause failed', true);

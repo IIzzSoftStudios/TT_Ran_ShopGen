@@ -1,6 +1,9 @@
 """Password complexity for registration and reset."""
 import re
 
+# Minimum days before a previously used password may be chosen again (reset / change flows).
+PASSWORD_REUSE_FORBIDDEN_DAYS = 180
+
 
 def is_password_strong(password):
     if len(password) < 8:

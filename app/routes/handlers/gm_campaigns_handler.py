@@ -7,13 +7,13 @@ import sys
 import time
 import traceback
 
-from flask import render_template, request, redirect, url_for, flash, session
+from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
 from app.models import (
-    GMProfile, Player, Campaign, CampaignPlayer, CampaignWorldConfig,
+    GMProfile, Player, Campaign, CampaignPlayer, CampaignWorldConfig, PlayerCharacterSheet,
 )
 from app.scripts.seeder import seed_gm_data
 from app.services.billing_rules import can_create_campaign, can_add_player_to_campaign
@@ -24,8 +24,25 @@ from app.services.world_generator import (
 )
 from app.services.world_generator.generator import GenerationTimeoutError
 from app.services.world_generator.validator import ValidationError
+from app.services.join_codes import (
+    reveal_campaign_code_for_gm,
+    log_reveal,
+    redeem_player_code,
+    InvalidCodeError,
+    SeatCapError,
+    CrossGMError,
+    JoinCodeError,
+)
 
 log = logging.getLogger(__name__)
+
+
+def _non_npc_players_for_gm(gm_profile_id: int):
+    return (
+        Player.query.filter_by(gm_profile_id=gm_profile_id)
+        .filter(Player.is_npc.is_(False))
+        .all()
+    )
 
 
 @login_required
@@ -41,10 +58,19 @@ def list_campaigns():
 
     campaigns_with_info = []
     for campaign in campaigns:
-        player_count = CampaignPlayer.query.filter_by(
-            campaign_id=campaign.id, is_active=True
+        player_count = (
+            db.session.query(CampaignPlayer)
+            .join(Player, Player.id == CampaignPlayer.player_id)
+            .filter(
+                CampaignPlayer.campaign_id == campaign.id,
+                CampaignPlayer.is_active.is_(True),
+                Player.is_npc.is_(False),
+            )
+            .count()
+        )
+        total_players = Player.query.filter_by(gm_profile_id=gm_profile.id).filter(
+            Player.is_npc.is_(False)
         ).count()
-        total_players = Player.query.filter_by(gm_profile_id=gm_profile.id).count()
         campaigns_with_info.append(
             {
                 "campaign": campaign,
@@ -86,7 +112,7 @@ def create_campaign():
         db.session.add(campaign)
         db.session.flush()
 
-        existing_players = Player.query.filter_by(gm_profile_id=gm_profile.id).all()
+        existing_players = _non_npc_players_for_gm(gm_profile.id)
         players_added = 0
         for player in existing_players:
             can_add, seat_message = can_add_player_to_campaign(campaign)
@@ -121,6 +147,7 @@ def create_campaign():
                     num_shops_per_city=10,
                     num_global_items=50,
                     num_items_per_shop=10,
+                    campaign_id=campaign.id,
                 )
                 flash(
                     f"Campaign '{name}' created successfully with preseeded entities. Added {players_added} player(s).",
@@ -161,7 +188,7 @@ def sync_players_to_campaign(campaign_id: int):
         flash("Campaign not found.", "error")
         return redirect(url_for("gm.view_campaigns"))
 
-    existing_players = Player.query.filter_by(gm_profile_id=gm_profile.id).all()
+    existing_players = _non_npc_players_for_gm(gm_profile.id)
     players_added = 0
     players_skipped = 0
 
@@ -215,8 +242,15 @@ def delete_campaign(campaign_id: int):
         flash("Campaign not found.", "error")
         return redirect(url_for("gm.view_campaigns"))
 
+    # Character sheets are campaign-scoped and should be purged with campaign delete.
+    PlayerCharacterSheet.query.filter_by(campaign_id=campaign.id).delete(
+        synchronize_session=False
+    )
     db.session.delete(campaign)
     db.session.commit()
+    if session.get("campaign_id") == campaign_id:
+        session.pop("campaign_id", None)
+        session.modified = True
     flash("Campaign deleted.", "success")
     return redirect(url_for("gm.view_campaigns"))
 
@@ -230,7 +264,6 @@ _RANGE_LABELS = {
     "global_item_pool_size": "Global Item Pool Size",
     "shops_per_city": "Shops per City",
     "items_per_shop": "Items per Shop",
-    "resource_nodes_per_city": "Resource Nodes per City",
     "tech_magic_balance": "Magic <-> Tech Balance",
 }
 
@@ -393,7 +426,7 @@ def generate_world_submit():
             db.session.flush()
 
             # Add existing players to the new campaign up to the seat cap.
-            existing_players = Player.query.filter_by(gm_profile_id=gm_profile.id).all()
+            existing_players = _non_npc_players_for_gm(gm_profile.id)
             players_added = 0
             for player in existing_players:
                 can_add, _seat_msg = can_add_player_to_campaign(campaign)
@@ -462,7 +495,7 @@ def generate_world_submit():
     log.info(
         "world_generated gm_profile_id=%s campaign_id=%s "
         "settings_digest=%s seed=%s elapsed=%.2fs "
-        "regions=%d cities=%d shops=%d items=%d inv=%d nodes=%d players_added=%d",
+        "regions=%d cities=%d shops=%d items=%d inv=%d players_added=%d",
         gm_profile.id,
         campaign.id,
         settings_digest,
@@ -473,7 +506,6 @@ def generate_world_submit():
         result.n_shops,
         result.n_items,
         result.n_inventory_rows,
-        result.n_resource_nodes,
         players_added,
     )
 
@@ -490,3 +522,157 @@ def generate_world_submit():
     session.modified = True
 
     return redirect(url_for("gm.home"), code=303)
+
+
+@login_required
+def skip_world_generation_submit():
+    """Create a campaign without running procedural world generation."""
+    if getattr(current_user, "role", None) != "GM":
+        flash("Only GMs can create campaigns.", "error")
+        return redirect(url_for("main.campaigns")), 403
+
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
+    if not gm_profile:
+        flash("GM profile not found.", "error")
+        return redirect(url_for("main.campaigns")), 403
+
+    form = request.form.to_dict(flat=True)
+    campaign_name = (form.get("campaign_name") or "").strip()
+    system_type = (form.get("system_type") or "dnd5e").strip()
+
+    if not campaign_name:
+        return _flash_and_reshow(form, "error", "campaign_name: is required"), 400
+    if len(campaign_name) > 120:
+        return _flash_and_reshow(
+            form, "error", "campaign_name: must be 120 characters or fewer"
+        ), 400
+    if system_type not in wg_defaults.SYSTEM_TYPES:
+        return _flash_and_reshow(form, "error", "system_type: is invalid"), 400
+
+    allowed, message = can_create_campaign(gm_profile)
+    if not allowed:
+        return _flash_and_reshow(form, "system", message), 402
+
+    try:
+        campaign = Campaign(
+            gm_profile_id=gm_profile.id,
+            name=campaign_name,
+            system_type=system_type,
+            is_active=True,
+        )
+        db.session.add(campaign)
+        db.session.flush()
+
+        # Keep a config row so downstream tooling can detect this was intentionally skipped.
+        config = CampaignWorldConfig(
+            campaign_id=campaign.id,
+            settings_json={
+                "generation_skipped": True,
+                "campaign_name": campaign_name,
+                "system_type": system_type,
+            },
+            schema_version=1,
+            world_seed=None,
+        )
+        db.session.add(config)
+
+        existing_players = _non_npc_players_for_gm(gm_profile.id)
+        players_added = 0
+        for player in existing_players:
+            can_add, _seat_msg = can_add_player_to_campaign(campaign)
+            if not can_add:
+                break
+            membership = CampaignPlayer(
+                campaign_id=campaign.id,
+                player_id=player.id,
+                status="active",
+                is_active=True,
+            )
+            db.session.add(membership)
+            players_added += 1
+
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return _flash_and_reshow(
+            form, "error", "Name conflict detected, please choose a different campaign name."
+        ), 409
+    except Exception as exc:  # noqa: BLE001
+        db.session.rollback()
+        log.exception("skip_world_generation_unexpected_error gm=%s", gm_profile.id)
+        return _flash_and_reshow(
+            form, "error", f"Unexpected error while skipping generation: {exc}"
+        ), 500
+
+    flash(
+        f"Campaign '{campaign_name}' created without auto-generation. "
+        f"Added {players_added} player(s).",
+        "success",
+    )
+
+    session["campaign_id"] = campaign.id
+    session["system_type"] = campaign.system_type
+    session.permanent = True
+    session.modified = True
+
+    return redirect(url_for("gm.home"), code=303)
+
+
+@login_required
+def reveal_campaign_join_code(campaign_id: int):
+    """JSON: lazy-fetch campaign join code for authorized GM."""
+    if getattr(current_user, "role", None) != "GM":
+        return jsonify(error="forbidden"), 403
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
+    if not gm_profile:
+        return jsonify(error="forbidden"), 403
+    try:
+        code = reveal_campaign_code_for_gm(
+            gm_profile_id=gm_profile.id, campaign_id=campaign_id
+        )
+        log_reveal(
+            user_id=current_user.id,
+            action="REVEAL_CAMPAIGN_CODE",
+            target_id=campaign_id,
+            ip=request.remote_addr or "",
+        )
+        return jsonify(code=code)
+    except InvalidCodeError:
+        return jsonify(error="not_found"), 404
+
+
+@login_required
+def post_redeem_player_code(campaign_id: int):
+    """POST: GM pastes a PLY- code to seat a player on this campaign."""
+    if getattr(current_user, "role", None) != "GM":
+        flash("Only GMs can add players by code.", "error")
+        return redirect(url_for("main.campaigns"))
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
+    if not gm_profile:
+        flash("GM profile not found.", "error")
+        return redirect(url_for("main.campaigns"))
+    campaign = Campaign.query.filter_by(
+        id=campaign_id, gm_profile_id=gm_profile.id
+    ).first()
+    if not campaign:
+        flash("Campaign not found.", "error")
+        return redirect(url_for("gm.view_campaigns"))
+    raw = (request.form.get("player_join_code") or "").strip()
+    if not raw:
+        flash("Enter a player code (PLY-…).", "warning")
+        return redirect(url_for("gm.view_campaigns"))
+    try:
+        redeem_player_code(
+            gm_profile_id=gm_profile.id,
+            campaign=campaign,
+            raw_code=raw,
+            _commit=True,
+        )
+        flash("Player added to this campaign.", "success")
+    except (InvalidCodeError, SeatCapError, CrossGMError, JoinCodeError) as e:
+        flash(
+            (e.args[0] if getattr(e, "args", None) else None)
+            or "Could not add player with that code.",
+            "danger",
+        )
+    return redirect(url_for("gm.view_campaigns"))

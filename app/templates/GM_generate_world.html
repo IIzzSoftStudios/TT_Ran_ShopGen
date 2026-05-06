@@ -201,7 +201,7 @@
             display: flex;
             gap: 12px;
             justify-content: center;
-            margin-top: 24px;
+            margin-bottom: 24px;
             flex-wrap: wrap;
         }
 
@@ -228,6 +228,12 @@
             color: var(--color-text, #333);
         }
         .btn-secondary:hover { filter: brightness(0.95); }
+
+        .btn-tertiary {
+            background-color: #16a34a;
+            color: #fff;
+        }
+        .btn-tertiary:hover { filter: brightness(0.95); }
 
         .btn-link {
             background: transparent;
@@ -390,6 +396,24 @@
         <form id="generate-world-form" method="POST" action="{{ url_for('gm.generate_world_submit') }}" novalidate>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="generate-btn">
+                    Generate World
+                    <span class="spinner" id="generate-spinner" aria-hidden="true"></span>
+                </button>
+                <button
+                    type="submit"
+                    class="btn btn-tertiary"
+                    id="skip-generation-btn"
+                    formaction="{{ url_for('gm.skip_world_generation_submit') }}"
+                    formmethod="post"
+                >
+                    Skip Generation
+                </button>
+                <button type="button" class="btn btn-secondary" id="reset-btn">Reset to defaults</button>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-link">Logout</a>
+            </div>
+
             <fieldset>
                 <legend>Identity</legend>
                 <div class="field-row">
@@ -436,7 +460,7 @@
 
             <fieldset>
                 <legend>Economy</legend>
-                {% for key in ['global_item_pool_size', 'shops_per_city', 'items_per_shop', 'resource_nodes_per_city'] %}
+                {% for key in ['global_item_pool_size', 'shops_per_city', 'items_per_shop'] %}
                     {% set r = ranges[key] %}
                     <div class="field-row">
                         <label>{{ labels[key] }}<span class="floor-ceiling">(floor {{ r.floor }}, ceiling {{ r.ceiling }})</span></label>
@@ -514,15 +538,6 @@
                     </div>
                 </div>
             </fieldset>
-
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary" id="generate-btn">
-                    Generate World
-                    <span class="spinner" id="generate-spinner" aria-hidden="true"></span>
-                </button>
-                <button type="button" class="btn btn-secondary" id="reset-btn">Reset to defaults</button>
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-link">Logout</a>
-            </div>
 
             <div class="progress-text" id="progress-text" aria-live="polite"></div>
         </form>
@@ -764,6 +779,11 @@
         }
 
         form.addEventListener("submit", function (e) {
+            var submitter = e.submitter || document.activeElement;
+            if (submitter && submitter.id === "skip-generation-btn") {
+                // Let the browser do a normal submit to the skip endpoint.
+                return;
+            }
             e.preventDefault();
             if (inFlight) return;
             if (!form.checkValidity()) {

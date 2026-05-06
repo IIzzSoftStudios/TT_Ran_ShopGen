@@ -1,0 +1,44 @@
+# Phase entitlements: version-controlled business rules (per-worker load via PhaseEntitlements).
+# Slugs in DB (registration_key.key_phase) must match keys under `phases:` exactly.
+
+phases:
+  default:
+    label: "Legacy / Open registration"
+    prefix: "FORGE"
+    campaign_limit: 1
+    seat_limit: 3
+  tech_demo:
+    label: "Tech Demo"
+    prefix: "TECH"
+    campaign_limit: 1
+    seat_limit: 3
+  alpha:
+    label: "Alpha Access"
+    prefix: "ALPHA"
+    campaign_limit: 3
+    seat_limit: 6
+  beta:
+    label: "Beta Access"
+    prefix: "BETA"
+    campaign_limit: 5
+    seat_limit: 8
+  early_access:
+    label: "Early Access"
+    prefix: "EARLY"
+    campaign_limit: 7
+    seat_limit: 10
+  forge_master:
+    label: "Forge Master"
+    prefix: "FORGE"
+    campaign_limit: 10
+    seat_limit: 12
+  release:
+    label: "Release"
+    prefix: "REL"
+    campaign_limit: 20
+    seat_limit: 24
+  test:
+    label: "Admin test keys"
+    prefix: "TEST"
+    campaign_limit: 99
+    seat_limit: 99

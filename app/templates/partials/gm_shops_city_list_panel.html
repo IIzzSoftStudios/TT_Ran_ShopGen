@@ -7,15 +7,26 @@
 
         <h2>Shops by city</h2>
 
-        {% if city_data and region_labels|default([]) %}
+        {% if city_data and (campaign_regions|default([]) or region_labels|default([])) %}
         <div class="region-filter-bar">
             <label for="gm-shops-region-filter" class="region-filter-label">Region</label>
+            {% if campaign_regions|default([]) %}
+            <select id="gm-shops-region-filter" class="region-filter-select" data-filter-mode="fk" aria-label="Filter cities by region">
+                <option value="">All regions</option>
+                {% for reg in campaign_regions %}
+                <option value="{{ reg.id }}">{{ reg.name }}</option>
+                {% endfor %}
+            </select>
+            <span id="gm-region-edit-url-template" data-url="{{ url_for('gm.edit_region', region_id=900000001) }}" hidden aria-hidden="true"></span>
+            <button type="button" class="button region-filter-edit-btn" onclick="navigateToEditRegion()">Edit</button>
+            {% else %}
             <select id="gm-shops-region-filter" class="region-filter-select" aria-label="Filter cities by region">
                 <option value="">All regions</option>
                 {% for r in region_labels %}
                 <option value={{ r|tojson }}>{{ r }}</option>
                 {% endfor %}
             </select>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -28,7 +39,7 @@
         {% if city_data %}
         <div class="city-list">
             {% for item in city_data %}
-            <details class="city-block" data-region={{ item.region_label|tojson }}>
+            <details class="city-block" data-region={{ item.region_label|tojson }} data-region-id="{{ item.city.region_id or '' }}">
                 <summary>
                     <span class="city-name">{{ item.city.name }}</span>
                     <span class="city-meta">

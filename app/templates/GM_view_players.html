@@ -87,12 +87,24 @@
             gap: 6px;
         }
         .character-link {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 6px 10px;
             text-decoration: none;
-            color: inherit;
+            color: #2980b9;
             font-weight: 500;
         }
         .character-link:hover {
             text-decoration: underline;
+        }
+        .character-link:hover .character-sheet-hint {
+            text-decoration: underline;
+        }
+        .character-sheet-hint {
+            font-size: 0.8rem;
+            font-weight: normal;
+            color: #555;
         }
         .tag {
             display: inline-block;
@@ -102,13 +114,30 @@
             background-color: #e0e0e0;
             margin-left: 4px;
         }
+        .tag-npc {
+            background-color: #6f42c1;
+            color: #fff;
+        }
+        .delete-button {
+            background-color: #dc3545;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+        .remove-button {
+            background-color: #c0392b;
+        }
+        .remove-button:hover {
+            background-color: #962d22;
+        }
     </style>
 </head>
 <body class="gm-list-page">
-    <h1>Player Manager</h1>
+    <h1>Player &amp; NPC Manager</h1>
     <h2>Campaign: {{ campaign.name }} ({{ campaign.system_type }})</h2>
     <div class="nav-buttons">
         <a href="{{ url_for('gm.view_campaigns') }}" class="button">Manage Campaigns</a>
+        <a href="{{ url_for('gm.gm_create_npc') }}" class="button">Add NPC</a>
         <a href="{{ url_for('gm.home') }}" class="button">Back to Dashboard</a>
     </div>
     <div class="content-container">
@@ -118,7 +147,8 @@
                     <tr>
                         <th>Player</th>
                         <th>Currency</th>
-                        <th>Characters in Campaign</th>
+                        <th title="Each line opens that character's GM sheet">Characters (open sheet)</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -126,25 +156,44 @@
                         {% set player = entry.player %}
                         {% set characters = entry.characters %}
                         <tr>
-                            <td>{{ player.user.username if player.user else 'Unknown' }}</td>
+                            <td>
+                                {% if player.is_npc %}<span class="tag tag-npc">NPC</span>{% endif %}
+                                {{ player.user.username if player.user else ('NPC' if player.is_npc else 'Unknown') }}
+                            </td>
                             <td>{{ player.currency }}</td>
                             <td>
                                 {% if characters %}
                                     <div class="character-list">
                                         {% for character in characters %}
                                             <a href="{{ url_for('gm.gm_view_character', character_id=character.id) }}" class="character-link">
-                                                {{ character.name }}
-                                                {% if character.class_name %}
-                                                    <span class="tag">{{ character.class_name }}</span>
-                                                {% endif %}
-                                                {% if character.level %}
-                                                    <span class="tag">Lv {{ character.level }}</span>
-                                                {% endif %}
+                                                <span class="character-name-line">
+                                                    {{ character.name }}
+                                                    {% if character.class_name %}
+                                                        <span class="tag">{{ character.class_name }}</span>
+                                                    {% endif %}
+                                                    {% if character.level %}
+                                                        <span class="tag">Lv {{ character.level }}</span>
+                                                    {% endif %}
+                                                </span>
+                                                <span class="character-sheet-hint">View sheet</span>
                                             </a>
                                         {% endfor %}
                                     </div>
                                 {% else %}
                                     <span class="text-muted">No character yet for this campaign.</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if player.is_npc %}
+                                    <form method="POST" action="{{ url_for('gm.delete_npc_player', player_id=player.id) }}" onsubmit="return confirm('Permanently delete this NPC? This removes their inventory and characters from every campaign.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="button delete-button">Delete</button>
+                                    </form>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('gm.remove_player_from_campaign', player_id=player.id) }}" onsubmit="return confirm('Remove {{ player.user.username }} from this campaign? Their character and inventory under this GM are kept.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="button remove-button">Remove</button>
+                                    </form>
                                 {% endif %}
                             </td>
                         </tr>
@@ -153,7 +202,7 @@
             </table>
         {% else %}
             <div class="empty-state">
-                <p>No players are currently assigned to this campaign.</p>
+                <p>No players or NPCs are currently assigned to this campaign.</p>
             </div>
         {% endif %}
     </div>

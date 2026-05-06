@@ -1,0 +1,60 @@
+{# Click-to-fetch join code (never embed code in HTML). Expects: reveal_url #}
+<button type="button" class="code-reveal-btn" data-reveal-url="{{ reveal_url }}"
+        aria-label="Copy code">
+  <span class="code-reveal-placeholder">Copy Code</span>
+</button>
+<style>
+.code-reveal-btn {
+  background: #6a1b9a;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.code-reveal-btn:hover { background: #5a189a; }
+.code-reveal-btn.is-copied { background: #2e7d32; }
+.code-reveal-btn.is-error { background: #c62828; }
+</style>
+<script>
+(function () {
+  function wire(btn) {
+    var url = btn.getAttribute("data-reveal-url");
+    if (!url) return;
+    btn.addEventListener("click", function () {
+      var ph = btn.querySelector(".code-reveal-placeholder");
+      btn.classList.remove("is-copied", "is-error");
+      if (ph) ph.textContent = "Loading…";
+      fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+        .then(function (r) {
+          if (!r.ok) throw new Error(r.status === 429 ? "Rate limited" : "Failed");
+          return r.json();
+        })
+        .then(function (j) {
+          var code = j && j.code ? String(j.code) : "";
+          if (!code) throw new Error("Empty");
+          if (ph) ph.textContent = code;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).catch(function () {});
+          }
+          btn.classList.add("is-copied");
+          if (ph) ph.textContent = "Copied!";
+          setTimeout(function () {
+            if (ph) ph.textContent = "Copy Code";
+            btn.classList.remove("is-copied");
+          }, 8000);
+        })
+        .catch(function () {
+          btn.classList.add("is-error");
+          if (ph) ph.textContent = "Unavailable";
+          setTimeout(function () {
+            if (ph) ph.textContent = "Copy Code";
+            btn.classList.remove("is-error");
+          }, 4000);
+        });
+    });
+  }
+  document.querySelectorAll(".code-reveal-btn").forEach(wire);
+})();
+</script>

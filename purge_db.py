@@ -2,7 +2,7 @@ from app import create_app, db
 from app.models import (
     City, Shop, Item, ShopInventory, RegionalMarket, GlobalMarket,
     DemandModifier, ModifierTarget, User, GMProfile, Player, PlayerInventory,
-    ResourceNode, ProductionHistory, ResourceTransform, MarketEvent,
+    ResourceTransform, MarketEvent,
     SimulationState, SimulationLog, SimRule,
     GMWorldState,
 )
@@ -19,13 +19,11 @@ def purge_database():
             ShopInventory,  # Junction between Shop and Item
             ModifierTarget,  # Junction for DemandModifier
             PlayerInventory,  # Junction between Player and Item
-            ProductionHistory,  # Depends on ResourceNode
             SimulationLog,  # Depends on GMProfile
             GMWorldState,  # Depends on GMProfile
             SimRule,  # Depends on GMProfile
             RegionalMarket,  # Depends on City and Item
             GlobalMarket,  # Depends on Item
-            ResourceNode,  # Depends on City and Player
             ResourceTransform,  # Depends on Item
             MarketEvent,  # Depends on City
         ]

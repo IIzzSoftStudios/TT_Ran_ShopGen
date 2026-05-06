@@ -1,10 +1,40 @@
 """Campaign selection and session loading."""
 
-from flask import render_template, redirect, url_for, flash, session
+import time
+
+from flask import render_template, redirect, url_for, flash, session, request
 from flask_login import current_user
 
 from app.extensions import db
 from app.models import GMProfile, Player, Campaign, CampaignPlayer
+from app.services.join_codes import (
+    redeem_campaign_code,
+    InvalidCodeError,
+    SeatCapError,
+    WrongRoleError,
+    JoinCodeError,
+)
+from app.services.player_resolution import all_player_ids_for_user
+
+
+def _redeem_failures_in_window():
+    now = time.time()
+    lst = [t for t in session.get("_campaign_redeem_fails", []) if now - t < 3600]
+    session["_campaign_redeem_fails"] = lst
+    session.modified = True
+    return lst
+
+
+def _register_redeem_failure():
+    lst = _redeem_failures_in_window()
+    lst.append(time.time())
+    session["_campaign_redeem_fails"] = lst
+    session.modified = True
+
+
+def _clear_redeem_failures():
+    session.pop("_campaign_redeem_fails", None)
+    session.modified = True
 
 
 def select_campaign():
@@ -34,26 +64,37 @@ def select_campaign():
                         }
                     )
         else:
-            player = Player.query.filter_by(user_id=current_user.id).first()
-            if player:
-                memberships = CampaignPlayer.query.filter_by(
-                    player_id=player.id, is_active=True
-                ).all()
+            pl_ids = all_player_ids_for_user(current_user)
+            seen_cids = set()
+            if pl_ids:
+                memberships = (
+                    CampaignPlayer.query.filter(
+                        CampaignPlayer.player_id.in_(pl_ids),
+                        CampaignPlayer.is_active.is_(True),
+                    ).all()
+                )
                 for membership in memberships:
                     campaign = membership.campaign
-                    if campaign and campaign.gm_profile and campaign.gm_profile.user:
-                        campaigns.append(
-                            {
-                                "id": campaign.id,
-                                "name": campaign.name,
-                                "type": "Player",
-                                "system_type": campaign.system_type,
-                                "gm_username": campaign.gm_profile.user.username,
-                                "player_count": CampaignPlayer.query.filter_by(
-                                    campaign_id=campaign.id, is_active=True
-                                ).count(),
-                            }
-                        )
+                    if (
+                        not campaign
+                        or campaign.id in seen_cids
+                        or not campaign.gm_profile
+                        or not campaign.gm_profile.user
+                    ):
+                        continue
+                    seen_cids.add(campaign.id)
+                    campaigns.append(
+                        {
+                            "id": campaign.id,
+                            "name": campaign.name,
+                            "type": "Player",
+                            "system_type": campaign.system_type,
+                            "gm_username": campaign.gm_profile.user.username,
+                            "player_count": CampaignPlayer.query.filter_by(
+                                campaign_id=campaign.id, is_active=True
+                            ).count(),
+                        }
+                    )
 
         if not campaigns:
             if current_user.role == "GM":
@@ -62,10 +103,17 @@ def select_campaign():
                     "info",
                 )
                 return redirect(url_for("gm.generate_world_form"))
-            flash("You are not assigned to any campaign yet.", "warning")
-            return redirect(url_for("auth.logout"))
+            return render_template(
+                "campaign_selection.html",
+                campaigns=[],
+                show_redeem_only=True,
+            )
 
-        return render_template("campaign_selection.html", campaigns=campaigns)
+        return render_template(
+            "campaign_selection.html",
+            campaigns=campaigns,
+            show_redeem_only=False,
+        )
     except Exception as e:
         print(f"[ERROR] Error in select_campaign: {str(e)}")
         flash("An error occurred while loading campaigns. Please try again.", "error")
@@ -89,7 +137,11 @@ def load_campaign(campaign_id):
                 gm_profile is not None and campaign.gm_profile_id == gm_profile.id
             )
         else:
-            player = Player.query.filter_by(user_id=current_user.id).first()
+            player = Player.query.filter_by(
+                user_id=current_user.id,
+                gm_profile_id=campaign.gm_profile_id,
+                is_npc=False,
+            ).first()
             if not player:
                 has_access = False
             else:
@@ -117,3 +169,33 @@ def load_campaign(campaign_id):
         print(f"[ERROR] Error in load_campaign: {str(e)}")
         flash("An error occurred while loading the campaign. Please try again.", "error")
         return redirect(url_for("main.campaigns"))
+
+
+def redeem_campaign_post():
+    """POST /campaigns/redeem — logged-in player pastes a CAMP- code."""
+    if getattr(current_user, "role", None) != "Player":
+        flash("Only players can redeem a campaign code.", "warning")
+        return redirect(url_for("main.campaigns"))
+
+    code = (request.form.get("campaign_code") or "").strip()
+    if not code:
+        flash("Enter a campaign code.", "warning")
+        return redirect(url_for("main.campaigns"))
+
+    fails = _redeem_failures_in_window()
+    if len(fails) >= 3:
+        flash("Too many invalid code attempts. Try again in up to one hour.", "danger")
+        return redirect(url_for("main.campaigns"))
+
+    try:
+        redeem_campaign_code(current_user, code, _commit=True)
+        _clear_redeem_failures()
+        flash("You joined the campaign.", "success")
+    except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
+        _register_redeem_failure()
+        flash(
+            (e.args[0] if getattr(e, "args", None) else None)
+            or "Could not join with that code.",
+            "danger",
+        )
+    return redirect(url_for("main.campaigns"))

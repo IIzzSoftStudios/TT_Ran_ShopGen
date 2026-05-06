@@ -1,22 +1,32 @@
 import traceback
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 from flask_login import login_required, current_user
 
-from app.extensions import db
-from app.models import City, Shop, Item, ShopInventory
+from app.extensions import db, limiter
+from app.models import City, Shop, Item, ShopInventory, Region, CampaignWorldConfig
 from app.routes.handlers.gm_helpers import (
     city_for_gm_or_404,
+    city_for_gm_optional,
     item_for_gm_or_404,
     shop_for_gm_or_404,
+    region_for_gm_or_404,
+    region_table_exists,
+    active_campaign_id,
+    campaign_scope_columns_available,
 )
 from app.routes.handlers.gm_players_handler import (
     list_players,
+    create_npc,
     view_character,
     update_character,
     equip_item,
     unequip_item,
     update_inventory,
+    remove_player_from_campaign as remove_player_from_campaign_handler,
+    delete_npc_player as delete_npc_player_handler,
 )
 from app.routes.handlers.gm_simulation_handler import (
     home as gm_dashboard_home,
@@ -40,10 +50,43 @@ from app.routes.handlers.gm_campaigns_handler import (
     delete_campaign as delete_campaign_handler,
     generate_world_form as generate_world_form_handler,
     generate_world_submit as generate_world_submit_handler,
+    skip_world_generation_submit as skip_world_generation_submit_handler,
+    reveal_campaign_join_code as reveal_campaign_join_code_handler,
+    post_redeem_player_code as post_redeem_player_code_handler,
 )
-from app.extensions import limiter
+from app.services.world_generator.defaults import RANGE_SETTINGS, SCHEMA_VERSION
+from app.services.world_generator.generator import (
+    GenerationTimeoutError,
+    generate_shops_onward,
+)
 
 gm_bp = Blueprint("gm", __name__, url_prefix="/gm")
+
+
+def _partial_shop_gen_settings(campaign_id: int) -> dict:
+    """Ranges + seed for `generate_shops_onward`, from world config or defaults."""
+    cfg = CampaignWorldConfig.query.get(campaign_id)
+    if cfg and isinstance(cfg.settings_json, dict) and cfg.settings_json.get("ranges"):
+        sj = cfg.settings_json
+        out = {
+            "ranges": sj["ranges"],
+            "world_seed": sj.get("world_seed"),
+            "system_type": sj.get("system_type", "dnd5e"),
+        }
+        if cfg.world_seed is not None:
+            out["world_seed"] = int(cfg.world_seed)
+        return out
+
+    def _pair(key: str):
+        _floor, _ceil, dmin, dmax = RANGE_SETTINGS[key]
+        return {"min": dmin, "max": dmax}
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "system_type": "dnd5e",
+        "world_seed": None,
+        "ranges": {k: _pair(k) for k in RANGE_SETTINGS},
+    }
 
 
 @gm_bp.route("/")
@@ -62,29 +105,45 @@ def gm_seed_world():
 @gm_bp.route("/cities/")
 @login_required
 def view_cities():
-    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    campaign_id = active_campaign_id()
+    q = City.query.filter_by(gm_profile_id=current_user.gm_profile.id)
+    if campaign_id is not None and campaign_scope_columns_available():
+        q = q.filter(City.campaign_id == campaign_id)
+    cities = q.all()
     return render_template("GM_view_cities.html", cities=cities)
 
 @gm_bp.route("/cities/add", methods=["GET", "POST"])
 @login_required
 def add_city():
+    campaign_regions = _campaign_regions_for_city_forms()
     if request.method == "POST":
         name = request.form.get("name")
         size = request.form.get("size")
         population = request.form.get("population")
-        region = request.form.get("region")
+        region_specialty = (request.form.get("region") or "").strip()
+        fk_id = _validated_region_fk_from_form()
 
-        if not name or not size or not population or not region:
-            flash("All fields are required!", "danger")
-            return render_template("GM_add_city.html")
+        if not name or not size or not population:
+            flash("Name, size, and population are required.", "danger")
+            return render_template("GM_add_city.html", campaign_regions=campaign_regions)
+
+        if fk_id:
+            region_str = None
+        else:
+            if not region_specialty:
+                flash("Choose a campaign region or a specialty.", "danger")
+                return render_template("GM_add_city.html", campaign_regions=campaign_regions)
+            region_str = region_specialty
 
         try:
             new_city = City(
                 name=name,
                 size=size,
                 population=int(population),
-                region=region,
-                gm_profile_id=current_user.gm_profile.id
+                region=region_str,
+                region_id=fk_id,
+                gm_profile_id=current_user.gm_profile.id,
+                campaign_id=session.get("campaign_id"),
             )
             db.session.add(new_city)
             db.session.commit()
@@ -94,18 +153,54 @@ def add_city():
             db.session.rollback()
             flash(f"Error adding city: {e}", "danger")
 
-    return render_template("GM_add_city.html")
+    return render_template("GM_add_city.html", campaign_regions=campaign_regions)
 
 @gm_bp.route("/cities/edit/<int:city_id>", methods=["GET", "POST"])
 @login_required
 def edit_city(city_id):
     city = city_for_gm_or_404(city_id, current_user.gm_profile.id)
-    
+    campaign_regions = _campaign_regions_for_city_forms()
+
     if request.method == "POST":
-        city.name = request.form.get("name")
-        city.size = request.form.get("size")
-        city.population = request.form.get("population")
-        city.region = request.form.get("region")
+        name = (request.form.get("name") or "").strip()
+        size = (request.form.get("size") or "").strip()
+        pop_raw = request.form.get("population")
+
+        if not name or not size or pop_raw is None or str(pop_raw).strip() == "":
+            flash("Name, size, and population are required.", "danger")
+            return render_template(
+                "GM_edit_city.html",
+                city=city,
+                campaign_regions=campaign_regions,
+            )
+        try:
+            population = int(pop_raw)
+        except (TypeError, ValueError):
+            flash("Population must be a valid number.", "danger")
+            return render_template(
+                "GM_edit_city.html",
+                city=city,
+                campaign_regions=campaign_regions,
+            )
+
+        fk_id = _validated_region_fk_from_form()
+        if fk_id:
+            city.region_id = fk_id
+            city.region = None
+        else:
+            city.region_id = None
+            city.region = (request.form.get("region") or "").strip() or None
+            if not city.region:
+                flash("Choose a campaign region or a specialty.", "danger")
+                return render_template(
+                    "GM_edit_city.html",
+                    city=city,
+                    campaign_regions=campaign_regions,
+                )
+
+        city.name = name
+        city.size = size
+        city.population = population
 
         try:
             db.session.commit()
@@ -115,7 +210,11 @@ def edit_city(city_id):
             db.session.rollback()
             flash(f"Error updating city: {e}", "danger")
 
-    return render_template("GM_edit_city.html", city=city)
+    return render_template(
+        "GM_edit_city.html",
+        city=city,
+        campaign_regions=campaign_regions,
+    )
 
 @gm_bp.route("/cities/delete/<int:city_id>", methods=["POST"])
 @login_required
@@ -129,6 +228,218 @@ def delete_city(city_id):
         db.session.rollback()
         flash(f"Error deleting city: {e}", "danger")
     return redirect(url_for("gm.view_cities"))
+
+
+def _parse_region_axis(raw):
+    try:
+        v = int(raw)
+    except (TypeError, ValueError):
+        v = 5
+    return max(0, min(10, v))
+
+
+def _unassigned_cities_for_gm():
+    """Cities in scope with no region_id (for assigning to a Region)."""
+    q = City.query.filter_by(
+        gm_profile_id=current_user.gm_profile.id,
+        region_id=None,
+    )
+    campaign_id = session.get("campaign_id")
+    if campaign_id is not None and campaign_scope_columns_available():
+        q = q.filter(City.campaign_id == campaign_id)
+    return q.order_by(City.name).all()
+
+
+def _campaign_regions_for_city_forms():
+    if not region_table_exists():
+        return []
+    cid = session.get("campaign_id")
+    if not cid:
+        return []
+    return (
+        Region.query.filter_by(
+            campaign_id=cid,
+            gm_profile_id=current_user.gm_profile.id,
+        )
+        .order_by(Region.name)
+        .all()
+    )
+
+
+def _validated_region_fk_from_form():
+    """Region PK for active campaign/GM from form `region_id`, or None."""
+    raw = (request.form.get("region_id") or "").strip()
+    if not raw or not region_table_exists():
+        return None
+    cid = session.get("campaign_id")
+    if not cid:
+        return None
+    try:
+        rid = int(raw)
+    except (TypeError, ValueError):
+        return None
+    reg = Region.query.filter_by(
+        id=rid,
+        campaign_id=cid,
+        gm_profile_id=current_user.gm_profile.id,
+    ).first()
+    return reg.id if reg else None
+
+
+@gm_bp.route("/regions/add", methods=["GET", "POST"])
+@login_required
+def add_region():
+    if not region_table_exists():
+        flash("Region data is not available in this database.", "warning")
+        return redirect(url_for("gm.home"))
+
+    campaign_id = session.get("campaign_id")
+    if not campaign_id:
+        flash("Please select a campaign first.", "warning")
+        return redirect(url_for("main.campaigns"))
+
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        axis = _parse_region_axis(request.form.get("axis_position"))
+
+        if not name:
+            flash("Region name is required.", "danger")
+            return render_template(
+                "GM_edit_region.html",
+                mode="create",
+                region=None,
+                form_name="",
+                form_axis=axis,
+            )
+
+        new_region = Region(
+            name=name,
+            campaign_id=campaign_id,
+            gm_profile_id=current_user.gm_profile.id,
+            local_flavor={"axis_position": axis},
+        )
+        try:
+            db.session.add(new_region)
+            db.session.commit()
+            flash(f"Region '{name}' created.", "success")
+            return redirect(url_for("gm.edit_region", region_id=new_region.id))
+        except IntegrityError:
+            db.session.rollback()
+            flash("A region with that name already exists in this campaign.", "danger")
+            return render_template(
+                "GM_edit_region.html",
+                mode="create",
+                region=None,
+                form_name=name,
+                form_axis=axis,
+            )
+
+    return render_template("GM_edit_region.html", mode="create", region=None)
+
+
+@gm_bp.route("/regions/edit/<int:region_id>", methods=["GET", "POST"])
+@login_required
+def edit_region(region_id):
+    if not region_table_exists():
+        flash("Region data is not available in this database.", "warning")
+        return redirect(url_for("gm.home"))
+
+    if not session.get("campaign_id"):
+        flash("Please select a campaign first.", "warning")
+        return redirect(url_for("main.campaigns"))
+
+    region = region_for_gm_or_404(region_id, current_user.gm_profile.id)
+    unassigned_cities = _unassigned_cities_for_gm()
+
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        axis = _parse_region_axis(request.form.get("axis_position"))
+        assign_ids = request.form.getlist("assign_city_ids")
+
+        if not name:
+            flash("Name cannot be empty.", "danger")
+        else:
+            region.name = name
+            region.local_flavor = {"axis_position": axis}
+            try:
+                skipped_city_assignments = False
+                for raw_id in assign_ids:
+                    try:
+                        cid = int(raw_id)
+                    except (TypeError, ValueError):
+                        skipped_city_assignments = True
+                        continue
+                    city = city_for_gm_optional(cid, current_user.gm_profile.id)
+                    if city is None:
+                        skipped_city_assignments = True
+                        continue
+                    if city.region_id is not None:
+                        continue
+                    city.region_id = region.id
+                    city.region = None
+                db.session.commit()
+                if skipped_city_assignments:
+                    flash(
+                        "Region updated. Some cities were skipped (invalid, unavailable, or already assigned to a region).",
+                        "warning",
+                    )
+                else:
+                    flash("Region updated successfully.", "success")
+            except IntegrityError:
+                db.session.rollback()
+                flash("Update failed: name conflict within this campaign.", "danger")
+
+        unassigned_cities = _unassigned_cities_for_gm()
+
+    return render_template(
+        "GM_edit_region.html",
+        mode="edit",
+        region=region,
+        unassigned_cities=unassigned_cities,
+    )
+
+
+@gm_bp.route("/regions/<int:region_id>/generate_shops", methods=["POST"])
+@login_required
+def generate_shops_for_region(region_id):
+    """Run world-generator shops phase (inventory + markets) for this region."""
+    if not region_table_exists():
+        flash("Region data is not available in this database.", "warning")
+        return redirect(url_for("gm.home"))
+
+    campaign_id = session.get("campaign_id")
+    if not campaign_id:
+        flash("Please select a campaign first.", "warning")
+        return redirect(url_for("main.campaigns"))
+
+    region_for_gm_or_404(region_id, current_user.gm_profile.id)
+
+    try:
+        settings = _partial_shop_gen_settings(campaign_id)
+        result = generate_shops_onward(
+            gm_profile_id=current_user.gm_profile.id,
+            campaign_id=campaign_id,
+            region_id=region_id,
+            settings=settings,
+        )
+        db.session.commit()
+        flash(
+            f"Generated {result.n_shops} shops with {result.n_inventory_rows} "
+            f"inventory rows for {result.n_cities} cities in this region.",
+            "success",
+        )
+    except GenerationTimeoutError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+    except Exception as exc:
+        db.session.rollback()
+        traceback.print_exc()
+        flash(f"Shop generation failed: {exc}", "danger")
+
+    return redirect(url_for("gm.edit_region", region_id=region_id))
 
 
 @gm_bp.route("/shops/")
@@ -156,7 +467,8 @@ def add_shop():
             new_shop = Shop(
                 name=shop_name,
                 type=shop_type,
-                gm_profile_id=gm_profile_id
+                gm_profile_id=gm_profile_id,
+                campaign_id=session.get("campaign_id"),
             )
             db.session.add(new_shop)
             db.session.flush()  # Ensures new_shop gets an ID
@@ -164,9 +476,15 @@ def add_shop():
             for city_id in city_ids:
                 try:
                     cid = int(city_id)
-                    city = City.query.filter_by(
+                    city_q = City.query.filter_by(
                         city_id=cid, gm_profile_id=gm_profile_id
-                    ).first()
+                    )
+                    if (
+                        session.get("campaign_id") is not None
+                        and campaign_scope_columns_available()
+                    ):
+                        city_q = city_q.filter(City.campaign_id == session.get("campaign_id"))
+                    city = city_q.first()
                     if city:
                         new_shop.cities.append(city)
                     else:
@@ -186,7 +504,11 @@ def add_shop():
         return redirect(url_for("gm.view_shops"))
 
     # GET request: render form
-    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    campaign_id = active_campaign_id()
+    q = City.query.filter_by(gm_profile_id=current_user.gm_profile.id)
+    if campaign_id is not None and campaign_scope_columns_available():
+        q = q.filter(City.campaign_id == campaign_id)
+    cities = q.all()
     return render_template("GM_add_shop.html", cities=cities)
 
 @gm_bp.route("/shops/edit/<int:shop_id>", methods=["GET", "POST"])
@@ -205,7 +527,11 @@ def edit_shop(shop_id):
             db.session.rollback()
             flash(f"Error updating shop: {e}", "danger")
 
-    cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    campaign_id = active_campaign_id()
+    q = City.query.filter_by(gm_profile_id=current_user.gm_profile.id)
+    if campaign_id is not None and campaign_scope_columns_available():
+        q = q.filter(City.campaign_id == campaign_id)
+    cities = q.all()
     return render_template("GM_edit_shop.html", shop=shop, cities=cities)
 
 
@@ -240,7 +566,11 @@ def view_city_shops(city_id):
 def view_shop_items(shop_id):
     shop = shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
     city = shop.cities[0] if shop.cities else None
-    shop_inventory = ShopInventory.query.filter_by(shop_id=shop_id).all()
+    campaign_id = active_campaign_id()
+    inv_q = ShopInventory.query.filter_by(shop_id=shop_id)
+    if campaign_id is not None and campaign_scope_columns_available():
+        inv_q = inv_q.filter(ShopInventory.campaign_id == campaign_id)
+    shop_inventory = inv_q.all()
     item_ids = [inv.item_id for inv in shop_inventory]
     items = Item.query.filter(Item.item_id.in_(item_ids)).all()
     return render_template("GM_view_shop_items.html", items=items, shop=shop, city=city)
@@ -267,7 +597,20 @@ def remove_item_from_shop(shop_id, item_id):
 @gm_bp.route("/items/")
 @login_required
 def view_items():
-    items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
+    campaign_id = active_campaign_id()
+    q = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id)
+    if campaign_id is not None and campaign_scope_columns_available():
+        q = q.filter(Item.campaign_id == campaign_id)
+    q = q.order_by(Item.name).options(
+        selectinload(Item.inventory)
+        .selectinload(ShopInventory.shop)
+        .selectinload(Shop.cities)
+    )
+    items = q.all()
+    for item in items:
+        item.distinct_shop_count = len(
+            {inv.shop_id for inv in item.inventory if inv.shop_id is not None}
+        )
     return render_template("GM_view_items.html", items=items)
 
 @gm_bp.route("/items/add", methods=["GET", "POST"])
@@ -309,7 +652,8 @@ def add_item():
                 rarity=rarity,
                 base_price=base_price,
                 description=description,
-                gm_profile_id=gm_profile_id
+                gm_profile_id=gm_profile_id,
+                campaign_id=session.get("campaign_id"),
             )
 
             db.session.add(new_item)
@@ -328,6 +672,7 @@ def add_item():
                         entry = ShopInventory(
                             shop_id=shop.shop_id,
                             item_id=new_item.item_id,
+                            campaign_id=session.get("campaign_id"),
                             stock=stock,
                             dynamic_price=dynamic_price
                         )
@@ -350,8 +695,12 @@ def add_item():
 
         return redirect(url_for("gm.view_items"))
 
-    grouped_shops = get_grouped_shops(current_user.gm_profile)
-    return render_template("GM_add_item.html", grouped_shops=grouped_shops)
+    grouped_shops, city_shop_meta = get_grouped_shops(current_user.gm_profile)
+    return render_template(
+        "GM_add_item.html",
+        grouped_shops=grouped_shops,
+        city_shop_meta=city_shop_meta,
+    )
 
 
 @gm_bp.route("/items/edit/<int:item_id>", methods=["GET", "POST"])
@@ -374,12 +723,13 @@ def edit_item(item_id):
             db.session.rollback()
             flash(f"Error updating item: {e}", "danger")
 
-    grouped_shops = get_grouped_shops(current_user.gm_profile)
+    grouped_shops, city_shop_meta = get_grouped_shops(current_user.gm_profile)
     linked_shop_ids = get_linked_shop_ids_for_item(item.item_id)
     return render_template(
         "GM_edit_item.html",
         item=item,
         grouped_shops=grouped_shops,
+        city_shop_meta=city_shop_meta,
         linked_shop_ids=linked_shop_ids,
     )
 
@@ -387,7 +737,7 @@ def edit_item(item_id):
 @login_required
 def item_detail(item_id):
     item = item_for_gm_or_404(item_id, current_user.gm_profile.id)
-    grouped_shops = get_grouped_shops(current_user.gm_profile)
+    grouped_shops, _city_shop_meta = get_grouped_shops(current_user.gm_profile)
     linked_shop_ids = get_linked_shop_ids_for_item(item.item_id)
     return render_template(
         "GM_item_detail.html",
@@ -439,6 +789,32 @@ def delete_campaign(campaign_id):
     return delete_campaign_handler(campaign_id)
 
 
+@gm_bp.route("/campaigns/<int:campaign_id>/reveal-code", methods=["GET"])
+@login_required
+@limiter.limit("60 per hour")
+def reveal_campaign_join_code(campaign_id):
+    return reveal_campaign_join_code_handler(campaign_id)
+
+
+@gm_bp.route("/campaigns/<int:campaign_id>/redeem_player_code", methods=["POST"])
+@login_required
+@limiter.limit("3 per hour")
+def redeem_player_code_route(campaign_id):
+    return post_redeem_player_code_handler(campaign_id)
+
+
+@gm_bp.route("/players/<int:player_id>/remove-from-campaign", methods=["POST"])
+@login_required
+def remove_player_from_campaign(player_id):
+    return remove_player_from_campaign_handler(player_id)
+
+
+@gm_bp.route("/npcs/<int:player_id>/delete", methods=["POST"])
+@login_required
+def delete_npc_player(player_id):
+    return delete_npc_player_handler(player_id)
+
+
 # World generation (Phase 1) -- GM-only, rate-limited POST
 @gm_bp.route("/generate_world", methods=["GET"])
 @login_required
@@ -451,6 +827,12 @@ def generate_world_form():
 @limiter.limit("3 per minute")
 def generate_world_submit():
     return generate_world_submit_handler()
+
+
+@gm_bp.route("/generate_world/skip", methods=["POST"])
+@login_required
+def skip_world_generation_submit():
+    return skip_world_generation_submit_handler()
 
 
 # Simulation routes
@@ -488,6 +870,13 @@ def gm_view_players():
     return list_players()
 
 
+@gm_bp.route("/npcs/create", methods=["GET", "POST"])
+@login_required
+def gm_create_npc():
+    """Create a GM-only NPC (Player row with no User) in the active campaign."""
+    return create_npc()
+
+
 @gm_bp.route("/characters/<int:character_id>")
 @login_required
 def gm_view_character(character_id):
@@ -523,85 +912,3 @@ def gm_update_inventory_for_character(character_id):
     return update_inventory(character_id)
 
 
-# # Resource Node routes
-# @gm_bp.route("/resource_nodes/")
-# @login_required
-# def view_resource_nodes():
-#     nodes = ResourceNode.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
-#     return render_template("GM_view_resource_nodes.html", nodes=nodes)
-
-# @gm_bp.route("/resource_nodes/add", methods=["GET", "POST"])
-# @login_required
-# def add_resource_node():
-#     if request.method == "POST":
-#         name = request.form.get("name")
-#         type = request.form.get("type")
-#         production_rate = float(request.form.get("production_rate"))
-#         quality = float(request.form.get("quality"))
-#         city_id = int(request.form.get("city_id"))
-#         item_id = int(request.form.get("item_id"))
-
-#         if not all([name, type, production_rate, quality, city_id, item_id]):
-#             flash("All fields are required!", "danger")
-#             return render_template("GM_add_resource_node.html")
-
-#         try:
-#             new_node = ResourceNode(
-#                 name=name,
-#                 type=type,
-#                 production_rate=production_rate,
-#                 quality=quality,
-#                 city_id=city_id,
-#                 item_id=item_id,
-#                 gm_profile_id=current_user.gm_profile.id
-#             )
-#             db.session.add(new_node)
-#             db.session.commit()
-#             flash(f"Resource node '{name}' added successfully!", "success")
-#             return redirect(url_for("gm.view_resource_nodes"))
-#         except Exception as e:
-#             db.session.rollback()
-#             flash(f"Error adding resource node: {e}", "danger")
-
-#     # GET request - show form
-#     cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
-#     items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
-#     return render_template("GM_add_resource_node.html", cities=cities, items=items)
-
-# @gm_bp.route("/resource_nodes/edit/<int:node_id>", methods=["GET", "POST"])
-# @login_required
-# def edit_resource_node(node_id):
-#     node = ResourceNode.query.get_or_404(node_id)
-    
-#     if request.method == "POST":
-#         node.name = request.form.get("name")
-#         node.type = request.form.get("type")
-#         node.production_rate = float(request.form.get("production_rate"))
-#         node.quality = float(request.form.get("quality"))
-#         node.city_id = int(request.form.get("city_id"))
-#         node.item_id = int(request.form.get("item_id"))
-        
-#         try:
-#             db.session.commit()
-#             flash("Resource node updated successfully!", "success")
-#             return redirect(url_for("gm.view_resource_nodes"))
-#         except Exception as e:
-#             db.session.rollback()
-#             flash(f"Error updating resource node: {e}", "danger")
-
-#     cities = City.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
-#     items = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id).all()
-#     return render_template("GM_edit_resource_node.html", node=node, cities=cities, items=items)
-
-# @gm_bp.route("/resource_nodes/delete/<int:node_id>", methods=["POST"])
-# @login_required
-# def delete_resource_node(node_id):
-#     node = ResourceNode.query.get_or_404(node_id)
-#     try:
-#         db.session.delete(node)
-#         db.session.commit()
-#         flash("Resource node deleted successfully!", "success")
-#     except Exception as e:
-#         db.session.rollback()
-#         flash(f"Error deleting resource node: {e}", "danger")
-#     return redirect(url_for("gm.view_resource_nodes"))

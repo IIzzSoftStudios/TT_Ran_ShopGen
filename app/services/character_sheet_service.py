@@ -211,12 +211,18 @@ def build_character_view(player, campaign, *, name=None, equipment_slots=None):
     ruleset = get_ruleset(_system_type_of(campaign))
     sheet = get_or_default_sheet(player, campaign)
 
-    stored_name = sheet.get("name") if isinstance(sheet, dict) else None
-    display_name = name or stored_name or (
-        player.user.username
-        if player is not None and getattr(player, "user", None)
-        else "Character"
-    )
+    stored_raw = sheet.get("name") if isinstance(sheet, dict) else None
+    stored_name = (stored_raw or "").strip() or None
+    if name:
+        display_name = name
+    elif stored_name:
+        display_name = stored_name
+    elif player is not None and getattr(player, "user", None):
+        display_name = player.user.username
+    elif player is not None and getattr(player, "is_npc", False):
+        display_name = "NPC"
+    else:
+        display_name = "Character"
 
     abilities, derived, saves, skills = _assemble_display_sections(ruleset, sheet)
     defenses_display = derived + saves

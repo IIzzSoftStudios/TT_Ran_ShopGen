@@ -1,7 +1,8 @@
-"""Auth: login, logout, registration (vault key + legacy), password reset stubs."""
+"""Auth: login, logout, registration (vault key + legacy), forgot/reset password (email OTP)."""
 
 import logging
 import os
+import secrets
 from datetime import datetime
 
 from flask import (
@@ -14,20 +15,28 @@ from flask import (
     current_app,
 )
 from flask_login import login_user, logout_user, login_required, current_user
+from flask_mailman import EmailMessage
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
 from app.models import (
     User,
-    Player,
     GMProfile,
     RegistrationKey,
     AccessRequest,
-    Campaign,
-    CampaignPlayer,
 )
-from app.utils.validators import is_password_strong
-from app.services.billing_rules import can_add_player_to_campaign
+from app.utils.validators import (
+    is_password_strong,
+    PASSWORD_REUSE_FORBIDDEN_DAYS,
+)
+from app.services.join_codes import (
+    redeem_campaign_code,
+    InvalidCodeError,
+    SeatCapError,
+    WrongRoleError,
+    JoinCodeError,
+)
+from app.services.player_resolution import user_has_player_profile
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +76,8 @@ def handle_login():
                 return redirect(next_url)
             if user.role == "vault_keeper":
                 return redirect(url_for("admin.keys_overview"))
+            if user.role == "Player" and not user_has_player_profile(user):
+                flash("Enter your campaign code below to join a game.", "info")
             return redirect(url_for("main.campaigns"))
         flash("Invalid username or password", "danger")
 
@@ -91,27 +102,6 @@ def _register_redirect_fail(registration_key=""):
     return redirect(url_for("auth.register"))
 
 
-def _add_player_to_gm_campaigns(player, gm_profile):
-    existing_campaigns = Campaign.query.filter_by(
-        gm_profile_id=gm_profile.id, is_active=True
-    ).all()
-    for campaign in existing_campaigns:
-        can_add, _ = can_add_player_to_campaign(campaign)
-        if not can_add:
-            continue
-        if not CampaignPlayer.query.filter_by(
-            campaign_id=campaign.id, player_id=player.id
-        ).first():
-            db.session.add(
-                CampaignPlayer(
-                    campaign_id=campaign.id,
-                    player_id=player.id,
-                    status="active",
-                    is_active=True,
-                )
-            )
-
-
 def handle_register():
     require_key = os.getenv("REQUIRE_REGISTRATION_KEY", "false").lower() in (
         "1",
@@ -123,7 +113,7 @@ def handle_register():
         username_raw = request.form.get("username")
         password = request.form.get("password")
         role = request.form.get("role")
-        gm_id = request.form.get("gm_id") if role == "Player" else None
+        campaign_code = (request.form.get("campaign_code") or "").strip()
         registration_key = (
             request.form.get("registration_key", "").strip().replace("_", "-").upper()
         )
@@ -221,21 +211,17 @@ def handle_register():
                 if role == "GM":
                     gm_profile = GMProfile(user_id=new_user.id)
                     db.session.add(gm_profile)
-                else:
-                    gm = User.query.get(gm_id)
-                    if not gm or gm.role != "GM":
-                        raise ValueError("Invalid GM selected")
-                    gm_profile = GMProfile.query.filter_by(user_id=gm.id).first()
-                    if not gm_profile:
-                        raise ValueError("GM profile not found")
-                    player = Player(
-                        user_id=new_user.id,
-                        gm_profile_id=gm_profile.id,
-                        currency=0,
-                    )
-                    db.session.add(player)
-                    db.session.flush()
-                    _add_player_to_gm_campaigns(player, gm_profile)
+                elif campaign_code:
+                    try:
+                        redeem_campaign_code(new_user, campaign_code, _commit=False)
+                    except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
+                        db.session.rollback()
+                        flash(
+                            getattr(e, "args", [None])[0]
+                            or "Could not join with that campaign code.",
+                            "danger",
+                        )
+                        return _register_redirect_fail(registration_key)
 
                 db.session.commit()
                 flash(
@@ -249,7 +235,12 @@ def handle_register():
                 flash("A database error occurred. Please try again later.", "danger")
                 return _register_redirect_fail(registration_key)
 
-        # Legacy open registration (no key)
+        # Legacy open registration (no key) — same password rules as keyed registration
+        is_strong_legacy, msg_legacy = is_password_strong(password)
+        if not is_strong_legacy:
+            flash(msg_legacy, "danger")
+            return _register_redirect_fail(registration_key)
+
         try:
             new_user = User(username=username, role=role, email=email)
             new_user.set_password(password)
@@ -259,21 +250,17 @@ def handle_register():
             if role == "GM":
                 gm_profile = GMProfile(user_id=new_user.id)
                 db.session.add(gm_profile)
-            else:
-                gm = User.query.get(gm_id)
-                if not gm or gm.role != "GM":
-                    raise ValueError("Invalid GM selected")
-                gm_profile = GMProfile.query.filter_by(user_id=gm.id).first()
-                if not gm_profile:
-                    raise ValueError("GM profile not found")
-                player = Player(
-                    user_id=new_user.id,
-                    gm_profile_id=gm_profile.id,
-                    currency=0,
-                )
-                db.session.add(player)
-                db.session.flush()
-                _add_player_to_gm_campaigns(player, gm_profile)
+            elif campaign_code:
+                try:
+                    redeem_campaign_code(new_user, campaign_code, _commit=False)
+                except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
+                    db.session.rollback()
+                    flash(
+                        getattr(e, "args", [None])[0]
+                        or "Could not join with that campaign code.",
+                        "danger",
+                    )
+                    return redirect(url_for("auth.register"))
 
             db.session.commit()
             flash("Account created! You can now log in.", "success")
@@ -284,22 +271,96 @@ def handle_register():
             flash(f"Error creating account: {str(e)}", "danger")
             return redirect(url_for("auth.register"))
 
-    gms = User.query.filter_by(role="GM").all()
     vault_key = request.args.get("vault_key")
-    return render_template("register.html", gms=gms, vault_key=vault_key)
+    return render_template("register.html", vault_key=vault_key)
 
 
 def handle_forgot_password():
-    flash(
-        "Password reset is not configured. Contact your administrator.",
-        "info",
-    )
-    return redirect(url_for("auth.login"))
+    if request.method == "GET":
+        return render_template("forgot_password.html")
+
+    email = (request.form.get("email") or "").strip().lower()
+    success_msg = "If an account exists for that email, a reset code has been sent."
+    user = User.query.filter_by(email=email).first() if email else None
+
+    if user and user.email:
+        otp = "".join(secrets.choice("0123456789") for _ in range(6))
+        user.set_reset_otp(otp)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            log.exception("Forgot-password persist error: %s", e)
+            flash("Something went wrong. Please try again.", "danger")
+            return redirect(url_for("auth.forgot_password"))
+
+        try:
+            sender = current_app.config.get(
+                "MAIL_DEFAULT_SENDER", "noreply@example.com"
+            )
+            subject = "Your password reset code"
+            body = (
+                f"Your 6-digit reset code is: {otp}. It expires in 10 minutes.\n\n"
+                "If you did not request this, you can ignore this email."
+            )
+            msg = EmailMessage(subject, body, sender, [user.email])
+            msg.send()
+        except Exception as e:
+            log.warning("Password reset email failed: %s", e)
+            user.clear_reset_otp()
+            try:
+                db.session.commit()
+            except Exception as commit_err:
+                db.session.rollback()
+                log.exception("Clear OTP after mail failure: %s", commit_err)
+            flash("Error sending email. Please try again later.", "danger")
+            return redirect(url_for("auth.forgot_password"))
+
+    flash(success_msg, "info")
+    return redirect(url_for("auth.reset_password"))
 
 
 def handle_reset_password():
-    flash(
-        "Password reset is not configured. Contact your administrator.",
-        "info",
-    )
-    return redirect(url_for("auth.login"))
+    if request.method == "GET":
+        return render_template("reset_password.html")
+
+    email = (request.form.get("email") or "").strip().lower()
+    otp_code = (request.form.get("otp_code") or "").strip()
+    password = request.form.get("password")
+    confirm = request.form.get("confirm_password")
+
+    if password != confirm:
+        flash("Passwords do not match.", "danger")
+        return render_template("reset_password.html")
+
+    is_strong, strong_msg = is_password_strong(password or "")
+    if not is_strong:
+        flash(strong_msg, "danger")
+        return render_template("reset_password.html")
+
+    user = User.query.filter_by(email=email).first() if email else None
+
+    if user and user.verify_reset_otp(otp_code):
+        if user.plaintext_matches_recent_password(password):
+            flash(
+                f"You cannot reuse a password from the last {PASSWORD_REUSE_FORBIDDEN_DAYS} days. "
+                "Choose a different password.",
+                "danger",
+            )
+            return render_template("reset_password.html")
+        user.prune_password_history_older_than()
+        user.archive_password_hash_before_change()
+        user.set_password(password)
+        user.clear_reset_otp()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            log.exception("Reset password commit error: %s", e)
+            flash("Something went wrong. Please try again.", "danger")
+            return render_template("reset_password.html")
+        flash("Password reset successful. You may now log in.", "success")
+        return redirect(url_for("auth.login"))
+
+    flash("Invalid or expired reset code.", "danger")
+    return render_template("reset_password.html")

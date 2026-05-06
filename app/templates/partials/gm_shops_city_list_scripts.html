@@ -57,10 +57,32 @@
         var sel = document.getElementById('gm-shops-region-filter');
         if (!sel) return;
         var v = sel.value;
+        var useFk = sel.getAttribute('data-filter-mode') === 'fk';
         document.querySelectorAll('.gm-shops-city-panel .city-block[data-region]').forEach(function (el) {
-            var match = v === '' || el.getAttribute('data-region') === v;
+            var match;
+            if (v === '') {
+                match = true;
+            } else if (useFk) {
+                var rid = el.getAttribute('data-region-id') || '';
+                match = rid === String(v);
+            } else {
+                match = el.getAttribute('data-region') === v;
+            }
             el.style.display = match ? '' : 'none';
         });
+    }
+
+    function navigateToEditRegion() {
+        var sel = document.getElementById('gm-shops-region-filter');
+        var tplEl = document.getElementById('gm-region-edit-url-template');
+        if (!sel || !tplEl) return;
+        var v = sel.value;
+        if (!v) {
+            alert('Please select a region');
+            return;
+        }
+        var template = tplEl.getAttribute('data-url') || '';
+        window.location.href = template.replace('900000001', String(v));
     }
 
     window.addEventListener('DOMContentLoaded', function () {

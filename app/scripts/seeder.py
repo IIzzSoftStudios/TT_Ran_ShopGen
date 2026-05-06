@@ -11,6 +11,10 @@ CampaignWorldConfig row (if a campaign_id is provided) and commits.
 Callers that don't have a campaign available can still invoke it --
 only the generator's gm_profile-scoped entities are created in that
 case.
+
+Campaign rows created through the ORM get ``join_code`` values from
+SQLAlchemy ``before_insert`` listeners (see ``app.models``); this script
+does not construct ``Player`` rows.
 """
 
 from __future__ import annotations

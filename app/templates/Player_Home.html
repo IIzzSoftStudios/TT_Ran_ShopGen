@@ -512,6 +512,42 @@
             background-color: #6d1f1f;
         }
 
+        details.nav-code-panel {
+            position: relative;
+            display: inline-block;
+        }
+        details.nav-code-panel > summary.nav-button {
+            list-style: none;
+        }
+        details.nav-code-panel > summary::-webkit-details-marker {
+            display: none;
+        }
+        .join-code-popover {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            z-index: 200;
+            min-width: 300px;
+            max-width: 400px;
+            padding: 14px;
+            background: #fff;
+            color: #333;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            text-align: left;
+            font-size: 14px;
+        }
+        .join-code-popover label {
+            display: block;
+            margin-top: 8px;
+        }
+        .join-code-popover input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 4px;
+            padding: 6px 8px;
+        }
+
         .search-section {
             background: white;
             padding: 15px;
@@ -904,6 +940,36 @@
             margin-bottom: 18px;
             font-size: 14px;
             line-height: 1.45;
+        }
+
+        .player-shops-browse-panel .region-filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px 14px;
+            margin-bottom: 16px;
+            padding: 10px 12px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+
+        .player-shops-browse-panel .region-filter-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #343a40;
+            margin: 0;
+        }
+
+        .player-shops-browse-panel .region-filter-select {
+            min-width: 200px;
+            max-width: 100%;
+            padding: 8px 10px;
+            font-size: 14px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            background: #fff;
+            color: #212529;
         }
 
         .player-shops-browse-panel .city-list {
@@ -1392,6 +1458,21 @@
         <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_cities') }}')">View Cities</button>
         <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_shops') }}')">View Shops</button>
         <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_market') }}')">Market Overview</button>
+        <button class="nav-button" onclick="navigateTo('{{ url_for('main.campaigns') }}')">Character Manager</button>
+        <details class="nav-code-panel">
+            <summary class="nav-button">Player Code</summary>
+            <div class="join-code-popover">
+                <p style="margin:0 0 8px 0;"><strong>Your player code</strong> (share with your GM for this Player):</p>
+                {% set reveal_url = url_for('player.reveal_player_join_code') %}
+                {% include 'partials/code_reveal.html' %}
+                <form method="post" action="{{ url_for('player.redeem_campaign_code_route') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <label for="player-home-camp-code">Join another campaign</label>
+                    <input id="player-home-camp-code" name="campaign_code" type="text" autocomplete="off" placeholder="CAMP-XXXX-XXXX-XXXX"/>
+                    <button type="submit" class="nav-button" style="margin-top:10px;width:100%;">Redeem code</button>
+                </form>
+            </div>
+        </details>
         <button class="nav-button nav-button-logout" onclick="navigateTo('{{ url_for('auth.logout') }}')">Logout</button>
     </div>
 
@@ -1571,16 +1652,37 @@
                     <strong>Tip:</strong> Expand a city to see its shops, then expand a shop to browse items. Buy purchases a single unit; visit the shop page for bulk purchases.
                 </div>
 
+                {% if city_browse and (campaign_regions|default([]) or region_labels|default([])) %}
+                <div class="region-filter-bar">
+                    <label for="player-shops-region-filter" class="region-filter-label">Region</label>
+                    {% if campaign_regions|default([]) %}
+                    <select id="player-shops-region-filter" class="region-filter-select" data-filter-mode="fk" aria-label="Filter cities by region">
+                        <option value="">All regions</option>
+                        {% for reg in campaign_regions %}
+                        <option value="{{ reg.id }}">{{ reg.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <select id="player-shops-region-filter" class="region-filter-select" aria-label="Filter cities by region">
+                        <option value="">All regions</option>
+                        {% for r in region_labels %}
+                        <option value={{ r|tojson }}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 {% if city_browse %}
                 <div class="city-list">
                     {% for entry in city_browse %}
                     {% set city = entry.city %}
                     {% set shop_count = entry.shops|length %}
-                    <details class="city-block">
+                    <details class="city-block" data-region={{ entry.region_label|tojson }} data-region-id="{{ city.region_id or '' }}">
                         <summary>
                             <span class="city-name">{{ city.name }}</span>
                             <span class="city-meta">
-                                {{ city.region or 'Unspecified' }}{% if city.size %} | {{ city.size }}{% endif %}
+                                {{ entry.region_label }}{% if city.size %} | {{ city.size }}{% endif %}
                             </span>
                             <span class="shop-count-badge">{{ shop_count }} shop{% if shop_count != 1 %}s{% endif %}</span>
                         </summary>
@@ -1659,9 +1761,32 @@
         // initSearchFilters() is gone - the filter UI was replaced by the
         // server-rendered City -> Shop -> Items browse accordion, so there
         // is nothing client-side to wire up for search.
+        function applyPlayerCityRegionFilter() {
+            var sel = document.getElementById("player-shops-region-filter");
+            if (!sel) return;
+            var v = sel.value;
+            var useFk = sel.getAttribute("data-filter-mode") === "fk";
+            document.querySelectorAll(".player-shops-browse-panel .city-block[data-region]").forEach(function (el) {
+                var match;
+                if (v === "") {
+                    match = true;
+                } else if (useFk) {
+                    var rid = el.getAttribute("data-region-id") || "";
+                    match = rid === String(v);
+                } else {
+                    match = el.getAttribute("data-region") === v;
+                }
+                el.style.display = match ? "" : "none";
+            });
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
             loadCharacterData();
             stylePlayerCurrency();
+            var pr = document.getElementById("player-shops-region-filter");
+            if (pr) {
+                pr.addEventListener("change", applyPlayerCityRegionFilter);
+            }
         });
     </script>
 </body>

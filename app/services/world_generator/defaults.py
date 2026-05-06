@@ -27,7 +27,6 @@ RANGE_SETTINGS: Dict[str, Tuple[int, int, int, int]] = {
     "global_item_pool_size":  (25, 500, 50, 120),
     "shops_per_city":         (1,   20,  3,  8),
     "items_per_shop":         (1,   30,  5, 15),
-    "resource_nodes_per_city":(0,   10,  1,  3),
     # Fused axis: 0 = God Magic, 5 = Medieval, 10 = Post-Apoc Tech.
     "tech_magic_balance":     (0,   10,  4,  6),
 }
@@ -39,10 +38,8 @@ RANGE_SETTINGS: Dict[str, Tuple[int, int, int, int]] = {
 # ShopInventory worst-case: cities.max * shops_per_city.max * items_per_shop.max.
 SHOP_INVENTORY_CAP: int = 15_000
 # Total entity cap across all generated tables (cities + shops + items + markets
-# + inventory + resource nodes + regions + sim_state + config + campaign ...).
+# + inventory + regions + sim_state + config + campaign ...).
 TOTAL_ENTITY_CAP: int = 20_000
-# Secondary worst-case for resource nodes.
-RESOURCE_NODE_CAP: int = 500
 
 
 # -----------------------------------------------------------------------------

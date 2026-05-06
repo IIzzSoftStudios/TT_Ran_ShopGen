@@ -138,9 +138,20 @@
         <label for="population">Population:</label>
         <input type="number" id="population" name="population" value="{{ city.population }}" required>
 
+        {% if campaign_regions is defined and campaign_regions %}
+        <label for="region_id">Campaign region</label>
+        <select id="region_id" name="region_id">
+            <option value="">None — use specialty below</option>
+            {% for r in campaign_regions %}
+            <option value="{{ r.id }}" {% if city.region_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+            {% endfor %}
+        </select>
+        <p style="font-size:12px;color:#555;margin:0 0 10px;">If you select a campaign region, the specialty field is ignored.</p>
+        {% endif %}
+
         <!-- Specialty -->
         <label for="region">Specialty:</label>
-        <select id="region" name="region" required>
+        <select id="region" name="region" {% if not (campaign_regions is defined and campaign_regions) %}required{% endif %}>
             <option value="Industrial City" {% if city.region == "Industrial City" %}selected{% endif %}>Industrial City</option>
             <option value="Agricultural Hub" {% if city.region == "Agricultural Hub" %}selected{% endif %}>Agricultural Hub</option>
             <option value="Technological City" {% if city.region == "Technological City" %}selected{% endif %}>Technological City</option>

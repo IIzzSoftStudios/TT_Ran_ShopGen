@@ -13,7 +13,6 @@ from typing import Any, Dict, Iterable, Mapping, Optional
 
 from app.services.world_generator.defaults import (
     RANGE_SETTINGS,
-    RESOURCE_NODE_CAP,
     SCHEMA_VERSION,
     SEED_MAX,
     SEED_MIN,
@@ -124,15 +123,13 @@ def _parse_name(form: Mapping[str, Any]) -> str:
 # Composite caps
 # -----------------------------------------------------------------------------
 def _enforce_caps(ranges: Dict[str, Dict[str, int]]) -> None:
-    """Check ShopInventory cap, total entity cap, resource node cap, and
-    item-pool density rule."""
+    """Check ShopInventory cap, total entity cap, and item-pool density rule."""
     cities_max = ranges["num_cities"]["max"]
     shops_max = ranges["shops_per_city"]["max"]
     items_per_shop_max = ranges["items_per_shop"]["max"]
     pool_min = ranges["global_item_pool_size"]["min"]
     pool_max = ranges["global_item_pool_size"]["max"]
     regions_max = ranges["num_regions"]["max"]
-    nodes_max = ranges["resource_nodes_per_city"]["max"]
     axis_min = ranges["tech_magic_balance"]["min"]
     axis_max = ranges["tech_magic_balance"]["max"]
 
@@ -148,14 +145,13 @@ def _enforce_caps(ranges: Dict[str, Dict[str, int]]) -> None:
             ),
         )
 
-    # Regions + cities + shops + inventory + items + nodes + markets + misc
+    # Regions + cities + shops + inventory + items + markets + misc
     # Rough worst-case upper bound for the "total entity" ceiling.
     total_worst = (
         regions_max
         + cities_max
         + (cities_max * shops_max)
         + pool_max
-        + (cities_max * nodes_max)
         + inv_worst
         + 13  # campaign, config, sim_state, audit headroom
     )
@@ -166,15 +162,6 @@ def _enforce_caps(ranges: Dict[str, Dict[str, int]]) -> None:
                 f"Your maximum world size would create ~{total_worst} total "
                 f"entities (ceiling {TOTAL_ENTITY_CAP}). Reduce one of: "
                 "cities, shops per city, items per shop, or items pool."
-            ),
-        )
-
-    if cities_max * nodes_max > RESOURCE_NODE_CAP:
-        raise ValidationError(
-            "resource_nodes_per_city",
-            (
-                f"cities.max x resource_nodes_per_city.max = "
-                f"{cities_max * nodes_max} exceeds cap {RESOURCE_NODE_CAP}"
             ),
         )
 

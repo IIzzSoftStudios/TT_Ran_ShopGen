@@ -1,9 +1,13 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash
 from flask_login import login_required, current_user
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import AccessRequest
-from app.routes.handlers.campaign_selection_handler import select_campaign, load_campaign
+from app.routes.handlers.campaign_selection_handler import (
+    select_campaign,
+    load_campaign,
+    redeem_campaign_post,
+)
 
 main_bp = Blueprint("main", __name__)
 
@@ -28,8 +32,13 @@ def register_alias():
 @main_bp.route("/access-request", methods=["GET", "POST"])
 def access_request():
     if request.method == "POST":
+        contact_name = (request.form.get("contact_name") or "").strip()
         email = (request.form.get("email") or "").strip().lower()
         user_role = request.form.get("user_role")
+
+        if not contact_name or len(contact_name) > 120:
+            flash("Name is required (max 120 characters).", "warning")
+            return redirect(url_for("main.access_request"))
 
         try:
             player_count = int(request.form.get("player_count") or 0)
@@ -57,6 +66,7 @@ def access_request():
             return redirect(url_for("main.access_request"))
 
         ar = AccessRequest(
+            contact_name=contact_name,
             email=email,
             user_role=user_role,
             player_count=player_count if user_role in ["GM", "Both"] else 0,
@@ -91,6 +101,13 @@ def campaigns():
 @login_required
 def load_campaign_route(campaign_id):
     return load_campaign(campaign_id)
+
+
+@main_bp.route("/campaigns/redeem", methods=["POST"])
+@login_required
+@limiter.limit("3 per hour")
+def campaign_redeem():
+    return redeem_campaign_post()
 
 
 @main_bp.route("/home")

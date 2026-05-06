@@ -3,6 +3,7 @@
 <head>
     <title>Add Item</title>
     {% include 'partials/theme_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_shops_city_list.css') }}">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -140,34 +141,8 @@
             font-size: 14px;
         }
 
-        .city-group {
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        .city-header {
-            background-color: #e0e0e0;
-            padding: 10px 15px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .city-header:hover {
-            background-color: #d0d0d0;
-        }
-
-        .city-content {
+        .city-block.hidden {
             display: none;
-            padding: 10px;
-        }
-
-        .city-content.expanded {
-            display: block;
         }
 
         .shop-type-group {
@@ -204,7 +179,6 @@
             display: none;
         }
 
-        .city-group.hidden,
         .shop-type-group.hidden {
             display: none;
         }
@@ -327,30 +301,38 @@
             <label>Select Shops:</label>
             <input type="text" id="shop-filter" class="shop-filter" placeholder="Filter shops by name, city, or type...">
             
-            <div id="shop-groups">
-                {% for city_name, shop_types in grouped_shops.items() %}
-                <div class="city-group" data-city="{{ city_name }}">
-                    <div class="city-header" onclick="toggleCity('{{ city_name }}')">
-                        <span>{{ city_name }}</span>
-                        <span class="toggle-icon">▼</span>
-                    </div>
-                    <div class="city-content" id="city-{{ city_name|replace(' ', '-') }}">
-                        {% for shop_type, shops_list in shop_types.items() %}
-                        <div class="shop-type-group" data-shop-type="{{ shop_type }}">
-                            <div class="shop-type-header">{{ shop_type }}</div>
-                            <div class="shop-list">
-                                {% for shop in shops_list %}
-                                <div class="shop-item" data-shop-name="{{ shop.name|lower }}" data-city-name="{{ city_name|lower }}" data-shop-type="{{ shop_type|lower }}">
-                                    <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}" id="shop_{{ shop.shop_id }}">
-                                    <label for="shop_{{ shop.shop_id }}">{{ shop.name }}</label>
+            <div class="gm-shops-city-panel item-form-city-picker">
+                <div class="city-list" id="shop-groups">
+                    {% for city_name, shop_types in grouped_shops.items() %}
+                    {% set meta = city_shop_meta[city_name] %}
+                    <details class="city-block" data-city="{{ city_name }}">
+                        <summary>
+                            <span class="city-name">{{ city_name }}</span>
+                            <span class="city-meta">
+                                {{ meta.region_label }}{% if meta.size %} | {{ meta.size }}{% endif %}
+                            </span>
+                            <span class="city-summary-right">
+                                <span class="shop-count-badge">{{ meta.shop_count }} shop{% if meta.shop_count != 1 %}s{% endif %}</span>
+                            </span>
+                        </summary>
+                        <div class="city-panel item-form-city-panel">
+                            {% for shop_type, shops_list in shop_types.items() %}
+                            <div class="shop-type-group" data-shop-type="{{ shop_type }}">
+                                <div class="shop-type-header">{{ shop_type }}</div>
+                                <div class="shop-list">
+                                    {% for shop in shops_list %}
+                                    <div class="shop-item" data-shop-name="{{ shop.name|lower }}" data-city-name="{{ city_name|lower }}" data-shop-type="{{ shop_type|lower }}">
+                                        <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}" id="shop_{{ shop.shop_id }}">
+                                        <label for="shop_{{ shop.shop_id }}">{{ shop.name }}</label>
+                                    </div>
+                                    {% endfor %}
                                 </div>
-                                {% endfor %}
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
-                    </div>
+                    </details>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
         </div>
 
@@ -504,30 +486,12 @@
             jsonInput.value = Object.keys(properties).length > 0 ? JSON.stringify(properties) : '';
         }
 
-        // Toggle city accordion
-        function toggleCity(cityName) {
-            const cityId = 'city-' + cityName.replace(/\s+/g, '-');
-            const content = document.getElementById(cityId);
-            const header = content.previousElementSibling;
-            const icon = header.querySelector('.toggle-icon');
-
-            if (content.classList.contains('expanded')) {
-                content.classList.remove('expanded');
-                icon.textContent = '▼';
-            } else {
-                content.classList.add('expanded');
-                icon.textContent = '▲';
-            }
-        }
-
         // Filter shops
         function filterShops() {
             const filterValue = document.getElementById('shop-filter').value.toLowerCase();
             const shopItems = document.querySelectorAll('.shop-item');
             const shopTypeGroups = document.querySelectorAll('.shop-type-group');
-            const cityGroups = document.querySelectorAll('.city-group');
-
-            let hasVisibleShops = false;
+            const cityBlocks = document.querySelectorAll('.city-block[data-city]');
 
             shopItems.forEach(item => {
                 const shopName = item.getAttribute('data-shop-name');
@@ -537,13 +501,11 @@
 
                 if (filterValue === '' || searchText.includes(filterValue)) {
                     item.classList.remove('hidden');
-                    hasVisibleShops = true;
                 } else {
                     item.classList.add('hidden');
                 }
             });
 
-            // Hide/show shop type groups
             shopTypeGroups.forEach(group => {
                 const visibleShops = group.querySelectorAll('.shop-item:not(.hidden)');
                 if (visibleShops.length === 0) {
@@ -553,24 +515,14 @@
                 }
             });
 
-            // Hide/show city groups
-            cityGroups.forEach(group => {
-                const visibleTypes = group.querySelectorAll('.shop-type-group:not(.hidden)');
+            cityBlocks.forEach(block => {
+                const visibleTypes = block.querySelectorAll('.shop-type-group:not(.hidden)');
                 if (visibleTypes.length === 0) {
-                    group.classList.add('hidden');
+                    block.classList.add('hidden');
                 } else {
-                    group.classList.remove('hidden');
-                    // Auto-expand if filtering
-                    if (filterValue !== '') {
-                        const cityName = group.getAttribute('data-city');
-                        const cityId = 'city-' + cityName.replace(/\s+/g, '-');
-                        const content = document.getElementById(cityId);
-                        if (content && !content.classList.contains('expanded')) {
-                            content.classList.add('expanded');
-                            const header = content.previousElementSibling;
-                            const icon = header.querySelector('.toggle-icon');
-                            if (icon) icon.textContent = '▲';
-                        }
+                    block.classList.remove('hidden');
+                    if (filterValue !== '' && !block.open) {
+                        block.open = true;
                     }
                 }
             });

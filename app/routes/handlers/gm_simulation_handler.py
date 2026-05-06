@@ -2,14 +2,17 @@
 GM Simulation Handler
 Handles all simulation-related business logic for GM routes
 """
+from datetime import datetime
 from functools import wraps
 
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
 from app.services.logging_config import gm_logger
 from app.services.simulation import SimulationEngine
 from app.scripts.seeder import seed_gm_data
 from app.extensions import db
+from app.models import SimulationState
+from app.services.simulation_state_helpers import get_simulation_state_for_gm
 from app.routes.handlers.gm_helpers import get_current_gm_profile
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
 from app.services.distributed_lock import acquire_simulation_lock
@@ -106,7 +109,10 @@ def run_simulation_tick():
 
     simulation_engine = SimulationEngine()
     try:
-        stats = simulation_engine.run_tick(gm_profile.id)
+        stats = simulation_engine.run_tick(
+            gm_profile.id,
+            campaign_id=session.get("campaign_id"),
+        )
 
         gm_logger.debug(
             f"Manual tick execution:\n"
@@ -135,7 +141,7 @@ def run_simulation_tick():
 
 
 def update_simulation_speed():
-    """Pause the simulation engine (period runs use the NDJSON stream endpoint)."""
+    """Set simulation speed to pause (matches ``/api/simulation/status`` and ``SimulationState``)."""
     _debug_request("POST", "/gm/simulation/speed")
 
     gm_profile, redirect_response = get_current_gm_profile()
@@ -156,8 +162,29 @@ def update_simulation_speed():
                 400,
             )
 
-        return jsonify({"status": "ok", "message": "Simulation paused"})
+        state = get_simulation_state_for_gm(db.session, gm_profile.id)
+        if not state:
+            state = SimulationState(
+                current_tick=0,
+                speed="pause",
+                last_tick_time=datetime.utcnow(),
+                gm_profile_id=gm_profile.id,
+            )
+            db.session.add(state)
+        else:
+            state.speed = "pause"
+        db.session.commit()
+
+        return jsonify(
+            {
+                "status": "ok",
+                "message": "Simulation paused",
+                "speed": state.speed,
+                "current_game_day": gm_profile.current_game_day,
+            }
+        )
     except Exception as e:
+        db.session.rollback()
         gm_logger.error(f"Error during simulation: {str(e)}")
         return jsonify({"error": str(e), "status": "error"}), 500
 

@@ -22,6 +22,10 @@ flask-session>=0.5
 # App dependencies
 Faker>=20.0
 numpy>=1.24
+PyYAML>=6.0
+
+# Tests
+pytest>=7.0
 
 # Async simulation execution
 celery>=5

@@ -3,13 +3,36 @@
 from types import SimpleNamespace
 
 from flask import flash, redirect, render_template, request, url_for
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import Item, Player, PlayerEquipment, PlayerInventory, CampaignPlayer
+from app.models import (
+    Item,
+    Player,
+    PlayerEquipment,
+    PlayerInventory,
+    CampaignPlayer,
+    PlayerCharacterSheet,
+)
 from app.routes.handlers.gm_helpers import get_campaign_for_gm_session
 from app.services import character_sheet_service
 
 EQUIPMENT_SLOTS = ("weapon", "armor", "accessory")
+
+
+def _next_default_npc_label(campaign_id: int) -> str:
+    """Return NPC1, NPC2, ... for the next NPC in this campaign (no custom name)."""
+    n = (
+        db.session.query(Player)
+        .join(CampaignPlayer, CampaignPlayer.player_id == Player.id)
+        .filter(
+            CampaignPlayer.campaign_id == campaign_id,
+            CampaignPlayer.is_active.is_(True),
+            Player.is_npc.is_(True),
+        )
+        .count()
+    )
+    return f"NPC{n + 1}"
 
 
 def _player_for_gm(character_id: int, gm_profile_id: int):
@@ -37,7 +60,7 @@ def list_players():
         characters = [
             SimpleNamespace(
                 id=player.id,
-                name=player.user.username if player.user else "Player",
+                name=player.user.username if player.user else "NPC",
                 class_name=None,
                 level=None,
             )
@@ -49,6 +72,67 @@ def list_players():
         campaign=campaign,
         player_entries=player_entries,
     )
+
+
+def create_npc():
+    gm_profile, campaign, redir = get_campaign_for_gm_session()
+    if redir:
+        return redir
+
+    if request.method == "GET":
+        return render_template(
+            "GM_Create_NPC.html",
+            campaign=campaign,
+            system_type=campaign.system_type or "generic",
+        )
+
+    name = (request.form.get("name") or "").strip() or None
+    class_name = (request.form.get("class_name") or "").strip() or None
+    species = (request.form.get("species") or "").strip() or None
+    try:
+        resolved_sheet_name = name or _next_default_npc_label(campaign.id)
+
+        player = Player(
+            is_npc=True,
+            user_id=None,
+            gm_profile_id=gm_profile.id,
+            currency=0,
+        )
+        db.session.add(player)
+        db.session.flush()
+
+        if not CampaignPlayer.query.filter_by(
+            campaign_id=campaign.id, player_id=player.id
+        ).first():
+            db.session.add(
+                CampaignPlayer(
+                    campaign_id=campaign.id,
+                    player_id=player.id,
+                    status="active",
+                    is_active=True,
+                )
+            )
+
+        sheet_dict = character_sheet_service.get_or_default_sheet(player, campaign)
+        sheet_dict["name"] = resolved_sheet_name
+        if class_name:
+            sheet_dict["class_name"] = class_name
+        if species:
+            sheet_dict["species"] = species
+
+        db.session.add(
+            PlayerCharacterSheet(
+                player_id=player.id,
+                campaign_id=campaign.id,
+                sheet_json=sheet_dict,
+            )
+        )
+        db.session.commit()
+        flash("NPC added to this campaign.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {e}", "danger")
+    return redirect(url_for("gm.gm_view_players"))
 
 
 def view_character(character_id: int):
@@ -272,3 +356,62 @@ def unequip_item(character_id: int):
         db.session.rollback()
         flash(f"Error: {e}", "danger")
     return redirect(url_for("gm.gm_view_character", character_id=character_id))
+
+
+def remove_player_from_campaign(player_id: int):
+    """Drop a PC from the active campaign only (keeps Player row and other seats)."""
+    gm_profile, campaign, redir = get_campaign_for_gm_session()
+    if redir:
+        return redir
+    player = Player.query.filter_by(id=player_id, gm_profile_id=gm_profile.id).first()
+    if not player or player.is_npc:
+        flash("Player not found.", "danger")
+        return redirect(url_for("gm.gm_view_players"))
+    row = CampaignPlayer.query.filter_by(
+        campaign_id=campaign.id, player_id=player.id
+    ).first()
+    if row:
+        try:
+            db.session.delete(row)
+            db.session.commit()
+            flash("Removed player from this campaign.", "success")
+        except IntegrityError:
+            db.session.rollback()
+            flash("Could not remove player from this campaign.", "danger")
+    else:
+        flash("Player was not in this campaign.", "info")
+    return redirect(url_for("gm.gm_view_players"))
+
+
+def delete_npc_player(player_id: int):
+    """Permanently delete an NPC and all dependent rows."""
+    gm_profile, campaign, redir = get_campaign_for_gm_session()
+    if redir:
+        return redir
+    player = Player.query.filter_by(id=player_id, gm_profile_id=gm_profile.id).first()
+    if not player or not player.is_npc:
+        flash("NPC not found.", "danger")
+        return redirect(url_for("gm.gm_view_players"))
+    try:
+        PlayerCharacterSheet.query.filter_by(player_id=player.id).delete(
+            synchronize_session=False
+        )
+        CampaignPlayer.query.filter_by(player_id=player.id).delete(
+            synchronize_session=False
+        )
+        PlayerInventory.query.filter_by(player_id=player.id).delete(
+            synchronize_session=False
+        )
+        PlayerEquipment.query.filter_by(player_id=player.id).delete(
+            synchronize_session=False
+        )
+        db.session.delete(player)
+        db.session.commit()
+        flash("NPC deleted.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash("Could not delete NPC (data conflict).", "danger")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {e}", "danger")
+    return redirect(url_for("gm.gm_view_players"))

@@ -392,3 +392,49 @@
   margin: 0 auto;
   padding: 0 0 8px;
 }
+
+/* GM add/edit item: shop picker reuses city-block summary styling inside the form */
+.gm-shops-city-panel.item-form-city-picker {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gm-shops-city-panel.item-form-city-picker .city-list {
+  margin-top: 0;
+}
+
+.gm-shops-city-panel.item-form-city-picker .city-panel.item-form-city-panel {
+  padding: 10px 12px 12px;
+}
+
+/* GM view items: same summary schema as city panel, primary label is item name */
+.gm-shops-city-panel .item-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.gm-shops-city-panel.gm-items-panel {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  padding: 0 0 8px;
+}
+
+.gm-shops-city-panel.gm-items-panel .item-shop-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.gm-shops-city-panel.gm-items-panel .item-shop-cities {
+  font-size: 0.95rem;
+  color: #333;
+  text-align: right;
+  flex: 1 1 auto;
+  min-width: 120px;
+}

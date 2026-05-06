@@ -75,7 +75,12 @@ class SimulationEngine:
             log_fn(message)
         logger.debug(message)
 
-    def run_tick(self, gm_profile_id: int, commit: bool = True) -> Dict:
+    def run_tick(
+        self,
+        gm_profile_id: int,
+        campaign_id: Optional[int] = None,
+        commit: bool = True,
+    ) -> Dict:
         """
         Execute one simulation tick (one game day).
 
@@ -115,6 +120,7 @@ class SimulationEngine:
             inventory_rows = (
                 ShopInventory.query.join(Shop, ShopInventory.shop_id == Shop.shop_id)
                 .filter(Shop.gm_profile_id == gm_profile_id)
+                .filter(Shop.campaign_id == campaign_id if campaign_id is not None else True)
                 .options(
                     db.joinedload(ShopInventory.item),
                     db.joinedload(ShopInventory.shop).joinedload(Shop.cities),
@@ -183,6 +189,7 @@ class SimulationEngine:
                             "price": new_price,
                             "recorded_at": recorded_at,
                             "gm_profile_id": gm_profile_id,
+                            "campaign_id": campaign_id,
                         }
                     )
 

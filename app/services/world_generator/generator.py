@@ -6,7 +6,7 @@ Called by `generate_world_submit` after the handler has already:
 - created the CampaignWorldConfig row with `settings_json`.
 
 `generate()` then materializes regions, cities, shops, items, shop
-inventory, regional / global markets, resource nodes, and a
+inventory, regional / global markets, and a
 `SimulationState` row. It does NOT commit -- the handler is authoritative
 for `commit()` / `rollback()`.
 
@@ -32,7 +32,6 @@ from app.models import (
     Item,
     MarketEvent,
     RegionalMarket,
-    ResourceNode,
     Shop,
     ShopInventory,
     SimulationState,
@@ -74,7 +73,6 @@ class GenerationResult:
     n_shops: int
     n_items: int
     n_inventory_rows: int
-    n_resource_nodes: int
 
 
 # -----------------------------------------------------------------------------
@@ -249,6 +247,7 @@ def generate(
                     base_price=base_price,
                     description=f"{rarity} {category} (axis {axis_pos})",
                     gm_profile_id=gm_profile_id,
+                    campaign_id=campaign_id,
                     stats=stats,
                     axis_position=int(axis_pos),
                 )
@@ -295,6 +294,7 @@ def generate(
                 population=population,
                 region=region.name if region else None,
                 gm_profile_id=gm_profile_id,
+                campaign_id=campaign_id,
             )
             # region_id is set by the migration adding a nullable FK. Guarded
             # here in case the deployment hasn't applied that column yet.
@@ -338,6 +338,7 @@ def generate(
                     name=sname,
                     type=shop_type,
                     gm_profile_id=gm_profile_id,
+                    campaign_id=campaign_id,
                     preferred_region=city.region,
                 )
                 all_shops.append(shop)
@@ -411,6 +412,7 @@ def generate(
                     ShopInventory(
                         shop_id=shop.shop_id,
                         item_id=candidate.item_id,
+                        campaign_id=campaign_id,
                         stock=rng_inventory.randint(1, 10),
                         dynamic_price=dynamic,
                     )
@@ -429,36 +431,7 @@ def generate(
         )
 
         # ---------------------------------------------------------------
-        # Step 6: ResourceNodes per city
-        # ---------------------------------------------------------------
-        nodes_batch: List[ResourceNode] = []
-        for city in cities:
-            n_nodes_here = rng_cities.randint(
-                ranges["resource_nodes_per_city"]["min"],
-                ranges["resource_nodes_per_city"]["max"],
-            )
-            for node_idx in range(1, n_nodes_here + 1):
-                nodes_batch.append(
-                    ResourceNode(
-                        name=f"{city.name} Node {node_idx}",
-                        type=rng_cities.choice(["mine", "farm", "forest", "quarry"]),
-                        production_rate=round(rng_cities.uniform(1.0, 10.0), 2),
-                        quality=round(rng_cities.uniform(0.3, 1.0), 2),
-                        city_id=city.city_id,
-                        gm_profile_id=gm_profile_id,
-                    )
-                )
-        if nodes_batch:
-            db.session.add_all(nodes_batch)
-        _check_budget()
-        log.info(
-            "world_gen phase=resource_nodes campaign_id=%s n=%d",
-            campaign_id,
-            len(nodes_batch),
-        )
-
-        # ---------------------------------------------------------------
-        # Step 7: Regional + Global markets (per item per region / global)
+        # Step 6: Regional + Global markets (per item per region / global)
         # ---------------------------------------------------------------
         regional_markets: List[RegionalMarket] = []
         # One RegionalMarket row per (first city in region, item) pair.
@@ -482,6 +455,7 @@ def generate(
                         total_demand=0,
                         average_price=float(base_price_table[item.item_id]),
                         gm_profile_id=gm_profile_id,
+                        campaign_id=campaign_id,
                     )
                 )
         if regional_markets:
@@ -494,6 +468,7 @@ def generate(
                 total_demand=0,
                 average_price=float(base_price_table[item.item_id]),
                 gm_profile_id=gm_profile_id,
+                campaign_id=campaign_id,
             )
             for item in items
         ]
@@ -507,7 +482,7 @@ def generate(
         )
 
         # ---------------------------------------------------------------
-        # Step 8: SimulationState (seed default speed)
+        # Step 7: SimulationState (seed default speed)
         # ---------------------------------------------------------------
         existing_sim = (
             db.session.query(SimulationState)
@@ -534,5 +509,320 @@ def generate(
         n_shops=len(all_shops),
         n_items=len(items),
         n_inventory_rows=n_inventory_rows,
-        n_resource_nodes=len(nodes_batch),
+    )
+
+
+def generate_shops_onward(
+    gm_profile_id: int,
+    campaign_id: int,
+    region_id: int,
+    settings: Dict[str, Any],
+) -> GenerationResult:
+    """Create shops + shop inventory (+ markets / sim seed) for cities in one region.
+
+    Assumes regions, cities, and a non-empty item pool already exist for the
+    campaign. Skips cities in that region that already have at least one linked
+    shop. Does NOT commit.
+
+    Reuses the same RNG derivation as `generate()` from ``settings['world_seed']``
+    (or ``None`` for random), so behavior matches full world-gen when the same
+    seed is stored on `CampaignWorldConfig`.
+    """
+    t0 = time.monotonic()
+
+    def _check_budget() -> None:
+        if GENERATION_TIMEOUT_SECONDS is None or GENERATION_TIMEOUT_SECONDS <= 0:
+            return
+        elapsed = time.monotonic() - t0
+        if elapsed > GENERATION_TIMEOUT_SECONDS:
+            raise GenerationTimeoutError(
+                f"World generation exceeded {GENERATION_TIMEOUT_SECONDS}s "
+                f"(elapsed {elapsed:.1f}s). Try a smaller world."
+            )
+
+    ranges = settings["ranges"]
+    sim_speed = DEFAULT_SIMULATION_SPEED
+    effective_seed = _resolve_seed(settings.get("world_seed"))
+
+    root_rng = random.Random(effective_seed)
+    rng_shops = _derive_subrng(root_rng, "shops")
+    rng_inventory = _derive_subrng(root_rng, "inventory")
+
+    region_row = (
+        db.session.query(Region)
+        .filter_by(
+            id=region_id,
+            campaign_id=campaign_id,
+            gm_profile_id=gm_profile_id,
+        )
+        .first()
+    )
+    if region_row is None:
+        raise ValueError("Region not found for this campaign.")
+
+    regions_sorted = (
+        db.session.query(Region)
+        .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+        .order_by(Region.id)
+        .all()
+    )
+    regions_by_id = {r.id: r for r in regions_sorted}
+
+    cities_in_region = (
+        db.session.query(City)
+        .filter_by(
+            campaign_id=campaign_id,
+            gm_profile_id=gm_profile_id,
+            region_id=region_id,
+        )
+        .order_by(City.city_id)
+        .all()
+    )
+    if not cities_in_region:
+        raise ValueError(
+            "No cities are assigned to this region. Assign cities, then try again."
+        )
+
+    items = (
+        db.session.query(Item)
+        .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+        .all()
+    )
+    if not items:
+        raise ValueError(
+            "This campaign has no items yet. Run full world generation or add "
+            "items before generating shops."
+        )
+
+    shop_names: set = {
+        s[0]
+        for s in db.session.query(Shop.name)
+        .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+        .all()
+    }
+
+    items_by_axis: Dict[int, List[Item]] = {}
+    base_price_table: Dict[int, int] = {}
+    for item in items:
+        axis_val = item.axis_position if item.axis_position is not None else 5
+        items_by_axis.setdefault(int(axis_val), []).append(item)
+        base_price_table[item.item_id] = int(item.base_price)
+
+    cities_to_stock: List[City] = [c for c in cities_in_region if not c.shops]
+    if not cities_to_stock:
+        raise ValueError(
+            "Every city in this region already has shops. Add new cities or "
+            "remove shops if you need to regenerate."
+        )
+
+    all_shops: List[Shop] = []
+    city_shop_pairs: List[Tuple[City, Shop]] = []
+
+    def _city_axis(city: City) -> int:
+        reg = regions_by_id.get(city.region_id) if city.region_id else None
+        if reg and reg.local_flavor:
+            return int(reg.local_flavor.get("axis_position", 5))
+        return 5
+
+    with db.session.no_autoflush:
+        for city in cities_to_stock:
+            n_shops_here = rng_shops.randint(
+                ranges["shops_per_city"]["min"],
+                ranges["shops_per_city"]["max"],
+            )
+            reg = regions_by_id.get(city.region_id)
+            city_axis = _city_axis(city)
+            for _ in range(n_shops_here):
+                shop_type = naming_logic.shop_type_for_axis(rng_shops, city_axis)
+                city_gov = city.government_type or GOVERNMENT_TYPES[0]
+                sname = naming_logic.shop_name(
+                    rng_shops, city_axis, city_gov, shop_type, shop_names
+                )
+                pref = reg.name if reg else (city.region or "")
+                shop = Shop(
+                    name=sname,
+                    type=shop_type,
+                    gm_profile_id=gm_profile_id,
+                    campaign_id=campaign_id,
+                    preferred_region=pref or None,
+                )
+                all_shops.append(shop)
+                city_shop_pairs.append((city, shop))
+            _check_budget()
+
+        db.session.add_all(all_shops)
+        db.session.flush()
+
+        for city, shop in city_shop_pairs:
+            shop.cities.append(city)
+        _check_budget()
+        log.info(
+            "world_gen phase=shops_partial campaign_id=%s region_id=%s n=%d",
+            campaign_id,
+            region_id,
+            len(all_shops),
+        )
+
+        n_inventory_rows = 0
+        inventory_batch: List[ShopInventory] = []
+        for city, shop in city_shop_pairs:
+            city_axis = _city_axis(city)
+            n_items_here = rng_inventory.randint(
+                ranges["items_per_shop"]["min"],
+                ranges["items_per_shop"]["max"],
+            )
+
+            native: List[Item] = []
+            imported: List[Item] = []
+            for axis_val, bucket in items_by_axis.items():
+                delta = abs(axis_val - city_axis)
+                if delta <= AXIS_TOLERANCE_PRIMARY:
+                    native.extend(bucket)
+                elif delta <= AXIS_TOLERANCE_IMPORTED:
+                    imported.extend(bucket)
+
+            if not native and not imported:
+                native = items
+
+            picked_items = set()
+            attempts = 0
+            max_attempts = n_items_here * 4
+            while len(picked_items) < n_items_here and attempts < max_attempts:
+                attempts += 1
+                if native and (not imported or rng_inventory.random() < 0.7):
+                    candidate = rng_inventory.choice(native)
+                    multiplier = 1.0
+                elif imported:
+                    candidate = rng_inventory.choice(imported)
+                    multiplier = IMPORTED_PRICE_MULTIPLIER
+                else:
+                    break
+                if candidate.item_id in picked_items:
+                    continue
+                picked_items.add(candidate.item_id)
+                dynamic = pricing.dynamic_price_arithmetic(
+                    base_price_table[candidate.item_id],
+                    region_mult=1.0,
+                    axis_distance_mult=multiplier,
+                )
+                inventory_batch.append(
+                    ShopInventory(
+                        shop_id=shop.shop_id,
+                        item_id=candidate.item_id,
+                        campaign_id=campaign_id,
+                        stock=rng_inventory.randint(1, 10),
+                        dynamic_price=dynamic,
+                    )
+                )
+                n_inventory_rows += 1
+
+            _check_budget()
+
+        if inventory_batch:
+            db.session.add_all(inventory_batch)
+            db.session.flush()
+        log.info(
+            "world_gen phase=shop_inventory_partial campaign_id=%s shop_inventory_rows=%d",
+            campaign_id,
+            n_inventory_rows,
+        )
+
+        all_campaign_cities = (
+            db.session.query(City)
+            .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+            .order_by(City.city_id)
+            .all()
+        )
+        first_city_by_region: Dict[int, Optional[City]] = {}
+        for region in regions_sorted:
+            first_city_by_region[region.id] = next(
+                (c for c in all_campaign_cities if c.region_id == region.id),
+                None,
+            )
+
+        existing_regional = {
+            (row.city_id, row.item_id)
+            for row in db.session.query(RegionalMarket.city_id, RegionalMarket.item_id)
+            .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+            .all()
+        }
+        regional_markets: List[RegionalMarket] = []
+        for item in items:
+            for region in regions_sorted:
+                first_city = first_city_by_region.get(region.id)
+                if first_city is None:
+                    continue
+                key = (first_city.city_id, item.item_id)
+                if key in existing_regional:
+                    continue
+                existing_regional.add(key)
+                regional_markets.append(
+                    RegionalMarket(
+                        city_id=first_city.city_id,
+                        item_id=item.item_id,
+                        total_supply=0,
+                        total_demand=0,
+                        average_price=float(base_price_table[item.item_id]),
+                        gm_profile_id=gm_profile_id,
+                        campaign_id=campaign_id,
+                    )
+                )
+        if regional_markets:
+            db.session.add_all(regional_markets)
+
+        existing_global_item_ids = {
+            row[0]
+            for row in db.session.query(GlobalMarket.item_id)
+            .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+            .all()
+        }
+        global_markets = [
+            GlobalMarket(
+                item_id=item.item_id,
+                total_supply=0,
+                total_demand=0,
+                average_price=float(base_price_table[item.item_id]),
+                gm_profile_id=gm_profile_id,
+                campaign_id=campaign_id,
+            )
+            for item in items
+            if item.item_id not in existing_global_item_ids
+        ]
+        if global_markets:
+            db.session.add_all(global_markets)
+        log.info(
+            "world_gen phase=markets_partial campaign_id=%s regional_new=%d global_new=%d",
+            campaign_id,
+            len(regional_markets),
+            len(global_markets),
+        )
+
+        existing_sim = (
+            db.session.query(SimulationState)
+            .filter_by(gm_profile_id=gm_profile_id)
+            .first()
+        )
+        if existing_sim is None:
+            db.session.add(
+                SimulationState(
+                    current_tick=0,
+                    speed=sim_speed,
+                    gm_profile_id=gm_profile_id,
+                )
+            )
+
+        _check_budget()
+        log.info(
+            "world_gen phase=done_partial campaign_id=%s region_id=%s",
+            campaign_id,
+            region_id,
+        )
+
+    return GenerationResult(
+        effective_seed=effective_seed,
+        n_regions=len(regions_sorted),
+        n_cities=len(cities_to_stock),
+        n_shops=len(all_shops),
+        n_items=len(items),
+        n_inventory_rows=n_inventory_rows,
     )

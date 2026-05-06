@@ -6,8 +6,8 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from sqlalchemy import func
 from app.models import (
-    Shop, ShopInventory, Item, City, ResourceNode,
-    ProductionHistory, ResourceTransform, MarketEvent,
+    Shop, ShopInventory, Item, City,
+    ResourceTransform, MarketEvent,
     SimulationState, SimulationLog,
     DemandModifier, ModifierTarget
 )
@@ -16,10 +16,11 @@ from app.services.economy.market_service import MarketService
 from app.services.simulation_state_helpers import get_simulation_state_for_gm
 
 class EconomicSimulationTick:
-    def __init__(self, gm_profile_id: int):
+    def __init__(self, gm_profile_id: int, campaign_id: Optional[int] = None):
         self.gm_profile_id = gm_profile_id
+        self.campaign_id = campaign_id
         self.current_tick = self._get_current_tick()
-        self.market_service = MarketService(gm_profile_id)
+        self.market_service = MarketService(gm_profile_id, campaign_id=campaign_id)
         self.global_supply: Dict[int, float] = {}  # item_id -> total supply
         self.global_demand: Dict[int, float] = {}  # item_id -> total demand
         self.city_demands: Dict[int, Dict[int, float]] = {}  # city_id -> {item_id -> demand}
@@ -35,7 +36,8 @@ class EconomicSimulationTick:
             tick_id=self.current_tick,
             event_type=event_type,
             details=details,
-            gm_profile_id=self.gm_profile_id
+            gm_profile_id=self.gm_profile_id,
+            campaign_id=self.campaign_id,
         )
         db.session.add(log)
 
@@ -46,40 +48,26 @@ class EconomicSimulationTick:
         self.global_demand.clear()
 
         # Calculate global supply from all shops
-        for shop in Shop.query.filter_by(gm_profile_id=self.gm_profile_id).all():
+        for shop in Shop.query.filter_by(gm_profile_id=self.gm_profile_id).filter(
+            Shop.campaign_id == self.campaign_id if self.campaign_id is not None else True
+        ).all():
             for inventory in shop.inventory:
                 item_id = inventory.item_id
                 self.global_supply[item_id] = self.global_supply.get(item_id, 0) + inventory.stock
 
         # Calculate city-specific demands
-        for city in City.query.filter_by(gm_profile_id=self.gm_profile_id).all():
+        for city in City.query.filter_by(gm_profile_id=self.gm_profile_id).filter(
+            City.campaign_id == self.campaign_id if self.campaign_id is not None else True
+        ).all():
             self.city_demands[city.city_id] = {}
             # TODO: Implement population-based demand calculation
             # For now, use fixed demand values
-            for item in Item.query.filter_by(gm_profile_id=self.gm_profile_id).all():
+            for item in Item.query.filter_by(gm_profile_id=self.gm_profile_id).filter(
+                Item.campaign_id == self.campaign_id if self.campaign_id is not None else True
+            ).all():
                 base_demand = 10  # Placeholder
                 self.city_demands[city.city_id][item.item_id] = base_demand
                 self.global_demand[item.item_id] = self.global_demand.get(item.item_id, 0) + base_demand
-
-    def _process_resource_nodes(self):
-        """Process production from resource nodes."""
-        nodes = ResourceNode.query.filter_by(gm_profile_id=self.gm_profile_id).all()
-        for node in nodes:
-            # Calculate production
-            amount_produced = node.production_rate * node.quality
-            
-            # Record production history
-            history = ProductionHistory(
-                node_id=node.node_id,
-                amount_produced=amount_produced,
-                quality=node.quality
-            )
-            db.session.add(history)
-
-            # Update regional market with produced resources
-            if node.city:
-                self.market_service.update_regional_supply(node.city, node.item, amount_produced)
-                self.market_service.update_global_supply(node.item, amount_produced)
 
     def _process_building_production(self):
         """Process production from buildings."""
@@ -92,13 +80,16 @@ class EconomicSimulationTick:
         for city_id, demands in self.city_demands.items():
             city = City.query.filter_by(
                 city_id=city_id, gm_profile_id=self.gm_profile_id
+            ).filter(
+                City.campaign_id == self.campaign_id if self.campaign_id is not None else True
             ).first()
             if not city:
                 continue
 
             city_shops = Shop.query.join(Shop.cities).filter(
                 City.city_id == city_id,
-                Shop.gm_profile_id == self.gm_profile_id
+                Shop.gm_profile_id == self.gm_profile_id,
+                Shop.campaign_id == self.campaign_id if self.campaign_id is not None else True,
             ).all()
 
             for shop in city_shops:
@@ -129,7 +120,9 @@ class EconomicSimulationTick:
 
     def _update_shop_prices(self):
         """Update prices for all shop inventories."""
-        for shop in Shop.query.filter_by(gm_profile_id=self.gm_profile_id).all():
+        for shop in Shop.query.filter_by(gm_profile_id=self.gm_profile_id).filter(
+            Shop.campaign_id == self.campaign_id if self.campaign_id is not None else True
+        ).all():
             city = shop.cities[0] if shop.cities else None
             
             for inventory in shop.inventory:
@@ -148,7 +141,9 @@ class EconomicSimulationTick:
 
     def _check_shop_viability(self):
         """Check if shops are viable or should be marked as bankrupt."""
-        for shop in Shop.query.filter_by(gm_profile_id=self.gm_profile_id).all():
+        for shop in Shop.query.filter_by(gm_profile_id=self.gm_profile_id).filter(
+            Shop.campaign_id == self.campaign_id if self.campaign_id is not None else True
+        ).all():
             # Calculate total inventory value
             inventory_value = sum(
                 inv.stock * inv.dynamic_price
@@ -182,9 +177,6 @@ class EconomicSimulationTick:
         try:
             # Calculate global market state
             self._calculate_global_market()
-
-            # Process resource production
-            self._process_resource_nodes()
 
             # Process building production
             self._process_building_production()

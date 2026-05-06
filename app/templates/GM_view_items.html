@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_shops_city_list.css') }}">
     <style>
         body {
             display: flex;
@@ -26,45 +27,16 @@
             text-align: center;
         }
 
-        .content-container {
-            width: 80%;
-            max-width: 1200px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
-            background-color: purple;
-            color: white;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
         .nav-buttons {
             display: flex;
             justify-content: center;
             gap: 15px;
             margin-top: 20px;
+            flex-wrap: wrap;
         }
 
-        .button {
+        .nav-buttons .button,
+        .nav-buttons .nav-button {
             background-color: purple;
             color: white;
             border: none;
@@ -75,31 +47,16 @@
             transition: background-color 0.3s, transform 0.3s;
         }
 
-        .button:hover {
+        .nav-buttons .button:hover,
+        .nav-buttons .nav-button:hover {
             background-color: #2980b9;
-            transform: scale(1.1);
-        }
-
-        .delete-button {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .delete-button:hover {
-            background-color: #c82333;
             transform: scale(1.1);
         }
 
         .modal {
             display: none;
             position: fixed;
-            z-index: 1;
+            z-index: 1000;
             left: 0;
             top: 0;
             width: 100%;
@@ -123,6 +80,26 @@
             gap: 10px;
             margin-top: 20px;
         }
+
+        .modal-buttons .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .modal-buttons .delete-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
     </style>
     <script>
         function navigateTo(url) {
@@ -132,7 +109,7 @@
         function showDeleteConfirmation(itemId, itemName) {
             const modal = document.getElementById('deleteModal');
             const modalText = document.getElementById('deleteModalText');
-            modalText.textContent = `Are you sure you want to delete ${itemName}? This action cannot be undone.`;
+            modalText.textContent = 'Are you sure you want to delete ' + itemName + '? This action cannot be undone.';
             modal.style.display = "block";
             window.itemIdToDelete = itemId;
         }
@@ -146,7 +123,7 @@
             if (window.itemIdToDelete) {
                 const form = document.createElement('form');
                 form.method = 'POST';
-                form.action = `/gm/items/delete/${window.itemIdToDelete}`;
+                form.action = '/gm/items/delete/' + window.itemIdToDelete;
                 const csrfInput = document.createElement('input');
                 csrfInput.type = 'hidden';
                 csrfInput.name = 'csrf_token';
@@ -157,7 +134,6 @@
             }
         }
 
-        // Close modal when clicking outside
         window.onclick = function(event) {
             const modal = document.getElementById('deleteModal');
             if (event.target == modal) {
@@ -169,57 +145,68 @@
 <body class="gm-list-page">
     <h1>View Items</h1>
     <div class="nav-buttons">
-        <button onclick="navigateTo('{{ url_for('gm.add_item') }}')" class="button">Add New Item</button>
-        <button onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
+        <button type="button" onclick="navigateTo('{{ url_for('gm.add_item') }}')" class="button">Add New Item</button>
+        <button type="button" onclick="navigateTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>
     </div>
-    <div class="content-container">
-        <div class="section">
-            <h2>Available Items</h2>
-            {% if items %}
-            <table class="gm-list-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Rarity</th>
-                        <th>Price</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
+
+    <div class="gm-shops-city-panel gm-items-panel">
+        <div class="content-container">
+            <div class="section">
+                <h2>Available Items</h2>
+                {% if items %}
+                <div class="city-list">
                     {% for item in items %}
-                    <tr>
-                        <td>{{ item.name }}</td>
-                        <td>{{ item.type }}</td>
-                        <td>{{ item.rarity }}</td>
-                        <td>{{ item.price }}</td>
-                        <td>
-                            <button class="button" onclick="navigateTo('{{ url_for('gm.edit_item', item_id=item.item_id) }}')">Edit</button>
-                            <button class="button" onclick="navigateTo('{{ url_for('gm.item_detail', item_id=item.item_id) }}')">View Details</button>
-                            <button class="delete-button" onclick="showDeleteConfirmation({{ item.item_id }}, '{{ item.name }}')">Delete</button>
-                        </td>
-                    </tr>
+                    <details class="city-block">
+                        <summary>
+                            <span class="item-name">{{ item.name }}</span>
+                            <span class="city-meta">{{ item.type }} | {{ item.rarity }} | Base {{ item.base_price }}</span>
+                            <span class="city-summary-right">
+                                <span class="shop-count-badge">{{ item.distinct_shop_count }} shop{% if item.distinct_shop_count != 1 %}s{% endif %}</span>
+                                <span class="city-summary-actions" onclick="event.stopPropagation()">
+                                    <a href="{{ url_for('gm.edit_item', item_id=item.item_id) }}" class="button" style="margin-right: 5px;">Edit</a>
+                                    <a href="{{ url_for('gm.item_detail', item_id=item.item_id) }}" class="button" style="margin-right: 5px;">View Details</a>
+                                    <button type="button" class="delete-button" onclick="showDeleteConfirmation({{ item.item_id }}, {{ item.name | tojson }})">Delete</button>
+                                </span>
+                            </span>
+                        </summary>
+                        <div class="city-panel">
+                            {% set inv_sorted = item.inventory|selectattr('shop')|sort(attribute='shop.name') %}
+                            {% if inv_sorted|length == 0 %}
+                            <p class="empty-city">Not stocked in any shop.</p>
+                            {% else %}
+                            {% for inv in inv_sorted %}
+                            <div class="shop-row item-shop-row">
+                                <strong>{{ inv.shop.name }}</strong>
+                                <span class="item-shop-cities">
+                                    {% if inv.shop.cities %}
+                                    {% for city in inv.shop.cities|sort(attribute='name') %}{{ city.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </details>
                     {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <p>No items available.</p>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No items available.</p>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
     </div>
 
-
-
-    <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal">
         <div class="modal-content">
             <h2>Confirm Deletion</h2>
             <p id="deleteModalText"></p>
             <div class="modal-buttons">
-                <button class="button" onclick="closeDeleteModal()">Cancel</button>
-                <button class="delete-button" onclick="confirmDelete()">Delete</button>
+                <button type="button" class="button" onclick="closeDeleteModal()">Cancel</button>
+                <button type="button" class="delete-button" onclick="confirmDelete()">Delete</button>
             </div>
         </div>
     </div>

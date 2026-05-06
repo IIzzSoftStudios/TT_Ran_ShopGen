@@ -4,8 +4,23 @@ from flask import Flask, request
 from dotenv import load_dotenv
 from app.extensions import db, migrate, bcrypt, login_manager, session, csrf, mail, limiter
 from app.models import User
+from app.services.schema_compat import (
+    ensure_campaign_scope_columns,
+    ensure_phase_entitlement_columns,
+    ensure_player_npc_columns,
+    ensure_join_codes_columns,
+    ensure_user_password_history_table,
+    warn_if_compat_mode_applied,
+    warn_if_phase_compat_applied,
+    warn_if_password_history_compat_applied,
+    warn_if_player_npc_compat_applied,
+    warn_if_join_codes_compat_applied,
+)
+from app.services.phase_config import PhaseEntitlements, resolve_phase_entitlements_path
+
 # Load environment variables
 load_dotenv("config.env")
+
 
 def create_app():
     app = Flask(__name__)
@@ -45,6 +60,9 @@ def create_app():
     csrf.init_app(app)
     limiter.init_app(app)
 
+    phase_yaml = resolve_phase_entitlements_path()
+    app.extensions["phase_config"] = PhaseEntitlements(phase_yaml)
+
     # So INFO from app.* (e.g. world generation phases) shows on stderr with flask run.
     _app_log = logging.getLogger("app")
     _app_log.setLevel(logging.INFO)
@@ -68,6 +86,34 @@ def create_app():
     
     # Import models to ensure they are registered
     from app.models import City, Shop, Item, ShopInventory
+
+    # Compatibility bootstrap: old DBs missing campaign_id columns should still boot.
+    with app.app_context():
+        try:
+            patched_any = ensure_campaign_scope_columns()
+            warn_if_compat_mode_applied(patched_any)
+        except Exception as exc:
+            app.logger.warning("campaign_scope compatibility bootstrap skipped: %s", exc)
+        try:
+            patched_phase = ensure_phase_entitlement_columns()
+            warn_if_phase_compat_applied(patched_phase)
+        except Exception as exc:
+            app.logger.warning("phase entitlement compatibility bootstrap skipped: %s", exc)
+        try:
+            patched_pwh = ensure_user_password_history_table()
+            warn_if_password_history_compat_applied(patched_pwh)
+        except Exception as exc:
+            app.logger.warning("user_password_history compatibility bootstrap skipped: %s", exc)
+        try:
+            patched_npc = ensure_player_npc_columns()
+            warn_if_player_npc_compat_applied(patched_npc)
+        except Exception as exc:
+            app.logger.warning("player NPC compatibility bootstrap skipped: %s", exc)
+        try:
+            patched_join = ensure_join_codes_columns()
+            warn_if_join_codes_compat_applied(patched_join)
+        except Exception as exc:
+            app.logger.warning("join_codes compatibility bootstrap skipped: %s", exc)
 
     # Register blueprints
     from app.routes.main_routes import main_bp

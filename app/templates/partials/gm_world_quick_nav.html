@@ -1,6 +1,8 @@
 ﻿{# Defaults when variables omitted from {% include ... with %} #}
 {% set _show_back = show_back_to_dashboard|default(false) %}
 {% set _show_add_city = show_add_city|default(true) %}
+{% set _show_add_item = show_add_item|default(true) %}
+{% set _show_add_region = show_add_region|default(true) %}
 <style>
     .gm-world-quick-nav .nav-buttons {
         display: flex;
@@ -12,9 +14,15 @@
 </style>
 <div class="gm-world-quick-nav">
     <div class="nav-buttons">
-        <button type="button" onclick="MapsTo('{{ url_for('gm.add_shop') }}')" class="button">Add New Shop</button>
+        {% if _show_add_region %}
+        <button type="button" onclick="MapsTo('{{ url_for('gm.add_region') }}')" class="button">Add Region</button>
+        {% endif %}
         {% if _show_add_city %}
         <button type="button" onclick="MapsTo('{{ url_for('gm.add_city') }}')" class="button">Add City</button>
+        {% endif %}
+        <button type="button" onclick="MapsTo('{{ url_for('gm.add_shop') }}')" class="button">Add Shop</button>
+        {% if _show_add_item %}
+        <button type="button" onclick="MapsTo('{{ url_for('gm.add_item') }}')" class="button">Add Item</button>
         {% endif %}
         {% if _show_back %}
         <button type="button" onclick="MapsTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>

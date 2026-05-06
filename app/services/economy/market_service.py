@@ -8,8 +8,9 @@ from app.models import (
 from app.extensions import db
 
 class MarketService:
-    def __init__(self, gm_profile_id: int):
+    def __init__(self, gm_profile_id: int, campaign_id: Optional[int] = None):
         self.gm_profile_id = gm_profile_id
+        self.campaign_id = campaign_id
         self.regional_markets: Dict[Tuple[str, int], RegionalMarket] = {}  # (region, item_id) -> market
         self.global_markets: Dict[int, GlobalMarket] = {}  # item_id -> market
 
@@ -29,7 +30,8 @@ class MarketService:
             market = RegionalMarket.query.filter_by(
                 city_id=city.city_id,
                 item_id=item.item_id,
-                gm_profile_id=self.gm_profile_id
+                gm_profile_id=self.gm_profile_id,
+                campaign_id=self.campaign_id,
             ).first()
             
             if not market:
@@ -39,7 +41,8 @@ class MarketService:
                     total_supply=0,
                     total_demand=0,
                     average_price=item.base_price,
-                    gm_profile_id=self.gm_profile_id
+                    gm_profile_id=self.gm_profile_id,
+                    campaign_id=self.campaign_id,
                 )
                 db.session.add(market)
             
@@ -52,7 +55,8 @@ class MarketService:
         if item.item_id not in self.global_markets:
             market = GlobalMarket.query.filter_by(
                 item_id=item.item_id,
-                gm_profile_id=self.gm_profile_id
+                gm_profile_id=self.gm_profile_id,
+                campaign_id=self.campaign_id,
             ).first()
             
             if not market:
@@ -61,7 +65,8 @@ class MarketService:
                     total_supply=0,
                     total_demand=0,
                     average_price=item.base_price,
-                    gm_profile_id=self.gm_profile_id
+                    gm_profile_id=self.gm_profile_id,
+                    campaign_id=self.campaign_id,
                 )
                 db.session.add(market)
             
@@ -149,7 +154,8 @@ class MarketService:
         # Get inventory preferences
         inventory = ShopInventory.query.filter_by(
             shop_id=shop.shop_id,
-            item_id=item.item_id
+            item_id=item.item_id,
+            campaign_id=self.campaign_id,
         ).first()
         
         if not inventory:
@@ -174,13 +180,15 @@ class MarketService:
             regional_shops = Shop.query.join(Shop.cities).filter(
                 City.region == city.region,
                 Shop.shop_id != shop.shop_id,
-                Shop.gm_profile_id == self.gm_profile_id
+                Shop.gm_profile_id == self.gm_profile_id,
+                Shop.campaign_id == self.campaign_id,
             ).all()
             
             for source_shop in regional_shops:
                 inventory = ShopInventory.query.filter_by(
                     shop_id=source_shop.shop_id,
-                    item_id=item.item_id
+                    item_id=item.item_id,
+                    campaign_id=self.campaign_id,
                 ).first()
                 
                 if inventory and inventory.stock > 0:
@@ -195,13 +203,15 @@ class MarketService:
         if remaining_amount > 0:
             global_shops = Shop.query.filter(
                 Shop.shop_id != shop.shop_id,
-                Shop.gm_profile_id == self.gm_profile_id
+                Shop.gm_profile_id == self.gm_profile_id,
+                Shop.campaign_id == self.campaign_id,
             ).all()
             
             for source_shop in global_shops:
                 inventory = ShopInventory.query.filter_by(
                     shop_id=source_shop.shop_id,
-                    item_id=item.item_id
+                    item_id=item.item_id,
+                    campaign_id=self.campaign_id,
                 ).first()
                 
                 if inventory and inventory.stock > 0:
@@ -218,12 +228,14 @@ class MarketService:
         """Process a transaction between shops."""
         source_inventory = ShopInventory.query.filter_by(
             shop_id=source_shop.shop_id,
-            item_id=item.item_id
+            item_id=item.item_id,
+            campaign_id=self.campaign_id,
         ).first()
         
         target_inventory = ShopInventory.query.filter_by(
             shop_id=target_shop.shop_id,
-            item_id=item.item_id
+            item_id=item.item_id,
+            campaign_id=self.campaign_id,
         ).first()
         
         if not source_inventory or source_inventory.stock < amount:
@@ -237,6 +249,7 @@ class MarketService:
             target_inventory = ShopInventory(
                 shop_id=target_shop.shop_id,
                 item_id=item.item_id,
+                campaign_id=self.campaign_id,
                 stock=amount,
                 dynamic_price=self.get_item_price(target_shop, item, target_shop.cities[0])
             )

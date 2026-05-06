@@ -7,38 +7,103 @@
     {% include 'partials/theme_head.html' %}
     <style>
         .access-requests-wrap { margin-bottom: 18px; }
-        .access-request-card {
+
+        .access-request-block {
             border: 1px solid rgba(148, 163, 184, 0.25);
             background: rgba(30, 41, 59, 0.25);
             border-radius: 16px;
-            padding: 14px;
-            display: flex;
-            gap: 14px;
-            cursor: pointer;
-            transition: transform 0.15s ease, border-color 0.15s ease;
-            align-items: flex-start;
-        }
-        .access-request-card:hover {
-            border-color: rgba(192, 132, 252, 0.55);
-        }
-        .access-request-main { flex: 1 1 auto; min-width: 0; }
-        .access-request-actions { flex: 0 0 210px; display: flex; flex-direction: column; gap: 10px; }
-        .access-request-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-        .access-request-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-        .access-request-summary { color: var(--color-muted); margin-top: 6px; line-height: 1.4; }
-
-        /* Details expansion: hover on desktop, tap/click via 'expanded' class for mobile */
-        .access-request-details {
-            max-height: 0;
+            margin-bottom: 10px;
             overflow: hidden;
-            transition: max-height 0.25s ease;
         }
-        .access-request-card:hover .access-request-details { max-height: 420px; }
-        .access-request-card.expanded .access-request-details { max-height: 420px; }
+        .access-request-block > summary.triage-summary {
+            list-style: none;
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.85fr);
+            gap: 12px 16px;
+            align-items: center;
+            padding: 12px 14px;
+            border-bottom: 1px solid transparent;
+        }
+        .access-request-block > summary.triage-summary::-webkit-details-marker { display: none; }
+        .access-request-block[open] > summary.triage-summary {
+            border-bottom-color: rgba(148, 163, 184, 0.2);
+        }
+        .triage-summary .col-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .request-name {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--color-text, #e2e8f0);
+            line-height: 1.25;
+        }
+        .request-ruleset {
+            font-size: 0.8rem;
+            font-style: italic;
+            color: var(--color-muted, #94a3b8);
+        }
+        .triage-summary .col-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .badge-players, .badge-role {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25em 0.5em;
+            border-radius: 6px;
+        }
+        .badge-players { background: rgba(59, 130, 246, 0.25); color: #93c5fd; }
+        .badge-role { background: rgba(168, 85, 247, 0.25); color: #d8b4fe; }
+        .triage-summary .col-meta {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+        .request-date {
+            font-size: 0.8rem;
+            color: var(--color-muted, #94a3b8);
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.status-pending { background: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35); }
+        .status-dot.status-hold { background: #64748b; box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.35); }
+
+        .triage-body {
+            padding: 14px 16px 16px;
+        }
+        .triage-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 14px;
+            margin-bottom: 14px;
+        }
+        .triage-detail-grid .full { grid-column: 1 / -1; }
+        .triage-detail-grid .lbl { font-weight: 800; font-size: 0.85rem; }
+        .triage-detail-grid .val { color: var(--color-muted, #94a3b8); font-size: 0.9rem; }
+        .triage-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 220px;
+        }
 
         @media (max-width: 720px) {
-            .access-request-card { flex-direction: column; }
-            .access-request-actions { flex: 1 1 auto; width: 100%; }
+            .access-request-block > summary.triage-summary {
+                grid-template-columns: 1fr;
+            }
+            .triage-summary .col-meta { align-items: flex-start; text-align: left; }
         }
     </style>
 </head>
@@ -54,71 +119,72 @@
                 <div class="card-header">Access Requests (Triage)</div>
                 <div class="card-body">
                     {% if access_requests and access_requests|length > 0 %}
-                        <div style="display:flex; flex-direction:column; gap:12px;">
-                            {% for ar in access_requests %}
-                                <div id="access-card-{{ ar.id }}" class="access-request-card" onclick="toggleAccessCard({{ ar.id }})">
-                                    <div class="access-request-main">
-                                        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-                                            <div style="min-width: 240px;">
-                                                <div style="font-weight:900;">{{ ar.primary_ruleset or 'Unknown ruleset' }}</div>
-                                                <div class="access-request-summary">
-                                                    <div><span style="font-weight:800; color: var(--color-text);">Role:</span> {{ ar.user_role }}</div>
-                                                    <div><span style="font-weight:800; color: var(--color-text);">Email:</span> <span class="access-request-mono">{{ ar.email }}</span></div>
-                                                    {% if ar.user_role in ['GM','Both'] %}
-                                                        <div><span style="font-weight:800; color: var(--color-text);">Players:</span> {{ ar.player_count }}</div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="access-request-badges">
-                                                    {% if ar.status == 'pending' %}
-                                                        <span class="badge bg-primary">Pending</span>
-                                                    {% elif ar.status == 'hold' %}
-                                                        <span class="badge bg-secondary">Hold</span>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="access-request-details" style="margin-top: 12px;">
-                                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                                                <div>
-                                                    <div style="font-weight:800;">Total expected users</div>
-                                                    <div style="color: var(--color-muted);">{{ ar.total_expected_users }}</div>
-                                                </div>
-                                                <div>
-                                                    <div style="font-weight:800;">Homebrew GM</div>
-                                                    <div style="color: var(--color-muted);">{{ 'Yes' if ar.is_homebrew else 'No' }}</div>
-                                                </div>
-                                                <div style="grid-column: 1 / -1;">
-                                                    <div style="font-weight:800;">Discovery source</div>
-                                                    <div style="color: var(--color-muted);">{{ ar.discovery_source or '—' }}</div>
-                                                </div>
-                                                <div style="grid-column: 1 / -1;">
-                                                    <div style="font-weight:800;">Notes</div>
-                                                    <div style="color: var(--color-muted); white-space: pre-wrap;">{{ ar.notes or '—' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
+                        {% for ar in access_requests %}
+                        <details class="access-request-block" id="access-block-{{ ar.id }}">
+                            <summary class="triage-summary">
+                                <div class="col-main">
+                                    <span class="request-name">{{ ar.contact_name }}</span>
+                                    <span class="request-ruleset">{{ ar.primary_ruleset or '—' }}</span>
+                                </div>
+                                <div class="col-metrics">
+                                    <span class="badge badge-players">Players: {% if ar.user_role in ['GM', 'Both'] %}{{ ar.player_count }}{% else %}—{% endif %}</span>
+                                    <span class="badge badge-role">{{ ar.user_role }}</span>
+                                </div>
+                                <div class="col-meta">
+                                    <span class="request-date">{{ ar.created_at.strftime('%Y-%m-%d') if ar.created_at else '—' }}</span>
+                                    <span class="status-dot status-{{ ar.status }}" title="{{ ar.status }}"></span>
+                                </div>
+                            </summary>
+                            <div class="triage-body">
+                                <div class="triage-detail-grid">
+                                    <div>
+                                        <div class="lbl">Email</div>
+                                        <div class="val font-monospace">{{ ar.email }}</div>
                                     </div>
-
-                                    <div class="access-request-actions">
-                                        <form method="POST" action="{{ url_for('admin.access_request_approve', request_id=ar.id) }}" onclick="event.stopPropagation();">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
-                                        </form>
-
-                                        <form method="POST" action="{{ url_for('admin.access_request_hold', request_id=ar.id) }}" onclick="event.stopPropagation();">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary">Hold</button>
-                                        </form>
-
-                                        <form method="POST" action="{{ url_for('admin.access_request_reject', request_id=ar.id) }}" onclick="event.stopPropagation();">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">Reject</button>
-                                        </form>
+                                    <div>
+                                        <div class="lbl">Role</div>
+                                        <div class="val">{{ ar.user_role }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="lbl">Total expected users</div>
+                                        <div class="val">{{ ar.total_expected_users }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="lbl">Homebrew GM</div>
+                                        <div class="val">{{ 'Yes' if ar.is_homebrew else 'No' }}</div>
+                                    </div>
+                                    <div class="full">
+                                        <div class="lbl">Discovery source</div>
+                                        <div class="val">{{ ar.discovery_source or '—' }}</div>
+                                    </div>
+                                    <div class="full">
+                                        <div class="lbl">Notes</div>
+                                        <div class="val" style="white-space: pre-wrap;">{{ ar.notes or '—' }}</div>
                                     </div>
                                 </div>
-                            {% endfor %}
-                        </div>
+                                <div class="triage-actions">
+                                    <form method="POST" action="{{ url_for('admin.access_request_approve', request_id=ar.id) }}" onclick="event.stopPropagation();">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <label class="form-label small text-muted mb-1">Key phase</label>
+                                        <select name="key_phase" class="form-select form-select-sm mb-2" required onclick="event.stopPropagation();">
+                                            {% for slug in all_phase_slugs %}
+                                            <option value="{{ slug }}" {% if slug == 'forge_master' %}selected{% endif %}>{{ slug }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-success w-100">Approve</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.access_request_hold', request_id=ar.id) }}" onclick="event.stopPropagation();">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Hold</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.access_request_reject', request_id=ar.id) }}" onclick="event.stopPropagation();">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger w-100">Reject</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </details>
+                        {% endfor %}
                     {% else %}
                         <div class="text-muted">No pending access requests right now.</div>
                     {% endif %}
@@ -144,6 +210,14 @@
                 <input type="number" id="count" name="count" class="form-control" value="5" min="1" max="50" style="width: 6rem;">
             </div>
             <div class="col-auto">
+                <label for="key_phase" class="form-label">Phase</label>
+                <select id="key_phase" name="key_phase" class="form-select" style="min-width: 10rem;" required>
+                    {% for slug in vault_phase_slugs %}
+                    <option value="{{ slug }}" {% if slug == 'forge_master' %}selected{% endif %}>{{ slug }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
                 <button type="submit" class="btn btn-primary">Generate</button>
             </div>
         </form>
@@ -155,6 +229,7 @@
                     <thead>
                         <tr>
                             <th>Key Code</th>
+                            <th>Phase</th>
                             <th>Status</th>
                             <th>Created</th>
                             <th>Actions</th>
@@ -164,10 +239,11 @@
                         {% for key in keys %}
                         <tr>
                             <td>
-                                <span id="key-{{ key.id }}-display" class="font-monospace">
+                                <span id="vault-key-{{ key.id }}-display" class="font-monospace">
                                     {{ key.key_code[:6] }}****-****
                                 </span>
                             </td>
+                            <td><span class="small">{{ key.key_phase }}</span></td>
                             <td>
                                 {% if key.is_used %}
                                     <span class="badge bg-secondary">Used by {{ key.user.username if key.user else '—' }}</span>
@@ -178,7 +254,7 @@
                             <td>{{ key.created_at.strftime('%Y-%m-%d %H:%M') if key.created_at else '—' }}</td>
                             <td>
                                 {% if not key.is_used %}
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="revealKey({{ key.id }})">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="revealKey('vault', {{ key.id }})">
                                     Reveal
                                 </button>
                                 {% else %}
@@ -227,6 +303,7 @@
                             <thead>
                                 <tr>
                                     <th>Key</th>
+                                    <th>Phase</th>
                                     <th>Status</th>
                                     <th></th>
                                 </tr>
@@ -235,10 +312,11 @@
                                 {% for key in admin_keys %}
                                 <tr>
                                     <td>
-                                        <span id="key-{{ key.id }}-display" class="font-monospace small">
+                                        <span id="admin-key-{{ key.id }}-display" class="font-monospace small">
                                             {{ key.key_code[:6] }}****-****
                                         </span>
                                     </td>
+                                    <td class="small">{{ key.key_phase }}</td>
                                     <td>
                                         {% if key.is_used %}
                                             <span class="badge bg-secondary small">Used</span>
@@ -248,12 +326,12 @@
                                     </td>
                                     <td class="text-end">
                                         {% if not key.is_used %}
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="revealKey({{ key.id }})">Reveal</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="revealKey('admin', {{ key.id }})">Reveal</button>
                                         {% else %}—{% endif %}
                                     </td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="3" class="text-muted small">No admin test keys yet.</td></tr>
+                                <tr><td colspan="4" class="text-muted small">No admin test keys yet.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -267,14 +345,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function toggleAccessCard(id) {
-            const el = document.getElementById('access-card-' + id);
-            if (!el) return;
-            el.classList.toggle('expanded');
-        }
-
-        async function revealKey(keyId) {
-            const display = document.getElementById('key-' + keyId + '-display');
+        async function revealKey(prefix, keyId) {
+            const display = document.getElementById(prefix + '-key-' + keyId + '-display');
             if (!display) return;
             try {
                 const response = await fetch('/admin/vault/keys/reveal/' + keyId);

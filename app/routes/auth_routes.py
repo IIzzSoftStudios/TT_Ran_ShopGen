@@ -1,6 +1,7 @@
-from flask import Blueprint
+from flask import Blueprint, request
 from flask_login import login_required
 
+from app.extensions import limiter
 from app.routes.handlers.auth_handler import (
     handle_login,
     handle_logout,
@@ -29,10 +30,12 @@ def register():
 
 
 @auth.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per hour", exempt_when=lambda: request.method != "POST")
 def forgot_password():
     return handle_forgot_password()
 
 
 @auth.route("/reset-password", methods=["GET", "POST"])
+@limiter.limit("10 per hour", exempt_when=lambda: request.method != "POST")
 def reset_password():
     return handle_reset_password()
