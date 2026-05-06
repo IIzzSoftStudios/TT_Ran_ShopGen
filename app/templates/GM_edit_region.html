@@ -128,10 +128,40 @@
             background-color: purple;
             transform: none;
         }
+
+        .flash-messages {
+            width: 80%;
+            max-width: 560px;
+            margin: 0 auto 16px;
+            box-sizing: border-box;
+        }
+
+        .flash-message {
+            padding: 10px 14px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+        }
+
+        .flash-message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-message.danger, .flash-message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-message.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .flash-message.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
     </style>
 </head>
 <body>
     <h1>{% if mode == 'create' %}Add New Region{% else %}Edit Region{% endif %}</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    {% if category != 'system' %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
 
     <div class="button-container">
         <a href="{{ url_for('gm.view_cities') }}" class="button">All Cities</a>
@@ -166,13 +196,24 @@
             <button type="submit" class="button">{% if mode == 'create' %}Create region{% else %}Save changes{% endif %}</button>
             {% if mode == 'edit' %}
             <button type="submit" class="button"
+                    formaction="{{ url_for('gm.generate_cities_for_region', region_id=region.id) }}"
+                    formmethod="POST"
+                    formnovalidate
+                    title="If this region has no cities yet, creates a batch from your world-config ranges. Does nothing if cities already exist.">
+                Generate cities
+            </button>
+            <button type="submit" class="button"
                     formaction="{{ url_for('gm.generate_shops_for_region', region_id=region.id) }}"
                     formmethod="POST"
-                    formnovalidate>
+                    formnovalidate
+                    title="Adds shops and stock to cities in this region that have no shops yet. Requires cities in the region and an item pool for the campaign.">
                 Generate shops
             </button>
             {% else %}
-            <button type="button" class="button" disabled title="Create the region first; then you can generate shops for cities in this region.">
+            <button type="button" class="button" disabled title="Create the region first; then you can generate cities and shops.">
+                Generate cities
+            </button>
+            <button type="button" class="button" disabled title="Create the region first; then you can generate cities and shops.">
                 Generate shops
             </button>
             {% endif %}

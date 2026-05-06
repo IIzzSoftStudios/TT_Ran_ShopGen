@@ -24,7 +24,9 @@ from app.models import (
     GMProfile,
     RegistrationKey,
     AccessRequest,
+    Player,
 )
+from app.services.billing_rules import can_add_player_profile
 from app.utils.validators import (
     is_password_strong,
     PASSWORD_REUSE_FORBIDDEN_DAYS,
@@ -222,6 +224,17 @@ def handle_register():
                             "danger",
                         )
                         return _register_redirect_fail(registration_key)
+                elif role == "Player":
+                    okp, _ = can_add_player_profile(new_user)
+                    if okp:
+                        db.session.add(
+                            Player(
+                                user_id=new_user.id,
+                                gm_profile_id=None,
+                                currency=0,
+                                is_npc=False,
+                            )
+                        )
 
                 db.session.commit()
                 flash(
@@ -261,6 +274,17 @@ def handle_register():
                         "danger",
                     )
                     return redirect(url_for("auth.register"))
+            elif role == "Player":
+                okp, _ = can_add_player_profile(new_user)
+                if okp:
+                    db.session.add(
+                        Player(
+                            user_id=new_user.id,
+                            gm_profile_id=None,
+                            currency=0,
+                            is_npc=False,
+                        )
+                    )
 
             db.session.commit()
             flash("Account created! You can now log in.", "success")

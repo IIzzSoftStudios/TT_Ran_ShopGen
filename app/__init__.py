@@ -15,12 +15,16 @@ from app.services.schema_compat import (
     ensure_join_codes_columns,
     ensure_phase_entitlement_columns,
     ensure_player_npc_columns,
+    ensure_simulation_state_click_columns,
+    ensure_solo_player_vault_schema,
     ensure_user_password_history_table,
     warn_if_compat_mode_applied,
     warn_if_join_codes_compat_applied,
     warn_if_password_history_compat_applied,
     warn_if_phase_compat_applied,
     warn_if_player_npc_compat_applied,
+    warn_if_simulation_state_clicks_applied,
+    warn_if_solo_vault_compat_applied,
 )
 
 load_dotenv("config.env")
@@ -115,7 +119,13 @@ def create_app():
     )
     app.config["SESSION_PERMANENT"] = False
     app.config["SESSION_USE_SIGNER"] = True
-    app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "true").lower() in (
+    # Secure cookies are not stored/sent over plain HTTP; default off in dev so
+    # local and LAN (http://127.0.0.1, http://192.168.x.x) keep Redis sessions + CSRF.
+    _flask_env = os.getenv("FLASK_ENV", "development").lower()
+    _default_session_secure = "true" if _flask_env == "production" else "false"
+    app.config["SESSION_COOKIE_SECURE"] = os.getenv(
+        "SESSION_COOKIE_SECURE", _default_session_secure
+    ).lower() in (
         "1",
         "true",
         "yes",
@@ -199,6 +209,18 @@ def create_app():
             warn_if_join_codes_compat_applied(patched_join)
         except Exception as exc:
             app.logger.warning("join_codes compatibility bootstrap skipped: %s", exc)
+        try:
+            patched_solo = ensure_solo_player_vault_schema()
+            warn_if_solo_vault_compat_applied(patched_solo)
+        except Exception as exc:
+            app.logger.warning("solo_player_vault compatibility bootstrap skipped: %s", exc)
+        try:
+            patched_sim_clicks = ensure_simulation_state_click_columns()
+            warn_if_simulation_state_clicks_applied(patched_sim_clicks)
+        except Exception as exc:
+            app.logger.warning(
+                "simulation_state sim_clicks compatibility bootstrap skipped: %s", exc
+            )
 
     from app.routes.main_routes import main_bp
     from app.routes.auth_routes import auth

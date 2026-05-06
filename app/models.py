@@ -504,9 +504,9 @@ class RegistrationKey(db.Model):
 
 class Player(db.Model):
     __tablename__ = "player"
-    __table_args__ = (
-        UniqueConstraint("user_id_gm", "gm_profile_id", name="uq_player_user_gm"),
-    )
+    # Uniqueness for (user, gm) and at-most-one solo row is enforced in PostgreSQL
+    # via partial unique indexes (see schema_compat.ensure_solo_player_vault_schema).
+    __table_args__ = tuple()
     id = db.Column(db.Integer, primary_key=True)
     # PostgreSQL DDL in the wild uses `user_id_gm` for the linked login user
     # (historical name). The ORM attribute stays `user_id`; filters must use
@@ -517,7 +517,8 @@ class Player(db.Model):
         db.ForeignKey("user.id"),
         nullable=True,
     )
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+    # NULL = pre-campaign "solo" vault profile tied only to user_id.
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=True)
     currency = db.Column(db.Integer, default=0)
     is_npc = db.Column(db.Boolean, default=False, nullable=False)
     join_code = db.Column(db.String(32), unique=True, nullable=True, index=True)
@@ -536,7 +537,14 @@ class Player(db.Model):
 
     def __repr__(self):
         uname = self.user.username if self.user else "NPC"
-        gname = self.gm_profile.user.username if self.gm_profile and self.gm_profile.user else "?"
+        if self.gm_profile_id is None:
+            gname = "solo"
+        else:
+            gname = (
+                self.gm_profile.user.username
+                if self.gm_profile and self.gm_profile.user
+                else "?"
+            )
         return f"<Player (User: {uname}, GM: {gname})>"
 
 class PlayerInventory(db.Model):
@@ -584,7 +592,7 @@ class PlayerEquipment(db.Model):
 
 
 class PlayerCharacterSheet(db.Model):
-    """Per-(player, campaign) character sheet blob.
+    """Per-player character sheet: one vault row (campaign_id NULL) and/or per-campaign rows.
 
     Shape of ``sheet_json`` is validated in Python against the rule set
     registry in app/services/rulesets, not at the DB level. Keeping this as
@@ -593,16 +601,15 @@ class PlayerCharacterSheet(db.Model):
     """
 
     __tablename__ = "player_character_sheet"
-    __table_args__ = (
-        UniqueConstraint("player_id", "campaign_id", name="uq_sheet_player_campaign"),
-    )
+    # Partial unique indexes (vault vs per-campaign) — see schema_compat.
+    __table_args__ = tuple()
 
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(
         db.Integer, db.ForeignKey("player.id"), nullable=False, index=True
     )
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id"), nullable=False, index=True
+        db.Integer, db.ForeignKey("campaign.id"), nullable=True, index=True
     )
     sheet_json = db.Column(db.JSON, nullable=False, default=dict)
     updated_at = db.Column(
@@ -665,6 +672,12 @@ class SimulationState(db.Model):
     speed = db.Column(db.String(10), nullable=False, default="pause")
     last_tick_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+    # GM dashboard simulation control clicks (vault usage report).
+    sim_clicks_day = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_week = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_month = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_year = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_pause = db.Column(db.Integer, nullable=False, default=0)
     
     # Relationships
     gm_profile = db.relationship(

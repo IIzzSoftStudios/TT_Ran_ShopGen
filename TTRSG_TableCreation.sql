@@ -733,7 +733,12 @@ CREATE TABLE public.simulation_state (
     current_tick integer NOT NULL,
     speed character varying(10) NOT NULL,
     last_tick_time timestamp without time zone NOT NULL,
-    gm_profile_id integer NOT NULL
+    gm_profile_id integer NOT NULL,
+    sim_clicks_day integer NOT NULL DEFAULT 0,
+    sim_clicks_week integer NOT NULL DEFAULT 0,
+    sim_clicks_month integer NOT NULL DEFAULT 0,
+    sim_clicks_year integer NOT NULL DEFAULT 0,
+    sim_clicks_pause integer NOT NULL DEFAULT 0
 );
 
 

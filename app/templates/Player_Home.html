@@ -528,7 +528,7 @@
             top: calc(100% + 6px);
             z-index: 200;
             min-width: 300px;
-            max-width: 400px;
+            max-width: 420px;
             padding: 14px;
             background: #fff;
             color: #333;
@@ -541,7 +541,7 @@
             display: block;
             margin-top: 8px;
         }
-        .join-code-popover input[type="text"] {
+        .join-code-popover input[type="text"]:not(.code-display) {
             width: 100%;
             box-sizing: border-box;
             margin-top: 4px;
@@ -1455,22 +1455,20 @@
 
     <!-- Navigation Buttons -->
     <div class="nav-buttons">
-        <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_cities') }}')">View Cities</button>
-        <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_shops') }}')">View Shops</button>
-        <button class="nav-button" onclick="navigateTo('{{ url_for('player.view_market') }}')">Market Overview</button>
         <button class="nav-button" onclick="navigateTo('{{ url_for('main.campaigns') }}')">Character Manager</button>
         <details class="nav-code-panel">
             <summary class="nav-button">Player Code</summary>
             <div class="join-code-popover">
-                <p style="margin:0 0 8px 0;"><strong>Your player code</strong> (share with your GM for this Player):</p>
                 {% set reveal_url = url_for('player.reveal_player_join_code') %}
-                {% include 'partials/code_reveal.html' %}
+                {% include 'partials/player_join_code_reveal.html' %}
+                {% if not player_has_active_campaign %}
                 <form method="post" action="{{ url_for('player.redeem_campaign_code_route') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <label for="player-home-camp-code">Join another campaign</label>
+                    <label for="player-home-camp-code">Join a campaign</label>
                     <input id="player-home-camp-code" name="campaign_code" type="text" autocomplete="off" placeholder="CAMP-XXXX-XXXX-XXXX"/>
                     <button type="submit" class="nav-button" style="margin-top:10px;width:100%;">Redeem code</button>
                 </form>
+                {% endif %}
             </div>
         </details>
         <button class="nav-button nav-button-logout" onclick="navigateTo('{{ url_for('auth.logout') }}')">Logout</button>

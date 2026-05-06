@@ -105,11 +105,49 @@
             }
             .triage-summary .col-meta { align-items: flex-start; text-align: left; }
         }
+
+        .gm-sim-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+        .gm-sim-sortable:hover { color: var(--bs-primary, #0d6efd); }
+        .gm-sim-sort-hint { font-size: 0.7rem; opacity: 0.65; margin-left: 2px; }
+
+        #gm-simulation-pane .gm-filter-tabs .nav-link {
+            background: rgba(15, 23, 42, 0.45);
+            color: var(--color-text, #e2e8f0);
+            border-color: rgba(148, 163, 184, 0.35);
+        }
+        #gm-simulation-pane .gm-filter-tabs .nav-link:hover {
+            border-color: rgba(148, 163, 184, 0.5);
+        }
+        #gm-simulation-pane .gm-filter-tabs .nav-link.active {
+            background: rgba(30, 41, 59, 0.92);
+            color: var(--color-text, #f8fafc);
+            border-color: rgba(148, 163, 184, 0.45);
+        }
+        #gm-simulation-pane .tab-content.border {
+            border-color: rgba(148, 163, 184, 0.35) !important;
+        }
     </style>
 </head>
 <body class="gm-list-page">
     <div class="container py-4">
         <h1 class="mb-4">Registration Key Vault</h1>
+
+        {% set show_gm_usage_tab = show_gm_usage_tab | default(false) %}
+        {% set gm_simulation_rows = gm_simulation_rows | default([]) %}
+
+        <ul class="nav nav-tabs mb-3" id="vaultDashTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="vault-keys-tab" data-bs-toggle="tab" data-bs-target="#vault-keys-pane" type="button" role="tab" aria-controls="vault-keys-pane" aria-selected="true">Vault &amp; keys</button>
+            </li>
+            {% if show_gm_usage_tab %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="gm-simulation-tab" data-bs-toggle="tab" data-bs-target="#gm-simulation-pane" type="button" role="tab" aria-controls="gm-simulation-pane" aria-selected="false">GM simulation usage</button>
+            </li>
+            {% endif %}
+        </ul>
+
+        <div class="tab-content">
+        <div class="tab-pane fade show active" id="vault-keys-pane" role="tabpanel" aria-labelledby="vault-keys-tab" tabindex="0">
 
         <div class="row g-4 align-items-start">
         <div class="col-12 col-lg-8">
@@ -341,6 +379,63 @@
         </div>
 
         </div>
+        </div>
+
+        {% if show_gm_usage_tab %}
+        <div class="tab-pane fade" id="gm-simulation-pane" role="tabpanel" aria-labelledby="gm-simulation-tab" tabindex="0">
+            <h2 class="h5 mb-3" id="gm-simulation-usage-heading">GM simulation usage</h2>
+            <ul class="nav nav-tabs gm-filter-tabs mb-0" id="gm-filter-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="gm-filter-tab-username" data-bs-toggle="tab" data-bs-target="#gm-filter-pane-username" type="button" role="tab" aria-controls="gm-filter-pane-username" aria-selected="true">Username</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="gm-filter-tab-email" data-bs-toggle="tab" data-bs-target="#gm-filter-pane-email" type="button" role="tab" aria-controls="gm-filter-pane-email" aria-selected="false">Email</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="gm-filter-tab-keyphase" data-bs-toggle="tab" data-bs-target="#gm-filter-pane-keyphase" type="button" role="tab" aria-controls="gm-filter-pane-keyphase" aria-selected="false">Key phase</button>
+                </li>
+            </ul>
+            <div class="tab-content border border-top-0 rounded-bottom p-3 mb-3 bg-body-secondary bg-opacity-25">
+                <div class="tab-pane fade show active" id="gm-filter-pane-username" role="tabpanel" aria-labelledby="gm-filter-tab-username" tabindex="0">
+                    <label for="gm-filter-username" class="form-label small text-muted mb-1">Filter by username</label>
+                    <input type="text" id="gm-filter-username" class="form-control form-control-sm" placeholder="Substring match…" autocomplete="off">
+                </div>
+                <div class="tab-pane fade" id="gm-filter-pane-email" role="tabpanel" aria-labelledby="gm-filter-tab-email" tabindex="0">
+                    <label for="gm-filter-email" class="form-label small text-muted mb-1">Filter by email</label>
+                    <input type="text" id="gm-filter-email" class="form-control form-control-sm" placeholder="Substring match…" autocomplete="off">
+                </div>
+                <div class="tab-pane fade" id="gm-filter-pane-keyphase" role="tabpanel" aria-labelledby="gm-filter-tab-keyphase" tabindex="0">
+                    <label for="gm-filter-keyphase" class="form-label small text-muted mb-1">Filter by key phase</label>
+                    <input type="text" id="gm-filter-keyphase" class="form-control form-control-sm" placeholder="Substring match…" autocomplete="off">
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <button type="button" id="gm-simulation-filter-btn" class="btn btn-sm btn-primary">Filter</button>
+                <a href="{{ url_for('admin.gm_simulation_usage_export') }}" class="btn btn-sm btn-outline-secondary">Export to Excel</a>
+            </div>
+            <script type="application/json" id="gm-simulation-bootstrap">{{ gm_simulation_rows | tojson }}</script>
+            <div class="table-responsive">
+                <table class="gm-list-table w-100" id="gm-simulation-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="gm-sim-sortable" data-sort="username" data-sort-type="string">Username<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="email" data-sort-type="string">Email<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="key_phase" data-sort-type="string">Key phase<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_day" data-sort-type="number">Run day<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_week" data-sort-type="number">Run week<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_month" data-sort-type="number">Run month<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_year" data-sort-type="number">Run year<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_pause" data-sort-type="number">Pause<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="campaigns_count" data-sort-type="number">Campaigns<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="gm-simulation-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -363,6 +458,154 @@
                 alert('Failed to reveal key. You may have been logged out.');
             }
         }
+
+        (function initGmSimulationUsageTable() {
+            var boot = document.getElementById('gm-simulation-bootstrap');
+            var tbody = document.getElementById('gm-simulation-tbody');
+            var filterBtn = document.getElementById('gm-simulation-filter-btn');
+            var filterUserEl = document.getElementById('gm-filter-username');
+            var filterEmailEl = document.getElementById('gm-filter-email');
+            var filterPhaseEl = document.getElementById('gm-filter-keyphase');
+            if (!boot || !tbody) return;
+
+            var allRows = [];
+            try { allRows = JSON.parse(boot.textContent || '[]'); } catch (e) { allRows = []; }
+
+            var sortCol = 'username';
+            var sortDir = 1;
+            var filterUsername = '';
+            var filterEmail = '';
+            var filterKeyPhase = '';
+
+            function dispNum(v) { return v == null ? '—' : String(v); }
+
+            function escapeHtml(s) {
+                var d = document.createElement('div');
+                d.textContent = s == null ? '' : String(s);
+                return d.innerHTML;
+            }
+
+            function rowMatches(r) {
+                if (filterUsername && String(r.username || '').toLowerCase().indexOf(filterUsername) < 0) {
+                    return false;
+                }
+                if (filterEmail && String(r.email || '').toLowerCase().indexOf(filterEmail) < 0) {
+                    return false;
+                }
+                if (filterKeyPhase && String(r.key_phase || '').toLowerCase().indexOf(filterKeyPhase) < 0) {
+                    return false;
+                }
+                return true;
+            }
+
+            function applyFiltersFromInputs() {
+                filterUsername = (filterUserEl && filterUserEl.value || '').trim().toLowerCase();
+                filterEmail = (filterEmailEl && filterEmailEl.value || '').trim().toLowerCase();
+                filterKeyPhase = (filterPhaseEl && filterPhaseEl.value || '').trim().toLowerCase();
+                render();
+            }
+
+            function cmpVal(a, b, type) {
+                if (type === 'number') {
+                    var an = a == null, bn = b == null;
+                    if (an && bn) return 0;
+                    if (an) return 1;
+                    if (bn) return -1;
+                    return (a - b) * sortDir;
+                }
+                if (type === 'iso') {
+                    var as = a || '', bs = b || '';
+                    if (!as && !bs) return 0;
+                    if (!as) return 1;
+                    if (!bs) return -1;
+                    if (as < bs) return -1 * sortDir;
+                    if (as > bs) return 1 * sortDir;
+                    return 0;
+                }
+                var astr = String(a || '').toLowerCase();
+                var bstr = String(b || '').toLowerCase();
+                return astr.localeCompare(bstr, undefined, { sensitivity: 'base' }) * sortDir;
+            }
+
+            function sortedFiltered() {
+                var rows = allRows.filter(rowMatches);
+                var th = document.querySelector('.gm-sim-sortable[data-sort="' + sortCol + '"]');
+                var type = th ? (th.getAttribute('data-sort-type') || 'string') : 'string';
+                var col = sortCol;
+                rows.sort(function(x, y) {
+                    return cmpVal(x[col], y[col], type);
+                });
+                return rows;
+            }
+
+            function updateSortHints(activeTh) {
+                document.querySelectorAll('.gm-sim-sortable .gm-sim-sort-hint').forEach(function(el) {
+                    el.textContent = '';
+                });
+                if (activeTh) {
+                    var hint = activeTh.querySelector('.gm-sim-sort-hint');
+                    if (hint) hint.textContent = sortDir === 1 ? '▲' : '▼';
+                }
+            }
+
+            function render() {
+                var rows = sortedFiltered();
+                tbody.innerHTML = '';
+                if (!allRows.length) {
+                    var tr0 = document.createElement('tr');
+                    tr0.innerHTML = '<td colspan="9" class="text-muted">No GM accounts yet.</td>';
+                    tbody.appendChild(tr0);
+                    return;
+                }
+                if (!rows.length) {
+                    var tr1 = document.createElement('tr');
+                    tr1.innerHTML = '<td colspan="9" class="text-muted">No rows match this filter.</td>';
+                    tbody.appendChild(tr1);
+                    return;
+                }
+                rows.forEach(function(r) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td>' + escapeHtml(r.username) + '</td>' +
+                        '<td class="font-monospace small">' + escapeHtml(r.email) + '</td>' +
+                        '<td><span class="small">' + escapeHtml(r.key_phase) + '</span></td>' +
+                        '<td>' + dispNum(r.sim_clicks_day) + '</td>' +
+                        '<td>' + dispNum(r.sim_clicks_week) + '</td>' +
+                        '<td>' + dispNum(r.sim_clicks_month) + '</td>' +
+                        '<td>' + dispNum(r.sim_clicks_year) + '</td>' +
+                        '<td>' + dispNum(r.sim_clicks_pause) + '</td>' +
+                        '<td>' + (r.campaigns_count != null ? String(r.campaigns_count) : '—') + '</td>';
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.querySelectorAll('.gm-sim-sortable').forEach(function(th) {
+                th.addEventListener('click', function() {
+                    var col = th.getAttribute('data-sort');
+                    if (col === sortCol) sortDir = -sortDir;
+                    else { sortCol = col; sortDir = 1; }
+                    updateSortHints(th);
+                    render();
+                });
+            });
+
+            if (filterBtn) {
+                filterBtn.addEventListener('click', applyFiltersFromInputs);
+            }
+            [filterUserEl, filterEmailEl, filterPhaseEl].forEach(function(el) {
+                if (!el) return;
+                el.addEventListener('keydown', function(ev) {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        applyFiltersFromInputs();
+                    }
+                });
+            });
+
+            var defaultTh = document.querySelector('.gm-sim-sortable[data-sort="username"]');
+            updateSortHints(defaultTh);
+            render();
+        })();
     </script>
 </body>
 </html>

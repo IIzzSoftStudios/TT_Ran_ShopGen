@@ -20,7 +20,13 @@ from app.models import (
 EQUIPMENT_SLOTS = ("weapon", "armor", "accessory")
 from flask_login import login_required, current_user
 from app.extensions import db, limiter
-from app.services.player_resolution import get_active_player, all_player_ids_for_user
+from app.services.player_resolution import (
+    get_active_player,
+    get_active_player_or_ensure_solo,
+    ensure_solo_player_profile,
+    all_player_ids_for_user,
+)
+from app.services.billing_rules import can_add_player_profile
 from app.services.join_codes import (
     redeem_campaign_code,
     InvalidCodeError,
@@ -40,11 +46,29 @@ from app.routes.handlers.gm_shops_handler import (
 
 player_bp = Blueprint("player", __name__)
 
+
+def _redirect_solo_vault_to_character():
+    flash(
+        "Join a campaign to browse the world. You can still edit your character vault.",
+        "info",
+    )
+    return redirect(url_for("player.view_character"))
+
+
 _PLAYER_ALLOWLIST = frozenset(
     {
         "static",
         "player.redeem_campaign_code_route",
         "player.reveal_player_join_code",
+    }
+)
+
+# Character vault: no campaign code required; routes may lazy-create solo Player.
+_CHARACTER_VAULT_ENDPOINTS = frozenset(
+    {
+        "player.create_character",
+        "player.view_character",
+        "player.update_character",
     }
 )
 
@@ -59,7 +83,7 @@ def before_request():
     if getattr(current_user, "role", None) != "Player":
         return None
     ep = request.endpoint
-    if ep in _PLAYER_ALLOWLIST:
+    if ep in _PLAYER_ALLOWLIST or ep in _CHARACTER_VAULT_ENDPOINTS:
         return None
     if get_active_player(current_user) is None:
         return redirect(url_for("main.campaigns"))
@@ -133,6 +157,8 @@ def view_shop(shop_id):
             print("[DEBUG] Player not found")
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
+        if player.gm_profile_id is None:
+            return _redirect_solo_vault_to_character()
 
         print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
         active_campaign = _active_campaign_for_player(player)
@@ -250,6 +276,8 @@ def view_shops():
             print("[DEBUG] Player not found")
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
+        if player.gm_profile_id is None:
+            return _redirect_solo_vault_to_character()
 
         print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
         active_campaign = _active_campaign_for_player(player)
@@ -282,6 +310,8 @@ def view_cities():
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
+        if player.gm_profile_id is None:
+            return _redirect_solo_vault_to_character()
 
         # Get all cities for the player's GM
         active_campaign = _active_campaign_for_player(player)
@@ -306,6 +336,8 @@ def view_city(city_id):
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
+        if player.gm_profile_id is None:
+            return _redirect_solo_vault_to_character()
 
         city = City.query.filter_by(
             city_id=city_id, gm_profile_id=player.gm_profile_id
@@ -341,7 +373,15 @@ def player_home():
         print("[DEBUG] Player not found")
         flash("Join a campaign with a code first.", "warning")
         return redirect(url_for("main.campaigns"))
-    
+
+    if player.gm_profile_id is None:
+        flash(
+            "Join a campaign to browse shops. You can still build your character from "
+            "the character sheet.",
+            "info",
+        )
+        return redirect(url_for("player.view_character"))
+
     print(f"[DEBUG] Found player: {player.id}, User ID: {player.user_id}, GM Profile ID: {player.gm_profile_id}")
 
     # Verify GM profile exists
@@ -563,6 +603,7 @@ def player_home():
         player_name=display_name,
         player_currency=int(player.currency or 0),
         character=character_ctx,
+        player_has_active_campaign=active_campaign is not None,
         cities=cities,
         shops=shops,
         items=shop_items,
@@ -582,6 +623,8 @@ def search_item():
         player = get_active_player(current_user)
         if not player:
             return jsonify({'error': 'Player not found'}), 404
+        if player.gm_profile_id is None:
+            return jsonify({'error': 'Join a campaign to search the market.'}), 403
 
         print(f"[DEBUG] Searching for player: {player.id}, GM Profile ID: {player.gm_profile_id}")
         active_campaign = _active_campaign_for_player(player)
@@ -690,6 +733,10 @@ def buy_item(shop_id, item_id):
         player = get_active_player(current_user)
         if not player:
             return jsonify({'success': False, 'message': 'Player not found'})
+        if player.gm_profile_id is None:
+            return jsonify(
+                {'success': False, 'message': 'Join a campaign before purchasing.'}
+            )
 
         shop = Shop.query.filter_by(
             shop_id=shop_id, gm_profile_id=player.gm_profile_id
@@ -774,6 +821,8 @@ def view_shop_items(shop_id):
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
+        if player.gm_profile_id is None:
+            return _redirect_solo_vault_to_character()
 
         shop = Shop.query.filter_by(
             shop_id=shop_id, gm_profile_id=player.gm_profile_id
@@ -816,6 +865,10 @@ def sell_item(item_id):
         player = get_active_player(current_user)
         if not player:
             return _ajax_or_redirect('Player profile not found.', error=True)
+        if player.gm_profile_id is None:
+            return _ajax_or_redirect(
+                'Join a campaign before selling items.', error=True
+            )
 
         item = Item.query.filter_by(
             item_id=item_id, gm_profile_id=player.gm_profile_id
@@ -896,7 +949,9 @@ def view_market():
             print("[DEBUG] Player not found - redirecting to home")
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
-        
+        if player.gm_profile_id is None:
+            return _redirect_solo_vault_to_character()
+
         print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
         active_campaign = _active_campaign_for_player(player)
         campaign_id = active_campaign.id if active_campaign else None
@@ -945,6 +1000,8 @@ def get_market_data():
         player = get_active_player(current_user)
         if not player:
             return jsonify({'error': 'Player not found'}), 404
+        if player.gm_profile_id is None:
+            return jsonify({'error': 'Join a campaign to view market data.'}), 403
 
         filter_type = request.args.get('filter', 'all')
         active_campaign = _active_campaign_for_player(player)
@@ -1065,14 +1122,24 @@ def create_character():
 
     pl_ids = all_player_ids_for_user(current_user)
     if not pl_ids:
-        flash("Player profile not found.", "error")
-        return redirect(url_for("main.campaigns"))
+        ok, msg = can_add_player_profile(current_user)
+        if not ok:
+            flash(msg or "You cannot create another character profile on this plan.", "warning")
+            return redirect(url_for("main.campaigns"))
+        ensure_solo_player_profile(current_user)
+        pl_ids = all_player_ids_for_user(current_user)
+        if not pl_ids:
+            flash("Could not create a character profile. Try again or contact support.", "error")
+            return redirect(url_for("main.campaigns"))
 
     memberships = CampaignPlayer.query.filter(
         CampaignPlayer.player_id.in_(pl_ids),
         CampaignPlayer.is_active.is_(True),
     ).all()
     if not memberships:
+        solo_player = get_active_player(current_user)
+        if solo_player is not None:
+            return redirect(url_for("player.view_character"))
         flash("You are not assigned to any campaign yet.", "warning")
         return redirect(url_for("main.campaigns"))
 
@@ -1099,10 +1166,13 @@ def create_character():
 @player_bp.route("/character")
 @login_required
 def view_character():
-    player = get_active_player(current_user)
+    player = get_active_player_or_ensure_solo(current_user)
     if not player:
-        flash("Player profile not found.", "error")
-        return redirect(url_for("player.player_home"))
+        flash(
+            "Select a campaign first, or you have reached your character profile limit.",
+            "warning",
+        )
+        return redirect(url_for("main.campaigns"))
 
     equipment_slot_views = [
         SimpleNamespace(slot_name=eq.slot, item=eq.item)
@@ -1121,16 +1191,15 @@ def view_character():
 @player_bp.route("/character/update", methods=["POST"])
 @login_required
 def update_character():
-    player = get_active_player(current_user)
+    player = get_active_player_or_ensure_solo(current_user)
     if not player:
-        flash("Player profile not found.", "error")
-        return redirect(url_for("player.player_home"))
-
-    campaign = _active_campaign_for_player(player)
-    if campaign is None:
-        flash("Select a campaign before editing your character.", "warning")
+        flash(
+            "Select a campaign first, or you have reached your character profile limit.",
+            "warning",
+        )
         return redirect(url_for("main.campaigns"))
 
+    campaign = _active_campaign_for_player(player)
     ok, errors = character_sheet_service.apply_sheet_update(
         player, campaign, request.form
     )
@@ -1150,6 +1219,9 @@ def equip_item(item_id):
         if not player:
             flash("Player profile not found.", "error")
             return redirect(url_for("player.player_home"))
+        if player.gm_profile_id is None:
+            flash("Join a campaign before equipping gear.", "warning")
+            return redirect(url_for("player.view_character"))
 
         # Must be a real item in the player's campaign, AND the player must
         # actually own at least one of it in their inventory. This blocks

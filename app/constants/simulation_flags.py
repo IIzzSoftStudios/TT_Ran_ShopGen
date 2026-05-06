@@ -7,9 +7,15 @@ ALLOWED_SIMULATION_SPEEDS = frozenset(
     ("pause", "1x", "5x", "10x", "100x", "1000x")
 )
 
-# When False (default): ShopInventory + PriceHistory remain authoritative; GMWorldState is not written on tick.
-# When True: tick also persists state_json to GMWorldState (dual-write); use with READ_PRICES_FROM_WORLD_STATE for reads.
-WORLD_STATE_ENABLED = os.getenv("WORLD_STATE_ENABLED", "false").lower() in ("true", "1", "yes")
+# When False: ShopInventory + PriceHistory remain authoritative; GMWorldState is not written on tick.
+# When True (default): tick persists GMWorldState (tick_seq / updated_at every tick; state_json when inventory runs).
+# Opt out with WORLD_STATE_ENABLED=false. READ_PRICES_FROM_WORLD_STATE remains separate (off by default).
+WORLD_STATE_ENABLED = os.getenv("WORLD_STATE_ENABLED", "true").lower() in ("true", "1", "yes")
+
+
+def world_state_writes_enabled() -> bool:
+    """Read env at call time (not import time) so workers always see values from load_dotenv."""
+    return os.getenv("WORLD_STATE_ENABLED", "true").lower() in ("true", "1", "yes")
 
 # Player/market routes: resolve prices from GMWorldState.state_json when True (requires WORLD_STATE_ENABLED writes to populate).
 READ_PRICES_FROM_WORLD_STATE = os.getenv(

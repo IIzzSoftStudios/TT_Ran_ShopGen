@@ -151,52 +151,50 @@
 
     <div class="gm-shops-city-panel gm-items-panel">
         <div class="content-container">
-            <div class="section">
-                <h2>Available Items</h2>
-                {% if items %}
-                <div class="city-list">
-                    {% for item in items %}
-                    <details class="city-block">
-                        <summary>
-                            <span class="item-name">{{ item.name }}</span>
-                            <span class="city-meta">{{ item.type }} | {{ item.rarity }} | Base {{ item.base_price }}</span>
-                            <span class="city-summary-right">
-                                <span class="shop-count-badge">{{ item.distinct_shop_count }} shop{% if item.distinct_shop_count != 1 %}s{% endif %}</span>
-                                <span class="city-summary-actions" onclick="event.stopPropagation()">
-                                    <a href="{{ url_for('gm.edit_item', item_id=item.item_id) }}" class="button" style="margin-right: 5px;">Edit</a>
-                                    <a href="{{ url_for('gm.item_detail', item_id=item.item_id) }}" class="button" style="margin-right: 5px;">View Details</a>
-                                    <button type="button" class="delete-button" onclick="showDeleteConfirmation({{ item.item_id }}, {{ item.name | tojson }})">Delete</button>
-                                </span>
+            <h2>Available Items</h2>
+            {% if items %}
+            <div class="city-list">
+                {% for item in items %}
+                <details class="city-block">
+                    <summary>
+                        <span class="item-name">{{ item.name }}</span>
+                        <span class="city-meta">{{ item.type }} | {{ item.rarity }} | Base {{ item.base_price }}</span>
+                        <span class="city-summary-right">
+                            <span class="shop-count-badge">{{ item.distinct_shop_count }} shop{% if item.distinct_shop_count != 1 %}s{% endif %}</span>
+                            <span class="city-summary-actions" onclick="event.stopPropagation()">
+                                <a href="{{ url_for('gm.edit_item', item_id=item.item_id) }}" class="button" style="margin-right: 5px;">Edit</a>
+                                <a href="{{ url_for('gm.item_detail', item_id=item.item_id) }}" class="button" style="margin-right: 5px;">View Details</a>
+                                <button type="button" class="delete-button" onclick="showDeleteConfirmation({{ item.item_id }}, {{ item.name | tojson }})">Delete</button>
                             </span>
-                        </summary>
-                        <div class="city-panel">
-                            {% set inv_sorted = item.inventory|selectattr('shop')|sort(attribute='shop.name') %}
-                            {% if inv_sorted|length == 0 %}
-                            <p class="empty-city">Not stocked in any shop.</p>
-                            {% else %}
-                            {% for inv in inv_sorted %}
-                            <div class="shop-row item-shop-row">
-                                <strong>{{ inv.shop.name }}</strong>
-                                <span class="item-shop-cities">
-                                    {% if inv.shop.cities %}
-                                    {% for city in inv.shop.cities|sort(attribute='name') %}{{ city.name }}{% if not loop.last %}, {% endif %}{% endfor %}
-                                    {% else %}
-                                    —
-                                    {% endif %}
-                                </span>
-                            </div>
-                            {% endfor %}
-                            {% endif %}
+                        </span>
+                    </summary>
+                    <div class="city-panel">
+                        {% set inv_sorted = item.inventory|selectattr('shop')|sort(attribute='shop.name') %}
+                        {% if inv_sorted|length == 0 %}
+                        <p class="empty-city">Not stocked in any shop.</p>
+                        {% else %}
+                        {% for inv in inv_sorted %}
+                        <div class="shop-row item-shop-row">
+                            <strong>{{ inv.shop.name }}</strong>
+                            <span class="item-shop-cities">
+                                {% if inv.shop.cities %}
+                                {% for city in inv.shop.cities|sort(attribute='name') %}{{ city.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </span>
                         </div>
-                    </details>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="empty-state">
-                    <p>No items available.</p>
-                </div>
-                {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </details>
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No items available.</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 

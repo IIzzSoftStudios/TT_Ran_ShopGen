@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Shop</title>
     {% include 'partials/theme_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_shops_city_list.css') }}">
 
     <style>
         body {
@@ -57,8 +58,9 @@
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
+            max-width: 920px;
             width: 100%;
+            box-sizing: border-box;
         }
 
         label {
@@ -76,84 +78,37 @@
             box-sizing: border-box;
         }
 
-        /* City Selector Styles */
         .city-selector-container {
             width: 100%;
             margin-bottom: 15px;
         }
 
-        .city-filter {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        .region-group {
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        .region-header {
-            background-color: #e0e0e0;
-            padding: 10px 15px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .region-header:hover {
-            background-color: #d0d0d0;
-        }
-
-        .region-content {
-            display: none;
-            padding: 10px;
-        }
-
-        .region-content.expanded {
+        .city-selector-container > label {
             display: block;
-        }
-
-        .size-group {
-            margin-bottom: 10px;
-            padding-left: 15px;
-        }
-
-        .size-header {
-            font-weight: 600;
-            color: #555;
             margin-bottom: 8px;
-            padding: 5px;
-            background-color: #f5f5f5;
-            border-radius: 3px;
         }
 
-        .city-list {
-            padding-left: 20px;
-        }
-
-        .city-item {
+        .shop-form-city-picker .shop-item {
             display: flex;
             align-items: center;
             margin-bottom: 5px;
         }
 
-        .city-item input[type="checkbox"] {
+        .shop-form-city-picker .shop-item input[type="checkbox"] {
             width: auto;
             margin-right: 8px;
             margin-bottom: 0;
         }
 
-        .city-item.hidden,
-        .size-group.hidden,
-        .region-group.hidden {
+        .shop-form-city-picker .city-block.hidden {
+            display: none;
+        }
+
+        .shop-form-city-picker .shop-type-group.hidden {
+            display: none;
+        }
+
+        .shop-form-city-picker .shop-item.hidden {
             display: none;
         }
 
@@ -177,13 +132,11 @@
 <body>
     <h1>Edit Shop</h1>
 
-    <!-- Navigation Button Container -->
     <div class="nav-buttons">
         <a href="{{ url_for('gm.view_shops') }}" class="button">All Shops</a>
         <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
     </div>
 
-    <!-- Centered Form -->
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <label for="name">Shop Name:</label>
@@ -204,36 +157,73 @@
             <option value="Fence" {% if shop.type == "Fence" %}selected{% endif %}>Fence</option>
         </select>
 
-        <!-- City Selection -->
         <div class="city-selector-container">
             <label>Apply to Cities:</label>
-            <input type="text" id="city-filter" class="city-filter" placeholder="Filter cities by name, region, or size...">
-            
-            <div id="city-groups">
-                {% for region_name, sizes in grouped_cities.items() %}
-                <div class="region-group" data-region="{{ region_name }}">
-                    <div class="region-header" onclick="toggleRegion('{{ region_name }}')">
-                        <span>{{ region_name }}</span>
-                        <span class="toggle-icon">▼</span>
-                    </div>
-                    <div class="region-content" id="region-{{ region_name|replace(' ', '-') }}">
-                        {% for size_name, cities_list in sizes.items() %}
-                        <div class="size-group" data-size="{{ size_name }}">
-                            <div class="size-header">{{ size_name }}</div>
-                            <div class="city-list">
-                                {% for city in cities_list %}
-                                <div class="city-item" data-city-name="{{ city.name|lower }}" data-region-name="{{ region_name|lower }}" data-size-name="{{ size_name|lower }}">
-                                    <input type="checkbox" name="city_ids" value="{{ city.city_id }}" id="city_{{ city.city_id }}"
-                                    {% if city.city_id in linked_city_ids %}checked{% endif %}>
-                                    <label for="city_{{ city.city_id }}">{{ city.name }}</label>
+            <div class="gm-shops-city-panel item-form-city-picker shop-form-city-picker">
+                <div class="m2m-banner">
+                    <strong>Note:</strong> Shops linked to multiple cities appear in each city&rsquo;s list. Changes here control where this shop is available.
+                </div>
+                <h2>Cities for this shop</h2>
+
+                {% if cities and (campaign_regions or region_labels) %}
+                <div class="region-filter-bar">
+                    <label for="shop-form-region-filter" class="region-filter-label">Region</label>
+                    {% if campaign_regions %}
+                    <select id="shop-form-region-filter" class="region-filter-select" data-filter-mode="fk" aria-label="Filter cities by region">
+                        <option value="">All regions</option>
+                        {% for reg in campaign_regions %}
+                        <option value="{{ reg.id }}">{{ reg.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <select id="shop-form-region-filter" class="region-filter-select" aria-label="Filter cities by region">
+                        <option value="">All regions</option>
+                        {% for r in region_labels %}
+                        <option value={{ r|tojson }}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if cities %}
+                <input type="text" id="city-filter" class="city-filter" placeholder="Filter cities by name, region, or size...">
+                <div class="city-list" id="city-groups">
+                    {% for region_name, sizes in grouped_cities.items() %}
+                    {% for size_name, cities_list in sizes.items() %}
+                    {% for city in cities_list %}
+                    <details class="city-block" data-city="{{ city.name }}" data-region={{ region_name|tojson }} data-region-id="{{ city.region_id or '' }}">
+                        <summary>
+                            <span class="city-name">{{ city.name }}</span>
+                            <span class="city-meta">
+                                {{ region_name }}{% if city.size %} | {{ city.size }}{% endif %}
+                            </span>
+                            <span class="city-summary-right">
+                                <span class="shop-count-badge">{% if city.city_id in linked_city_ids %}Linked{% else %}Not linked{% endif %}</span>
+                            </span>
+                        </summary>
+                        <div class="city-panel item-form-city-panel">
+                            <div class="shop-type-group">
+                                <div class="shop-type-header">Link to this city</div>
+                                <div class="shop-list">
+                                    <div class="shop-item city-pick-row" data-city-name="{{ city.name|lower }}" data-region-name="{{ region_name|lower }}" data-size-name="{{ (city.size or size_name)|lower }}">
+                                        <input type="checkbox" name="city_ids" value="{{ city.city_id }}" id="city_{{ city.city_id }}"
+                                        {% if city.city_id in linked_city_ids %}checked{% endif %}>
+                                        <label for="city_{{ city.city_id }}">Include this city when saving</label>
+                                    </div>
                                 </div>
-                                {% endfor %}
                             </div>
                         </div>
-                        {% endfor %}
-                    </div>
+                    </details>
+                    {% endfor %}
+                    {% endfor %}
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <p>No cities in this campaign. Add cities first.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -242,86 +232,78 @@
         </div>
     </form>
 
-    <!-- Form for Deleting the Shop -->
     <form method="POST" action="{{ url_for('gm.delete_shop', shop_id=shop.shop_id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" style="background-color: red;">Delete Shop</button>
     </form>
 
     <script>
-        // Toggle region accordion
-        function toggleRegion(regionName) {
-            const regionId = 'region-' + regionName.replace(/\s+/g, '-');
-            const content = document.getElementById(regionId);
-            const header = content.previousElementSibling;
-            const icon = header.querySelector('.toggle-icon');
-
-            if (content.classList.contains('expanded')) {
-                content.classList.remove('expanded');
-                icon.textContent = '▼';
-            } else {
-                content.classList.add('expanded');
-                icon.textContent = '▲';
-            }
+        function applyShopFormRegionFilter() {
+            var sel = document.getElementById('shop-form-region-filter');
+            if (!sel) return;
+            var v = sel.value;
+            var useFk = sel.getAttribute('data-filter-mode') === 'fk';
+            document.querySelectorAll('.shop-form-city-picker .city-block[data-region]').forEach(function (el) {
+                var match;
+                if (v === '') {
+                    match = true;
+                } else if (useFk) {
+                    var rid = el.getAttribute('data-region-id') || '';
+                    match = rid === String(v);
+                } else {
+                    match = el.getAttribute('data-region') === v;
+                }
+                el.style.display = match ? '' : 'none';
+            });
         }
 
-        // Filter cities
         function filterCities() {
-            const filterValue = document.getElementById('city-filter').value.toLowerCase();
-            const cityItems = document.querySelectorAll('.city-item');
-            const sizeGroups = document.querySelectorAll('.size-group');
-            const regionGroups = document.querySelectorAll('.region-group');
+            var filterEl = document.getElementById('city-filter');
+            if (!filterEl) return;
+            var filterValue = filterEl.value.toLowerCase();
+            var root = document.querySelector('.shop-form-city-picker');
+            if (!root) return;
 
-            cityItems.forEach(item => {
-                const cityName = item.getAttribute('data-city-name');
-                const regionName = item.getAttribute('data-region-name');
-                const sizeName = item.getAttribute('data-size-name');
-                const searchText = cityName + ' ' + regionName + ' ' + sizeName;
-
-                if (filterValue === '' || searchText.includes(filterValue)) {
+            root.querySelectorAll('.city-pick-row').forEach(function (item) {
+                var cityName = item.getAttribute('data-city-name') || '';
+                var regionName = item.getAttribute('data-region-name') || '';
+                var sizeName = item.getAttribute('data-size-name') || '';
+                var searchText = cityName + ' ' + regionName + ' ' + sizeName;
+                if (filterValue === '' || searchText.indexOf(filterValue) !== -1) {
                     item.classList.remove('hidden');
                 } else {
                     item.classList.add('hidden');
                 }
             });
 
-            // Hide/show size groups
-            sizeGroups.forEach(group => {
-                const visibleCities = group.querySelectorAll('.city-item:not(.hidden)');
-                if (visibleCities.length === 0) {
+            root.querySelectorAll('.shop-type-group').forEach(function (group) {
+                var visible = group.querySelectorAll('.city-pick-row:not(.hidden)');
+                if (visible.length === 0) {
                     group.classList.add('hidden');
                 } else {
                     group.classList.remove('hidden');
                 }
             });
 
-            // Hide/show region groups
-            regionGroups.forEach(group => {
-                const visibleSizes = group.querySelectorAll('.size-group:not(.hidden)');
-                if (visibleSizes.length === 0) {
-                    group.classList.add('hidden');
+            root.querySelectorAll('.city-block[data-city]').forEach(function (block) {
+                var visibleGroups = block.querySelectorAll('.shop-type-group:not(.hidden)');
+                if (visibleGroups.length === 0) {
+                    block.classList.add('hidden');
                 } else {
-                    group.classList.remove('hidden');
-                    // Auto-expand if filtering
-                    if (filterValue !== '') {
-                        const regionName = group.getAttribute('data-region');
-                        const regionId = 'region-' + regionName.replace(/\s+/g, '-');
-                        const content = document.getElementById(regionId);
-                        if (content && !content.classList.contains('expanded')) {
-                            content.classList.add('expanded');
-                            const header = content.previousElementSibling;
-                            const icon = header.querySelector('.toggle-icon');
-                            if (icon) icon.textContent = '▲';
-                        }
+                    block.classList.remove('hidden');
+                    if (filterValue !== '' && !block.open) {
+                        block.open = true;
                     }
                 }
             });
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            // Filter cities
-            const cityFilter = document.getElementById('city-filter');
+        document.addEventListener('DOMContentLoaded', function () {
+            var regionFilter = document.getElementById('shop-form-region-filter');
+            if (regionFilter) {
+                regionFilter.addEventListener('change', applyShopFormRegionFilter);
+            }
+            var cityFilter = document.getElementById('city-filter');
             if (cityFilter) {
                 cityFilter.addEventListener('input', filterCities);
             }

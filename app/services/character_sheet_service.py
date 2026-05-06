@@ -50,6 +50,13 @@ def _system_type_of(campaign):
     return getattr(campaign, "system_type", None) or "generic"
 
 
+def _ruleset_for_sheet(campaign, sheet: dict) -> Ruleset:
+    st = (sheet.get("system_type") or "").strip().lower()
+    if not st or st == "generic":
+        st = _system_type_of(campaign)
+    return get_ruleset(st)
+
+
 def get_or_default_sheet(player, campaign):
     """Return the stored sheet dict (or a defaulted one). Never auto-inserts."""
     if player is None:
@@ -62,6 +69,13 @@ def get_or_default_sheet(player, campaign):
                 player_id=player.id, campaign_id=campaign.id
             ).first()
         )
+    else:
+        row = (
+            PlayerCharacterSheet.query.filter(
+                PlayerCharacterSheet.player_id == player.id,
+                PlayerCharacterSheet.campaign_id.is_(None),
+            ).first()
+        )
 
     if row is None or not isinstance(row.sheet_json, dict):
         return _empty_sheet(_system_type_of(campaign))
@@ -71,9 +85,10 @@ def get_or_default_sheet(player, campaign):
     merged = _empty_sheet(_system_type_of(campaign))
     for k, v in row.sheet_json.items():
         merged[k] = v
-    # Ensure the stored system_type matches the current campaign; Campaign is
-    # source of truth.
-    merged["system_type"] = _system_type_of(campaign)
+    if campaign is not None:
+        # Campaign is source of truth for in-campaign sheets.
+        merged["system_type"] = _system_type_of(campaign)
+    # Vault (campaign is None): keep ``system_type`` from stored JSON.
     for sub in ("abilities", "defenses", "save_prof_flags", "skill_prof_tiers"):
         if not isinstance(merged.get(sub), dict):
             merged[sub] = {}
@@ -208,8 +223,8 @@ def _assemble_display_sections(ruleset, sheet):
 
 def build_character_view(player, campaign, *, name=None, equipment_slots=None):
     """Produce the SimpleNamespace the character-sheet templates consume."""
-    ruleset = get_ruleset(_system_type_of(campaign))
     sheet = get_or_default_sheet(player, campaign)
+    ruleset = _ruleset_for_sheet(campaign, sheet)
 
     stored_raw = sheet.get("name") if isinstance(sheet, dict) else None
     stored_name = (stored_raw or "").strip() or None
@@ -253,8 +268,8 @@ def build_character_view(player, campaign, *, name=None, equipment_slots=None):
 
 def character_data_payload(player, campaign, *, equipment_slots=None):
     """Shape for /player/character-data (the Player_Home.html panel)."""
-    ruleset = get_ruleset(_system_type_of(campaign))
     sheet = get_or_default_sheet(player, campaign)
+    ruleset = _ruleset_for_sheet(campaign, sheet)
 
     abilities, derived, saves, skills = _assemble_display_sections(ruleset, sheet)
     stat_display = abilities + derived + saves + skills
@@ -321,11 +336,9 @@ def apply_sheet_update(player, campaign, form):
     errors = []
     if player is None:
         return False, ["Player not found."]
-    if campaign is None:
-        return False, ["Active campaign not found."]
 
-    ruleset = get_ruleset(_system_type_of(campaign))
     current = get_or_default_sheet(player, campaign)
+    ruleset = _ruleset_for_sheet(campaign, current)
 
     # Identity fields
     current["name"] = _coerce_optional_str(form.get("name"), max_len=100)
@@ -415,13 +428,21 @@ def apply_sheet_update(player, campaign, form):
     current["system_type"] = ruleset.system_type
 
     # Persist (upsert).
-    row = PlayerCharacterSheet.query.filter_by(
-        player_id=player.id, campaign_id=campaign.id
-    ).first()
+    if campaign is not None:
+        row = PlayerCharacterSheet.query.filter_by(
+            player_id=player.id, campaign_id=campaign.id
+        ).first()
+    else:
+        row = (
+            PlayerCharacterSheet.query.filter(
+                PlayerCharacterSheet.player_id == player.id,
+                PlayerCharacterSheet.campaign_id.is_(None),
+            ).first()
+        )
     if row is None:
         row = PlayerCharacterSheet(
             player_id=player.id,
-            campaign_id=campaign.id,
+            campaign_id=campaign.id if campaign is not None else None,
             sheet_json=current,
         )
         db.session.add(row)

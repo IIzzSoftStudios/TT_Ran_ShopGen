@@ -21,5 +21,6 @@ from app.services.world_generator.validator import ValidationError  # noqa: F401
 from app.services.world_generator.generator import (  # noqa: F401
     GenerationTimeoutError,
     generate,
+    generate_cities_for_empty_region,
     generate_shops_onward,
 )

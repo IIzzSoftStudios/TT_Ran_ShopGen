@@ -26,7 +26,7 @@ from datetime import datetime
 from time import perf_counter
 from typing import Dict, List, Optional
 
-from app.constants.simulation_flags import WORLD_STATE_ENABLED
+from app.constants.simulation_flags import world_state_writes_enabled
 from app.extensions import db
 from app.models import GMProfile, GMWorldState, PriceHistory, Shop, ShopInventory, SimulationState
 from app.services.economy import calculate_dynamic_price
@@ -233,12 +233,13 @@ class SimulationEngine:
                         )
                     )
 
-                if WORLD_STATE_ENABLED and state_blob:
+                if world_state_writes_enabled():
                     gws = GMWorldState.query.filter_by(gm_profile_id=gm_profile_id).first()
                     if gws is None:
                         gws = GMWorldState(gm_profile_id=gm_profile_id)
                         db.session.add(gws)
-                    gws.state_json = state_blob
+                    if state_blob:
+                        gws.state_json = state_blob
                     gws.schema_version = 1
                     gws.tick_seq = profile.current_game_day
                     gws.tick_generation_id = str(uuid.uuid4())

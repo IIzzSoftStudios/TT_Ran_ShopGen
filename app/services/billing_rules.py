@@ -48,6 +48,25 @@ def can_create_campaign(gm_profile) -> Tuple[bool, str]:
     return True, ""
 
 
+def can_add_player_profile(user) -> Tuple[bool, str]:
+    """Enforce max non-NPC Player rows per login (mirrors GM ``campaign_limit`` for the same key phase)."""
+    if user is None or getattr(user, "role", None) != "Player":
+        return True, ""
+    cap, _seats, label = get_gm_limits(user)
+    n = (
+        db.session.query(Player.id)
+        .filter(Player.user_id == user.id, Player.is_npc.is_(False))
+        .count()
+    )
+    if n >= cap:
+        return (
+            False,
+            f"You have reached the player profile limit ({cap}) for {label}. "
+            "Additional profiles will require a paid plan in the future.",
+        )
+    return True, ""
+
+
 def can_add_player_to_campaign(campaign: Campaign) -> Tuple[bool, str]:
     gm_user = campaign.gm_profile.user
     _cap, seat_limit, label = get_gm_limits(gm_user)

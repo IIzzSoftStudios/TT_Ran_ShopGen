@@ -151,18 +151,44 @@
             text-align: center;
         }
 
-        .logout-link {
-            text-align: center;
-            margin-top: 20px;
+        .campaign-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 28px;
+            width: 100%;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
-        .logout-link a {
-            color: var(--color-accent);
-            text-decoration: none;
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .logout-link a:hover {
-            color: var(--color-accent-hover);
+        .footer-cta {
+            margin-top: 0;
+        }
+
+        .logout-form {
+            margin: 0;
+        }
+
+        .logout-submit {
+            margin: 0;
+            padding: 10px 20px;
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .logout-submit:hover {
+            background: var(--color-accent-hover);
         }
 
         /* Match player shops city-row panel: surface card, clear type, theme inputs */
@@ -284,19 +310,20 @@
         </div>
         {% endif %}
 
-        {% if current_user.is_authenticated and current_user.role == 'GM' %}
-            <div class="actions-row">
-                <a href="{{ url_for('gm.generate_world_form') }}" class="create-campaign-btn">Create Campaign</a>
+        {% if current_user.is_authenticated %}
+        <div class="campaign-footer">
+            <div class="footer-left">
+                {% if current_user.role == 'GM' %}
+                <a href="{{ url_for('gm.generate_world_form') }}" class="create-campaign-btn footer-cta">Create Campaign</a>
+                {% elif current_user.role == 'Player' %}
+                <a href="{{ url_for('player.create_character') }}" class="create-character-btn footer-cta">Create character</a>
+                {% endif %}
             </div>
-        {% elif current_user.is_authenticated and current_user.role == 'Player' and campaigns %}
-            <div class="actions-row">
-                <a href="{{ url_for('player.create_character') }}" class="create-character-btn">Create Character</a>
-            </div>
-        {% endif %}
-
-        <div class="logout-link">
-            <a href="{{ url_for('auth.logout') }}">Logout</a>
+            <form method="get" action="{{ url_for('auth.logout') }}" class="logout-form">
+                <button type="submit" class="logout-submit">Logout</button>
+            </form>
         </div>
+        {% endif %}
     </div>
 </body>
 </html>

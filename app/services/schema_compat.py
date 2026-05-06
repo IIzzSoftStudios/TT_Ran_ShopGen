@@ -270,25 +270,8 @@ def ensure_join_codes_columns() -> bool:
         patched_any = True
     db.session.commit()
 
-    row = db.session.execute(
-        text("SELECT 1 FROM pg_constraint WHERE conname = 'uq_player_user_gm'")
-    ).first()
-    if row is None:
-        patched_any = True
-        try:
-            db.session.execute(
-                text(
-                    "ALTER TABLE player ADD CONSTRAINT uq_player_user_gm "
-                    "UNIQUE (user_id_gm, gm_profile_id)"
-                )
-            )
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            log.warning(
-                "Could not add uq_player_user_gm (duplicate user/gm rows?). "
-                "Resolve duplicates and re-run or migrate manually."
-            )
+    # (user_id_gm, gm_profile_id) uniqueness + solo row: partial indexes in
+    # ensure_solo_player_vault_schema (PostgreSQL). Do not re-add uq_player_user_gm here.
 
     from app.models import Campaign, Player
     from app.services.join_codes import CAMPAIGN_PREFIX, PLAYER_PREFIX, generate_raw_code
@@ -325,4 +308,181 @@ def warn_if_join_codes_compat_applied(patched_any: bool) -> None:
         log.warning(
             "join_codes compat bootstrap applied (join_code columns, uq_player_user_gm). "
             "Prefer a formal migration in production."
+        )
+
+
+def ensure_solo_player_vault_schema() -> bool:
+    """Solo Player (nullable gm_profile_id) + vault character sheets (nullable campaign_id).
+
+    PostgreSQL only (partial unique indexes). Drops legacy ``uq_player_user_gm`` and
+    ``uq_sheet_player_campaign`` in favor of partial uniques.
+
+    Returns True when any DDL ran.
+    """
+    if db.engine.dialect.name != "postgresql":
+        return False
+
+    patched_any = False
+
+    if _regclass_exists("player"):
+        if (
+            db.session.execute(
+                text("SELECT 1 FROM pg_constraint WHERE conname = 'uq_player_user_gm'")
+            ).first()
+            is not None
+        ):
+            patched_any = True
+        db.session.execute(
+            text("ALTER TABLE player DROP CONSTRAINT IF EXISTS uq_player_user_gm")
+        )
+        gm_null = db.session.execute(
+            text(
+                "SELECT is_nullable FROM information_schema.columns "
+                "WHERE table_schema = 'public' AND table_name = 'player' "
+                "AND column_name = 'gm_profile_id'"
+            )
+        ).first()
+        if gm_null and (gm_null[0] or "").upper() == "NO":
+            patched_any = True
+            db.session.execute(
+                text("ALTER TABLE player ALTER COLUMN gm_profile_id DROP NOT NULL")
+            )
+        db.session.commit()
+
+        for idx_name, idx_sql in (
+            (
+                "uq_player_solo_vault",
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_player_solo_vault
+                ON player (user_id_gm)
+                WHERE gm_profile_id IS NULL AND is_npc = false AND user_id_gm IS NOT NULL
+                """,
+            ),
+            (
+                "uq_player_user_gm_nonempty",
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_player_user_gm_nonempty
+                ON player (user_id_gm, gm_profile_id)
+                WHERE gm_profile_id IS NOT NULL AND is_npc = false AND user_id_gm IS NOT NULL
+                """,
+            ),
+        ):
+            exists = db.session.execute(
+                text(
+                    "SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = :n"
+                ),
+                {"n": idx_name},
+            ).first()
+            if exists is None:
+                patched_any = True
+                db.session.execute(text(idx_sql))
+        db.session.commit()
+
+    if _regclass_exists("player_character_sheet"):
+        if (
+            db.session.execute(
+                text(
+                    "SELECT 1 FROM pg_constraint WHERE conname = 'uq_sheet_player_campaign'"
+                )
+            ).first()
+            is not None
+        ):
+            patched_any = True
+        db.session.execute(
+            text(
+                "ALTER TABLE player_character_sheet DROP CONSTRAINT IF EXISTS uq_sheet_player_campaign"
+            )
+        )
+        cid_null = db.session.execute(
+            text(
+                "SELECT is_nullable FROM information_schema.columns "
+                "WHERE table_schema = 'public' AND table_name = 'player_character_sheet' "
+                "AND column_name = 'campaign_id'"
+            )
+        ).first()
+        if cid_null and (cid_null[0] or "").upper() == "NO":
+            patched_any = True
+            db.session.execute(
+                text(
+                    "ALTER TABLE player_character_sheet ALTER COLUMN campaign_id DROP NOT NULL"
+                )
+            )
+        db.session.commit()
+
+        for idx_name, idx_sql in (
+            (
+                "uq_sheet_player_campaign_nn",
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_sheet_player_campaign_nn
+                ON player_character_sheet (player_id, campaign_id)
+                WHERE campaign_id IS NOT NULL
+                """,
+            ),
+            (
+                "uq_sheet_player_vault",
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_sheet_player_vault
+                ON player_character_sheet (player_id)
+                WHERE campaign_id IS NULL
+                """,
+            ),
+        ):
+            exists = db.session.execute(
+                text(
+                    "SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = :n"
+                ),
+                {"n": idx_name},
+            ).first()
+            if exists is None:
+                patched_any = True
+                db.session.execute(text(idx_sql))
+        db.session.commit()
+
+    return patched_any
+
+
+def warn_if_solo_vault_compat_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "solo_player_vault compat bootstrap applied (nullable gm_profile_id / "
+            "campaign_id, partial unique indexes). Prefer a formal migration in production."
+        )
+
+
+def ensure_simulation_state_click_columns() -> bool:
+    """Add ``sim_clicks_*`` counters on ``simulation_state`` when missing (pre-TTRSG refresh DBs).
+
+    Returns True if any column was added.
+    """
+    if db.engine.dialect.name != "postgresql":
+        return False
+    if not _regclass_exists("simulation_state"):
+        return False
+
+    patched_any = False
+    for col in (
+        "sim_clicks_day",
+        "sim_clicks_week",
+        "sim_clicks_month",
+        "sim_clicks_year",
+        "sim_clicks_pause",
+    ):
+        if _column_exists("simulation_state", col):
+            continue
+        patched_any = True
+        db.session.execute(
+            text(
+                f"ALTER TABLE simulation_state ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
+            )
+        )
+    if patched_any:
+        db.session.commit()
+    return patched_any
+
+
+def warn_if_simulation_state_clicks_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "simulation_state sim_clicks_* columns were added by schema compat. "
+            "Align with TTRSG_TableCreation.sql in production."
         )

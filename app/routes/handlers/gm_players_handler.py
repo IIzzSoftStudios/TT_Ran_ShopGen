@@ -1,5 +1,6 @@
 """GM-side player / character (Player model) management."""
 
+from datetime import datetime
 from types import SimpleNamespace
 
 from flask import flash, redirect, render_template, request, url_for
@@ -372,6 +373,37 @@ def remove_player_from_campaign(player_id: int):
     ).first()
     if row:
         try:
+            camp_sheet = PlayerCharacterSheet.query.filter_by(
+                player_id=player.id, campaign_id=campaign.id
+            ).first()
+            vault = PlayerCharacterSheet.query.filter(
+                PlayerCharacterSheet.player_id == player.id,
+                PlayerCharacterSheet.campaign_id.is_(None),
+            ).first()
+            vj = vault.sheet_json if vault and isinstance(vault.sheet_json, dict) else {}
+            vault_empty = vault is None or not vj or (
+                not vj.get("name")
+                and not vj.get("class_name")
+                and not (vj.get("abilities") or {})
+            )
+            if (
+                camp_sheet
+                and isinstance(camp_sheet.sheet_json, dict)
+                and vault_empty
+            ):
+                payload = dict(camp_sheet.sheet_json)
+                if vault is None:
+                    db.session.add(
+                        PlayerCharacterSheet(
+                            player_id=player.id,
+                            campaign_id=None,
+                            sheet_json=payload,
+                        )
+                    )
+                else:
+                    vault.sheet_json = payload
+                    vault.updated_at = datetime.utcnow()
+
             db.session.delete(row)
             db.session.commit()
             flash("Removed player from this campaign.", "success")

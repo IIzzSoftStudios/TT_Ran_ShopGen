@@ -512,6 +512,115 @@ def generate(
     )
 
 
+def generate_cities_for_empty_region(
+    gm_profile_id: int,
+    campaign_id: int,
+    region_id: int,
+    settings: Dict[str, Any],
+) -> int:
+    """If the region has no cities yet, create a batch using world-config ranges.
+
+    Uses the same seed discipline as ``generate_shops_onward`` so partial runs
+    stay deterministic. Does NOT commit.
+
+    Returns:
+        Number of new cities inserted (0 if the region already had cities).
+    """
+    t0 = time.monotonic()
+
+    def _check_budget() -> None:
+        if GENERATION_TIMEOUT_SECONDS is None or GENERATION_TIMEOUT_SECONDS <= 0:
+            return
+        elapsed = time.monotonic() - t0
+        if elapsed > GENERATION_TIMEOUT_SECONDS:
+            raise GenerationTimeoutError(
+                f"World generation exceeded {GENERATION_TIMEOUT_SECONDS}s "
+                f"(elapsed {elapsed:.1f}s). Try a smaller world."
+            )
+
+    ranges = settings["ranges"]
+    effective_seed = _resolve_seed(settings.get("world_seed"))
+    root_rng = random.Random(effective_seed)
+    rng_cities = _derive_subrng(root_rng, f"empty_region_{region_id}_cities")
+
+    region_row = (
+        db.session.query(Region)
+        .filter_by(
+            id=region_id,
+            campaign_id=campaign_id,
+            gm_profile_id=gm_profile_id,
+        )
+        .first()
+    )
+    if region_row is None:
+        raise ValueError("Region not found for this campaign.")
+
+    cities_in_region = (
+        db.session.query(City)
+        .filter_by(
+            campaign_id=campaign_id,
+            gm_profile_id=gm_profile_id,
+            region_id=region_id,
+        )
+        .count()
+    )
+    if cities_in_region:
+        return 0
+
+    city_names = {
+        n[0]
+        for n in db.session.query(City.name)
+        .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+        .all()
+    }
+
+    axis_pos = 5
+    if region_row.local_flavor and "axis_position" in region_row.local_flavor:
+        axis_pos = int(region_row.local_flavor["axis_position"])
+
+    n_new = rng_cities.randint(
+        ranges["num_cities"]["min"],
+        ranges["num_cities"]["max"],
+    )
+    new_cities: List[City] = []
+    with db.session.no_autoflush:
+        for _ in range(n_new):
+            _check_budget()
+            city_gov = rng_cities.choice(GOVERNMENT_TYPES)
+            name = naming_logic.city_name(
+                rng_cities, axis_pos, city_gov, city_names
+            )
+            population = rng_cities.randint(500, 25_000)
+            size = (
+                "Small"
+                if population < 3_000
+                else "Medium"
+                if population < 12_000
+                else "Large"
+            )
+            new_cities.append(
+                City(
+                    name=name,
+                    government_type=city_gov,
+                    size=size,
+                    population=population,
+                    region=region_row.name,
+                    gm_profile_id=gm_profile_id,
+                    campaign_id=campaign_id,
+                    region_id=region_row.id,
+                )
+            )
+        db.session.add_all(new_cities)
+    db.session.flush()
+    log.info(
+        "world_gen phase=cities_empty_region campaign_id=%s region_id=%s n=%d",
+        campaign_id,
+        region_id,
+        len(new_cities),
+    )
+    return len(new_cities)
+
+
 def generate_shops_onward(
     gm_profile_id: int,
     campaign_id: int,

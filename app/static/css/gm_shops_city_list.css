@@ -409,6 +409,41 @@
   padding: 10px 12px 12px;
 }
 
+/* GM edit shop: city checkbox picker uses same panel chrome as dashboard */
+.gm-shops-city-panel.shop-form-city-picker {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gm-shops-city-panel.shop-form-city-picker h2 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #212529;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.gm-shops-city-panel.shop-form-city-picker .city-filter {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  color: #212529;
+}
+
+.gm-shops-city-panel.shop-form-city-picker .shop-item label {
+  font-weight: 500;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
 /* GM view items: same summary schema as city panel, primary label is item name */
 .gm-shops-city-panel .item-name {
   font-size: 1.05rem;

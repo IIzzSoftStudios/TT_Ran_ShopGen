@@ -230,6 +230,11 @@ html.dark-mode .flash-message.info {
   background-color: #38bdf8;
 }
 
+html.dark-mode .flash-message.warning {
+  background-color: var(--color-warning);
+  color: #0f172a;
+}
+
 /* GM Dashboard: header and simulation control legibility in dark mode */
 html.dark-mode .gm-dashboard h1,
 html.dark-mode .gm-dashboard h2,

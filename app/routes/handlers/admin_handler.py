@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
+from io import BytesIO
+
 from flask import (
     render_template,
     redirect,
@@ -12,14 +14,159 @@ from flask import (
     request,
     jsonify,
     current_app,
+    Response,
+    send_file,
 )
 from flask_login import current_user
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
-from app.models import RegistrationKey, AccessRequest
+from app.models import GMProfile, RegistrationKey, AccessRequest, User
 from app.services.key_generator import create_bulk_keys, generate_secure_code
 
 audit_logger = logging.getLogger("admin_audit")
+
+
+def _vault_keeper_json_forbidden():
+    """If caller is not vault_keeper, return JSON Response with status 403; else None."""
+    if not getattr(current_user, "is_authenticated", False):
+        r = jsonify({"error": "vault_keeper_required"})
+        r.status_code = 403
+        return r
+    if getattr(current_user, "role", None) != "vault_keeper":
+        r = jsonify({"error": "vault_keeper_required"})
+        r.status_code = 403
+        return r
+    return None
+
+
+def _gm_simulation_usage_serialized_rows() -> list[dict]:
+    """Read-only aggregate: one JSON-safe row per GM (simulation button click counts)."""
+    users = (
+        User.query.filter_by(role="GM")
+        .options(
+            joinedload(User.gm_profile).joinedload(GMProfile.simulation_state),
+            joinedload(User.gm_profile).joinedload(GMProfile.campaigns),
+            joinedload(User.registration_key_used),
+        )
+        .order_by(User.username)
+        .all()
+    )
+    rows: list[dict] = []
+    for u in users:
+        gmp = u.gm_profile
+        reg = u.registration_key_used
+        key_phase = reg.key_phase if reg else "—"
+        if gmp is None:
+            rows.append(
+                {
+                    "username": u.username,
+                    "email": u.email or "—",
+                    "key_phase": key_phase,
+                    "sim_clicks_day": 0,
+                    "sim_clicks_week": 0,
+                    "sim_clicks_month": 0,
+                    "sim_clicks_year": 0,
+                    "sim_clicks_pause": 0,
+                    "campaigns_count": 0,
+                }
+            )
+            continue
+        sim = gmp.simulation_state
+        campaigns = gmp.campaigns or []
+        rows.append(
+            {
+                "username": u.username,
+                "email": u.email or "—",
+                "key_phase": key_phase,
+                "sim_clicks_day": int(sim.sim_clicks_day) if sim else 0,
+                "sim_clicks_week": int(sim.sim_clicks_week) if sim else 0,
+                "sim_clicks_month": int(sim.sim_clicks_month) if sim else 0,
+                "sim_clicks_year": int(sim.sim_clicks_year) if sim else 0,
+                "sim_clicks_pause": int(sim.sim_clicks_pause) if sim else 0,
+                "campaigns_count": len(campaigns),
+            }
+        )
+    return rows
+
+
+def handle_gm_simulation_usage_api():
+    denied = _vault_keeper_json_forbidden()
+    if denied:
+        return denied
+    rows = _gm_simulation_usage_serialized_rows()
+    audit_logger.info(
+        "GM simulation usage API | Admin ID: %s | Rows: %s",
+        current_user.id,
+        len(rows),
+    )
+    return jsonify({"rows": rows})
+
+
+def _format_iso_cell(iso: str | None) -> str:
+    if not iso:
+        return "—"
+    try:
+        if iso.endswith("Z"):
+            iso = iso[:-1]
+        dt = datetime.fromisoformat(iso)
+        return dt.strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return iso
+
+
+def handle_gm_simulation_usage_export():
+    if not getattr(current_user, "is_authenticated", False):
+        return Response("Forbidden", status=403, mimetype="text/plain")
+    if getattr(current_user, "role", None) != "vault_keeper":
+        return Response("Forbidden", status=403, mimetype="text/plain")
+
+    from openpyxl import Workbook
+
+    rows = _gm_simulation_usage_serialized_rows()
+    audit_logger.info(
+        "GM simulation usage export | Admin ID: %s | Rows: %s",
+        current_user.id,
+        len(rows),
+    )
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "GM_usage"
+    headers = [
+        "Username",
+        "Email",
+        "Key phase",
+        "Run day clicks",
+        "Run week clicks",
+        "Run month clicks",
+        "Run year clicks",
+        "Pause clicks",
+        "Campaigns",
+    ]
+    ws.append(headers)
+    for r in rows:
+        ws.append(
+            [
+                r["username"],
+                r["email"],
+                r["key_phase"],
+                r["sim_clicks_day"],
+                r["sim_clicks_week"],
+                r["sim_clicks_month"],
+                r["sim_clicks_year"],
+                r["sim_clicks_pause"],
+                r["campaigns_count"],
+            ]
+        )
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="gm_simulation_usage.xlsx",
+    )
 
 
 def handle_admin_keys():
@@ -61,6 +208,10 @@ def handle_admin_keys():
     pc = current_app.extensions["phase_config"]
     vault_phase_slugs = pc.list_phases(include_internal=False)
     all_phase_slugs = pc.list_phases(include_internal=True)
+    show_gm_usage_tab = getattr(current_user, "role", None) == "vault_keeper"
+    gm_simulation_rows = (
+        _gm_simulation_usage_serialized_rows() if show_gm_usage_tab else []
+    )
     audit_logger.info("Keys view | Admin ID: %s", current_user.id)
     return render_template(
         "admin/keys.html",
@@ -71,6 +222,8 @@ def handle_admin_keys():
         access_requests=access_requests,
         vault_phase_slugs=vault_phase_slugs,
         all_phase_slugs=all_phase_slugs,
+        show_gm_usage_tab=show_gm_usage_tab,
+        gm_simulation_rows=gm_simulation_rows,
     )
 
 

@@ -1,5 +1,6 @@
 """GM shop-related handler utilities and inline shop updates."""
 
+from collections import defaultdict
 from functools import lru_cache
 
 from flask import request, redirect, url_for, flash
@@ -38,6 +39,25 @@ def _city_region_label(city: City) -> str:
             if s:
                 return s
     return "Unspecified"
+
+
+def build_grouped_cities_for_shop_form(cities: list) -> dict:
+    """Nested dict region_label -> size_label -> [City, ...] for GM shop city pickers."""
+    nested: dict = defaultdict(lambda: defaultdict(list))
+    for city in cities:
+        region = _city_region_label(city)
+        size = (getattr(city, "size", None) or "").strip() or "Unspecified"
+        nested[region][size].append(city)
+    out = {}
+    for region in sorted(nested.keys(), key=lambda s: (s or "").lower()):
+        size_map = {}
+        for size_name in sorted(nested[region].keys(), key=lambda s: (s or "").lower()):
+            size_map[size_name] = sorted(
+                nested[region][size_name],
+                key=lambda c: ((c.name or "").lower(), c.city_id),
+            )
+        out[region] = size_map
+    return out
 
 
 def _normalize_shop_type(raw):

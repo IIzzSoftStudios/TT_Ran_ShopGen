@@ -22,6 +22,33 @@ from app.tasks.simulation_tasks import run_period_task
 
 REDIS_OFFLINE_ERROR = "Simulation service is currently offline. Please try again in a few minutes."
 
+_SIM_DASHBOARD_CLICK_ATTR = {
+    "day": "sim_clicks_day",
+    "week": "sim_clicks_week",
+    "month": "sim_clicks_month",
+    "year": "sim_clicks_year",
+    "pause": "sim_clicks_pause",
+}
+
+
+def _record_sim_dashboard_click(gm_profile_id: int, kind: str) -> None:
+    """Count one successful GM dashboard simulation control action (no commit)."""
+    attr = _SIM_DASHBOARD_CLICK_ATTR.get(kind)
+    if not attr:
+        return
+    state = get_simulation_state_for_gm(db.session, gm_profile_id)
+    if state is None:
+        state = SimulationState(
+            gm_profile_id=gm_profile_id,
+            current_tick=0,
+            speed="pause",
+            last_tick_time=datetime.utcnow(),
+        )
+        setattr(state, attr, 1)
+        db.session.add(state)
+    else:
+        setattr(state, attr, int(getattr(state, attr) or 0) + 1)
+
 
 def handle_redis_outage(func):
     """Return a user-safe 503 when Redis broker/cache is unavailable."""
@@ -173,6 +200,8 @@ def update_simulation_speed():
             db.session.add(state)
         else:
             state.speed = "pause"
+        db.session.flush()
+        _record_sim_dashboard_click(gm_profile.id, "pause")
         db.session.commit()
 
         return jsonify(
@@ -221,6 +250,13 @@ def run_period_stream():
             "current_game_day": gm_profile.current_game_day,
         },
     )
+
+    try:
+        _record_sim_dashboard_click(int(gm_profile.id), period)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        gm_logger.warning("Could not persist simulation button click count", exc_info=True)
 
     return jsonify({"job_id": task.id}), 202
 

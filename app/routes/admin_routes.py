@@ -11,6 +11,8 @@ from app.routes.handlers.admin_handler import (
     handle_approve_access_request,
     handle_hold_access_request,
     handle_reject_access_request,
+    handle_gm_simulation_usage_api,
+    handle_gm_simulation_usage_export,
 )
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -42,6 +44,20 @@ def keys_generate_admin_test():
 @admin_required
 def keys_reveal(key_id):
     return handle_reveal_key(key_id)
+
+
+@admin_bp.route("/vault/gm-simulation-usage/export", methods=["GET"])
+@login_required
+@admin_required
+def gm_simulation_usage_export():
+    return handle_gm_simulation_usage_export()
+
+
+@admin_bp.route("/vault/gm-simulation-usage", methods=["GET"])
+@login_required
+@admin_required
+def gm_simulation_usage_api():
+    return handle_gm_simulation_usage_api()
 
 
 @admin_bp.route("/vault/access-requests/<int:request_id>/approve", methods=["POST"])

@@ -11,8 +11,11 @@ from typing import Optional, Tuple
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.extensions import db
-from app.models import Campaign, CampaignPlayer, Player, User
-from app.services.billing_rules import can_add_player_to_campaign
+from app.models import Campaign, CampaignPlayer, Player, PlayerCharacterSheet, User
+from app.services.billing_rules import (
+    can_add_player_profile,
+    can_add_player_to_campaign,
+)
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +24,7 @@ MAX_GENERATE_RETRIES = 5
 
 CAMPAIGN_PREFIX = "CAMP"
 PLAYER_PREFIX = "PLY"
+_KNOWN_CODE_PREFIX_TOKENS = frozenset({CAMPAIGN_PREFIX, PLAYER_PREFIX})
 
 
 class JoinCodeError(Exception):
@@ -43,6 +47,14 @@ class CrossGMError(JoinCodeError):
     pass
 
 
+class ProfileLimitError(JoinCodeError):
+    """Too many Player rows for this account (phase ``campaign_limit``)."""
+
+
+class SystemMismatchError(JoinCodeError):
+    """Character vault ruleset does not match campaign ``system_type``."""
+
+
 class CodeGenerationExhausted(JoinCodeError):
     pass
 
@@ -63,14 +75,21 @@ def log_reveal(*, user_id: int, action: str, target_id: int, ip: str) -> None:
     )
 
 
+def _fold_crockford_homoglyphs(s: str) -> str:
+    return s.replace("I", "1").replace("L", "1").replace("O", "0")
+
+
 def normalize_code(raw: Optional[str]) -> str:
+    """Uppercase / tidy; apply I/L/O folding only to payload after ``CAMP-`` or ``PLY-``."""
     if not raw:
         return ""
     s = raw.strip().upper().replace("_", "-")
-    s = s.replace("I", "1").replace("L", "1")
-    s = s.replace("O", "0")
     s = re.sub(r"\s+", "", s)
-    return s
+    if "-" in s:
+        head, _, tail = s.partition("-")
+        if head in _KNOWN_CODE_PREFIX_TOKENS:
+            return f"{head}-{_fold_crockford_homoglyphs(tail)}"
+    return _fold_crockford_homoglyphs(s)
 
 
 def generate_raw_code(prefix: str) -> str:
@@ -84,7 +103,7 @@ def generate_raw_code(prefix: str) -> str:
 
 
 def _parse_prefixed(normalized: str) -> Tuple[Optional[str], str]:
-    """Return (CAMPAIGN|PLAYER|None prefix token, normalized full string)."""
+    """Return (CAMPAIGN|PLAYER|None role, normalized full string)."""
     n = normalized
     if n.startswith("CAMP-"):
         return "CAMPAIGN", n
@@ -94,6 +113,7 @@ def _parse_prefixed(normalized: str) -> Tuple[Optional[str], str]:
 
 
 def find_campaign_by_join_code(normalized: str) -> Optional[Campaign]:
+    """Resolve campaign by ``CAMP-…`` join_code."""
     prefix, _ = _parse_prefixed(normalized)
     if prefix != "CAMPAIGN":
         return None
@@ -105,6 +125,57 @@ def find_player_by_join_code(normalized: str) -> Optional[Player]:
     if prefix != "PLAYER":
         return None
     return Player.query.filter_by(join_code=normalized, is_npc=False).first()
+
+
+def _normalized_sheet_system_type(raw: Optional[str]) -> Optional[str]:
+    s = (raw or "").strip().lower()
+    if not s or s == "generic":
+        return None
+    return s
+
+
+def effective_character_system_type_for_join(player: Player) -> Optional[str]:
+    """Return concrete stored ``system_type`` for join validation, or None if generic/unset."""
+    vault = (
+        PlayerCharacterSheet.query.filter(
+            PlayerCharacterSheet.player_id == player.id,
+            PlayerCharacterSheet.campaign_id.is_(None),
+        )
+        .order_by(PlayerCharacterSheet.updated_at.desc())
+        .first()
+    )
+    if vault and isinstance(vault.sheet_json, dict):
+        st = _normalized_sheet_system_type(vault.sheet_json.get("system_type"))
+        if st:
+            return st
+    row = (
+        PlayerCharacterSheet.query.filter(
+            PlayerCharacterSheet.player_id == player.id,
+            PlayerCharacterSheet.campaign_id.isnot(None),
+        )
+        .order_by(PlayerCharacterSheet.updated_at.desc())
+        .first()
+    )
+    if row and isinstance(row.sheet_json, dict):
+        st = _normalized_sheet_system_type(row.sheet_json.get("system_type"))
+        if st:
+            return st
+    return None
+
+
+def assert_character_system_matches_campaign(player: Player, campaign: Campaign) -> None:
+    char_st = effective_character_system_type_for_join(player)
+    if char_st is None:
+        return
+    camp_raw = (getattr(campaign, "system_type", None) or "").strip().lower()
+    if not camp_raw or camp_raw == "generic":
+        return
+    if char_st != camp_raw:
+        raise SystemMismatchError(
+            "This character is built for a different game system than this campaign. "
+            "Update your character vault to match the campaign's system, or join a "
+            "campaign that uses your ruleset."
+        )
 
 
 def redeem_campaign_code(user: User, raw_code: str, *, _commit: bool = True) -> Campaign:
@@ -132,12 +203,28 @@ def redeem_campaign_code(user: User, raw_code: str, *, _commit: bool = True) -> 
             Campaign.query.filter_by(id=campaign.id).with_for_update().one()
         )
 
-        existing = Player.query.filter_by(
+        existing_gm = Player.query.filter_by(
             user_id=user.id,
             gm_profile_id=campaign.gm_profile_id,
             is_npc=False,
         ).first()
-        if existing is None:
+        solo = Player.query.filter(
+            Player.user_id == user.id,
+            Player.gm_profile_id.is_(None),
+            Player.is_npc.is_(False),
+        ).first()
+
+        promote_solo = False
+        if existing_gm is not None:
+            player = existing_gm
+        elif solo is not None:
+            player = Player.query.filter_by(id=solo.id).with_for_update().one()
+            promote_solo = True
+        else:
+            ok_prof, msg_prof = can_add_player_profile(user)
+            if not ok_prof:
+                db.session.rollback()
+                raise ProfileLimitError(msg_prof or "Player profile limit reached.")
             player = Player(
                 user_id=user.id,
                 gm_profile_id=campaign.gm_profile_id,
@@ -146,8 +233,6 @@ def redeem_campaign_code(user: User, raw_code: str, *, _commit: bool = True) -> 
             )
             db.session.add(player)
             db.session.flush()
-        else:
-            player = existing
 
         dup = CampaignPlayer.query.filter_by(
             campaign_id=campaign.id,
@@ -157,15 +242,23 @@ def redeem_campaign_code(user: User, raw_code: str, *, _commit: bool = True) -> 
             if dup.is_active:
                 _finish()
                 return campaign
+            assert_character_system_matches_campaign(player, campaign)
             dup.is_active = True
             dup.status = "active"
+            if promote_solo:
+                player.gm_profile_id = campaign.gm_profile_id
             _finish()
             return campaign
+
+        assert_character_system_matches_campaign(player, campaign)
 
         ok, msg = can_add_player_to_campaign(campaign)
         if not ok:
             db.session.rollback()
             raise SeatCapError(msg or "Campaign is full.")
+
+        if promote_solo:
+            player.gm_profile_id = campaign.gm_profile_id
 
         db.session.add(
             CampaignPlayer(
@@ -204,11 +297,11 @@ def redeem_player_code(
     if not player or player.is_npc:
         raise InvalidCodeError("Invalid or unknown player code.")
 
-    if player.gm_profile_id != gm_profile_id:
-        raise CrossGMError("That player code belongs to a different GM.")
-
-    if player.gm_profile_id != campaign.gm_profile_id:
-        raise CrossGMError("Campaign and player are not under the same GM.")
+    if player.gm_profile_id is not None:
+        if player.gm_profile_id != gm_profile_id:
+            raise CrossGMError("That player code belongs to a different GM.")
+        if player.gm_profile_id != campaign.gm_profile_id:
+            raise CrossGMError("Campaign and player are not under the same GM.")
 
     def _finish():
         if _commit:
@@ -230,15 +323,23 @@ def redeem_player_code(
             if dup.is_active:
                 _finish()
                 return dup
+            assert_character_system_matches_campaign(player, locked)
             dup.is_active = True
             dup.status = "active"
+            if player.gm_profile_id is None:
+                player.gm_profile_id = locked.gm_profile_id
             _finish()
             return dup
+
+        assert_character_system_matches_campaign(player, locked)
 
         ok, msg = can_add_player_to_campaign(locked)
         if not ok:
             db.session.rollback()
             raise SeatCapError(msg or "Campaign is full.")
+
+        if player.gm_profile_id is None:
+            player.gm_profile_id = locked.gm_profile_id
 
         row = CampaignPlayer(
             campaign_id=locked.id,
@@ -265,13 +366,45 @@ def redeem_player_code(
         raise InvalidCodeError("Could not add player (conflict).") from None
 
 
+def ensure_campaign_join_code_for_campaign(campaign: Campaign) -> str:
+    """Return ``campaign.join_code``, assigning a new ``CAMP-…`` value if missing.
+
+    Clears polluted values (anything that does not normalize to ``CAMP-…``).
+    Performs at least one :meth:`flush` when a new code is assigned; caller must
+    :meth:`commit` the session for durability. Retries on rare ``join_code``
+    uniqueness collisions.
+
+    Pollution is re-checked on every retry iteration because :meth:`rollback`
+    after ``IntegrityError`` can restore a previously cleared non-``CAMP-`` value
+    in the same transaction.
+    """
+    camp_pk = campaign.id
+    gm_id = campaign.gm_profile_id
+    for _ in range(MAX_GENERATE_RETRIES):
+        fresh = Campaign.query.filter_by(id=camp_pk, gm_profile_id=gm_id).first()
+        if not fresh:
+            raise InvalidCodeError("Campaign not found.")
+        if fresh.join_code:
+            if normalize_code(fresh.join_code).startswith("CAMP-"):
+                return fresh.join_code
+            fresh.join_code = None
+            db.session.flush()
+        fresh.join_code = generate_raw_code(CAMPAIGN_PREFIX)
+        try:
+            db.session.flush()
+            return fresh.join_code
+        except IntegrityError:
+            db.session.rollback()
+    raise CodeGenerationExhausted("Could not assign a unique campaign join code.")
+
+
 def reveal_campaign_code_for_gm(*, gm_profile_id: int, campaign_id: int) -> str:
     camp = Campaign.query.filter_by(
         id=campaign_id, gm_profile_id=gm_profile_id
     ).first()
-    if not camp or not camp.join_code:
+    if not camp:
         raise InvalidCodeError("Campaign not found.")
-    return camp.join_code
+    return ensure_campaign_join_code_for_campaign(camp)
 
 
 def reveal_player_code_for_player(*, user_id: int, player: Player) -> str:

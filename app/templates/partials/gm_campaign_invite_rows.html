@@ -1,0 +1,172 @@
+{# GM campaign join: CAMP- code, Reveal only (no separate copy). Expects: reveal_url #}
+<div class="gm-campaign-invite-block" data-reveal-url="{{ reveal_url }}">
+  <p class="gm-invite-title"><strong>Add player by code</strong></p>
+  <p class="gm-invite-hint">Reveal the <code>CAMP-</code> code for players to join this campaign (select and copy from the field if needed).</p>
+  <div class="invite-row invite-row--primary" data-row="camp">
+    <span class="invite-label">CAMP-</span>
+    <input type="password" class="code-display" readonly autocomplete="off" spellcheck="false"
+           aria-label="CAMP join code (hidden until reveal)" value="••••••••••" />
+    <div class="invite-actions">
+      <button type="button" class="invite-reveal-btn button-like">Reveal</button>
+    </div>
+  </div>
+  <p class="invite-fetch-err" style="display:none;margin:8px 0 0 0;color:var(--color-danger);font-size:13px;"></p>
+</div>
+<style>
+.gm-campaign-invite-block {
+  max-width: 520px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.gm-campaign-invite-block .gm-invite-title {
+  margin: 0 0 6px 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-text);
+}
+.gm-campaign-invite-block .gm-invite-title strong {
+  font-weight: 700;
+}
+.gm-campaign-invite-block .gm-invite-hint {
+  margin: 0 0 12px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.gm-campaign-invite-block .gm-invite-hint code {
+  color: var(--color-accent);
+  background: var(--color-table-stripe);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+.gm-campaign-invite-block .invite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  margin-bottom: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.gm-campaign-invite-block .invite-row--primary .invite-label {
+  font-weight: 700;
+  text-align: center;
+}
+.gm-campaign-invite-block .invite-label {
+  flex: 0 0 56px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  line-height: 1.2;
+}
+.gm-campaign-invite-block input.code-display[type="password"],
+.gm-campaign-invite-block input.code-display[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.35;
+  border: 1px solid var(--color-accent);
+  border-radius: 4px;
+  background-color: var(--color-input-bg);
+  color: var(--color-text);
+}
+.gm-campaign-invite-block .invite-row--primary input.code-display[type="password"],
+.gm-campaign-invite-block .invite-row--primary input.code-display[type="text"] {
+  border-color: var(--color-accent);
+  background-color: var(--color-input-bg);
+  color: var(--color-text);
+}
+.gm-campaign-invite-block .invite-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.gm-campaign-invite-block .button-like {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.gm-campaign-invite-block .invite-row--primary .invite-reveal-btn {
+  font-weight: 600;
+}
+.gm-campaign-invite-block .button-like:hover { background: var(--color-accent-hover); }
+.gm-campaign-invite-block .button-like:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>
+<script>
+(function () {
+  function ensureLoaded(block) {
+    if (block.dataset.campCode) {
+      return Promise.resolve();
+    }
+    var url = block.getAttribute("data-reveal-url");
+    if (!url) return Promise.reject(new Error("no url"));
+    return fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      .then(function (r) {
+        if (!r.ok) throw new Error("fetch failed");
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j || j.error || !j.join_code) throw new Error("bad payload");
+        var raw = String(j.join_code).trim();
+        if (!raw.toUpperCase().startsWith("CAMP-")) throw new Error("bad payload");
+        block.dataset.campCode = raw;
+      });
+  }
+
+  function showErr(block, msg) {
+    var el = block.querySelector(".invite-fetch-err");
+    if (el) {
+      el.style.display = "block";
+      el.textContent = msg || "Could not load code.";
+    }
+  }
+
+  function wireBlock(block) {
+    var row = block.querySelector(".invite-row[data-row='camp']");
+    if (!row) return;
+    var input = row.querySelector(".code-display");
+    var revealBtn = row.querySelector(".invite-reveal-btn");
+    if (!revealBtn || !input) return;
+
+    revealBtn.addEventListener("click", function () {
+      var errEl = block.querySelector(".invite-fetch-err");
+      if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+      revealBtn.disabled = true;
+      ensureLoaded(block)
+        .then(function () {
+          var code = (block.dataset.campCode || "").trim();
+          input.value = code;
+          input.type = "text";
+          input.setAttribute("aria-label", "CAMP join code (revealed)");
+          try {
+            input.focus();
+            input.select();
+          } catch (e) { /* ignore */ }
+        })
+        .catch(function () {
+          showErr(block, "Unable to load campaign code. Try again or refresh.");
+        })
+        .finally(function () {
+          revealBtn.disabled = false;
+        });
+    });
+  }
+
+  document.querySelectorAll(".gm-campaign-invite-block").forEach(wireBlock);
+})();
+</script>

@@ -13,11 +13,12 @@
             min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            background-color: var(--color-bg);
+            color: var(--color-text);
         }
         h1 {
             font-size: 2.5rem;
-            color: black;
+            color: var(--color-text);
             margin-top: 20px;
             margin-bottom: 20px;
             text-align: center;
@@ -26,10 +27,11 @@
             width: 80%;
             max-width: 900px;
             margin: 0 auto 40px auto;
-            background-color: white;
+            background-color: var(--color-surface);
             padding: 20px;
             border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-panel);
         }
         table {
             width: 100%;
@@ -39,14 +41,17 @@
         th, td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--color-border);
         }
         th {
             background-color: purple;
             color: white;
         }
+        table.gm-list-table td:last-child {
+            vertical-align: top;
+        }
         tr:nth-child(even) {
-            background-color: #f9f9f9;
+            background-color: var(--color-table-stripe);
         }
         .nav-buttons {
             display: flex;
@@ -78,14 +83,24 @@
         }
         .empty-state {
             text-align: center;
-            color: #666;
+            color: var(--color-muted);
             padding: 20px 0;
         }
         .campaign-actions-stack {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            align-items: flex-start;
+            gap: 12px;
+            align-items: stretch;
+            width: 100%;
+            max-width: 420px;
+            box-sizing: border-box;
+            padding: 16px;
+            background: var(--color-table-stripe);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            box-shadow: var(--shadow-panel);
+            color: var(--color-text);
+            font-size: 14px;
         }
         .campaign-actions-stack form {
             margin: 0;
@@ -95,6 +110,54 @@
             flex-wrap: wrap;
             gap: 6px;
             align-items: center;
+        }
+        /* Match GM campaign code partial: full width in Actions column, purple field theme */
+        .campaign-actions-stack .gm-campaign-invite-block {
+            width: 100%;
+            max-width: 480px;
+        }
+        .gm-ply-redeem-form {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        .gm-ply-redeem-form label {
+            display: block;
+            text-align: center;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--color-text);
+            margin-bottom: 6px;
+        }
+        .gm-ply-redeem-form .gm-ply-redeem-row {
+            display: flex;
+            gap: 6px;
+            align-items: stretch;
+            margin-top: 2px;
+        }
+        .gm-ply-redeem-form input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            font-family: ui-monospace, monospace;
+            font-size: 13px;
+            border: 1px solid var(--color-accent);
+            border-radius: 4px;
+            background-color: var(--color-input-bg);
+            color: var(--color-text);
+        }
+        .gm-ply-redeem-form button.button {
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
+            white-space: nowrap;
+            font-size: 13px;
+            padding: 8px 12px;
+            margin: 0;
+        }
+        .gm-ply-redeem-form button.button:hover {
+            background-color: var(--color-accent-hover);
         }
     </style>
 </head>
@@ -139,14 +202,14 @@
                                     </div>
                                     <div class="campaign-actions-row">
                                         {% set reveal_url = url_for('gm.reveal_campaign_join_code', campaign_id=info.campaign.id) %}
-                                        {% include 'partials/code_reveal.html' %}
+                                        {% include 'partials/gm_campaign_invite_rows.html' %}
                                     </div>
-                                    <form method="POST" action="{{ url_for('gm.redeem_player_code_route', campaign_id=info.campaign.id) }}" style="width:100%;max-width:320px;">
+                                    <form class="gm-ply-redeem-form" method="POST" action="{{ url_for('gm.redeem_player_code_route', campaign_id=info.campaign.id) }}">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <label for="ply-code-{{ info.campaign.id }}" style="font-size:12px;color:#555;">Add player by code</label>
-                                        <div style="display:flex;gap:6px;margin-top:4px;">
-                                            <input id="ply-code-{{ info.campaign.id }}" type="text" name="player_join_code" autocomplete="off" placeholder="PLY-XXXX-XXXX-XXXX" style="flex:1;min-width:0;padding:6px 8px;"/>
-                                            <button type="submit" class="button" style="white-space:nowrap;font-size:13px;padding:8px 12px;">Add</button>
+                                        <label for="ply-code-{{ info.campaign.id }}">Add player by code</label>
+                                        <div class="gm-ply-redeem-row">
+                                            <input id="ply-code-{{ info.campaign.id }}" type="text" name="player_join_code" autocomplete="off" placeholder="PLY-XXXX-XXXX-XXXX"/>
+                                            <button type="submit" class="button">Add</button>
                                         </div>
                                     </form>
                                 </div>

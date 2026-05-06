@@ -28,6 +28,7 @@ from app.services.join_codes import (
     reveal_campaign_code_for_gm,
     log_reveal,
     redeem_player_code,
+    CodeGenerationExhausted,
     InvalidCodeError,
     SeatCapError,
     CrossGMError,
@@ -627,18 +628,28 @@ def reveal_campaign_join_code(campaign_id: int):
     if not gm_profile:
         return jsonify(error="forbidden"), 403
     try:
-        code = reveal_campaign_code_for_gm(
+        join_code = reveal_campaign_code_for_gm(
             gm_profile_id=gm_profile.id, campaign_id=campaign_id
         )
+        db.session.commit()
         log_reveal(
             user_id=current_user.id,
             action="REVEAL_CAMPAIGN_CODE",
             target_id=campaign_id,
             ip=request.remote_addr or "",
         )
-        return jsonify(code=code)
+        return jsonify(code=join_code, join_code=join_code, campaign_id=campaign_id)
     except InvalidCodeError:
+        db.session.rollback()
         return jsonify(error="not_found"), 404
+    except CodeGenerationExhausted:
+        db.session.rollback()
+        log.warning(
+            "campaign join_code generation exhausted campaign_id=%s gm=%s",
+            campaign_id,
+            gm_profile.id,
+        )
+        return jsonify(error="code_generation_failed"), 503
 
 
 @login_required

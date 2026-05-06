@@ -1,7 +1,7 @@
 import traceback
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, subqueryload
 from sqlalchemy.exc import IntegrityError
 from flask_login import login_required, current_user
 
@@ -42,6 +42,7 @@ from app.routes.handlers.gm_shops_handler import (
     get_shop_city_panel_context,
     get_grouped_shops,
     get_linked_shop_ids_for_item,
+    build_grouped_cities_for_shop_form,
 )
 from app.routes.handlers.gm_campaigns_handler import (
     list_campaigns,
@@ -57,6 +58,7 @@ from app.routes.handlers.gm_campaigns_handler import (
 from app.services.world_generator.defaults import RANGE_SETTINGS, SCHEMA_VERSION
 from app.services.world_generator.generator import (
     GenerationTimeoutError,
+    generate_cities_for_empty_region,
     generate_shops_onward,
 )
 
@@ -399,10 +401,56 @@ def edit_region(region_id):
     )
 
 
+@gm_bp.route("/regions/<int:region_id>/generate_cities", methods=["POST"])
+@login_required
+def generate_cities_for_region(region_id):
+    """Create cities in-region only when it has none (world-config ranges)."""
+    if not region_table_exists():
+        flash("Region data is not available in this database.", "warning")
+        return redirect(url_for("gm.home"))
+
+    campaign_id = session.get("campaign_id")
+    if not campaign_id:
+        flash("Please select a campaign first.", "warning")
+        return redirect(url_for("main.campaigns"))
+
+    region_for_gm_or_404(region_id, current_user.gm_profile.id)
+
+    try:
+        settings = _partial_shop_gen_settings(campaign_id)
+        n_new = generate_cities_for_empty_region(
+            gm_profile_id=current_user.gm_profile.id,
+            campaign_id=campaign_id,
+            region_id=region_id,
+            settings=settings,
+        )
+        db.session.commit()
+        if n_new:
+            flash(f"Added {n_new} cities to this region.", "success")
+        else:
+            flash(
+                "This region already has cities; no new cities were added. "
+                "Use Generate shops to add shops to cities that do not have any yet.",
+                "warning",
+            )
+    except GenerationTimeoutError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+    except Exception as exc:
+        db.session.rollback()
+        traceback.print_exc()
+        flash(f"City generation failed: {exc}", "danger")
+
+    return redirect(url_for("gm.edit_region", region_id=region_id))
+
+
 @gm_bp.route("/regions/<int:region_id>/generate_shops", methods=["POST"])
 @login_required
 def generate_shops_for_region(region_id):
-    """Run world-generator shops phase (inventory + markets) for this region."""
+    """Shops + inventory + markets for cities in this region (cities must exist)."""
     if not region_table_exists():
         flash("Region data is not available in this database.", "warning")
         return redirect(url_for("gm.home"))
@@ -505,34 +553,75 @@ def add_shop():
 
     # GET request: render form
     campaign_id = active_campaign_id()
-    q = City.query.filter_by(gm_profile_id=current_user.gm_profile.id)
+    gm_profile_id = current_user.gm_profile.id
+    q = City.query.filter_by(gm_profile_id=gm_profile_id)
     if campaign_id is not None and campaign_scope_columns_available():
         q = q.filter(City.campaign_id == campaign_id)
-    cities = q.all()
-    return render_template("GM_add_shop.html", cities=cities)
+    if region_table_exists():
+        q = q.options(subqueryload(City.region_obj))
+    cities = q.order_by(City.name).all()
+    grouped_cities = build_grouped_cities_for_shop_form(cities)
+    panel_ctx = get_shop_city_panel_context(current_user.gm_profile)
+    return render_template(
+        "GM_add_shop.html",
+        cities=cities,
+        grouped_cities=grouped_cities,
+        campaign_regions=panel_ctx["campaign_regions"],
+        region_labels=panel_ctx["region_labels"],
+    )
 
 @gm_bp.route("/shops/edit/<int:shop_id>", methods=["GET", "POST"])
 @login_required
 def edit_shop(shop_id):
     shop = shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
-    
+    gm_profile_id = current_user.gm_profile.id
+
     if request.method == "POST":
         shop.name = request.form["name"]
         shop.type = request.form["type"]
+        city_ids = request.form.getlist("city_ids")
+        campaign_id = active_campaign_id()
+        new_cities = []
+        for city_id in city_ids:
+            try:
+                cid = int(city_id)
+            except ValueError:
+                continue
+            city_q = City.query.filter_by(city_id=cid, gm_profile_id=gm_profile_id)
+            if campaign_id is not None and campaign_scope_columns_available():
+                city_q = city_q.filter(City.campaign_id == campaign_id)
+            city = city_q.first()
+            if city:
+                new_cities.append(city)
+        shop.cities = new_cities
         try:
             db.session.commit()
             flash("Shop updated successfully!", "success")
-            return redirect(url_for("gm.view_shops"))
+            return redirect(url_for("gm.edit_shop", shop_id=shop.shop_id))
         except Exception as e:
             db.session.rollback()
+            db.session.refresh(shop)
             flash(f"Error updating shop: {e}", "danger")
 
     campaign_id = active_campaign_id()
-    q = City.query.filter_by(gm_profile_id=current_user.gm_profile.id)
+    q = City.query.filter_by(gm_profile_id=gm_profile_id)
     if campaign_id is not None and campaign_scope_columns_available():
         q = q.filter(City.campaign_id == campaign_id)
-    cities = q.all()
-    return render_template("GM_edit_shop.html", shop=shop, cities=cities)
+    if region_table_exists():
+        q = q.options(subqueryload(City.region_obj))
+    cities = q.order_by(City.name).all()
+    grouped_cities = build_grouped_cities_for_shop_form(cities)
+    linked_city_ids = {c.city_id for c in shop.cities}
+    panel_ctx = get_shop_city_panel_context(current_user.gm_profile)
+    return render_template(
+        "GM_edit_shop.html",
+        shop=shop,
+        cities=cities,
+        grouped_cities=grouped_cities,
+        linked_city_ids=linked_city_ids,
+        campaign_regions=panel_ctx["campaign_regions"],
+        region_labels=panel_ctx["region_labels"],
+    )
 
 
 @gm_bp.route("/shops/update-basic/<int:shop_id>", methods=["POST"])
