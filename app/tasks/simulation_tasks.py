@@ -1,13 +1,22 @@
+"""Celery task: run N simulation ticks for a GM with a per-GM Redis lock.
+
+Progress is written to Redis under `sim_job:{task_id}` so the polling UI can
+read state without involving the DB. All Redis writes go through `_safe_*`
+helpers so a transient Redis outage degrades gracefully (the task fails the
+job rather than raising into the Celery retry machinery).
+"""
+
+from __future__ import annotations
+
 import os
 from typing import Dict
 
-from celery_app import celery
 from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
 
+from celery_app import celery
 from app.extensions import db
 from app.services.distributed_lock import acquire_simulation_lock, get_redis_client
 from app.services.simulation import SimulationEngine
-
 
 TICKS_MAP: Dict[str, int] = {"day": 1, "week": 7, "month": 30, "year": 365}
 

@@ -1,0 +1,25 @@
+# Example redis.conf for the GCE worker VM. Copy to /etc/trsg/redis.conf and
+# substitute <VM_PRIVATE_IP>. Reach Redis only via the VPC connector subnet;
+# never open 6379 to the public internet.
+
+bind 127.0.0.1 <VM_PRIVATE_IP>
+protected-mode yes
+port 6379
+
+# Memory ceiling so Redis cannot OOM the host (Celery worker + Cloud SQL
+# Auth Proxy share the e2-small's 2 GB).
+maxmemory 256mb
+maxmemory-policy allkeys-lru
+
+# Persistence: append-only file is enough for queue durability across
+# reboots; full RDB snapshots are unnecessary for this workload.
+appendonly yes
+appendfsync everysec
+
+# Optional: defense-in-depth password (also store in Secret Manager).
+# requirepass CHANGE_ME
+
+# Disable risky commands accidentally executed via web shells.
+rename-command FLUSHDB ""
+rename-command FLUSHALL ""
+rename-command CONFIG ""

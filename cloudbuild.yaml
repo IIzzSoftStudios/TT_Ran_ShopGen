@@ -1,0 +1,82 @@
+# Cloud Build pipeline triggered on push to the `deploy` branch.
+#
+# Steps:
+#   1. Build the Docker image, tagging it with the commit SHA + `latest`.
+#   2. Push both tags to Artifact Registry.
+#   3. Deploy the new image as a fresh revision of the Cloud Run web service.
+#
+# Substitutions (override per-trigger or in the trigger UI):
+#   _REGION              GCP region (must match Cloud SQL, GCE worker, VPC connector).
+#   _AR_REPO             Artifact Registry repo name.
+#   _SERVICE             Cloud Run service name for the web tier.
+#   _CLOUD_SQL_INSTANCE  PROJECT:REGION:INSTANCE for Cloud Run's --add-cloudsql-instances.
+#   _VPC_CONNECTOR       Serverless VPC Access connector name (or omit when using Direct VPC egress).
+#
+# Secrets are wired into the Cloud Run revision at deploy time via
+# --set-secrets (each entry maps an env var to a Secret Manager secret).
+# Values: SECRET_KEY, SQLALCHEMY_DATABASE_URI, REDIS_URL, MAIL_USERNAME,
+# MAIL_PASSWORD, MAIL_DEFAULT_SENDER, MAIL_SERVER.
+
+substitutions:
+  _REGION: us-central1
+  _AR_REPO: trsg
+  _SERVICE: trsg-web
+  _CLOUD_SQL_INSTANCE: PROJECT:REGION:INSTANCE
+  _VPC_CONNECTOR: ""
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
+      - .
+
+  - id: push-sha
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA
+
+  - id: push-latest
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        VPC_FLAGS=""
+        if [ -n "${_VPC_CONNECTOR}" ]; then
+          VPC_FLAGS="--vpc-connector=${_VPC_CONNECTOR} --vpc-egress=private-ranges-only"
+        fi
+        gcloud run deploy ${_SERVICE} \
+          --image ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA \
+          --region ${_REGION} \
+          --platform managed \
+          --allow-unauthenticated \
+          --max-instances 3 \
+          --concurrency 40 \
+          --cpu-throttling \
+          --timeout 60 \
+          --add-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
+          --set-env-vars FLASK_ENV=production,SQLALCHEMY_ECHO=false,LOG_LEVEL=INFO \
+          --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest,REDIS_URL=REDIS_URL:latest,MAIL_USERNAME=MAIL_USERNAME:latest,MAIL_PASSWORD=MAIL_PASSWORD:latest,MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER:latest,MAIL_SERVER=MAIL_SERVER:latest \
+          $VPC_FLAGS
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
+
+timeout: 1200s

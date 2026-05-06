@@ -1,0 +1,24 @@
+[Unit]
+Description=Redis broker / session store for TT Ran ShopGen
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+# Bind to the VM's private VPC IP (substituted at provisioning time into
+# /etc/trsg/redis.conf) plus loopback for the local worker; do NOT expose
+# 6379 publicly. `maxmemory 256mb` + `allkeys-lru` keeps Redis from OOMing
+# the e2-small while the worker process is also resident on the same VM.
+ExecStartPre=-/usr/bin/docker rm -f trsg-redis
+ExecStart=/usr/bin/docker run --rm --name trsg-redis \
+  --network host \
+  -v /etc/trsg/redis.conf:/etc/redis/redis.conf:ro \
+  -v /var/lib/trsg-redis:/data \
+  redis:7-alpine \
+  redis-server /etc/redis/redis.conf
+ExecStop=/usr/bin/docker stop -t 10 trsg-redis
+
+[Install]
+WantedBy=multi-user.target

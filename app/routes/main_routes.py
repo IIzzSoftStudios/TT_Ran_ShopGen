@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, session, request, flash
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import login_required, current_user
 
 from app.extensions import db, limiter
@@ -10,6 +10,16 @@ from app.routes.handlers.campaign_selection_handler import (
 )
 
 main_bp = Blueprint("main", __name__)
+
+
+@main_bp.route("/healthz")
+def healthz():
+    """Cloud Run startup / liveness probe.
+
+    Intentionally dependency-free: a slow DB or Redis must not flap the
+    revision out. Deeper readiness checks belong on a separate path.
+    """
+    return jsonify(ok=True), 200
 
 
 @main_bp.route("/")

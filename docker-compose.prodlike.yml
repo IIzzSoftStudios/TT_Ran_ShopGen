@@ -1,0 +1,58 @@
+# Production-like overlay for the local stack.
+#
+# Use as: docker compose -f docker-compose.yml -f docker-compose.prodlike.yml up -d
+#
+# Differences vs the dev-only docker-compose.yml:
+# - `web` runs gunicorn (the same CMD baked into the production Dockerfile)
+#   instead of `flask run`, so we exercise the real WSGI path used in Cloud Run.
+# - `web` runs with FLASK_ENV=production so app/__init__.py's fail-fast checks
+#   for SECRET_KEY / SQLALCHEMY_DATABASE_URI are exercised.
+# - Two explicit networks split the data plane from the app plane:
+#     * data_net: db + redis + worker
+#     * app_net : web + worker
+#   The worker straddles both (it needs the DB and Redis like the GCE VM
+#   will). The web container is on app_net only -- a misconfiguration that
+#   relies on compose's default network would surface here as DNS / connect
+#   errors instead of silently working in the dev compose.
+# - `web` ports stay published on 127.0.0.1:5000 so functional checks can
+#   curl /healthz from the host without exposing the data plane.
+#
+# This is NOT a full GCP simulation. We cannot fake the /cloudsql/ Unix
+# socket or the VPC connector. The point is to surface assumptions that the
+# default single-bridge network masks.
+
+services:
+  db:
+    networks: [data_net]
+
+  redis:
+    networks: [data_net]
+
+  web:
+    command: >
+      gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 60
+      --access-logfile - --error-logfile - wsgi:application
+    environment:
+      FLASK_APP: wsgi.py
+      FLASK_DEBUG: "0"
+      FLASK_ENV: production
+      SQLALCHEMY_ECHO: "false"
+      SESSION_COOKIE_SECURE: "false"   # local-only; we hit http://127.0.0.1
+      LOG_LEVEL: INFO
+    networks: [app_net, data_net]
+    # data_net attachment is required for the web container to reach the
+    # Postgres host name `db`. In real GCP the equivalent path is the
+    # /cloudsql/ Unix socket; here we simulate "web has database access via
+    # a separate network", but the DNS + connect arithmetic still surfaces.
+
+  worker:
+    networks: [app_net, data_net]
+    environment:
+      FLASK_ENV: production
+      LOG_LEVEL: INFO
+
+networks:
+  data_net:
+    driver: bridge
+  app_net:
+    driver: bridge

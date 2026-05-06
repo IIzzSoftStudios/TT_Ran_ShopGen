@@ -1,47 +1,137 @@
+import json
 import logging
 import os
-from flask import Flask, request
+import sys
+
+import redis
 from dotenv import load_dotenv
+from flask import Flask, request, render_template
+
 from app.extensions import db, migrate, bcrypt, login_manager, session, csrf, mail, limiter
 from app.models import User
+from app.services.phase_config import PhaseEntitlements, resolve_phase_entitlements_path
 from app.services.schema_compat import (
     ensure_campaign_scope_columns,
+    ensure_join_codes_columns,
     ensure_phase_entitlement_columns,
     ensure_player_npc_columns,
-    ensure_join_codes_columns,
     ensure_user_password_history_table,
     warn_if_compat_mode_applied,
-    warn_if_phase_compat_applied,
-    warn_if_password_history_compat_applied,
-    warn_if_player_npc_compat_applied,
     warn_if_join_codes_compat_applied,
+    warn_if_password_history_compat_applied,
+    warn_if_phase_compat_applied,
+    warn_if_player_npc_compat_applied,
 )
-from app.services.phase_config import PhaseEntitlements, resolve_phase_entitlements_path
 
-# Load environment variables
 load_dotenv("config.env")
+
+logger = logging.getLogger(__name__)
+
+
+def _configure_logging() -> None:
+    """Emit JSON to stdout so Cloud Logging parses severity and custom fields.
+
+    Falls back to a stdlib JSON formatter if `python-json-logger` is missing
+    so the app still boots in environments where that wheel isn't installed.
+    """
+    root = logging.getLogger()
+    if root.handlers:
+        return
+
+    handler = logging.StreamHandler(sys.stdout)
+    try:
+        from pythonjsonlogger import jsonlogger
+
+        handler.setFormatter(
+            jsonlogger.JsonFormatter(
+                "%(asctime)s %(levelname)s %(name)s %(message)s",
+                rename_fields={"levelname": "severity"},
+            )
+        )
+    except ImportError:
+
+        class _JsonFormatter(logging.Formatter):
+            def format(self, record: logging.LogRecord) -> str:
+                payload = {
+                    "severity": record.levelname,
+                    "name": record.name,
+                    "message": record.getMessage(),
+                }
+                if record.exc_info:
+                    payload["exc_info"] = self.formatException(record.exc_info)
+                return json.dumps(payload)
+
+        handler.setFormatter(_JsonFormatter())
+
+    root.addHandler(handler)
+    root.setLevel(getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO))
+
+
+def _resolve_required_config() -> tuple[str, str | None]:
+    """Hard fail-fast in production if SECRET_KEY or DB URI are missing.
+
+    Cloud Run will mark the revision unhealthy on `sys.exit(1)` and refuse to
+    roll forward, which is the desired behavior vs. silently serving with a
+    placeholder secret.
+    """
+    flask_env = os.getenv("FLASK_ENV", "development").lower()
+    secret_key = os.getenv("SECRET_KEY")
+    db_uri = os.getenv("SQLALCHEMY_DATABASE_URI")
+
+    if flask_env == "production":
+        missing = [
+            name
+            for name, value in (("SECRET_KEY", secret_key), ("SQLALCHEMY_DATABASE_URI", db_uri))
+            if not value
+        ]
+        if missing:
+            sys.stderr.write(f"CRITICAL: missing required env in production: {missing}\n")
+            sys.exit(1)
+    else:
+        secret_key = secret_key or "dev_only_insecure_key"
+
+    return secret_key, db_uri
 
 
 def create_app():
+    _configure_logging()
+
     app = Flask(__name__)
 
-    # Load configuration from environment variables
-    app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "temporary_key_for_testing")
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI") 
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ECHO'] = True
-    
+    secret_key, db_uri = _resolve_required_config()
+    app.config["SECRET_KEY"] = secret_key
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SQLALCHEMY_ECHO"] = os.getenv("SQLALCHEMY_ECHO", "false").lower() in ("1", "true", "yes")
 
-    # Ensure Flask uses sessions properly
-    app.config['SESSION_TYPE'] = "filesystem"  
-    app.config['SESSION_PERMANENT'] = False
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    app.config["SESSION_TYPE"] = "redis"
+    app.config["SESSION_REDIS"] = redis.from_url(
+        redis_url,
+        health_check_interval=30,
+        socket_keepalive=True,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+    )
+    app.config["SESSION_PERMANENT"] = False
     app.config["SESSION_USE_SIGNER"] = True
-    app.config["SESSION_FILE_THRESHOLD"] = 100  # Limits excessive session files
+    app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     session.init_app(app)
 
-    app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+    app.config["SQLALCHEMY_COMMIT_ON_TEARDOWN"] = True
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+        "pool_size": 5,
+        "max_overflow": 5,
+    }
 
     app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "localhost")
     app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
@@ -51,7 +141,6 @@ def create_app():
     app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
     app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com")
 
-    # Initialize database and migration extensions
     db.init_app(app)
     login_manager.init_app(app)
     bcrypt.init_app(app)
@@ -76,16 +165,12 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         if not user_id:
-            print("DEBUG: No user_id found in session")
             return None
         with db.session.no_autoflush:
             user = db.session.get(User, int(user_id))
         if not user:
-            print(f"DEBUG: User ID {user_id} not found in database") 
+            logger.debug("user_id %s not found in database", user_id)
         return user
-    
-    # Import models to ensure they are registered
-    from app.models import City, Shop, Item, ShopInventory
 
     # Compatibility bootstrap: old DBs missing campaign_id columns should still boot.
     with app.app_context():
@@ -115,7 +200,6 @@ def create_app():
         except Exception as exc:
             app.logger.warning("join_codes compatibility bootstrap skipped: %s", exc)
 
-    # Register blueprints
     from app.routes.main_routes import main_bp
     from app.routes.auth_routes import auth
     from app.routes.player_routes import player_bp
@@ -126,7 +210,7 @@ def create_app():
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
-    app.register_blueprint(gm_bp)  # GM routes already have /gm prefix
+    app.register_blueprint(gm_bp)
     app.register_blueprint(player_bp, url_prefix="/player")
     app.register_blueprint(simulation_bp)  # Simulation routes have /api prefix
     app.register_blueprint(admin_bp)
@@ -154,12 +238,16 @@ def create_app():
             response.headers["Pragma"] = "no-cache"
         return response
 
-    # Debugging: Print registered routes
-    print("\nRegistered Routes:")
-    for rule in app.url_map.iter_rules():
-        print(f"{rule.endpoint}: {rule.methods} {rule}")
+    @app.errorhandler(404)
+    def _not_found(_error):
+        return render_template("404.html", message="Not found"), 404
+
+    if app.debug:
+        logger.info("Registered routes:")
+        for rule in app.url_map.iter_rules():
+            logger.info("  %s %s -> %s", sorted(rule.methods or []), rule, rule.endpoint)
 
     return app
 
-# Create the Flask app instance
+
 app = create_app()

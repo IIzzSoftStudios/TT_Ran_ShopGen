@@ -2,6 +2,9 @@
 Flask>=2.3,<4
 python-dotenv>=1.0
 
+# Production WSGI server (Cloud Run / gunicorn)
+gunicorn>=21
+
 # Database
 flask-sqlalchemy>=3.0
 flask-migrate>=4.0
@@ -23,6 +26,9 @@ flask-session>=0.5
 Faker>=20.0
 numpy>=1.24
 PyYAML>=6.0
+
+# Structured logging for Cloud Logging
+python-json-logger>=2.0
 
 # Tests
 pytest>=7.0

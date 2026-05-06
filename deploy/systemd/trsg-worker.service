@@ -1,0 +1,36 @@
+[Unit]
+Description=TT Ran ShopGen Celery worker (econ-forge GCE worker host)
+Documentation=file:///opt/trsg/README
+After=network-online.target docker.service trsg-cloud-sql-proxy.service trsg-redis.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=60
+
+# Pull latest image before each (re)start so `systemctl restart trsg-worker`
+# also rolls forward to the most recent Artifact Registry tag.
+ExecStartPre=-/usr/bin/docker rm -f trsg-worker
+ExecStartPre=/usr/bin/docker pull ${TRSG_IMAGE}
+ExecStart=/usr/bin/docker run --rm --name trsg-worker \
+  --network host \
+  --env-file /etc/trsg/worker.env \
+  ${TRSG_IMAGE} \
+  celery -A celery_app.celery worker \
+    --loglevel=info \
+    --concurrency=1 \
+    --max-tasks-per-child=50 \
+    --time-limit=600 \
+    --soft-time-limit=540
+ExecStop=/usr/bin/docker stop -t 30 trsg-worker
+
+# /etc/trsg/worker.env supplies REDIS_URL (typically redis://127.0.0.1:6379/0
+# when Redis is local on the same VM), SQLALCHEMY_DATABASE_URI pointing at
+# the Cloud SQL Auth Proxy on 127.0.0.1:5432, SECRET_KEY, and FLASK_ENV.
+# TRSG_IMAGE is set in /etc/systemd/system/trsg-worker.service.d/override.conf
+# so version bumps are a single `systemctl daemon-reload` away.
+
+[Install]
+WantedBy=multi-user.target

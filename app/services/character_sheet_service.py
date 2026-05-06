@@ -234,7 +234,8 @@ def build_character_view(player, campaign, *, name=None, equipment_slots=None):
     return SimpleNamespace(
         id=getattr(player, "id", None),
         name=display_name,
-        system_type=sheet.get("system_type") or ruleset.system_type,
+        # Resolved ruleset (unknown campaign.system_type falls back to generic).
+        system_type=ruleset.system_type,
         class_name=sheet.get("class_name"),
         species=sheet.get("species"),
         level=sheet.get("level"),

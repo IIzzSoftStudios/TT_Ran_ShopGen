@@ -28,7 +28,7 @@ from typing import Dict, List, Optional
 
 from app.constants.simulation_flags import WORLD_STATE_ENABLED
 from app.extensions import db
-from app.models import GMProfile, GMWorldState, PriceHistory, Shop, ShopInventory
+from app.models import GMProfile, GMWorldState, PriceHistory, Shop, ShopInventory, SimulationState
 from app.services.economy import calculate_dynamic_price
 from app.services.simulation_state_helpers import get_simulation_state_for_gm
 
@@ -223,6 +223,15 @@ class SimulationEngine:
                 if sim_state:
                     sim_state.current_tick = profile.current_game_day
                     sim_state.last_tick_time = recorded_at
+                else:
+                    db.session.add(
+                        SimulationState(
+                            gm_profile_id=gm_profile_id,
+                            current_tick=profile.current_game_day,
+                            speed="pause",
+                            last_tick_time=recorded_at,
+                        )
+                    )
 
                 if WORLD_STATE_ENABLED and state_blob:
                     gws = GMWorldState.query.filter_by(gm_profile_id=gm_profile_id).first()

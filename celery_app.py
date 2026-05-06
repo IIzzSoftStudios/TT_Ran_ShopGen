@@ -1,3 +1,11 @@
+"""Celery application factory.
+
+Loaded by the worker via `celery -A celery_app.celery worker ...` and by Flask
+task callers via `from celery_app import celery`. Broker / backend resolve from
+`REDIS_URL` (single canonical value) with optional `CELERY_BROKER_URL` and
+`CELERY_RESULT_BACKEND` overrides for environments that split them.
+"""
+
 import os
 from pathlib import Path
 
@@ -17,11 +25,9 @@ def _env(name: str, default: str) -> str:
 REDIS_URL_DEFAULT = "redis://localhost:6379/0"
 
 redis_url = _env("REDIS_URL", REDIS_URL_DEFAULT)
-
 celery_broker_url = _env("CELERY_BROKER_URL", redis_url)
 celery_result_backend = _env("CELERY_RESULT_BACKEND", redis_url)
 
-# Celery instance used by task modules.
 celery = Celery(
     "TT_Ran_ShopGen",
     broker=celery_broker_url,
@@ -35,7 +41,5 @@ celery.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
-    # Keep scheduling fair when many long-running tasks exist.
     worker_prefetch_multiplier=1,
 )
-

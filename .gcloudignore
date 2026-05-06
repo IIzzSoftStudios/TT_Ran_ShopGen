@@ -1,0 +1,44 @@
+# Files NOT uploaded to Cloud Build / Artifact Registry build context.
+# Production secrets must come from Cloud Run / GCE service config + Secret Manager,
+# never from a baked-in file.
+
+# Local secrets and dotfiles
+config.env
+config.env.*
+!config.example.env
+.env
+.env.*
+
+# Python caches and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local databases and ephemeral data
+*.sqlite
+*.sqlite3
+*.db
+flask_session/
+
+# Logs
+*.log
+logs/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Compose / local-only
+docker-compose.override.yml
