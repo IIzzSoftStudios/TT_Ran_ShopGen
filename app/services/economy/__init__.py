@@ -18,7 +18,7 @@ def calculate_dynamic_price(
     stock_level,
     shop_id,
     city_id,
-    gm_profile_id: int,
+    campaign_id: int,
     item_id=None,
     rng: Optional[random.Random] = None,
 ):
@@ -26,7 +26,7 @@ def calculate_dynamic_price(
     demand_m = calculate_demand(
         rarity,
         stock_level,
-        gm_profile_id,
+        campaign_id,
         city_id=city_id,
         shop_id=shop_id,
         item_id=item_id,
@@ -40,9 +40,9 @@ def calculate_dynamic_price(
     return round(max(lo, min(hi, raw)), 2)
 
 
-def update_shop_prices(gm_profile_id: int):
+def update_shop_prices(campaign_id: int):
     """Recompute dynamic_price for all inventory in one campaign. Prefer SimulationEngine for production."""
-    shops = Shop.query.filter_by(gm_profile_id=gm_profile_id).all()
+    shops = Shop.query.filter_by(campaign_id=campaign_id).all()
     for shop in shops:
         city_id = shop.cities[0].city_id if shop.cities else None
         for inventory in shop.inventory:
@@ -57,7 +57,7 @@ def update_shop_prices(gm_profile_id: int):
                 stock_level,
                 shop.shop_id,
                 city_id,
-                gm_profile_id,
+                campaign_id,
                 item_id=inventory.item_id,
             )
             inventory.dynamic_price = new_price

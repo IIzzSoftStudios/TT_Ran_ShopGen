@@ -126,6 +126,70 @@
         #gm-simulation-pane .tab-content.border {
             border-color: rgba(148, 163, 184, 0.35) !important;
         }
+
+        /* Expandable per-campaign drill-down inside the GM simulation usage table. */
+        .gm-sim-expander-cell { width: 36px; padding-right: 0; }
+        .gm-sim-expand-btn {
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            color: var(--color-text, #e2e8f0);
+            border-radius: 4px;
+            width: 26px;
+            height: 26px;
+            line-height: 1;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        .gm-sim-expand-btn:hover { border-color: var(--bs-primary, #0d6efd); }
+        .gm-sim-expand-btn[aria-expanded="true"] { transform: rotate(90deg); }
+        .gm-sim-expand-btn[disabled] {
+            opacity: 0.3;
+            cursor: default;
+            pointer-events: none;
+        }
+        .gm-sim-detail-row > td {
+            background: rgba(15, 23, 42, 0.55);
+            padding: 12px 18px;
+        }
+        .gm-sim-detail-row .gm-sim-campaigns {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+        }
+        .gm-sim-detail-row .gm-sim-campaigns th,
+        .gm-sim-detail-row .gm-sim-campaigns td {
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+            text-align: left;
+            white-space: nowrap;
+        }
+        .gm-sim-detail-row .gm-sim-campaigns thead th {
+            font-weight: 600;
+            color: var(--color-muted, #94a3b8);
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.04em;
+        }
+        .gm-sim-detail-row .gm-sim-campaigns tr:last-child td {
+            border-bottom: none;
+        }
+        .gm-sim-campaign-name { font-weight: 600; }
+        .gm-sim-campaign-inactive { opacity: 0.55; }
+        .gm-sim-campaign-pill {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(148, 163, 184, 0.18);
+            color: var(--color-muted, #94a3b8);
+            margin-left: 6px;
+        }
     </style>
 </head>
 <body class="gm-list-page">
@@ -418,6 +482,7 @@
                 <table class="gm-list-table w-100" id="gm-simulation-table">
                     <thead>
                         <tr>
+                            <th scope="col" class="gm-sim-expander-cell" aria-label="Expand"></th>
                             <th scope="col" class="gm-sim-sortable" data-sort="username" data-sort-type="string">Username<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
                             <th scope="col" class="gm-sim-sortable" data-sort="email" data-sort-type="string">Email<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
                             <th scope="col" class="gm-sim-sortable" data-sort="key_phase" data-sort-type="string">Key phase<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
@@ -426,12 +491,18 @@
                             <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_month" data-sort-type="number">Run month<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
                             <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_year" data-sort-type="number">Run year<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
                             <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_pause" data-sort-type="number">Pause<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="last_tick_time" data-sort-type="iso">Last run<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="days_simulated" data-sort-type="number">Days simulated<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
                             <th scope="col" class="gm-sim-sortable" data-sort="campaigns_count" data-sort-type="number">Campaigns<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
                         </tr>
                     </thead>
                     <tbody id="gm-simulation-tbody"></tbody>
                 </table>
             </div>
+
+            <p class="mt-3">
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+            </p>
         </div>
         {% endif %}
 
@@ -478,6 +549,13 @@
             var filterKeyPhase = '';
 
             function dispNum(v) { return v == null ? '—' : String(v); }
+
+            function dispIso(iso) {
+                if (!iso) return '—';
+                var d = new Date(iso);
+                if (isNaN(d.getTime())) return escapeHtml(iso);
+                try { return escapeHtml(d.toLocaleString()); } catch (e) { return escapeHtml(iso); }
+            }
 
             function escapeHtml(s) {
                 var d = document.createElement('div');
@@ -548,24 +626,88 @@
                 }
             }
 
+            var TOTAL_COLS = 12;
+
+            function buildCampaignsTable(campaigns) {
+                if (!campaigns || !campaigns.length) {
+                    return '<div class="text-muted small">No campaigns yet for this GM.</div>';
+                }
+                var head =
+                    '<thead><tr>' +
+                    '<th>Campaign</th>' +
+                    '<th>System</th>' +
+                    '<th>Status</th>' +
+                    '<th>Run day</th>' +
+                    '<th>Run week</th>' +
+                    '<th>Run month</th>' +
+                    '<th>Run year</th>' +
+                    '<th>Pause</th>' +
+                    '<th>Last run</th>' +
+                    '<th>Days simulated</th>' +
+                    '</tr></thead>';
+                var body = campaigns.map(function(c) {
+                    var deleted = c.is_deleted === true;
+                    var inactive = !deleted && c.is_active === false;
+                    var nameCls = 'gm-sim-campaign-name'
+                        + (inactive ? ' gm-sim-campaign-inactive' : '')
+                        + (deleted ? ' gm-sim-campaign-inactive' : '');
+                    var statusPill;
+                    if (deleted) {
+                        var deletedAt = c.deleted_at ? ' (' + dispIso(c.deleted_at) + ')' : '';
+                        statusPill = '<span class="gm-sim-campaign-pill" style="color:#ef4444;background:rgba(239,68,68,0.15)" title="Snapshotted at delete time">deleted' + deletedAt + '</span>';
+                    } else if (inactive) {
+                        statusPill = '<span class="gm-sim-campaign-pill">archived</span>';
+                    } else {
+                        statusPill = '<span class="gm-sim-campaign-pill" style="color:#16a34a;background:rgba(22,163,74,0.15)">active</span>';
+                    }
+                    return '<tr>' +
+                        '<td><span class="' + nameCls + '">' + escapeHtml(c.name) + '</span></td>' +
+                        '<td class="small">' + escapeHtml(c.system_type) + '</td>' +
+                        '<td>' + statusPill + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_day) + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_week) + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_month) + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_year) + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_pause) + '</td>' +
+                        '<td class="small">' + dispIso(c.last_tick_time) + '</td>' +
+                        '<td>' + dispNum(c.days_simulated) + '</td>' +
+                        '</tr>';
+                }).join('');
+                return '<table class="gm-sim-campaigns">' + head + '<tbody>' + body + '</tbody></table>';
+            }
+
+            function buildExpanderCell(rowKey, hasMultiple) {
+                if (!hasMultiple) {
+                    return '<td class="gm-sim-expander-cell"><button type="button" class="gm-sim-expand-btn" disabled aria-disabled="true" tabindex="-1" title="Single campaign">&rsaquo;</button></td>';
+                }
+                return '<td class="gm-sim-expander-cell">' +
+                    '<button type="button" class="gm-sim-expand-btn" aria-expanded="false" aria-controls="gm-sim-detail-' + escapeHtml(rowKey) + '" data-row-key="' + escapeHtml(rowKey) + '" title="Show per-campaign breakdown">&rsaquo;</button>' +
+                    '</td>';
+            }
+
             function render() {
                 var rows = sortedFiltered();
                 tbody.innerHTML = '';
                 if (!allRows.length) {
                     var tr0 = document.createElement('tr');
-                    tr0.innerHTML = '<td colspan="9" class="text-muted">No GM accounts yet.</td>';
+                    tr0.innerHTML = '<td colspan="' + TOTAL_COLS + '" class="text-muted">No GM accounts yet.</td>';
                     tbody.appendChild(tr0);
                     return;
                 }
                 if (!rows.length) {
                     var tr1 = document.createElement('tr');
-                    tr1.innerHTML = '<td colspan="9" class="text-muted">No rows match this filter.</td>';
+                    tr1.innerHTML = '<td colspan="' + TOTAL_COLS + '" class="text-muted">No rows match this filter.</td>';
                     tbody.appendChild(tr1);
                     return;
                 }
-                rows.forEach(function(r) {
+                rows.forEach(function(r, idx) {
+                    var rowKey = String(idx) + '-' + (r.username || '');
+                    var hasMultiple = (r.campaigns_count || 0) > 1;
                     var tr = document.createElement('tr');
+                    tr.className = 'gm-sim-row';
+                    tr.dataset.rowKey = rowKey;
                     tr.innerHTML =
+                        buildExpanderCell(rowKey, hasMultiple) +
                         '<td>' + escapeHtml(r.username) + '</td>' +
                         '<td class="font-monospace small">' + escapeHtml(r.email) + '</td>' +
                         '<td><span class="small">' + escapeHtml(r.key_phase) + '</span></td>' +
@@ -574,10 +716,37 @@
                         '<td>' + dispNum(r.sim_clicks_month) + '</td>' +
                         '<td>' + dispNum(r.sim_clicks_year) + '</td>' +
                         '<td>' + dispNum(r.sim_clicks_pause) + '</td>' +
+                        '<td class="small">' + dispIso(r.last_tick_time) + '</td>' +
+                        '<td>' + dispNum(r.days_simulated) + '</td>' +
                         '<td>' + (r.campaigns_count != null ? String(r.campaigns_count) : '—') + '</td>';
                     tbody.appendChild(tr);
+
+                    if (hasMultiple) {
+                        var detail = document.createElement('tr');
+                        detail.className = 'gm-sim-detail-row';
+                        detail.id = 'gm-sim-detail-' + rowKey;
+                        detail.style.display = 'none';
+                        detail.dataset.rowKey = rowKey;
+                        detail.innerHTML =
+                            '<td colspan="' + TOTAL_COLS + '">' +
+                            buildCampaignsTable(r.campaigns) +
+                            '</td>';
+                        tbody.appendChild(detail);
+                    }
                 });
             }
+
+            tbody.addEventListener('click', function(ev) {
+                var btn = ev.target.closest && ev.target.closest('.gm-sim-expand-btn');
+                if (!btn || btn.disabled) return;
+                var rowKey = btn.getAttribute('data-row-key');
+                if (!rowKey) return;
+                var detail = document.getElementById('gm-sim-detail-' + rowKey);
+                if (!detail) return;
+                var open = btn.getAttribute('aria-expanded') === 'true';
+                btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+                detail.style.display = open ? 'none' : 'table-row';
+            });
 
             document.querySelectorAll('.gm-sim-sortable').forEach(function(th) {
                 th.addEventListener('click', function() {

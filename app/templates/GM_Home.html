@@ -326,7 +326,7 @@
     </div>
 
     <!-- Simulation Control Panel (Celery job polling — workspace behavior) -->
-    {% set cal = gm_profile.calendar_state %}
+    {% set cal = campaign.calendar_state if campaign else {'year': 1, 'month_of_year': 1, 'day': 1} %}
     <div class="simulation-panel">
         <h2>Simulation</h2>
         <div id="simulation-controls">
@@ -362,7 +362,7 @@
             <div class="gm-calendar-header">
                 <span id="cal-year-name">Year {{ cal.year }}</span>
                 <span id="cal-month-name">Month {{ cal.month_of_year }}</span>
-                <span id="cal-total-days">Day: {{ gm_profile.current_game_day }}</span>
+                <span id="cal-total-days">Day: {{ campaign.current_game_day if campaign else 1 }}</span>
             </div>
             <div class="gm-calendar-weekdays" aria-hidden="true">
                 <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
@@ -376,7 +376,7 @@
     </div>
 
     <div class="gm-world-quick-nav--dashboard">
-        {% with show_back_to_dashboard=false, show_add_city=true %}
+        {% with show_back_to_dashboard=false, show_add_city=true, show_debt_toggle=true %}
         {% include 'partials/gm_world_quick_nav.html' %}
         {% endwith %}
     </div>
@@ -422,7 +422,7 @@
             var elYear = document.getElementById('cal-year-name');
             if (elTotal) elTotal.textContent = 'Day: ' + n;
             // 30-day months, 12 months/year (360 days/year). Keep this math in
-            // sync with GMProfile.calendar_state on the server.
+            // sync with Campaign.calendar_state on the server.
             var dayOfMonth = ((n - 1) % 30) + 1;
             var year = Math.floor((n - 1) / 360) + 1;
             var monthOfYear = Math.floor(((n - 1) % 360) / 30) + 1;

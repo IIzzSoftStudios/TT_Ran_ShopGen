@@ -124,16 +124,13 @@ def _draw_rarity(rng: random.Random) -> str:
 # Public entry point
 # -----------------------------------------------------------------------------
 def generate(
-    gm_profile_id: int,
     campaign_id: int,
     settings: Dict[str, Any],
 ) -> GenerationResult:
     """Materialize a world. Does NOT commit.
 
     Parameters:
-        gm_profile_id: every existing entity FK is scoped to this value.
-        campaign_id: stamped on CampaignWorldConfig / Region / MarketEvent
-            where those tables carry a campaign FK.
+        campaign_id: every entity FK is scoped to this value.
         settings: normalized settings dict from `validator.validate`.
 
     Returns a `GenerationResult` the handler should persist /audit-log.
@@ -192,7 +189,6 @@ def generate(
                 Region(
                     name=raw_name,
                     campaign_id=campaign_id,
-                    gm_profile_id=gm_profile_id,
                     local_flavor={"axis_position": int(axis_pos)},
                 )
             )
@@ -246,7 +242,6 @@ def generate(
                     rarity=rarity,
                     base_price=base_price,
                     description=f"{rarity} {category} (axis {axis_pos})",
-                    gm_profile_id=gm_profile_id,
                     campaign_id=campaign_id,
                     stats=stats,
                     axis_position=int(axis_pos),
@@ -293,7 +288,6 @@ def generate(
                 size=size,
                 population=population,
                 region=region.name if region else None,
-                gm_profile_id=gm_profile_id,
                 campaign_id=campaign_id,
             )
             # region_id is set by the migration adding a nullable FK. Guarded
@@ -337,7 +331,6 @@ def generate(
                 shop = Shop(
                     name=sname,
                     type=shop_type,
-                    gm_profile_id=gm_profile_id,
                     campaign_id=campaign_id,
                     preferred_region=city.region,
                 )
@@ -454,7 +447,6 @@ def generate(
                         total_supply=0,
                         total_demand=0,
                         average_price=float(base_price_table[item.item_id]),
-                        gm_profile_id=gm_profile_id,
                         campaign_id=campaign_id,
                     )
                 )
@@ -467,7 +459,6 @@ def generate(
                 total_supply=0,
                 total_demand=0,
                 average_price=float(base_price_table[item.item_id]),
-                gm_profile_id=gm_profile_id,
                 campaign_id=campaign_id,
             )
             for item in items
@@ -486,7 +477,7 @@ def generate(
         # ---------------------------------------------------------------
         existing_sim = (
             db.session.query(SimulationState)
-            .filter_by(gm_profile_id=gm_profile_id)
+            .filter_by(campaign_id=campaign_id)
             .first()
         )
         if existing_sim is None:
@@ -494,7 +485,7 @@ def generate(
                 SimulationState(
                     current_tick=0,
                     speed=sim_speed,
-                    gm_profile_id=gm_profile_id,
+                    campaign_id=campaign_id,
                 )
             )
         # Do not overwrite speed on an existing row — GM controls it from the sim UI.
@@ -513,7 +504,6 @@ def generate(
 
 
 def generate_cities_for_empty_region(
-    gm_profile_id: int,
     campaign_id: int,
     region_id: int,
     settings: Dict[str, Any],
@@ -548,7 +538,6 @@ def generate_cities_for_empty_region(
         .filter_by(
             id=region_id,
             campaign_id=campaign_id,
-            gm_profile_id=gm_profile_id,
         )
         .first()
     )
@@ -559,7 +548,6 @@ def generate_cities_for_empty_region(
         db.session.query(City)
         .filter_by(
             campaign_id=campaign_id,
-            gm_profile_id=gm_profile_id,
             region_id=region_id,
         )
         .count()
@@ -570,7 +558,7 @@ def generate_cities_for_empty_region(
     city_names = {
         n[0]
         for n in db.session.query(City.name)
-        .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+        .filter_by(campaign_id=campaign_id)
         .all()
     }
 
@@ -605,7 +593,6 @@ def generate_cities_for_empty_region(
                     size=size,
                     population=population,
                     region=region_row.name,
-                    gm_profile_id=gm_profile_id,
                     campaign_id=campaign_id,
                     region_id=region_row.id,
                 )
@@ -622,7 +609,6 @@ def generate_cities_for_empty_region(
 
 
 def generate_shops_onward(
-    gm_profile_id: int,
     campaign_id: int,
     region_id: int,
     settings: Dict[str, Any],
@@ -662,7 +648,6 @@ def generate_shops_onward(
         .filter_by(
             id=region_id,
             campaign_id=campaign_id,
-            gm_profile_id=gm_profile_id,
         )
         .first()
     )
@@ -671,7 +656,7 @@ def generate_shops_onward(
 
     regions_sorted = (
         db.session.query(Region)
-        .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+        .filter_by(campaign_id=campaign_id)
         .order_by(Region.id)
         .all()
     )
@@ -681,7 +666,6 @@ def generate_shops_onward(
         db.session.query(City)
         .filter_by(
             campaign_id=campaign_id,
-            gm_profile_id=gm_profile_id,
             region_id=region_id,
         )
         .order_by(City.city_id)
@@ -694,7 +678,7 @@ def generate_shops_onward(
 
     items = (
         db.session.query(Item)
-        .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+        .filter_by(campaign_id=campaign_id)
         .all()
     )
     if not items:
@@ -706,7 +690,7 @@ def generate_shops_onward(
     shop_names: set = {
         s[0]
         for s in db.session.query(Shop.name)
-        .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+        .filter_by(campaign_id=campaign_id)
         .all()
     }
 
@@ -751,7 +735,6 @@ def generate_shops_onward(
                 shop = Shop(
                     name=sname,
                     type=shop_type,
-                    gm_profile_id=gm_profile_id,
                     campaign_id=campaign_id,
                     preferred_region=pref or None,
                 )
@@ -838,7 +821,7 @@ def generate_shops_onward(
 
         all_campaign_cities = (
             db.session.query(City)
-            .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+            .filter_by(campaign_id=campaign_id)
             .order_by(City.city_id)
             .all()
         )
@@ -852,7 +835,7 @@ def generate_shops_onward(
         existing_regional = {
             (row.city_id, row.item_id)
             for row in db.session.query(RegionalMarket.city_id, RegionalMarket.item_id)
-            .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+            .filter_by(campaign_id=campaign_id)
             .all()
         }
         regional_markets: List[RegionalMarket] = []
@@ -872,7 +855,6 @@ def generate_shops_onward(
                         total_supply=0,
                         total_demand=0,
                         average_price=float(base_price_table[item.item_id]),
-                        gm_profile_id=gm_profile_id,
                         campaign_id=campaign_id,
                     )
                 )
@@ -882,7 +864,7 @@ def generate_shops_onward(
         existing_global_item_ids = {
             row[0]
             for row in db.session.query(GlobalMarket.item_id)
-            .filter_by(campaign_id=campaign_id, gm_profile_id=gm_profile_id)
+            .filter_by(campaign_id=campaign_id)
             .all()
         }
         global_markets = [
@@ -891,7 +873,6 @@ def generate_shops_onward(
                 total_supply=0,
                 total_demand=0,
                 average_price=float(base_price_table[item.item_id]),
-                gm_profile_id=gm_profile_id,
                 campaign_id=campaign_id,
             )
             for item in items
@@ -908,7 +889,7 @@ def generate_shops_onward(
 
         existing_sim = (
             db.session.query(SimulationState)
-            .filter_by(gm_profile_id=gm_profile_id)
+            .filter_by(campaign_id=campaign_id)
             .first()
         )
         if existing_sim is None:
@@ -916,7 +897,7 @@ def generate_shops_onward(
                 SimulationState(
                     current_tick=0,
                     speed=sim_speed,
-                    gm_profile_id=gm_profile_id,
+                    campaign_id=campaign_id,
                 )
             )
 

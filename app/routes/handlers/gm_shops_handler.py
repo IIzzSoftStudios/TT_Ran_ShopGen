@@ -9,11 +9,10 @@ from sqlalchemy.orm import subqueryload
 
 from app.constants.shops import SHOP_TYPE_DEFAULTS
 from app.extensions import db
-from app.models import City, Shop, ShopInventory, Region
+from app.models import City, Shop, ShopInventory, Region, Campaign
 from app.routes.handlers.gm_helpers import (
     get_current_gm_profile,
     active_campaign_id,
-    campaign_scope_columns_available,
 )
 
 
@@ -74,24 +73,25 @@ def _normalize_shop_name(raw):
 
 def get_shop_city_panel_context(gm_profile):
     """Build city_data, region_labels, and type_suggestions for the shops-by-city UI."""
-    q = City.query.filter_by(gm_profile_id=gm_profile.id).options(
+    campaign_id = active_campaign_id()
+    if not campaign_id:
+        return {
+            "city_data": [],
+            "region_labels": [],
+            "campaign_regions": [],
+            "type_suggestions": sorted(SHOP_TYPE_DEFAULTS),
+        }
+
+    q = City.query.filter_by(campaign_id=campaign_id).options(
         subqueryload(City.shops)
     )
-    campaign_id = active_campaign_id()
-    if campaign_id is not None and campaign_scope_columns_available():
-        q = q.filter(City.campaign_id == campaign_id)
     if _region_table_exists():
         q = q.options(subqueryload(City.region_obj))
     cities = q.order_by(City.name).all()
 
     discovered_rows = (
         db.session.query(Shop.type)
-        .filter_by(gm_profile_id=gm_profile.id)
-        .filter(
-            Shop.campaign_id == campaign_id
-            if campaign_id is not None and campaign_scope_columns_available()
-            else True
-        )
+        .filter_by(campaign_id=campaign_id)
         .distinct()
         .all()
     )
@@ -134,10 +134,7 @@ def get_shop_city_panel_context(gm_profile):
     campaign_regions = []
     if _region_table_exists() and campaign_id is not None:
         campaign_regions = (
-            Region.query.filter_by(
-                campaign_id=campaign_id,
-                gm_profile_id=gm_profile.id,
-            )
+            Region.query.filter_by(campaign_id=campaign_id)
             .order_by(Region.name)
             .all()
         )
@@ -161,11 +158,9 @@ def get_grouped_shops(gm_profile):
         to dict keys: region_label, size, shop_count.
     """
     campaign_id = active_campaign_id()
-    q = City.query.filter_by(gm_profile_id=gm_profile.id).filter(
-        City.campaign_id == campaign_id
-        if campaign_id is not None and campaign_scope_columns_available()
-        else True
-    )
+    if not campaign_id:
+        return {}, {}
+    q = City.query.filter_by(campaign_id=campaign_id)
     q = q.options(subqueryload(City.shops))
     if _region_table_exists():
         q = q.options(subqueryload(City.region_obj))
@@ -210,7 +205,10 @@ def update_shop_basic(shop_id):
         return redirect_response
 
     shop = Shop.query.get_or_404(shop_id)
-    if shop.gm_profile_id != gm_profile.id:
+    owning_campaign = Campaign.query.filter_by(
+        id=shop.campaign_id, gm_profile_id=gm_profile.id
+    ).first()
+    if owning_campaign is None:
         flash("You don't have permission to update this shop.", "danger")
         return redirect(url_for("gm.home"))
 

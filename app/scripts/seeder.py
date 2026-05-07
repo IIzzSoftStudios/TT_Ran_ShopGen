@@ -129,7 +129,6 @@ def seed_gm_data(
             existing_config.world_seed = settings["world_seed"]
 
         result = wg_generator.generate(
-            gm_profile_id=gm_profile_id,
             campaign_id=resolved_campaign_id,
             settings=settings,
         )

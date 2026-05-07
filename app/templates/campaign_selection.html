@@ -99,6 +99,98 @@
             color: white;
         }
 
+        .section-header {
+            margin: 32px 0 12px 0;
+            font-size: 1.25rem;
+            color: var(--color-text);
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 6px;
+        }
+
+        .characters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .character-card {
+            background-color: var(--color-surface);
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: var(--color-text);
+            display: block;
+        }
+
+        .character-card:hover {
+            border-color: var(--color-accent);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-panel);
+        }
+
+        .character-card h3 {
+            margin: 0 0 6px 0;
+            color: var(--color-accent);
+            font-size: 1.1rem;
+        }
+
+        .character-meta {
+            color: var(--color-muted);
+            font-size: 0.9rem;
+            margin: 2px 0;
+        }
+
+        .character-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+            margin-top: 8px;
+        }
+
+        .character-card-wrap {
+            position: relative;
+            display: block;
+        }
+
+        .character-card-wrap .character-card {
+            padding-bottom: 56px;
+        }
+
+        .character-card-wrap .card-delete-form {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            margin: 0;
+            z-index: 2;
+        }
+
+        .character-card-wrap .card-delete-btn {
+            width: 100%;
+            padding: 6px 10px;
+            background: transparent;
+            color: var(--color-muted);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .character-card-wrap .card-delete-btn:hover {
+            background: #c0392b;
+            color: white;
+            border-color: #c0392b;
+        }
+
         .no-campaigns {
             text-align: center;
             color: var(--color-muted);
@@ -273,6 +365,9 @@
         {% endwith %}
 
         {% if campaigns %}
+            {% if current_user.is_authenticated and current_user.role == 'Player' %}
+                <h2 class="section-header">Campaigns</h2>
+            {% endif %}
             <div class="campaigns-grid">
                 {% for campaign in campaigns %}
                     <a href="{{ url_for('main.load_campaign_route', campaign_id=campaign.id) }}" class="campaign-card">
@@ -288,26 +383,37 @@
                     </a>
                 {% endfor %}
             </div>
-        {% else %}
+        {% elif not solo_characters %}
             <div class="no-campaigns">
                 {% if show_redeem_only|default(false) and current_user.is_authenticated and current_user.role == 'Player' %}
-                    <p>You are not in a campaign yet. Enter the <strong>campaign code</strong> your GM shared (starts with <code>CAMP-</code>).</p>
+                    <p>You are not in a campaign yet. Enter the <strong>campaign code</strong> your GM shared (starts with <code>CAMP-</code>), or create a character below to get started.</p>
                 {% else %}
                     <p>No campaigns available. Please contact your GM or support.</p>
                 {% endif %}
             </div>
         {% endif %}
 
-        {% if current_user.is_authenticated and current_user.role == 'Player' %}
-        <div class="redeem-box">
-            <h2 style="margin-top:0;font-size:1.1rem;">Join with campaign code</h2>
-            <form method="POST" action="{{ url_for('main.campaign_redeem') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <label for="campaign_code">Campaign code</label>
-                <input type="text" id="campaign_code" name="campaign_code" autocomplete="off" placeholder="CAMP-XXXX-XXXX-XXXX"/>
-                <button type="submit">Join campaign</button>
-            </form>
-        </div>
+        {% if solo_characters %}
+            <h2 class="section-header">Characters (no campaign)</h2>
+            <p class="subtitle" style="margin-bottom: 16px;">Open one of your standalone characters without joining a campaign.</p>
+            <div class="characters-grid">
+                {% for ch in solo_characters %}
+                    <div class="character-card-wrap">
+                        <a href="{{ url_for('player.character_dashboard', player_id=ch.id) }}" class="character-card">
+                            <h3>{{ ch.name }}</h3>
+                            <div class="character-meta"><strong>System:</strong> {{ ch.system_type }}</div>
+                            {% if ch.level %}<div class="character-meta"><strong>Level:</strong> {{ ch.level }}</div>{% endif %}
+                        </a>
+                        <form method="POST"
+                              action="{{ url_for('player.delete_character', player_id=ch.id) }}"
+                              class="card-delete-form"
+                              onsubmit="return confirm('Delete {{ ch.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="card-delete-btn" aria-label="Delete {{ ch.name|e }}">Delete character</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
         {% endif %}
 
         {% if current_user.is_authenticated %}

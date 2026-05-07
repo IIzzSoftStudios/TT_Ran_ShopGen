@@ -11,9 +11,9 @@ from app.services.logging_config import gm_logger
 from app.services.simulation import SimulationEngine
 from app.scripts.seeder import seed_gm_data
 from app.extensions import db
-from app.models import SimulationState
-from app.services.simulation_state_helpers import get_simulation_state_for_gm
-from app.routes.handlers.gm_helpers import get_current_gm_profile
+from app.models import Campaign, SimulationState
+from app.services.simulation_state_helpers import get_simulation_state_for_campaign
+from app.routes.handlers.gm_helpers import get_current_gm_profile, require_active_campaign
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
 from app.services.distributed_lock import acquire_simulation_lock
 from app.services.distributed_lock import get_redis_client
@@ -31,15 +31,15 @@ _SIM_DASHBOARD_CLICK_ATTR = {
 }
 
 
-def _record_sim_dashboard_click(gm_profile_id: int, kind: str) -> None:
+def _record_sim_dashboard_click(campaign_id: int, kind: str) -> None:
     """Count one successful GM dashboard simulation control action (no commit)."""
     attr = _SIM_DASHBOARD_CLICK_ATTR.get(kind)
     if not attr:
         return
-    state = get_simulation_state_for_gm(db.session, gm_profile_id)
+    state = get_simulation_state_for_campaign(db.session, campaign_id)
     if state is None:
         state = SimulationState(
-            gm_profile_id=gm_profile_id,
+            campaign_id=campaign_id,
             current_tick=0,
             speed="pause",
             last_tick_time=datetime.utcnow(),
@@ -75,6 +75,54 @@ def _debug_request(request_type: str, route: str):
     )
 
 
+def _active_campaign_id_for_simulation(gm_profile):
+    """Return the loaded campaign id for this GM or a JSON error response."""
+    raw_campaign_id = session.get("campaign_id")
+    if not raw_campaign_id:
+        return None, (
+            jsonify(
+                {
+                    "error": "Please select a campaign before running simulation.",
+                    "status": "invalid",
+                }
+            ),
+            400,
+        )
+    try:
+        campaign_id = int(raw_campaign_id)
+    except (TypeError, ValueError):
+        session.pop("campaign_id", None)
+        session.modified = True
+        return None, (
+            jsonify(
+                {
+                    "error": "Invalid campaign session. Please select a campaign again.",
+                    "status": "invalid",
+                }
+            ),
+            400,
+        )
+
+    campaign = Campaign.query.filter_by(
+        id=campaign_id,
+        gm_profile_id=gm_profile.id,
+        is_active=True,
+    ).first()
+    if campaign is None:
+        session.pop("campaign_id", None)
+        session.modified = True
+        return None, (
+            jsonify(
+                {
+                    "error": "Invalid campaign session. Please select a campaign again.",
+                    "status": "invalid",
+                }
+            ),
+            400,
+        )
+    return campaign_id, None
+
+
 def home():
     """Render the GM dashboard with simulation controls and status."""
     gm_profile, redirect_response = get_current_gm_profile()
@@ -82,12 +130,15 @@ def home():
         return redirect_response
     _debug_request("GET", "/gm/")
 
+    campaign, redirect_response = require_active_campaign(gm_profile)
+    if redirect_response is not None:
+        return redirect_response
+
     shops_panel = get_shop_city_panel_context(gm_profile)
     return render_template(
         "GM_Home.html",
         gm_profile=gm_profile,
-        # Statless: we no longer auto-advance simulation on page load.
-        # Client-side runs will drive button active state later during the polling migration.
+        campaign=campaign,
         current_speed="pause",
         **shops_panel,
     )
@@ -129,21 +180,21 @@ def run_simulation_tick():
     gm_profile, redirect_response = get_current_gm_profile()
     if redirect_response:
         return redirect_response
+    campaign_id, campaign_error = _active_campaign_id_for_simulation(gm_profile)
+    if campaign_error:
+        return campaign_error
 
-    lock = acquire_simulation_lock(gm_profile.id, ttl_seconds=10, blocking=False)
+    lock = acquire_simulation_lock(campaign_id, ttl_seconds=10, blocking=False)
     if lock is None:
         return jsonify({"error": "Simulation already running", "status": "busy"}), 409
 
     simulation_engine = SimulationEngine()
     try:
-        stats = simulation_engine.run_tick(
-            gm_profile.id,
-            campaign_id=session.get("campaign_id"),
-        )
+        stats = simulation_engine.run_tick(campaign_id=campaign_id)
 
         gm_logger.debug(
             f"Manual tick execution:\n"
-            f"  Campaign ID: {gm_profile.id}\n"
+            f"  Campaign ID: {campaign_id}\n"
             f"  Shops updated: {stats['shops_updated']}\n"
             f"  Items updated: {stats['items_updated']}\n"
             f"  Tick duration: {stats.get('tick_duration')}s\n"
@@ -174,6 +225,9 @@ def update_simulation_speed():
     gm_profile, redirect_response = get_current_gm_profile()
     if redirect_response:
         return redirect_response
+    campaign_id, campaign_error = _active_campaign_id_for_simulation(gm_profile)
+    if campaign_error:
+        return campaign_error
 
     try:
         payload = request.get_json(silent=True) or {}
@@ -189,27 +243,28 @@ def update_simulation_speed():
                 400,
             )
 
-        state = get_simulation_state_for_gm(db.session, gm_profile.id)
+        state = get_simulation_state_for_campaign(db.session, campaign_id)
         if not state:
             state = SimulationState(
                 current_tick=0,
                 speed="pause",
                 last_tick_time=datetime.utcnow(),
-                gm_profile_id=gm_profile.id,
+                campaign_id=campaign_id,
             )
             db.session.add(state)
         else:
             state.speed = "pause"
         db.session.flush()
-        _record_sim_dashboard_click(gm_profile.id, "pause")
+        _record_sim_dashboard_click(campaign_id, "pause")
         db.session.commit()
 
+        campaign = Campaign.query.get(campaign_id)
         return jsonify(
             {
                 "status": "ok",
                 "message": "Simulation paused",
                 "speed": state.speed,
-                "current_game_day": gm_profile.current_game_day,
+                "current_game_day": campaign.current_game_day if campaign else None,
             }
         )
     except Exception as e:
@@ -224,6 +279,9 @@ def run_period_stream():
     gm_profile, redirect_response = get_current_gm_profile()
     if redirect_response:
         return redirect_response
+    campaign_id, campaign_error = _active_campaign_id_for_simulation(gm_profile)
+    if campaign_error:
+        return campaign_error
 
     payload = request.get_json(silent=True) or {}
     period = payload.get("period")
@@ -231,28 +289,27 @@ def run_period_stream():
     if period not in ticks_map:
         return jsonify({"error": "Invalid or missing period", "status": "invalid"}), 400
 
-    # Fast check: if Redis lock exists, we expect the GM to be busy.
     redis_client = get_redis_client()
-    lock_key = f"lock:sim:{int(gm_profile.id)}"
+    lock_key = f"lock:sim:{int(campaign_id)}"
     if redis_client.exists(lock_key):
         return jsonify({"error": "Simulation already running", "status": "busy"}), 409
 
-    # Enqueue background execution.
-    task = run_period_task.delay(int(gm_profile.id), period)
+    task = run_period_task.delay(int(campaign_id), period)
 
-    # Optional: prime queued state for immediate polling.
+    campaign = Campaign.query.get(campaign_id)
     redis_client.hset(
         f"sim_job:{task.id}",
         mapping={
             "status": "queued",
             "ticks_done": 0,
             "ticks_total": ticks_map[period],
-            "current_game_day": gm_profile.current_game_day,
+            "current_game_day": campaign.current_game_day if campaign else 0,
+            "campaign_id": campaign_id or "",
         },
     )
 
     try:
-        _record_sim_dashboard_click(int(gm_profile.id), period)
+        _record_sim_dashboard_click(int(campaign_id), period)
         db.session.commit()
     except Exception:
         db.session.rollback()

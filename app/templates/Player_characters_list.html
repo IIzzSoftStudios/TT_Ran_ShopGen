@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Your Characters</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+        .container {
+            background-color: var(--color-surface);
+            color: var(--color-text);
+            padding: 32px 40px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-panel);
+            max-width: 760px;
+            width: calc(100% - 80px);
+            margin-top: 40px;
+        }
+        h1 {
+            font-size: 2rem;
+            margin: 0 0 8px 0;
+            color: var(--color-accent);
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: var(--color-muted);
+            margin-bottom: 24px;
+        }
+        .characters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .character-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 16px;
+            text-decoration: none;
+            color: var(--color-text);
+            display: block;
+            transition: transform 0.15s, border-color 0.2s;
+        }
+        .character-card:hover {
+            border-color: var(--color-accent);
+            transform: translateY(-3px);
+        }
+        .character-card h3 {
+            margin: 0 0 6px 0;
+            color: var(--color-accent);
+            font-size: 1.15rem;
+        }
+        .character-meta {
+            color: var(--color-muted);
+            font-size: 0.9rem;
+            margin: 2px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+            margin-top: 8px;
+        }
+        .character-card-wrap {
+            position: relative;
+            display: block;
+        }
+        .character-card-wrap .character-card {
+            padding-bottom: 56px;
+        }
+        .character-card-wrap .card-delete-form {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            margin: 0;
+            z-index: 2;
+        }
+        .character-card-wrap .card-delete-btn {
+            width: 100%;
+            padding: 6px 10px;
+            background: transparent;
+            color: var(--color-muted);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .character-card-wrap .card-delete-btn:hover {
+            background: #c0392b;
+            color: white;
+            border-color: #c0392b;
+        }
+        .card-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .actions-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 24px;
+        }
+        .button, .button-secondary {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .button {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+        }
+        .button:hover { background: var(--color-accent-hover); }
+        .button-secondary {
+            background: var(--color-surface);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+        .button[disabled], .button.disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .empty {
+            text-align: center;
+            color: var(--color-muted);
+            padding: 24px 12px;
+        }
+        .flash-stack { margin-bottom: 16px; }
+        .flash-stack div {
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid var(--color-border);
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+        }
+        .cap-note {
+            color: var(--color-muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Your Characters</h1>
+        <p class="subtitle">Each character has its own sheet, currency, and equipment.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack">
+                    {% for category, message in messages %}
+                        <div><strong>{{ category|capitalize }}:</strong> {{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if characters %}
+        <div class="characters-grid">
+            {% for c in characters %}
+            <div class="character-card-wrap">
+                <a href="{{ url_for('player.character_dashboard', player_id=c.id) }}" class="character-card">
+                    <h3>{{ c.name }}</h3>
+                    <div class="character-meta"><strong>System:</strong> {{ c.system_type }}</div>
+                    {% if c.level %}<div class="character-meta"><strong>Level:</strong> {{ c.level }}</div>{% endif %}
+                    {% if not c.is_solo %}
+                    <div class="card-status-row"><span class="badge">In campaign</span></div>
+                    {% endif %}
+                </a>
+                {% if c.is_solo %}
+                <form method="POST"
+                      action="{{ url_for('player.delete_character', player_id=c.id) }}"
+                      class="card-delete-form"
+                      onsubmit="return confirm('Delete {{ c.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="card-delete-btn" aria-label="Delete {{ c.name|e }}">Delete character</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">
+            <p>You don't have any characters yet. Click <strong>Create character</strong> below to make your first one.</p>
+        </div>
+        {% endif %}
+
+        <div class="actions-row">
+            <div>
+                {% if can_add %}
+                <a href="{{ url_for('player.create_character') }}" class="button">Create character</a>
+                {% else %}
+                <span class="button disabled" aria-disabled="true">Create character</span>
+                {% if cap_message %}<div class="cap-note">{{ cap_message }}</div>{% endif %}
+                {% endif %}
+            </div>
+            <a href="{{ url_for('main.campaigns') }}" class="button-secondary">Back to Campaigns</a>
+        </div>
+    </div>
+</body>
+</html>

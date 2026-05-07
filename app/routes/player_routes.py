@@ -1,10 +1,12 @@
 from types import SimpleNamespace
+from typing import Optional
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from sqlalchemy.orm import subqueryload
 
 from app.models import (
     Player,
+    PlayerCharacterSheet,
     City,
     Shop,
     ShopInventory,
@@ -12,7 +14,6 @@ from app.models import (
     PlayerInventory,
     PlayerEquipment,
     Campaign,
-    CampaignPlayer,
     Region,
     shop_cities,
 )
@@ -25,6 +26,8 @@ from app.services.player_resolution import (
     get_active_player_or_ensure_solo,
     ensure_solo_player_profile,
     all_player_ids_for_user,
+    get_character_for_user,
+    list_user_characters,
 )
 from app.services.billing_rules import can_add_player_profile
 from app.services.join_codes import (
@@ -52,7 +55,59 @@ def _redirect_solo_vault_to_character():
         "Join a campaign to browse the world. You can still edit your character vault.",
         "info",
     )
-    return redirect(url_for("player.view_character"))
+    return redirect(url_for("player.list_characters"))
+
+
+def _inventory_items_for_player(player):
+    return (
+        db.session.query(
+            PlayerInventory.quantity,
+            Item.name,
+            Item.type,
+            Item.rarity,
+            Item.description,
+            Item.item_id,
+            Item.base_price,
+        )
+        .join(Item, PlayerInventory.item_id == Item.item_id)
+        .filter(PlayerInventory.player_id == player.id)
+        .all()
+    )
+
+
+def _equipment_slot_views_for_player(player):
+    return [
+        SimpleNamespace(slot_name=eq.slot, item=eq.item)
+        for eq in (player.equipment_slots or [])
+    ]
+
+
+def _render_solo_character_dashboard(player):
+    character_ctx = character_sheet_service.build_character_view(
+        player,
+        None,
+        equipment_slots=_equipment_slot_views_for_player(player),
+    )
+    return render_template(
+        "Player_Home.html",
+        player=player,
+        player_name=character_ctx.name,
+        player_currency=int(player.currency or 0),
+        character=character_ctx,
+        player_has_active_campaign=False,
+        player_join_code_reveal_url=url_for(
+            "player.reveal_character_join_code", player_id=player.id
+        ),
+        character_data_url=url_for("player.character_data_id", player_id=player.id),
+        cities=[],
+        shops=[],
+        items=[],
+        inventory_items=_inventory_items_for_player(player),
+        shop_items_by_shop={},
+        city_browse=[],
+        region_labels=[],
+        campaign_regions=[],
+    )
 
 
 _PLAYER_ALLOWLIST = frozenset(
@@ -67,8 +122,14 @@ _PLAYER_ALLOWLIST = frozenset(
 _CHARACTER_VAULT_ENDPOINTS = frozenset(
     {
         "player.create_character",
+        "player.list_characters",
         "player.view_character",
+        "player.view_character_id",
+        "player.character_dashboard",
+        "player.character_data_id",
+        "player.reveal_character_join_code",
         "player.update_character",
+        "player.delete_character",
     }
 )
 
@@ -103,14 +164,32 @@ def redeem_campaign_code_route():
     if not code:
         flash("Enter a campaign code.", "warning")
         return redirect(request.referrer or url_for("player.player_home"))
+    raw_player_id = (request.form.get("player_id") or "").strip()
+    scoped_player_id: Optional[int] = None
+    if raw_player_id:
+        try:
+            scoped_player_id = int(raw_player_id)
+        except (TypeError, ValueError):
+            scoped_player_id = None
     fails = csh._redeem_failures_in_window()
     if len(fails) >= 3:
         flash("Too many invalid code attempts. Try again in up to one hour.", "danger")
         return redirect(request.referrer or url_for("main.campaigns"))
     try:
-        redeem_campaign_code(current_user, code, _commit=True)
+        campaign = redeem_campaign_code(
+            current_user, code, player_id=scoped_player_id, _commit=True
+        )
+        session["campaign_id"] = campaign.id
+        session["system_type"] = campaign.system_type
+        session.permanent = True
+        session.modified = True
         csh._clear_redeem_failures()
         flash("You joined the campaign.", "success")
+        if scoped_player_id is not None:
+            return redirect(
+                url_for("player.character_dashboard", player_id=scoped_player_id)
+            )
+        return redirect(url_for("player.player_home"))
     except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
         csh._register_redeem_failure()
         flash(
@@ -142,49 +221,56 @@ def reveal_player_join_code():
     except (InvalidCodeError, WrongRoleError, JoinCodeError):
         return jsonify(error="forbidden"), 403
 
+
+@player_bp.route("/character/<int:player_id>/reveal-code", methods=["GET"])
+@login_required
+@limiter.limit("60 per hour")
+def reveal_character_join_code(player_id):
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        return jsonify(error="forbidden"), 403
+    try:
+        code = reveal_player_code_for_player(
+            user_id=current_user.id, player=player
+        )
+        log_reveal(
+            user_id=current_user.id,
+            action="REVEAL_PLAYER_CODE",
+            target_id=player.id,
+            ip=request.remote_addr or "",
+        )
+        return jsonify(code=code)
+    except (InvalidCodeError, WrongRoleError, JoinCodeError):
+        return jsonify(error="forbidden"), 403
+
 # Shop routes first (more specific)
 @player_bp.route("/shop/<int:shop_id>")
 @login_required
 def view_shop(shop_id):
     try:
-        print(f"[DEBUG] Attempting to view shop ID: {shop_id}")
-        print(f"[DEBUG] Request URL: {request.url}")
-        print(f"[DEBUG] Request Path: {request.path}")
-        
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
-            print("[DEBUG] Player not found")
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return _redirect_solo_vault_to_character()
 
-        print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
+        campaign_id = player.campaign_id
 
-        # Scoped load: never resolve another campaign's shop by ID alone
-        shop_q = Shop.query.filter_by(shop_id=shop_id, gm_profile_id=player.gm_profile_id)
-        if campaign_id is not None:
-            shop_q = shop_q.filter(Shop.campaign_id == campaign_id)
-        shop = shop_q.options(db.joinedload(Shop.cities)).first()
+        shop = (
+            Shop.query.filter_by(shop_id=shop_id, campaign_id=campaign_id)
+            .options(db.joinedload(Shop.cities))
+            .first()
+        )
         if not shop:
-            print("[DEBUG] Shop not in player's campaign")
             flash('You do not have access to this shop.', 'error')
             return redirect(url_for('player.player_home'))
-        print(f"[DEBUG] Found shop: {shop.name}, GM Profile ID: {shop.gm_profile_id}")
 
-        # Get the city this shop belongs to
         city = shop.cities[0] if shop.cities else None
         if not city:
-            print("[DEBUG] No city found for shop")
             flash('Shop location not found.', 'error')
             return redirect(url_for('player.player_home'))
 
-        print(f"[DEBUG] Found city: {city.name}")
-
-        # Get shop inventory with item details (inventory_id for optional world-state price overlay)
         shop_items_raw = (
             db.session.query(
                 Item.name,
@@ -197,7 +283,7 @@ def view_shop(shop_id):
             )
             .join(ShopInventory, ShopInventory.item_id == Item.item_id)
             .filter(ShopInventory.shop_id == shop_id)
-            .filter(ShopInventory.campaign_id == campaign_id if campaign_id is not None else True)
+            .filter(ShopInventory.campaign_id == campaign_id)
             .all()
         )
         if READ_PRICES_FROM_WORLD_STATE:
@@ -206,10 +292,10 @@ def view_shop(shop_id):
                     name=r.name,
                     type=r.type,
                     stock=get_effective_stock(
-                        player.gm_profile_id, r.inventory_id, int(r.stock)
+                        campaign_id, r.inventory_id, int(r.stock)
                     ),
                     dynamic_price=get_effective_price(
-                        player.gm_profile_id, r.inventory_id, float(r.dynamic_price)
+                        campaign_id, r.inventory_id, float(r.dynamic_price)
                     ),
                     item_id=r.item_id,
                     base_price=r.base_price,
@@ -269,31 +355,18 @@ def view_shop(shop_id):
 @login_required
 def view_shops():
     try:
-        print("[DEBUG] Starting view_shops route")
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
-            print("[DEBUG] Player not found")
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return _redirect_solo_vault_to_character()
 
-        print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
-
-        # Get all shops for the player's GM with cities eagerly loaded
-        shops_q = Shop.query.filter_by(gm_profile_id=player.gm_profile_id)
-        if campaign_id is not None:
-            shops_q = shops_q.filter(Shop.campaign_id == campaign_id)
-        shops = shops_q.options(db.joinedload(Shop.cities)).all()
-        
-        print(f"[DEBUG] Found {len(shops)} shops")
-        for shop in shops:
-            print(f"[DEBUG] Shop: {shop.name} (ID: {shop.shop_id})")
-            print(f"[DEBUG] Cities: {[city.name for city in shop.cities]}")
-        
+        shops = (
+            Shop.query.filter_by(campaign_id=player.campaign_id)
+            .options(db.joinedload(Shop.cities))
+            .all()
+        )
         return render_template('Player_view_shops.html', shops=shops)
     except Exception as e:
         print(f"[ERROR] Error viewing shops: {e}")
@@ -305,22 +378,14 @@ def view_shops():
 @login_required
 def view_cities():
     try:
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return _redirect_solo_vault_to_character()
 
-        # Get all cities for the player's GM
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
-        cities_q = City.query.filter_by(gm_profile_id=player.gm_profile_id)
-        if campaign_id is not None:
-            cities_q = cities_q.filter(City.campaign_id == campaign_id)
-        cities = cities_q.all()
-        
+        cities = City.query.filter_by(campaign_id=player.campaign_id).all()
         return render_template('Player_city_view.html', cities=cities)
     except Exception as e:
         print(f"[ERROR] Error viewing cities: {e}")
@@ -331,29 +396,21 @@ def view_cities():
 @login_required
 def view_city(city_id):
     try:
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return _redirect_solo_vault_to_character()
 
         city = City.query.filter_by(
-            city_id=city_id, gm_profile_id=player.gm_profile_id
-        )
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
-        if campaign_id is not None:
-            city = city.filter(City.campaign_id == campaign_id)
-        city = city.first()
+            city_id=city_id, campaign_id=player.campaign_id
+        ).first()
         if not city:
             flash('You do not have access to this city.', 'error')
             return redirect(url_for('player.player_home'))
 
-        # Get all shops in the city
         shops = city.shops
-
         return render_template('Player_city_view.html', city=city, shops=shops)
     except Exception as e:
         print(f"[ERROR] Error viewing city: {e}")
@@ -364,88 +421,53 @@ def view_city(city_id):
 @player_bp.route("/home")
 @login_required
 def player_home():
-    print("[DEBUG] Starting player_home route")
-    print(f"[DEBUG] Current user: {current_user.username}, Role: {current_user.role}")
-    
-    # Fetch player details
     player = get_active_player(current_user)
     if not player:
-        print("[DEBUG] Player not found")
         flash("Join a campaign with a code first.", "warning")
         return redirect(url_for("main.campaigns"))
 
-    if player.gm_profile_id is None:
+    if player.campaign_id is None:
         flash(
             "Join a campaign to browse shops. You can still build your character from "
             "the character sheet.",
             "info",
         )
-        return redirect(url_for("player.view_character"))
+        return redirect(url_for("player.list_characters"))
 
-    print(f"[DEBUG] Found player: {player.id}, User ID: {player.user_id}, GM Profile ID: {player.gm_profile_id}")
+    campaign_id = player.campaign_id
+    active_campaign = player.campaign
+    if active_campaign is None:
+        flash("Your campaign could not be loaded.", "error")
+        return redirect(url_for("main.campaigns"))
+    gm_profile = active_campaign.gm_profile
 
-    # Verify GM profile exists
-    gm_profile = player.gm_profile
-    if not gm_profile:
-        print("[DEBUG] GM Profile not found")
-        return "GM Profile not found", 404
-    
-    print(f"[DEBUG] Found GM Profile: {gm_profile.id}, User ID: {gm_profile.user_id}")
-
-    # Get all cities for the GM
-    active_campaign = _active_campaign_for_player(player)
-    campaign_id = active_campaign.id if active_campaign else None
-    cities_q = City.query.filter_by(gm_profile_id=gm_profile.id)
-    if campaign_id is not None:
-        cities_q = cities_q.filter(City.campaign_id == campaign_id)
+    cities_q = City.query.filter_by(campaign_id=campaign_id)
     if _region_table_exists():
         cities_q = cities_q.options(subqueryload(City.region_obj))
     cities = cities_q.all()
-    print(f"[DEBUG] Found {len(cities)} cities for GM Profile {gm_profile.id}")
-    for city in cities:
-        print(f"[DEBUG] City: {city.name} (ID: {city.city_id})")
 
-    # Get all shops for the GM (eager-load cities so the city->shop->items
-    # accordion rendered by Player_Home.html does not trigger N+1 lookups on
-    # shop.cities during template iteration).
-    shops_q = Shop.query.filter_by(gm_profile_id=gm_profile.id)
-    if campaign_id is not None:
-        shops_q = shops_q.filter(Shop.campaign_id == campaign_id)
-    shops = shops_q.options(db.joinedload(Shop.cities)).all()
-    print(f"[DEBUG] Found {len(shops)} shops for GM Profile {gm_profile.id}")
-    for shop in shops:
-        print(f"[DEBUG] Shop: {shop.name} (ID: {shop.shop_id})")
+    shops = (
+        Shop.query.filter_by(campaign_id=campaign_id)
+        .options(db.joinedload(Shop.cities))
+        .all()
+    )
 
-    # Get all items in shops for the GM.
-    # NB: we cannot use SELECT DISTINCT directly on Item rows because
-    # Item.preferred_regions is Postgres `json`, which has no equality operator
-    # and breaks DISTINCT / UNION. Dedupe at the integer item_id layer via a
-    # subquery instead; the items PK guarantees outer uniqueness.
     shop_items = (
         db.session.query(Item)
         .filter(
             Item.item_id.in_(
                 db.session.query(ShopInventory.item_id)
                 .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-                .filter(Shop.gm_profile_id == gm_profile.id)
-                .filter(Shop.campaign_id == campaign_id if campaign_id is not None else True)
+                .filter(Shop.campaign_id == campaign_id)
             )
         )
         .all()
     )
-    print(f"[DEBUG] Found {len(shop_items)} items in shops for GM Profile {gm_profile.id}")
-    for item in shop_items:
-        print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
 
-    # Build shop_id -> [{id,name,type,rarity}] for the client-side filter JS in
-    # Player_Home.html (SHOP_ITEMS_BY_SHOP). Reuse `shop_items` as the Item
-    # lookup so we do not re-select Item rows (which would re-expose the
-    # preferred_regions `json` equality pitfall if ever DISTINCT-ed).
     inventory_pairs = (
         db.session.query(ShopInventory.shop_id, ShopInventory.item_id)
         .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-        .filter(Shop.gm_profile_id == gm_profile.id)
-        .filter(Shop.campaign_id == campaign_id if campaign_id is not None else True)
+        .filter(Shop.campaign_id == campaign_id)
         .all()
     )
     item_by_id = {it.item_id: it for it in shop_items}
@@ -503,8 +525,7 @@ def player_home():
         )
         .join(Item, Item.item_id == ShopInventory.item_id)
         .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-        .filter(Shop.gm_profile_id == gm_profile.id)
-        .filter(Shop.campaign_id == campaign_id if campaign_id is not None else True)
+        .filter(Shop.campaign_id == campaign_id)
         .order_by(Item.name.asc())
         .all()
     )
@@ -521,10 +542,10 @@ def player_home():
         it_rarity = row[7]
         if READ_PRICES_FROM_WORLD_STATE:
             price = get_effective_price(
-                gm_profile.id, inv_id, float(dyn_price or 0)
+                campaign_id, inv_id, float(dyn_price or 0)
             )
             eff_stock = get_effective_stock(
-                gm_profile.id, inv_id, int(raw_stock or 0)
+                campaign_id, inv_id, int(raw_stock or 0)
             )
         else:
             price = float(dyn_price or 0)
@@ -563,10 +584,7 @@ def player_home():
     campaign_regions = []
     if _region_table_exists() and campaign_id is not None:
         campaign_regions = (
-            Region.query.filter_by(
-                campaign_id=campaign_id,
-                gm_profile_id=gm_profile.id,
-            )
+            Region.query.filter_by(campaign_id=campaign_id)
             .order_by(Region.name)
             .all()
         )
@@ -589,7 +607,6 @@ def player_home():
         SimpleNamespace(slot_name=eq.slot, item=eq.item)
         for eq in (player.equipment_slots or [])
     ]
-    active_campaign = _active_campaign_for_player(player)
     character_ctx = character_sheet_service.build_character_view(
         player,
         active_campaign,
@@ -604,6 +621,8 @@ def player_home():
         player_currency=int(player.currency or 0),
         character=character_ctx,
         player_has_active_campaign=active_campaign is not None,
+        player_join_code_reveal_url=url_for("player.reveal_player_join_code"),
+        character_data_url=url_for("player.character_data"),
         cities=cities,
         shops=shops,
         items=shop_items,
@@ -619,43 +638,18 @@ def player_home():
 @login_required
 def search_item():
     try:
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
             return jsonify({'error': 'Player not found'}), 404
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return jsonify({'error': 'Join a campaign to search the market.'}), 403
 
-        print(f"[DEBUG] Searching for player: {player.id}, GM Profile ID: {player.gm_profile_id}")
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
+        campaign_id = player.campaign_id
 
-        # Debug: Check available shops and items
-        shops_q = Shop.query.filter_by(gm_profile_id=player.gm_profile_id)
-        if campaign_id is not None:
-            shops_q = shops_q.filter(Shop.campaign_id == campaign_id)
-        shops = shops_q.all()
-        print(f"[DEBUG] Found {len(shops)} shops for GM Profile {player.gm_profile_id}")
-        for shop in shops:
-            print(f"[DEBUG] Shop: {shop.name} (ID: {shop.shop_id})")
-            print(f"[DEBUG] Cities: {[city.name for city in shop.cities]}")
-
-        items_q = Item.query.filter_by(gm_profile_id=player.gm_profile_id)
-        if campaign_id is not None:
-            items_q = items_q.filter(Item.campaign_id == campaign_id)
-        items = items_q.all()
-        print(f"[DEBUG] Found {len(items)} items in this campaign")
-        for item in items:
-            print(f"[DEBUG] Item: {item.name} (ID: {item.item_id})")
-
-        # Get filter parameters
         city_id = request.args.get("city")
         shop_id = request.args.get("shop")
         item_id = request.args.get("item")
 
-        print(f"[DEBUG] Search filters - City: {city_id}, Shop: {shop_id}, Item: {item_id}")
-
-        # Base query
         query = (
             db.session.query(
                 Item.name.label("item_name"),
@@ -672,14 +666,11 @@ def search_item():
             .join(shop_cities, Shop.shop_id == shop_cities.c.shop_id)
             .join(City, shop_cities.c.city_id == City.city_id)
             .filter(
-                Shop.gm_profile_id == player.gm_profile_id,
-                Item.gm_profile_id == player.gm_profile_id,
-                Shop.campaign_id == campaign_id if campaign_id is not None else True,
-                Item.campaign_id == campaign_id if campaign_id is not None else True,
+                Shop.campaign_id == campaign_id,
+                Item.campaign_id == campaign_id,
             )
         )
 
-        # Apply filters
         if city_id:
             query = query.filter(City.city_id == city_id)
         if shop_id:
@@ -687,21 +678,18 @@ def search_item():
         if item_id:
             query = query.filter(Item.item_id == item_id)
 
-        # Execute query
         results = query.all()
-        print(f"[DEBUG] Found {len(results)} matching results")
 
-        # Format results (optional world-state price/stock when READ_PRICES_FROM_WORLD_STATE)
         formatted_results = []
         for result in results:
             inv_id = result.inventory_id
             price = (
-                get_effective_price(player.gm_profile_id, inv_id, float(result.dynamic_price))
+                get_effective_price(campaign_id, inv_id, float(result.dynamic_price))
                 if READ_PRICES_FROM_WORLD_STATE
                 else float(result.dynamic_price)
             )
             stock = (
-                get_effective_stock(player.gm_profile_id, inv_id, int(result.stock))
+                get_effective_stock(campaign_id, inv_id, int(result.stock))
                 if READ_PRICES_FROM_WORLD_STATE
                 else int(result.stock)
             )
@@ -729,46 +717,42 @@ def search_item():
 @login_required
 def buy_item(shop_id, item_id):
     try:
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
             return jsonify({'success': False, 'message': 'Player not found'})
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return jsonify(
                 {'success': False, 'message': 'Join a campaign before purchasing.'}
             )
 
+        campaign_id = player.campaign_id
+        campaign = Campaign.query.filter_by(id=campaign_id).first()
+        if not campaign:
+            return jsonify({'success': False, 'message': 'Campaign not found'})
+
         shop = Shop.query.filter_by(
-            shop_id=shop_id, gm_profile_id=player.gm_profile_id
-        )
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
-        if campaign_id is not None:
-            shop = shop.filter(Shop.campaign_id == campaign_id)
-        shop = shop.first()
+            shop_id=shop_id, campaign_id=campaign_id
+        ).first()
         if not shop:
             return jsonify({'success': False, 'message': 'You do not have access to this shop'})
 
-        # Get the shop inventory item
-        inventory_q = ShopInventory.query.filter_by(shop_id=shop_id, item_id=item_id)
-        if campaign_id is not None:
-            inventory_q = inventory_q.filter(ShopInventory.campaign_id == campaign_id)
-        inventory = inventory_q.first()
+        inventory = ShopInventory.query.filter_by(
+            shop_id=shop_id, item_id=item_id, campaign_id=campaign_id
+        ).first()
         if not inventory:
             return jsonify({'success': False, 'message': 'Item not found in shop'})
 
-        # Get quantity from request (default to 1 if not specified)
         quantity = int(request.form.get('quantity', 1))
         if quantity <= 0:
             return jsonify({'success': False, 'message': 'Invalid quantity'})
 
         unit_price = get_effective_price(
-            player.gm_profile_id,
+            campaign_id,
             inventory.inventory_id,
             float(inventory.dynamic_price),
         )
         effective_stock = get_effective_stock(
-            player.gm_profile_id,
+            campaign_id,
             inventory.inventory_id,
             int(inventory.stock),
         )
@@ -779,6 +763,17 @@ def buy_item(shop_id, item_id):
 
         # Process the purchase
         total_cost = unit_price * quantity
+        if (
+            not bool(getattr(campaign, "allow_player_debt", False))
+            and (player.currency or 0) - total_cost < 0
+        ):
+            return jsonify({
+                'success': False,
+                'error_code': 'would_overdraft',
+                'message': 'This purchase will bring you below 0 Credits.',
+                'new_currency': player.currency,
+            })
+
         player.currency -= total_cost
         inventory.stock -= quantity
 
@@ -816,33 +811,28 @@ def buy_item(shop_id, item_id):
 @login_required
 def view_shop_items(shop_id):
     try:
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return _redirect_solo_vault_to_character()
 
+        campaign_id = player.campaign_id
+
         shop = Shop.query.filter_by(
-            shop_id=shop_id, gm_profile_id=player.gm_profile_id
-        )
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
-        if campaign_id is not None:
-            shop = shop.filter(Shop.campaign_id == campaign_id)
-        shop = shop.first()
+            shop_id=shop_id, campaign_id=campaign_id
+        ).first()
         if not shop:
             flash('You do not have access to this shop.', 'error')
             return redirect(url_for('player.player_home'))
 
-        # Query for inventory with item relationships
-        inventory_q = db.session.query(ShopInventory).filter_by(shop_id=shop_id)
-        if campaign_id is not None:
-            inventory_q = inventory_q.filter(ShopInventory.campaign_id == campaign_id)
-        inventory = inventory_q.options(
-            db.joinedload(ShopInventory.item)
-        ).all()
+        inventory = (
+            db.session.query(ShopInventory)
+            .filter_by(shop_id=shop_id, campaign_id=campaign_id)
+            .options(db.joinedload(ShopInventory.item))
+            .all()
+        )
 
         print(f"Shop: {shop.name}, Found {len(inventory)} inventory items.")
 
@@ -861,23 +851,17 @@ def view_shop_items(shop_id):
 @login_required
 def sell_item(item_id):
     try:
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
             return _ajax_or_redirect('Player profile not found.', error=True)
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return _ajax_or_redirect(
                 'Join a campaign before selling items.', error=True
             )
 
         item = Item.query.filter_by(
-            item_id=item_id, gm_profile_id=player.gm_profile_id
-        )
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
-        if campaign_id is not None:
-            item = item.filter(Item.campaign_id == campaign_id)
-        item = item.first()
+            item_id=item_id, campaign_id=player.campaign_id
+        ).first()
         if not item:
             return _ajax_or_redirect('You do not have access to this item.', error=True)
 
@@ -918,7 +902,8 @@ def sell_item(item_id):
 
         return _ajax_or_redirect(
             f'Successfully sold {quantity} {item.name} for {total_value} gold!',
-            success=True
+            success=True,
+            extra={'new_currency': player.currency},
         )
 
     except Exception as e:
@@ -926,14 +911,17 @@ def sell_item(item_id):
         db.session.rollback()
         return _ajax_or_redirect('An error occurred while selling the item.', error=True)
 
-def _ajax_or_redirect(message, success=False, error=False):
+def _ajax_or_redirect(message, success=False, error=False, extra=None):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({
+        payload = {
             'status': 'success' if success else 'error',
-            'message': message
-        }), 200 if success else 400
+            'message': message,
+        }
+        if extra:
+            payload.update(extra)
+        return jsonify(payload), 200 if success else 400
 
-    # Fallback for normal HTML forms
+    # Fallback for normal HTML forms (kept for non-JS callers).
     flash(message, 'success' if success else 'error')
     return redirect(request.referrer or url_for('player.player_home'))
 
@@ -941,43 +929,28 @@ def _ajax_or_redirect(message, success=False, error=False):
 @login_required
 def view_market():
     try:
-        print("[DEBUG] Entered /player/market route")
-        
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
-            print("[DEBUG] Player not found - redirecting to home")
             flash('Player profile not found.', 'error')
             return redirect(url_for('player.player_home'))
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return _redirect_solo_vault_to_character()
 
-        print(f"[DEBUG] Found player: {player.id}, GM Profile ID: {player.gm_profile_id}")
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
+        campaign_id = player.campaign_id
 
-        # Get all shops for the player's GM
-        shops_q = Shop.query.filter_by(gm_profile_id=player.gm_profile_id)
-        if campaign_id is not None:
-            shops_q = shops_q.filter(Shop.campaign_id == campaign_id)
-        shops = shops_q.all()
-        print(f"[DEBUG] Found {len(shops)} shops for player's GM")
+        shops = Shop.query.filter_by(campaign_id=campaign_id).all()
 
-        # See player_home() — DISTINCT on Item breaks because preferred_regions
-        # is Postgres `json`. Dedupe via a subquery on the integer item_id.
         items = (
             db.session.query(Item)
             .filter(
                 Item.item_id.in_(
                     db.session.query(ShopInventory.item_id)
                     .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-                    .filter(Shop.gm_profile_id == player.gm_profile_id)
-                    .filter(Shop.campaign_id == campaign_id if campaign_id is not None else True)
+                    .filter(Shop.campaign_id == campaign_id)
                 )
             )
             .all()
         )
-        print(f"[DEBUG] Found {len(items)} items in shops")
 
         return render_template(
             'Player_market_view.html',
@@ -996,18 +969,15 @@ def view_market():
 @login_required
 def get_market_data():
     try:
-        # Get the current player
         player = get_active_player(current_user)
         if not player:
             return jsonify({'error': 'Player not found'}), 404
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             return jsonify({'error': 'Join a campaign to view market data.'}), 403
 
         filter_type = request.args.get('filter', 'all')
-        active_campaign = _active_campaign_for_player(player)
-        campaign_id = active_campaign.id if active_campaign else None
+        campaign_id = player.campaign_id
 
-        # Query all items and their inventories across all shops in the player's GM profile
         items_query = (
             db.session.query(
                 Item,
@@ -1016,8 +986,7 @@ def get_market_data():
             )
             .join(ShopInventory, ShopInventory.item_id == Item.item_id)
             .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-            .filter(Shop.gm_profile_id == player.gm_profile_id)
-            .filter(Shop.campaign_id == campaign_id if campaign_id is not None else True)
+            .filter(Shop.campaign_id == campaign_id)
         )
 
         if filter_type != 'all':
@@ -1086,93 +1055,152 @@ def _slot_for_item_type(item_type: str) -> str:
 
 
 def _active_campaign_for_player(player):
-    """Resolve the Campaign the player is currently acting inside.
+    """Resolve the Campaign the player's character is bound to.
 
-    Priority: the campaign stored in session (set by campaign_selection),
-    verified against an active CampaignPlayer membership for ``player``. If
-    that is missing/stale we fall back to the player's single active
-    membership (if there is exactly one).
+    With the campaign-tenancy refactor each character (`Player`) has at
+    most one campaign via ``Player.campaign_id``. ``None`` means a solo
+    vault character with no campaign attached.
     """
-    if player is None:
+    if player is None or player.campaign_id is None:
         return None
-
-    sess_id = session.get("campaign_id")
-    if sess_id is not None:
-        membership = CampaignPlayer.query.filter_by(
-            campaign_id=sess_id, player_id=player.id, is_active=True
-        ).first()
-        if membership is not None:
-            return membership.campaign
-
-    memberships = CampaignPlayer.query.filter_by(
-        player_id=player.id, is_active=True
-    ).all()
-    if len(memberships) == 1:
-        return memberships[0].campaign
-    return None
+    return player.campaign
 
 
-@player_bp.route("/character/create")
+@player_bp.route("/character/create", methods=["GET", "POST"])
 @login_required
 def create_character():
-    """Take players to the character sheet; ensure campaign is in session when possible."""
+    """Render the character-creation form (GET) or provision a new character (POST).
+
+    Each ``Player`` row is one character with its own currency, inventory, and
+    equipment, so the POST inserts a new ``Player`` plus an initial vault
+    ``PlayerCharacterSheet`` whose ``system_type`` matches the user's choice.
+    Profile cap is enforced both as UI hint (disabled button) and server-side
+    on the POST as defense-in-depth.
+    """
+    from app.services.rulesets import get_ruleset, known_system_types
+
     if getattr(current_user, "role", None) == "GM":
         flash("Use the Game Master interface to manage characters.", "info")
         return redirect(url_for("gm.home"))
-
-    pl_ids = all_player_ids_for_user(current_user)
-    if not pl_ids:
-        ok, msg = can_add_player_profile(current_user)
-        if not ok:
-            flash(msg or "You cannot create another character profile on this plan.", "warning")
-            return redirect(url_for("main.campaigns"))
-        ensure_solo_player_profile(current_user)
-        pl_ids = all_player_ids_for_user(current_user)
-        if not pl_ids:
-            flash("Could not create a character profile. Try again or contact support.", "error")
-            return redirect(url_for("main.campaigns"))
-
-    memberships = CampaignPlayer.query.filter(
-        CampaignPlayer.player_id.in_(pl_ids),
-        CampaignPlayer.is_active.is_(True),
-    ).all()
-    if not memberships:
-        solo_player = get_active_player(current_user)
-        if solo_player is not None:
-            return redirect(url_for("player.view_character"))
-        flash("You are not assigned to any campaign yet.", "warning")
+    if getattr(current_user, "role", None) != "Player":
         return redirect(url_for("main.campaigns"))
 
-    if len(memberships) == 1:
-        c = memberships[0].campaign
-        session["campaign_id"] = c.id
-        session["system_type"] = c.system_type
-        session.permanent = True
-        session.modified = True
-        return redirect(url_for("player.view_character"))
+    valid_systems = list(known_system_types())
+    system_options = [
+        {"value": st, "label": get_ruleset(st).display_name}
+        for st in valid_systems
+    ]
+    default_system = "dnd5e" if "dnd5e" in valid_systems else valid_systems[0]
 
-    sess_cid = session.get("campaign_id")
-    if sess_cid is not None:
-        if any(m.campaign_id == sess_cid for m in memberships):
-            return redirect(url_for("player.view_character"))
+    if request.method == "GET":
+        ok, msg = can_add_player_profile(current_user)
+        return render_template(
+            "Player_create_character.html",
+            systems=system_options,
+            default_system=default_system,
+            can_add=ok,
+            cap_message=msg or "",
+        )
 
-    flash(
-        "Select a campaign above first, then click Create Character again.",
-        "info",
+    ok, msg = can_add_player_profile(current_user)
+    if not ok:
+        flash(
+            msg or "You have reached your character profile limit on this plan.",
+            "warning",
+        )
+        return redirect(url_for("player.list_characters"))
+
+    raw_system = (request.form.get("system_type") or "").strip().lower()
+    if raw_system not in valid_systems:
+        flash("Pick a valid rule system.", "warning")
+        return redirect(url_for("player.create_character"))
+    raw_name = (request.form.get("name") or "").strip()
+    if len(raw_name) > 100:
+        raw_name = raw_name[:100]
+
+    new_player = Player(
+        user_id=current_user.id,
+        campaign_id=None,
+        currency=0,
+        is_npc=False,
     )
-    return redirect(url_for("main.campaigns"))
+    db.session.add(new_player)
+    try:
+        db.session.flush()
+        character_sheet_service.create_initial_vault_sheet(
+            new_player.id,
+            system_type=raw_system,
+            name=raw_name or None,
+        )
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Could not create a new character: {exc}", "error")
+        return redirect(url_for("player.list_characters"))
+
+    return redirect(
+        url_for("player.character_dashboard", player_id=new_player.id)
+    )
+
+
+@player_bp.route("/characters")
+@login_required
+def list_characters():
+    """Picker / index for all characters this user owns (solo + per-campaign)."""
+    if getattr(current_user, "role", None) == "GM":
+        return redirect(url_for("gm.home"))
+
+    characters = list_user_characters(current_user)
+    rows = []
+    for p in characters:
+        sheet = character_sheet_service.get_or_default_sheet(
+            p, _active_campaign_for_player(p)
+        )
+        rows.append(
+            {
+                "id": p.id,
+                "name": (sheet.get("name") or "").strip()
+                or f"Character #{p.id}",
+                "system_type": sheet.get("system_type") or "generic",
+                "level": sheet.get("level"),
+                "is_solo": p.campaign_id is None,
+            }
+        )
+
+    can_add, cap_msg = can_add_player_profile(current_user)
+    return render_template(
+        "Player_characters_list.html",
+        characters=rows,
+        can_add=can_add,
+        cap_message=cap_msg or "",
+    )
 
 
 @player_bp.route("/character")
 @login_required
 def view_character():
-    player = get_active_player_or_ensure_solo(current_user)
-    if not player:
-        flash(
-            "Select a campaign first, or you have reached your character profile limit.",
-            "warning",
+    """Backwards-compatible entry point: pick a sensible character or list them."""
+    if getattr(current_user, "role", None) == "GM":
+        return redirect(url_for("gm.home"))
+
+    characters = list_user_characters(current_user)
+    if not characters:
+        ensure_solo_player_profile(current_user)
+        characters = list_user_characters(current_user)
+    if len(characters) == 1:
+        return redirect(
+            url_for("player.view_character_id", player_id=characters[0].id)
         )
-        return redirect(url_for("main.campaigns"))
+    return redirect(url_for("player.list_characters"))
+
+
+@player_bp.route("/character/<int:player_id>")
+@login_required
+def view_character_id(player_id):
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
 
     equipment_slot_views = [
         SimpleNamespace(slot_name=eq.slot, item=eq.item)
@@ -1188,16 +1216,35 @@ def view_character():
     return render_template("Player_Character_Sheet.html", character=character_ctx)
 
 
-@player_bp.route("/character/update", methods=["POST"])
+@player_bp.route("/character/<int:player_id>/dashboard")
 @login_required
-def update_character():
-    player = get_active_player_or_ensure_solo(current_user)
+def character_dashboard(player_id):
+    player = get_character_for_user(current_user, player_id)
     if not player:
-        flash(
-            "Select a campaign first, or you have reached your character profile limit.",
-            "warning",
-        )
-        return redirect(url_for("main.campaigns"))
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
+    if player.campaign_id is None:
+        return _render_solo_character_dashboard(player)
+
+    active_campaign = _active_campaign_for_player(player)
+    if active_campaign is not None:
+        session["campaign_id"] = active_campaign.id
+        session["system_type"] = active_campaign.system_type
+        session.permanent = True
+        session.modified = True
+        return redirect(url_for("player.player_home"))
+
+    flash("That character is not assigned to an active campaign.", "warning")
+    return redirect(url_for("player.view_character_id", player_id=player.id))
+
+
+@player_bp.route("/character/<int:player_id>/update", methods=["POST"])
+@login_required
+def update_character(player_id):
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
 
     campaign = _active_campaign_for_player(player)
     ok, errors = character_sheet_service.apply_sheet_update(
@@ -1205,10 +1252,59 @@ def update_character():
     )
     if ok:
         flash("Character sheet saved.", "success")
-    else:
-        for msg in errors or ["Failed to save character sheet."]:
-            flash(msg, "error")
-    return redirect(url_for("player.view_character"))
+        # Drop back to the dashboard on a clean save (matches the
+        # "Back to Dashboard" link in the sheet template). On validation
+        # or DB failure we keep the player on the sheet so the flashed
+        # error sits next to the form they were editing.
+        return redirect(
+            url_for("player.character_dashboard", player_id=player.id)
+        )
+    for msg in errors or ["Failed to save character sheet."]:
+        flash(msg, "error")
+    return redirect(url_for("player.view_character_id", player_id=player.id))
+
+
+@player_bp.route("/character/<int:player_id>/delete", methods=["POST"])
+@login_required
+def delete_character(player_id):
+    """Delete a solo (campaign-less) character owned by the current user.
+
+    Refuses to touch a Player whose ``campaign_id`` is not None: that
+    character has joined a campaign and belongs to the GM's workflow, not
+    a self-service player delete. PlayerInventory and PlayerCharacterSheet
+    have no FK ON DELETE CASCADE, so we clear them explicitly before
+    SQLAlchemy cascades equipment via the relationship-level
+    ``delete-orphan`` rules on ``Player``.
+    """
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
+
+    if player.campaign_id is not None:
+        flash(
+            "This character is in a campaign. Ask the GM to remove you, or "
+            "leave the campaign first.",
+            "warning",
+        )
+        return redirect(url_for("player.list_characters"))
+
+    try:
+        PlayerCharacterSheet.query.filter_by(player_id=player.id).delete(
+            synchronize_session=False
+        )
+        PlayerInventory.query.filter_by(player_id=player.id).delete(
+            synchronize_session=False
+        )
+        db.session.delete(player)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Could not delete character: {exc}", "error")
+        return redirect(url_for("player.list_characters"))
+
+    flash("Character deleted.", "success")
+    return redirect(request.referrer or url_for("player.list_characters"))
 
 
 @player_bp.route("/equip/<int:item_id>", methods=["POST"])
@@ -1219,20 +1315,13 @@ def equip_item(item_id):
         if not player:
             flash("Player profile not found.", "error")
             return redirect(url_for("player.player_home"))
-        if player.gm_profile_id is None:
+        if player.campaign_id is None:
             flash("Join a campaign before equipping gear.", "warning")
-            return redirect(url_for("player.view_character"))
+            return redirect(url_for("player.list_characters"))
 
-        # Must be a real item in the player's campaign, AND the player must
-        # actually own at least one of it in their inventory. This blocks
-        # direct-POST attempts to equip items the player does not have.
         item = Item.query.filter_by(
-            item_id=item_id, gm_profile_id=player.gm_profile_id
-        )
-        campaign = _active_campaign_for_player(player)
-        if campaign is not None:
-            item = item.filter(Item.campaign_id == campaign.id)
-        item = item.first()
+            item_id=item_id, campaign_id=player.campaign_id
+        ).first()
         if not item:
             flash("Item not found in your campaign.", "error")
             return redirect(url_for("player.player_home"))
@@ -1349,3 +1438,44 @@ def character_data():
     except Exception as e:
         print(f"[ERROR] Error fetching character data: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@player_bp.route("/character/<int:player_id>/data")
+@login_required
+def character_data_id(player_id):
+    try:
+        player = get_character_for_user(current_user, player_id)
+        if not player:
+            return jsonify({"error": "Character not found"}), 404
+
+        slot_rows = (
+            db.session.query(PlayerEquipment, Item)
+            .outerjoin(Item, Item.item_id == PlayerEquipment.item_id)
+            .filter(PlayerEquipment.player_id == player.id)
+            .all()
+        )
+
+        equipment_slots = []
+        for eq, item in slot_rows:
+            slot_payload = {
+                "slot_name": eq.slot,
+                "item": None,
+            }
+            if item is not None and eq.item_id is not None:
+                desc = item.description or ""
+                slot_payload["item"] = {
+                    "id": item.item_id,
+                    "name": item.name,
+                    "rarity": item.rarity,
+                    "description_short": (desc[:140] + "...") if len(desc) > 140 else desc,
+                }
+            equipment_slots.append(slot_payload)
+
+        campaign = _active_campaign_for_player(player)
+        payload = character_sheet_service.character_data_payload(
+            player, campaign, equipment_slots=equipment_slots
+        )
+        return jsonify(payload)
+    except Exception as e:
+        print(f"[ERROR] Error fetching character data: {e}")
+        return jsonify({"error": str(e)}), 500

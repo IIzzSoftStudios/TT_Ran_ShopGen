@@ -93,7 +93,7 @@
     <p>System: {{ character.system_type|default("generic") }}</p>
 
     <div class="sheet-container">
-        <form method="POST" action="{{ url_for('player.update_character') }}">
+        <form method="POST" action="{{ url_for('player.update_character', player_id=character.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="section">
                 <h2>Identity</h2>
@@ -251,7 +251,8 @@
 
             <div class="nav-buttons">
                 <button type="submit" class="button">Save Changes</button>
-                <a href="{{ url_for('player.player_home') }}" class="button">Back to Dashboard</a>
+                <a href="{{ url_for('player.list_characters') }}" class="button">All Characters</a>
+                <a href="{{ url_for('player.character_dashboard', player_id=character.id) }}" class="button">Back to Dashboard</a>
             </div>
         </form>
     </div>

@@ -32,9 +32,11 @@ class City(db.Model):
     region_id = db.Column(
         db.Integer, db.ForeignKey("region.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Many-to-Many relationship with Shop
@@ -68,9 +70,6 @@ class Region(db.Model):
         nullable=False,
         index=True,
     )
-    gm_profile_id = db.Column(
-        db.Integer, db.ForeignKey("gm_profile.id"), nullable=False, index=True
-    )
     local_flavor = db.Column(_json_with_jsonb(), nullable=True)
     created_at = db.Column(db.DateTime, server_default=func.now(), nullable=False)
 
@@ -89,9 +88,11 @@ class Shop(db.Model):
     shop_id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(100), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     preferred_region = db.Column(db.String(100), nullable=True)  # Preferred region for sourcing
 
@@ -106,7 +107,7 @@ class Shop(db.Model):
 class Item(db.Model):
     __tablename__ = "items"
     __table_args__ = (
-        Index("ix_item_gm_axis", "gm_profile_id", "axis_position"),
+        Index("ix_item_campaign_axis", "campaign_id", "axis_position"),
     )
 
     item_id = db.Column(db.Integer, primary_key=True)
@@ -120,9 +121,11 @@ class Item(db.Model):
     rate_of_fire = db.Column(db.Integer)
     min_str = db.Column(db.String(10))
     notes = db.Column(db.Text)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     preferred_regions = db.Column(db.JSON, nullable=True)  # List of regions where this item is commonly produced
     # System-specific stat block (D&D 5e / PF2E / generic).
@@ -148,7 +151,10 @@ class ShopInventory(db.Model):
     shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=True)
     item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=True)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Shop-specific attributes for the item
@@ -172,9 +178,11 @@ class PriceHistory(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
     price = db.Column(db.Float, nullable=False)
     recorded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     shop = db.relationship("Shop", backref="price_history_entries")
@@ -195,9 +203,11 @@ class RegionalMarket(db.Model):
     total_demand = db.Column(db.Integer, default=0)
     average_price = db.Column(db.Float, nullable=False)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Relationships
@@ -217,9 +227,11 @@ class GlobalMarket(db.Model):
     total_demand = db.Column(db.Integer, default=0)
     average_price = db.Column(db.Float, nullable=False)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Relationships
@@ -240,9 +252,11 @@ class DemandModifier(db.Model):
     start_date = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
     end_date = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     def is_currently_active(self):
@@ -254,10 +268,10 @@ class DemandModifier(db.Model):
         return True
 
     @staticmethod
-    def get_active_modifiers(gm_profile_id: int):
+    def get_active_modifiers(campaign_id: int):
         """Fetches active modifiers for one campaign."""
         return DemandModifier.query.filter_by(
-            is_active=True, gm_profile_id=gm_profile_id
+            is_active=True, campaign_id=campaign_id
         ).all()
 
 class ModifierTarget(db.Model):
@@ -267,9 +281,11 @@ class ModifierTarget(db.Model):
     modifier_id = db.Column(db.Integer, db.ForeignKey("demand_modifiers.id"), nullable=False)
     entity_type = db.Column(db.Enum("region", "city", "shop", "item", name="target_type"), nullable=False)
     entity_id = db.Column(db.Integer, nullable=False)  # The ID of the affected entity
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     modifier = db.relationship("DemandModifier", backref="targets")
@@ -387,18 +403,57 @@ class GMProfile(db.Model):
     __tablename__ = "gm_profile"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
-    current_game_day = db.Column(db.Integer, nullable=True, default=1)
 
-    # Relationships with game entities
-    cities = db.relationship("City", backref="gm_profile")
-    shops = db.relationship("Shop", backref="gm_profile")
-    items = db.relationship("Item", backref="gm_profile")
-    demand_modifiers = db.relationship("DemandModifier", backref="gm_profile")
-    modifier_targets = db.relationship("ModifierTarget", backref="gm_profile")
-    # Players managed by this GM
-    players = db.relationship("Player", backref="gm_profile")
     campaigns = db.relationship(
         "Campaign", back_populates="gm_profile", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        return f"<GMProfile (User: {self.user.username})>"
+
+
+class Campaign(db.Model):
+    __tablename__ = "campaign"
+
+    id = db.Column(db.Integer, primary_key=True)
+    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    system_type = db.Column(db.String(50), nullable=False, default="generic")
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_free_tier = db.Column(db.Boolean, default=True, nullable=False)
+    allow_player_debt = db.Column(db.Boolean, default=False, nullable=False)
+    current_game_day = db.Column(db.Integer, nullable=False, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    join_code = db.Column(db.String(32), unique=True, nullable=True, index=True)
+
+    gm_profile = db.relationship("GMProfile", back_populates="campaigns")
+    cities = db.relationship(
+        "City", backref="campaign", cascade="all, delete-orphan", passive_deletes=True
+    )
+    shops = db.relationship(
+        "Shop", backref="campaign", cascade="all, delete-orphan", passive_deletes=True
+    )
+    items = db.relationship(
+        "Item", backref="campaign", cascade="all, delete-orphan", passive_deletes=True
+    )
+    inventory = db.relationship(
+        "ShopInventory",
+        backref="campaign",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    demand_modifiers = db.relationship(
+        "DemandModifier",
+        backref="campaign",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    modifier_targets = db.relationship(
+        "ModifierTarget",
+        backref="campaign",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     @property
@@ -422,47 +477,6 @@ class GMProfile(db.Model):
             "dow": day_of_week,
             "total": total_days,
         }
-
-    def __repr__(self):
-        return f"<GMProfile (User: {self.user.username})>"
-
-
-class Campaign(db.Model):
-    __tablename__ = "campaign"
-
-    id = db.Column(db.Integer, primary_key=True)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False, index=True)
-    name = db.Column(db.String(120), nullable=False)
-    system_type = db.Column(db.String(50), nullable=False, default="generic")
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    is_free_tier = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    join_code = db.Column(db.String(32), unique=True, nullable=True, index=True)
-
-    gm_profile = db.relationship("GMProfile", back_populates="campaigns")
-    players = db.relationship(
-        "CampaignPlayer", back_populates="campaign", cascade="all, delete-orphan"
-    )
-
-
-class CampaignPlayer(db.Model):
-    __tablename__ = "campaign_player"
-
-    id = db.Column(db.Integer, primary_key=True)
-    campaign_id = db.Column(db.Integer, db.ForeignKey("campaign.id"), nullable=False, index=True)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
-    status = db.Column(db.String(20), nullable=False, default="active")
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    campaign = db.relationship("Campaign", back_populates="players")
-    player = db.relationship("Player", back_populates="campaign_memberships")
-
-    __table_args__ = (
-        db.UniqueConstraint("campaign_id", "player_id", name="uq_campaign_player_membership"),
-    )
 
 
 class AccessRequest(db.Model):
@@ -504,8 +518,8 @@ class RegistrationKey(db.Model):
 
 class Player(db.Model):
     __tablename__ = "player"
-    # Uniqueness for (user, gm) and at-most-one solo row is enforced in PostgreSQL
-    # via partial unique indexes (see schema_compat.ensure_solo_player_vault_schema).
+    # Per-character row. ``campaign_id`` is the sole campaign tenancy column;
+    # NULL means a solo vault character (not yet joined to any campaign).
     __table_args__ = tuple()
     id = db.Column(db.Integer, primary_key=True)
     # PostgreSQL DDL in the wild uses `user_id_gm` for the linked login user
@@ -517,17 +531,18 @@ class Player(db.Model):
         db.ForeignKey("user.id"),
         nullable=True,
     )
-    # NULL = pre-campaign "solo" vault profile tied only to user_id.
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=True)
+    # NULL = pre-campaign "solo" vault character. Not NULL = joined to a campaign.
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     currency = db.Column(db.Integer, default=0)
     is_npc = db.Column(db.Boolean, default=False, nullable=False)
     join_code = db.Column(db.String(32), unique=True, nullable=True, index=True)
 
-    campaign_memberships = db.relationship(
-        "CampaignPlayer",
-        back_populates="player",
-        cascade="all, delete-orphan",
-    )
+    campaign = db.relationship("Campaign", backref="players")
 
     # Relationship to player's inventory
     inventory = db.relationship("PlayerInventory", back_populates="player")
@@ -537,15 +552,8 @@ class Player(db.Model):
 
     def __repr__(self):
         uname = self.user.username if self.user else "NPC"
-        if self.gm_profile_id is None:
-            gname = "solo"
-        else:
-            gname = (
-                self.gm_profile.user.username
-                if self.gm_profile and self.gm_profile.user
-                else "?"
-            )
-        return f"<Player (User: {uname}, GM: {gname})>"
+        camp = "solo" if self.campaign_id is None else f"camp={self.campaign_id}"
+        return f"<Player (User: {uname}, {camp})>"
 
 class PlayerInventory(db.Model):
     __tablename__ = "player_inventory"
@@ -636,11 +644,13 @@ class ResourceTransform(db.Model):
     output_item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
     conversion_rate = db.Column(db.Float, nullable=False)  # How many output items per input item
     shop_type = db.Column(db.String(100), nullable=False)  # Type of shop that can perform this transform
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    
+
     # Relationships
     input_item = db.relationship("Item", foreign_keys=[input_item_id])
     output_item = db.relationship("Item", foreign_keys=[output_item_id])
@@ -657,11 +667,13 @@ class MarketEvent(db.Model):
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    
+
     # Relationships
     city = db.relationship("City", backref="market_events")
 
@@ -671,39 +683,52 @@ class SimulationState(db.Model):
     current_tick = db.Column(db.Integer, nullable=False, default=0)
     speed = db.Column(db.String(10), nullable=False, default="pause")
     last_tick_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
     # GM dashboard simulation control clicks (vault usage report).
     sim_clicks_day = db.Column(db.Integer, nullable=False, default=0)
     sim_clicks_week = db.Column(db.Integer, nullable=False, default=0)
     sim_clicks_month = db.Column(db.Integer, nullable=False, default=0)
     sim_clicks_year = db.Column(db.Integer, nullable=False, default=0)
     sim_clicks_pause = db.Column(db.Integer, nullable=False, default=0)
-    
-    # Relationships
-    gm_profile = db.relationship(
-        "GMProfile", backref=db.backref("simulation_state", uselist=False)
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref("simulation_state", uselist=False, passive_deletes="all"),
     )
-    
+
     def __repr__(self):
-        return f"<SimulationState (Tick: {self.current_tick}, Speed: {self.speed})>"
+        return f"<SimulationState (campaign={self.campaign_id}, Tick: {self.current_tick}, Speed: {self.speed})>"
 
 
 class GMWorldState(db.Model):
-    """Unified per-GM simulation snapshot (JSON keyed by ShopInventory.inventory_id). Phase 2+ authoritative writes."""
+    """Per-campaign simulation snapshot (JSON keyed by ShopInventory.inventory_id). Phase 2+ authoritative writes."""
 
     __tablename__ = "gm_world_state"
 
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
     state_json = db.Column(db.JSON, nullable=True)
     schema_version = db.Column(db.Integer, nullable=False, default=1)
     tick_seq = db.Column(db.Integer, nullable=True)
     tick_generation_id = db.Column(db.String(36), nullable=True)
     updated_at = db.Column(db.DateTime, nullable=True, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    gm_profile = db.relationship("GMProfile", backref=db.backref("gm_world_state", uselist=False))
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref("world_state", uselist=False, passive_deletes="all"),
+    )
 
     def __repr__(self):
-        return f"<GMWorldState gm={self.gm_profile_id} tick_seq={self.tick_seq}>"
+        return f"<GMWorldState campaign={self.campaign_id} tick_seq={self.tick_seq}>"
 
 class SimulationLog(db.Model):
     __tablename__ = "simulation_logs"
@@ -712,14 +737,18 @@ class SimulationLog(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     event_type = db.Column(db.String(50), nullable=False)  # price_change, stock_update, restock, city_event
     details = db.Column(db.JSON, nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    
-    # Relationships
-    gm_profile = db.relationship("GMProfile", backref="simulation_logs")
-    
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref("simulation_logs", passive_deletes=True),
+    )
+
     def __repr__(self):
         return f"<SimulationLog (Tick: {self.tick_id}, Type: {self.event_type})>"
 
@@ -730,14 +759,18 @@ class SimRule(db.Model):
     target_type = db.Column(db.String(50), nullable=False)  # item_id, region_id, city_id
     function_type = db.Column(db.String(50), nullable=False)  # linear, decay, etc.
     condition_json = db.Column(db.JSON, nullable=False)
-    gm_profile_id = db.Column(db.Integer, db.ForeignKey("gm_profile.id"), nullable=False)
     campaign_id = db.Column(
-        db.Integer, db.ForeignKey("campaign.id", ondelete="CASCADE"), nullable=True, index=True
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    
-    # Relationships
-    gm_profile = db.relationship("GMProfile", backref="sim_rules")
-    
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref("sim_rules", passive_deletes=True),
+    )
+
     def __repr__(self):
         return f"<SimRule (Type: {self.rule_type}, Target: {self.target_type})>"
 
@@ -778,6 +811,71 @@ class CampaignWorldConfig(db.Model):
 
     def __repr__(self):
         return f"<CampaignWorldConfig campaign_id={self.campaign_id} seed={self.world_seed}>"
+
+
+class DeletedCampaignSimSnapshot(db.Model):
+    """Tombstone of a Campaign's simulation usage metrics, retained after delete.
+
+    When a GM deletes a Campaign, the live ``simulation_state`` row, the
+    ``current_game_day`` value, and the campaign's identity all cascade
+    away with the parent. The vault-keeper-facing GM simulation usage
+    dashboard is the surface that needs continuity for analytical purposes,
+    so this table archives the final per-campaign metrics at the moment of
+    deletion. The dashboard then unions live + tombstone rows when computing
+    per-GM totals and per-campaign drill-downs.
+
+    The row is intentionally denormalized (campaign name + system + dates +
+    counters) so that the analyst view can render meaningful campaign
+    identity even after the source rows are gone. There is no FK back to
+    ``campaign`` because the parent has been deleted by the time this row
+    is queried; the original ``campaign_id`` is preserved as a soft
+    reference for cross-checks but not enforced.
+
+    Retention: indefinite. The payload contains no raw user PII (only
+    GM-supplied campaign name, system slug, click counters, timestamps).
+    Deleting the owning ``GMProfile`` cascades these rows away, since
+    per-GM analytics lose meaning once the GM is gone.
+    """
+
+    __tablename__ = "deleted_campaign_sim_snapshot"
+
+    snapshot_id = db.Column(db.Integer, primary_key=True)
+    gm_profile_id = db.Column(
+        db.Integer,
+        db.ForeignKey("gm_profile.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    campaign_id = db.Column(db.Integer, nullable=False, index=True)
+    campaign_name = db.Column(db.String(120), nullable=False)
+    system_type = db.Column(db.String(50), nullable=False, default="generic")
+    campaign_created_at = db.Column(db.DateTime, nullable=True)
+    deleted_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    current_game_day = db.Column(db.Integer, nullable=False, default=1)
+    days_simulated = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_day = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_week = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_month = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_year = db.Column(db.Integer, nullable=False, default=0)
+    sim_clicks_pause = db.Column(db.Integer, nullable=False, default=0)
+    last_tick_time = db.Column(db.DateTime, nullable=True)
+
+    gm_profile = db.relationship(
+        "GMProfile",
+        backref=db.backref(
+            "deleted_campaign_snapshots",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<DeletedCampaignSimSnapshot gm_profile={self.gm_profile_id} "
+            f"campaign={self.campaign_id} name={self.campaign_name!r} "
+            f"deleted_at={self.deleted_at}>"
+        )
 
 
 # --- Join codes: listeners run after module load (join_codes imports these models). ---

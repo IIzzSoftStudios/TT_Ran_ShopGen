@@ -21,7 +21,13 @@ from flask_login import current_user
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
-from app.models import GMProfile, RegistrationKey, AccessRequest, User
+from app.models import (
+    AccessRequest,
+    DeletedCampaignSimSnapshot,
+    GMProfile,
+    RegistrationKey,
+    User,
+)
 from app.services.key_generator import create_bulk_keys, generate_secure_code
 
 audit_logger = logging.getLogger("admin_audit")
@@ -40,18 +46,47 @@ def _vault_keeper_json_forbidden():
     return None
 
 
+def _load_snapshot_index_by_gm() -> dict[int, list[DeletedCampaignSimSnapshot]]:
+    """Group ``DeletedCampaignSimSnapshot`` rows by ``gm_profile_id``.
+
+    A single query keeps the GM-row loop O(GMs), with O(snapshots) total work
+    on the side. Snapshots have no live FK back to ``campaign``, so the
+    only correctness guard we need is grouping by ``gm_profile_id``.
+    """
+
+    index: dict[int, list[DeletedCampaignSimSnapshot]] = {}
+    for snap in DeletedCampaignSimSnapshot.query.order_by(
+        DeletedCampaignSimSnapshot.deleted_at.asc()
+    ).all():
+        index.setdefault(snap.gm_profile_id, []).append(snap)
+    return index
+
+
 def _gm_simulation_usage_serialized_rows() -> list[dict]:
-    """Read-only aggregate: one JSON-safe row per GM (simulation button click counts)."""
+    """Read-only aggregate: one JSON-safe row per GM (simulation button click counts).
+
+    Each row carries the GM-level aggregate (sum of click counters, sum of
+    ``current_game_day - 1`` across campaigns, max ``last_tick_time``) AND a
+    ``campaigns`` array with the same metrics per campaign. The vault-keeper
+    UI shows the GM-level table as the default view and lets the operator
+    expand a row to drill into per-campaign breakdowns.
+
+    Deleted-campaign tombstones (``DeletedCampaignSimSnapshot``) are folded
+    into both the GM-level aggregate and the per-campaign drill-down so the
+    analytics view retains continuity across Campaign deletions. Tombstone
+    entries are flagged ``is_deleted: True`` and carry a ``deleted_at``
+    timestamp for the UI to render a "deleted" badge.
+    """
     users = (
         User.query.filter_by(role="GM")
         .options(
-            joinedload(User.gm_profile).joinedload(GMProfile.simulation_state),
             joinedload(User.gm_profile).joinedload(GMProfile.campaigns),
             joinedload(User.registration_key_used),
         )
         .order_by(User.username)
         .all()
     )
+    snapshots_by_gm = _load_snapshot_index_by_gm()
     rows: list[dict] = []
     for u in users:
         gmp = u.gm_profile
@@ -68,23 +103,117 @@ def _gm_simulation_usage_serialized_rows() -> list[dict]:
                     "sim_clicks_month": 0,
                     "sim_clicks_year": 0,
                     "sim_clicks_pause": 0,
+                    "last_tick_time": None,
+                    "days_simulated": 0,
                     "campaigns_count": 0,
+                    "campaigns": [],
                 }
             )
             continue
-        sim = gmp.simulation_state
-        campaigns = gmp.campaigns or []
+        campaigns = sorted(
+            gmp.campaigns or [],
+            key=lambda c: ((c.name or "").lower(), c.id),
+        )
+        sim_clicks_day = 0
+        sim_clicks_week = 0
+        sim_clicks_month = 0
+        sim_clicks_year = 0
+        sim_clicks_pause = 0
+        last_tick = None
+        days_simulated = 0
+        per_campaign: list[dict] = []
+        for camp in campaigns:
+            sim = camp.simulation_state
+            c_day = int(sim.sim_clicks_day or 0) if sim is not None else 0
+            c_week = int(sim.sim_clicks_week or 0) if sim is not None else 0
+            c_month = int(sim.sim_clicks_month or 0) if sim is not None else 0
+            c_year = int(sim.sim_clicks_year or 0) if sim is not None else 0
+            c_pause = int(sim.sim_clicks_pause or 0) if sim is not None else 0
+            c_last_tick = sim.last_tick_time if sim is not None else None
+            c_days_simulated = max(0, int((camp.current_game_day or 1) - 1))
+
+            sim_clicks_day += c_day
+            sim_clicks_week += c_week
+            sim_clicks_month += c_month
+            sim_clicks_year += c_year
+            sim_clicks_pause += c_pause
+            if c_last_tick is not None and (
+                last_tick is None or c_last_tick > last_tick
+            ):
+                last_tick = c_last_tick
+            days_simulated += c_days_simulated
+
+            per_campaign.append(
+                {
+                    "id": camp.id,
+                    "name": camp.name or f"Campaign #{camp.id}",
+                    "system_type": camp.system_type or "—",
+                    "is_active": bool(camp.is_active),
+                    "is_deleted": False,
+                    "deleted_at": None,
+                    "current_game_day": int(camp.current_game_day or 1),
+                    "days_simulated": c_days_simulated,
+                    "sim_clicks_day": c_day,
+                    "sim_clicks_week": c_week,
+                    "sim_clicks_month": c_month,
+                    "sim_clicks_year": c_year,
+                    "sim_clicks_pause": c_pause,
+                    "last_tick_time": c_last_tick.isoformat() if c_last_tick else None,
+                }
+            )
+
+        snapshots = snapshots_by_gm.get(gmp.id, [])
+        for snap in snapshots:
+            sim_clicks_day += int(snap.sim_clicks_day or 0)
+            sim_clicks_week += int(snap.sim_clicks_week or 0)
+            sim_clicks_month += int(snap.sim_clicks_month or 0)
+            sim_clicks_year += int(snap.sim_clicks_year or 0)
+            sim_clicks_pause += int(snap.sim_clicks_pause or 0)
+            if snap.last_tick_time is not None and (
+                last_tick is None or snap.last_tick_time > last_tick
+            ):
+                last_tick = snap.last_tick_time
+            days_simulated += int(snap.days_simulated or 0)
+            per_campaign.append(
+                {
+                    "id": int(snap.campaign_id),
+                    "name": snap.campaign_name or f"Campaign #{snap.campaign_id}",
+                    "system_type": snap.system_type or "—",
+                    "is_active": False,
+                    "is_deleted": True,
+                    "deleted_at": snap.deleted_at.isoformat() if snap.deleted_at else None,
+                    "current_game_day": int(snap.current_game_day or 1),
+                    "days_simulated": int(snap.days_simulated or 0),
+                    "sim_clicks_day": int(snap.sim_clicks_day or 0),
+                    "sim_clicks_week": int(snap.sim_clicks_week or 0),
+                    "sim_clicks_month": int(snap.sim_clicks_month or 0),
+                    "sim_clicks_year": int(snap.sim_clicks_year or 0),
+                    "sim_clicks_pause": int(snap.sim_clicks_pause or 0),
+                    "last_tick_time": snap.last_tick_time.isoformat()
+                    if snap.last_tick_time
+                    else None,
+                }
+            )
+
+        per_campaign.sort(
+            key=lambda c: (bool(c.get("is_deleted")), (c.get("name") or "").lower(), c.get("id") or 0)
+        )
+
+        last_tick_iso = last_tick.isoformat() if last_tick else None
         rows.append(
             {
                 "username": u.username,
                 "email": u.email or "—",
                 "key_phase": key_phase,
-                "sim_clicks_day": int(sim.sim_clicks_day) if sim else 0,
-                "sim_clicks_week": int(sim.sim_clicks_week) if sim else 0,
-                "sim_clicks_month": int(sim.sim_clicks_month) if sim else 0,
-                "sim_clicks_year": int(sim.sim_clicks_year) if sim else 0,
-                "sim_clicks_pause": int(sim.sim_clicks_pause) if sim else 0,
-                "campaigns_count": len(campaigns),
+                "sim_clicks_day": sim_clicks_day,
+                "sim_clicks_week": sim_clicks_week,
+                "sim_clicks_month": sim_clicks_month,
+                "sim_clicks_year": sim_clicks_year,
+                "sim_clicks_pause": sim_clicks_pause,
+                "last_tick_time": last_tick_iso,
+                "days_simulated": days_simulated,
+                "campaigns_count": len(per_campaign),
+                "campaigns": per_campaign,
             }
         )
     return rows
@@ -141,6 +270,8 @@ def handle_gm_simulation_usage_export():
         "Run month clicks",
         "Run year clicks",
         "Pause clicks",
+        "Last run (UTC)",
+        "Days simulated",
         "Campaigns",
     ]
     ws.append(headers)
@@ -155,6 +286,8 @@ def handle_gm_simulation_usage_export():
                 r["sim_clicks_month"],
                 r["sim_clicks_year"],
                 r["sim_clicks_pause"],
+                _format_iso_cell(r.get("last_tick_time")),
+                r.get("days_simulated", 0),
                 r["campaigns_count"],
             ]
         )

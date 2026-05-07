@@ -1,4 +1,4 @@
-"""Celery task: run N simulation ticks for a GM with a per-GM Redis lock.
+"""Celery task: run N simulation ticks for a campaign with a per-campaign Redis lock.
 
 Progress is written to Redis under `sim_job:{task_id}` so the polling UI can
 read state without involving the DB. All Redis writes go through `_safe_*`
@@ -22,12 +22,12 @@ TICKS_MAP: Dict[str, int] = {"day": 1, "week": 7, "month": 30, "year": 365}
 
 
 @celery.task(bind=True)
-def run_period_task(self, gm_profile_id: int, period: str) -> dict:
-    """
-    Run simulation for a GM for the given period.
+def run_period_task(self, campaign_id: int, period: str) -> dict:
+    """Run simulation for a campaign for the given period.
 
-    Progress is written to Redis under `sim_job:{task_id}` for the polling UI.
-    Concurrency is enforced with a per-GM distributed lock `lock:sim:{gm_profile_id}`.
+    Progress is written to Redis under ``sim_job:{task_id}`` for the polling UI.
+    Concurrency is enforced with a per-campaign distributed lock
+    ``lock:sim:{campaign_id}``.
     """
     redis_client = get_redis_client()
     job_id = self.request.id
@@ -75,7 +75,7 @@ def run_period_task(self, gm_profile_id: int, period: str) -> dict:
     lock_ttl_seconds = int(os.getenv("SIMULATION_LOCK_TTL_SECONDS", "300"))
     try:
         lock = acquire_simulation_lock(
-            int(gm_profile_id), ttl_seconds=lock_ttl_seconds, blocking=False
+            int(campaign_id), ttl_seconds=lock_ttl_seconds, blocking=False
         )
     except (RedisConnectionError, RedisTimeoutError):
         _safe_hset(
@@ -97,7 +97,7 @@ def run_period_task(self, gm_profile_id: int, period: str) -> dict:
         with flask_app.app_context():
             engine = SimulationEngine()
             for i in range(1, ticks_total + 1):
-                stats = engine.run_tick(int(gm_profile_id), commit=True)
+                stats = engine.run_tick(campaign_id=int(campaign_id), commit=True)
                 db.session.expire_all()
                 if not _safe_hset(
                     {

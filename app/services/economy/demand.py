@@ -7,19 +7,19 @@ from app.models import DemandModifier
 
 
 def get_active_modifiers(
-    gm_profile_id: int,
+    campaign_id: int,
     city_id=None,
     shop_id=None,
     item_id=None,
 ):
     """
-    Retrieves active demand modifiers for one GM campaign.
+    Retrieves active demand modifiers for one campaign.
     Filters based on scope (global, region, city, shop, or item) and target rows.
     """
     active_modifiers = (
         DemandModifier.query.filter(
             DemandModifier.is_active == True,
-            DemandModifier.gm_profile_id == gm_profile_id,
+            DemandModifier.campaign_id == campaign_id,
         ).all()
     )
 
@@ -30,7 +30,7 @@ def get_active_modifiers(
             total_modifier += mod.effect_value
 
         for target in mod.targets:
-            if target.gm_profile_id != gm_profile_id:
+            if target.campaign_id != campaign_id:
                 continue
             if target.entity_type == "city" and target.entity_id == city_id:
                 total_modifier += mod.effect_value
@@ -45,7 +45,7 @@ def get_active_modifiers(
 def calculate_demand(
     rarity,
     stock_level,
-    gm_profile_id: int,
+    campaign_id: int,
     city_id=None,
     shop_id=None,
     item_id=None,
@@ -56,7 +56,7 @@ def calculate_demand(
     """
     rng = rng or random
     modifier_base = get_active_modifiers(
-        gm_profile_id, city_id=city_id, shop_id=shop_id, item_id=item_id
+        campaign_id, city_id=city_id, shop_id=shop_id, item_id=item_id
     )
     rarity_effect = rarity * 0.2
     stock_effect = max(0.1, (stock_level / 100) * 0.1)

@@ -12,130 +12,150 @@
             min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-        }
-        h1 {
-            font-size: 2.5rem;
-            color: black;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            text-align: center;
+            background-color: var(--color-bg);
+            color: var(--color-text);
         }
         .container {
-            width: 80%;
-            max-width: 600px;
-            margin: 20px auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            background-color: var(--color-surface);
+            color: var(--color-text);
+            padding: 32px 40px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-panel);
+            max-width: 540px;
+            width: calc(100% - 80px);
+            margin-top: 40px;
         }
-        .message-box {
-            background-color: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 5px;
-            padding: 20px;
-            margin-bottom: 20px;
+        h1 {
+            font-size: 2rem;
+            margin: 0 0 8px 0;
+            color: var(--color-accent);
             text-align: center;
         }
-        .message-box h2 {
-            color: #856404;
-            margin-top: 0;
-        }
-        .message-box p {
-            color: #856404;
-            margin-bottom: 0;
+        .subtitle {
+            text-align: center;
+            color: var(--color-muted);
+            margin-bottom: 24px;
         }
         label {
             display: block;
-            margin-top: 15px;
-            margin-bottom: 5px;
-            font-weight: bold;
+            margin-top: 16px;
+            font-weight: 600;
+            color: var(--color-text);
         }
-        input[type="text"],
-        select {
+        input[type="text"], select {
             width: 100%;
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
+            padding: 10px 12px;
+            margin-top: 6px;
+            border: 1px solid var(--color-input-border);
+            border-radius: 6px;
+            font-size: 1rem;
+            background: var(--color-input-bg);
+            color: var(--color-text);
             box-sizing: border-box;
         }
-        .info-box {
-            background-color: #e7f3ff;
-            border-left: 4px solid #2196F3;
-            padding: 15px;
-            margin-top: 15px;
-            border-radius: 4px;
+        .system-help {
+            margin-top: 6px;
+            color: var(--color-muted);
+            font-size: 0.85rem;
         }
-        .info-box p {
-            margin: 5px 0;
-            color: #0d47a1;
-        }
-        .buttons {
-            margin-top: 20px;
+        .actions-row {
             display: flex;
             justify-content: space-between;
-            gap: 10px;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 24px;
+        }
+        .button, .button-secondary {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
         }
         .button {
-            background-color: purple;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-            text-decoration: none;
-            display: inline-block;
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
         }
-        .button:hover {
-            background-color: #2980b9;
-            transform: scale(1.05);
-        }
+        .button:hover { background: var(--color-accent-hover); }
         .button-secondary {
-            background-color: #6c757d;
+            background: var(--color-surface);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
         }
-        .button-secondary:hover {
-            background-color: #5a6268;
+        .button[disabled], .button.disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .cap-warning {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+        }
+        .flash-stack { margin-bottom: 16px; }
+        .flash-stack div {
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid var(--color-border);
+            background: var(--color-table-stripe);
+            color: var(--color-text);
         }
     </style>
 </head>
 <body>
-    <h1>Create Character</h1>
-    
     <div class="container">
-        {% if not has_campaigns %}
-            <div class="message-box">
-                <h2>No Campaigns Available</h2>
-                <p>Campaigns will appear here once your Game Master has set them up.</p>
-                <p style="margin-top: 15px;">
-                    <a href="{{ url_for('main.campaigns') }}" class="button">Check Campaigns</a>
-                </p>
-            </div>
-        {% else %}
-            <form method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <div class="info-box">
-                    <p><strong>Campaign:</strong> {{ campaign.name }}</p>
-                    <p><strong>System:</strong> {{ system_type|upper }}</p>
+        <h1>Create Character</h1>
+        <p class="subtitle">Pick a rule system. You can edit the rest of the sheet on the next screen.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack">
+                    {% for category, message in messages %}
+                        <div><strong>{{ category|capitalize }}:</strong> {{ message }}</div>
+                    {% endfor %}
                 </div>
+            {% endif %}
+        {% endwith %}
 
-                <label for="name">Character Name</label>
-                <input type="text" id="name" name="name" required placeholder="Enter your character's name">
-
-                <label for="class_name">Class (optional)</label>
-                <input type="text" id="class_name" name="class_name" placeholder="Enter class or archetype (e.g. Fighter, Wizard)">
-
-                <label for="species">Species / Ancestry (optional)</label>
-                <input type="text" id="species" name="species" placeholder="Enter species or ancestry (e.g. Human, Elf)">
-
-                <div class="buttons">
-                    <a href="{{ url_for('main.campaigns') }}" class="button button-secondary">Back</a>
-                    <button type="submit" class="button">Create Character</button>
-                </div>
-            </form>
+        {% if not can_add %}
+        <div class="cap-warning">
+            {{ cap_message or "You have reached your character profile limit on this plan." }}
+        </div>
         {% endif %}
+
+        <form method="POST" action="{{ url_for('player.create_character') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <label for="character_name">Character name</label>
+            <input type="text" id="character_name" name="name" maxlength="100" autocomplete="off"
+                   placeholder="Optional - you can set this later"/>
+
+            <label for="system_type">Rule system</label>
+            <select id="system_type" name="system_type" required>
+                {% for opt in systems %}
+                <option value="{{ opt.value }}" {% if opt.value == default_system %}selected{% endif %}>
+                    {{ opt.label }}
+                </option>
+                {% endfor %}
+            </select>
+            <p class="system-help">Determines abilities, skills, saves, and proficiency rules on the sheet.</p>
+
+            <div class="actions-row">
+                <a href="{{ url_for('player.list_characters') }}" class="button">Back</a>
+                <button type="submit" class="button" {% if not can_add %}disabled aria-disabled="true"{% endif %}>
+                    Create character
+                </button>
+            </div>
+        </form>
     </div>
 </body>
 </html>

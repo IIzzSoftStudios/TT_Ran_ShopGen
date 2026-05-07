@@ -4,8 +4,10 @@ from flask_login import login_required, current_user
 from app.extensions import db, limiter
 from app.models import AccessRequest
 from app.routes.handlers.campaign_selection_handler import (
+    delete_campaign_character,
     select_campaign,
     load_campaign,
+    load_campaign_character,
     redeem_campaign_post,
 )
 
@@ -111,6 +113,21 @@ def campaigns():
 @login_required
 def load_campaign_route(campaign_id):
     return load_campaign(campaign_id)
+
+
+@main_bp.route("/campaigns/load/<int:campaign_id>/character/<int:player_id>")
+@login_required
+def load_campaign_character_route(campaign_id, player_id):
+    return load_campaign_character(campaign_id, player_id)
+
+
+@main_bp.route(
+    "/campaigns/load/<int:campaign_id>/character/<int:player_id>/delete",
+    methods=["POST"],
+)
+@login_required
+def delete_campaign_character_route(campaign_id, player_id):
+    return delete_campaign_character(campaign_id, player_id)
 
 
 @main_bp.route("/campaigns/redeem", methods=["POST"])

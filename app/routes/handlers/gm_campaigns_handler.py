@@ -13,10 +13,14 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
 from app.models import (
-    GMProfile, Player, Campaign, CampaignPlayer, CampaignWorldConfig, PlayerCharacterSheet,
+    GMProfile, Player, Campaign, CampaignWorldConfig, PlayerCharacterSheet,
+    DeletedCampaignSimSnapshot,
 )
 from app.scripts.seeder import seed_gm_data
-from app.services.billing_rules import can_create_campaign, can_add_player_to_campaign
+from app.services.billing_rules import (
+    can_create_campaign,
+    get_gm_limits,
+)
 from app.services.world_generator import (
     defaults as wg_defaults,
     generator as wg_generator,
@@ -38,14 +42,6 @@ from app.services.join_codes import (
 log = logging.getLogger(__name__)
 
 
-def _non_npc_players_for_gm(gm_profile_id: int):
-    return (
-        Player.query.filter_by(gm_profile_id=gm_profile_id)
-        .filter(Player.is_npc.is_(False))
-        .all()
-    )
-
-
 @login_required
 def list_campaigns():
     gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
@@ -57,30 +53,36 @@ def list_campaigns():
         Campaign.created_at.asc()
     ).all()
 
+    _campaign_cap, seat_cap, _label = get_gm_limits(gm_profile.user)
+
     campaigns_with_info = []
     for campaign in campaigns:
-        player_count = (
-            db.session.query(CampaignPlayer)
-            .join(Player, Player.id == CampaignPlayer.player_id)
+        member_count = (
+            db.session.query(Player)
             .filter(
-                CampaignPlayer.campaign_id == campaign.id,
-                CampaignPlayer.is_active.is_(True),
+                Player.campaign_id == campaign.id,
                 Player.is_npc.is_(False),
             )
             .count()
         )
-        total_players = Player.query.filter_by(gm_profile_id=gm_profile.id).filter(
-            Player.is_npc.is_(False)
-        ).count()
         campaigns_with_info.append(
             {
                 "campaign": campaign,
-                "player_count": player_count,
-                "total_players": total_players,
+                "member_count": member_count,
+                "seat_cap": seat_cap,
             }
         )
 
-    return render_template("GM_view_campaigns.html", campaigns_info=campaigns_with_info)
+    try:
+        active_campaign_id = int(session.get("campaign_id")) if session.get("campaign_id") else None
+    except (TypeError, ValueError):
+        active_campaign_id = None
+
+    return render_template(
+        "GM_view_campaigns.html",
+        campaigns_info=campaigns_with_info,
+        active_campaign_id=active_campaign_id,
+    )
 
 
 @login_required
@@ -111,33 +113,6 @@ def create_campaign():
             is_active=True,
         )
         db.session.add(campaign)
-        db.session.flush()
-
-        existing_players = _non_npc_players_for_gm(gm_profile.id)
-        players_added = 0
-        for player in existing_players:
-            can_add, seat_message = can_add_player_to_campaign(campaign)
-            if can_add:
-                existing_membership = CampaignPlayer.query.filter_by(
-                    campaign_id=campaign.id,
-                    player_id=player.id,
-                ).first()
-                if not existing_membership:
-                    membership = CampaignPlayer(
-                        campaign_id=campaign.id,
-                        player_id=player.id,
-                        status="active",
-                        is_active=True,
-                    )
-                    db.session.add(membership)
-                    players_added += 1
-            else:
-                flash(
-                    f"Note: {seat_message} Only added {players_added} players to the campaign.",
-                    "system",
-                )
-                break
-
         db.session.commit()
 
         if world_setup == "preseeded":
@@ -151,22 +126,25 @@ def create_campaign():
                     campaign_id=campaign.id,
                 )
                 flash(
-                    f"Campaign '{name}' created successfully with preseeded entities. Added {players_added} player(s).",
+                    f"Campaign '{name}' created successfully with preseeded entities. "
+                    "Players can join with the campaign code.",
                     "success",
                 )
             except Exception as e:
                 flash(
-                    f"Campaign '{name}' created with {players_added} player(s), but seeding encountered an error: {str(e)}",
+                    f"Campaign '{name}' created, but seeding encountered an error: {str(e)}",
                     "warning",
                 )
         elif world_setup == "preset":
             flash(
-                f"Campaign '{name}' created. Added {players_added} player(s). Preset worlds are coming soon!",
+                f"Campaign '{name}' created. Preset worlds are coming soon! "
+                "Players can join with the campaign code.",
                 "info",
             )
         else:
             flash(
-                f"Campaign '{name}' created successfully with a blank slate. Added {players_added} player(s).",
+                f"Campaign '{name}' created successfully with a blank slate. "
+                "Players can join with the campaign code.",
                 "success",
             )
 
@@ -175,58 +153,34 @@ def create_campaign():
     return render_template("GM_add_campaign.html")
 
 
-@login_required
-def sync_players_to_campaign(campaign_id: int):
-    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
-    if not gm_profile:
-        flash("GM profile not found.", "error")
-        return redirect(url_for("gm.view_campaigns"))
+def _snapshot_campaign_for_analytics(campaign: Campaign) -> DeletedCampaignSimSnapshot:
+    """Archive a Campaign's final simulation usage metrics before deletion.
 
-    campaign = Campaign.query.filter_by(
-        id=campaign_id, gm_profile_id=gm_profile.id
-    ).first()
-    if not campaign:
-        flash("Campaign not found.", "error")
-        return redirect(url_for("gm.view_campaigns"))
+    The snapshot row is added to the active session but not committed; it
+    must commit atomically with the parent ``Campaign`` delete so a failed
+    delete also rolls back the snapshot. Sourced exclusively from the
+    server-side Campaign object (never from request input) to keep the
+    write trustworthy regardless of caller context.
+    """
 
-    existing_players = _non_npc_players_for_gm(gm_profile.id)
-    players_added = 0
-    players_skipped = 0
-
-    for player in existing_players:
-        existing_membership = CampaignPlayer.query.filter_by(
-            campaign_id=campaign.id,
-            player_id=player.id,
-        ).first()
-
-        if existing_membership:
-            players_skipped += 1
-            continue
-
-        can_add, _ = can_add_player_to_campaign(campaign)
-        if can_add:
-            membership = CampaignPlayer(
-                campaign_id=campaign.id,
-                player_id=player.id,
-                status="active",
-                is_active=True,
-            )
-            db.session.add(membership)
-            players_added += 1
-        else:
-            flash(
-                f"Reached seat limit for campaign '{campaign.name}'. Added {players_added} player(s), skipped {players_skipped} already in campaign.",
-                "system",
-            )
-            db.session.commit()
-            return redirect(url_for("gm.view_campaigns"))
-
-    db.session.commit()
-    flash(
-        f"Synced players to campaign '{campaign.name}'. Added {players_added} player(s), {players_skipped} were already in the campaign.",
-        "success",
+    sim = getattr(campaign, "simulation_state", None)
+    snapshot = DeletedCampaignSimSnapshot(
+        gm_profile_id=campaign.gm_profile_id,
+        campaign_id=campaign.id,
+        campaign_name=campaign.name,
+        system_type=campaign.system_type or "generic",
+        campaign_created_at=getattr(campaign, "created_at", None),
+        current_game_day=int(campaign.current_game_day or 1),
+        days_simulated=max(0, int((campaign.current_game_day or 1) - 1)),
+        sim_clicks_day=int(getattr(sim, "sim_clicks_day", 0) or 0) if sim else 0,
+        sim_clicks_week=int(getattr(sim, "sim_clicks_week", 0) or 0) if sim else 0,
+        sim_clicks_month=int(getattr(sim, "sim_clicks_month", 0) or 0) if sim else 0,
+        sim_clicks_year=int(getattr(sim, "sim_clicks_year", 0) or 0) if sim else 0,
+        sim_clicks_pause=int(getattr(sim, "sim_clicks_pause", 0) or 0) if sim else 0,
+        last_tick_time=getattr(sim, "last_tick_time", None) if sim else None,
     )
-    return redirect(url_for("gm.view_campaigns"))
+    db.session.add(snapshot)
+    return snapshot
 
 
 @login_required
@@ -243,15 +197,30 @@ def delete_campaign(campaign_id: int):
         flash("Campaign not found.", "error")
         return redirect(url_for("gm.view_campaigns"))
 
+    deleting_active_campaign = session.get("campaign_id") == campaign_id
+
     # Character sheets are campaign-scoped and should be purged with campaign delete.
     PlayerCharacterSheet.query.filter_by(campaign_id=campaign.id).delete(
         synchronize_session=False
     )
+    snapshot = _snapshot_campaign_for_analytics(campaign)
     db.session.delete(campaign)
     db.session.commit()
-    if session.get("campaign_id") == campaign_id:
+    logging.getLogger(__name__).info(
+        "Campaign deleted | campaign_id=%s name=%r gm_profile_id=%s "
+        "snapshot_id=%s days_simulated=%s",
+        campaign_id,
+        snapshot.campaign_name,
+        snapshot.gm_profile_id,
+        snapshot.snapshot_id,
+        snapshot.days_simulated,
+    )
+    if deleting_active_campaign:
         session.pop("campaign_id", None)
+        session.pop("system_type", None)
         session.modified = True
+        flash("Campaign deleted.", "success")
+        return redirect(url_for("main.campaigns"))
     flash("Campaign deleted.", "success")
     return redirect(url_for("gm.view_campaigns"))
 
@@ -426,24 +395,7 @@ def generate_world_submit():
             db.session.add(config)
             db.session.flush()
 
-            # Add existing players to the new campaign up to the seat cap.
-            existing_players = _non_npc_players_for_gm(gm_profile.id)
-            players_added = 0
-            for player in existing_players:
-                can_add, _seat_msg = can_add_player_to_campaign(campaign)
-                if not can_add:
-                    break
-                membership = CampaignPlayer(
-                    campaign_id=campaign.id,
-                    player_id=player.id,
-                    status="active",
-                    is_active=True,
-                )
-                db.session.add(membership)
-                players_added += 1
-
             result = wg_generator.generate(
-                gm_profile_id=gm_profile.id,
                 campaign_id=campaign.id,
                 settings=settings,
             )
@@ -469,7 +421,21 @@ def generate_world_submit():
         ), 503
     except IntegrityError as exc:
         db.session.rollback()
-        log.warning("world_generation_integrity_error gm=%s err=%s", gm_profile.id, exc)
+        # psycopg2 attaches diagnostic data to exc.orig.diag — surfacing the
+        # constraint name + table makes future "name conflict" reports
+        # actionable without needing a debugger.
+        diag = getattr(getattr(exc, "orig", None), "diag", None)
+        constraint_name = getattr(diag, "constraint_name", None) if diag else None
+        table_name = getattr(diag, "table_name", None) if diag else None
+        pgcode = getattr(getattr(exc, "orig", None), "pgcode", None)
+        log.warning(
+            "world_generation_integrity_error gm=%s pgcode=%s table=%s constraint=%s err=%s",
+            gm_profile.id,
+            pgcode,
+            table_name,
+            constraint_name,
+            exc,
+        )
         return _flash_and_reshow(
             form, "error", "Name conflict detected, please retry with a different seed or name."
         ), 409
@@ -496,7 +462,7 @@ def generate_world_submit():
     log.info(
         "world_generated gm_profile_id=%s campaign_id=%s "
         "settings_digest=%s seed=%s elapsed=%.2fs "
-        "regions=%d cities=%d shops=%d items=%d inv=%d players_added=%d",
+        "regions=%d cities=%d shops=%d items=%d inv=%d",
         gm_profile.id,
         campaign.id,
         settings_digest,
@@ -507,7 +473,6 @@ def generate_world_submit():
         result.n_shops,
         result.n_items,
         result.n_inventory_rows,
-        players_added,
     )
 
     flash(
@@ -577,21 +542,6 @@ def skip_world_generation_submit():
         )
         db.session.add(config)
 
-        existing_players = _non_npc_players_for_gm(gm_profile.id)
-        players_added = 0
-        for player in existing_players:
-            can_add, _seat_msg = can_add_player_to_campaign(campaign)
-            if not can_add:
-                break
-            membership = CampaignPlayer(
-                campaign_id=campaign.id,
-                player_id=player.id,
-                status="active",
-                is_active=True,
-            )
-            db.session.add(membership)
-            players_added += 1
-
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -607,7 +557,7 @@ def skip_world_generation_submit():
 
     flash(
         f"Campaign '{campaign_name}' created without auto-generation. "
-        f"Added {players_added} player(s).",
+        "Players can join with the campaign code.",
         "success",
     )
 

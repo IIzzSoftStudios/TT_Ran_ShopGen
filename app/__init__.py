@@ -6,25 +6,50 @@ import sys
 import redis
 from dotenv import load_dotenv
 from flask import Flask, request, render_template
+from flask.sessions import SecureCookieSession, SecureCookieSessionInterface
 
 from app.extensions import db, migrate, bcrypt, login_manager, session, csrf, mail, limiter
 from app.models import User
 from app.services.phase_config import PhaseEntitlements, resolve_phase_entitlements_path
 from app.services.schema_compat import (
+    drop_campaign_player_table,
+    ensure_campaign_debt_column,
+    ensure_campaign_current_game_day_column,
     ensure_campaign_scope_columns,
+    ensure_deleted_campaign_sim_snapshot_table,
+    ensure_gm_world_state_campaign_id,
     ensure_join_codes_columns,
     ensure_phase_entitlement_columns,
+    ensure_player_campaign_id,
     ensure_player_npc_columns,
+    ensure_region_campaign_only,
+    ensure_sim_rules_table,
+    ensure_simulation_logs_table,
+    ensure_simulation_state_campaign_id,
     ensure_simulation_state_click_columns,
     ensure_solo_player_vault_schema,
     ensure_user_password_history_table,
+    ensure_world_tables_campaign_only,
+    preflight_campaign_rekey,
+    warn_if_campaign_current_game_day_applied,
+    warn_if_campaign_debt_column_applied,
+    warn_if_campaign_player_dropped,
     warn_if_compat_mode_applied,
+    warn_if_deleted_campaign_sim_snapshot_table_created,
+    warn_if_gm_world_state_campaign_applied,
     warn_if_join_codes_compat_applied,
     warn_if_password_history_compat_applied,
     warn_if_phase_compat_applied,
+    warn_if_player_campaign_applied,
     warn_if_player_npc_compat_applied,
+    warn_if_preflight_applied,
+    warn_if_region_campaign_only_applied,
+    warn_if_sim_rules_table_created,
+    warn_if_simulation_logs_table_created,
+    warn_if_simulation_state_campaign_applied,
     warn_if_simulation_state_clicks_applied,
     warn_if_solo_vault_compat_applied,
+    warn_if_world_tables_campaign_only_applied,
 )
 
 load_dotenv("config.env")
@@ -97,6 +122,54 @@ def _resolve_required_config() -> tuple[str, str | None]:
     return secret_key, db_uri
 
 
+class _ResilientSessionInterface:
+    """Development fallback when Redis cannot load an existing session cookie."""
+
+    def __init__(self, primary):
+        self.primary = primary
+        self.fallback = SecureCookieSessionInterface()
+
+    def __getattr__(self, name):
+        return getattr(self.primary, name)
+
+    def open_session(self, app, request):
+        try:
+            loaded = self.primary.open_session(app, request)
+        except Exception as exc:
+            app.logger.warning(
+                "Redis session open failed; falling back to signed cookie session: %s",
+                exc,
+            )
+            return self.fallback.open_session(app, request)
+        if loaded is None:
+            app.logger.warning(
+                "Redis session open returned None; falling back to signed cookie session."
+            )
+            return self.fallback.open_session(app, request)
+        return loaded
+
+    def save_session(self, app, session_obj, response):
+        if isinstance(session_obj, SecureCookieSession):
+            return self.fallback.save_session(app, session_obj, response)
+        try:
+            return self.primary.save_session(app, session_obj, response)
+        except Exception as exc:
+            app.logger.warning(
+                "Redis session save failed; writing signed cookie session instead: %s",
+                exc,
+            )
+            return self.fallback.save_session(app, session_obj, response)
+
+
+def _install_dev_session_fallback(app: Flask) -> None:
+    flask_env = os.getenv("FLASK_ENV", "development").lower()
+    enabled = os.getenv(
+        "SESSION_REDIS_FALLBACK", "false" if flask_env == "production" else "true"
+    ).lower() in ("1", "true", "yes")
+    if enabled:
+        app.session_interface = _ResilientSessionInterface(app.session_interface)
+
+
 def create_app():
     _configure_logging()
 
@@ -134,6 +207,7 @@ def create_app():
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     session.init_app(app)
+    _install_dev_session_fallback(app)
 
     app.config["SQLALCHEMY_COMMIT_ON_TEARDOWN"] = True
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -183,44 +257,132 @@ def create_app():
         return user
 
     # Compatibility bootstrap: old DBs missing campaign_id columns should still boot.
+    #
+    # Ordering rules:
+    #   1) Helpers that ADD columns referenced by the ORM models (Campaign.current_game_day,
+    #      Player.campaign_id, SimulationState.campaign_id, GMWorldState.campaign_id) must run
+    #      BEFORE any helper that issues an ORM query against those models. Otherwise the
+    #      ORM SELECT lists a non-existent column, the psycopg2 transaction goes into
+    #      InFailedSqlTransaction, and every subsequent helper skips with that error.
+    #   2) Each except branch rolls back the session so a single failure can't poison the
+    #      next helper's preliminary checks.
+    def _safe_bootstrap(label, fn, on_applied=None):
+        try:
+            applied = fn()
+            if on_applied is not None:
+                on_applied(applied)
+        except Exception as exc:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            app.logger.warning("%s skipped: %s", label, exc)
+
     with app.app_context():
-        try:
-            patched_any = ensure_campaign_scope_columns()
-            warn_if_compat_mode_applied(patched_any)
-        except Exception as exc:
-            app.logger.warning("campaign_scope compatibility bootstrap skipped: %s", exc)
-        try:
-            patched_phase = ensure_phase_entitlement_columns()
-            warn_if_phase_compat_applied(patched_phase)
-        except Exception as exc:
-            app.logger.warning("phase entitlement compatibility bootstrap skipped: %s", exc)
-        try:
-            patched_pwh = ensure_user_password_history_table()
-            warn_if_password_history_compat_applied(patched_pwh)
-        except Exception as exc:
-            app.logger.warning("user_password_history compatibility bootstrap skipped: %s", exc)
-        try:
-            patched_npc = ensure_player_npc_columns()
-            warn_if_player_npc_compat_applied(patched_npc)
-        except Exception as exc:
-            app.logger.warning("player NPC compatibility bootstrap skipped: %s", exc)
-        try:
-            patched_join = ensure_join_codes_columns()
-            warn_if_join_codes_compat_applied(patched_join)
-        except Exception as exc:
-            app.logger.warning("join_codes compatibility bootstrap skipped: %s", exc)
-        try:
-            patched_solo = ensure_solo_player_vault_schema()
-            warn_if_solo_vault_compat_applied(patched_solo)
-        except Exception as exc:
-            app.logger.warning("solo_player_vault compatibility bootstrap skipped: %s", exc)
-        try:
-            patched_sim_clicks = ensure_simulation_state_click_columns()
-            warn_if_simulation_state_clicks_applied(patched_sim_clicks)
-        except Exception as exc:
-            app.logger.warning(
-                "simulation_state sim_clicks compatibility bootstrap skipped: %s", exc
-            )
+        # Stage A — DDL-only legacy compat (no ORM queries against re-keyed models).
+        _safe_bootstrap(
+            "campaign_scope compatibility bootstrap",
+            ensure_campaign_scope_columns,
+            warn_if_compat_mode_applied,
+        )
+        _safe_bootstrap(
+            "phase entitlement compatibility bootstrap",
+            ensure_phase_entitlement_columns,
+            warn_if_phase_compat_applied,
+        )
+        _safe_bootstrap(
+            "user_password_history compatibility bootstrap",
+            ensure_user_password_history_table,
+            warn_if_password_history_compat_applied,
+        )
+        _safe_bootstrap(
+            "player NPC compatibility bootstrap",
+            ensure_player_npc_columns,
+            warn_if_player_npc_compat_applied,
+        )
+        _safe_bootstrap(
+            "simulation_state sim_clicks compatibility bootstrap",
+            ensure_simulation_state_click_columns,
+            warn_if_simulation_state_clicks_applied,
+        )
+        _safe_bootstrap(
+            "ensure_simulation_logs_table",
+            ensure_simulation_logs_table,
+            warn_if_simulation_logs_table_created,
+        )
+        _safe_bootstrap(
+            "ensure_sim_rules_table",
+            ensure_sim_rules_table,
+            warn_if_sim_rules_table_created,
+        )
+        _safe_bootstrap(
+            "ensure_deleted_campaign_sim_snapshot_table",
+            ensure_deleted_campaign_sim_snapshot_table,
+            warn_if_deleted_campaign_sim_snapshot_table_created,
+        )
+        _safe_bootstrap(
+            "ensure_region_campaign_only",
+            ensure_region_campaign_only,
+            warn_if_region_campaign_only_applied,
+        )
+
+        # Stage B — campaign re-key migration. MUST run before ORM-querying helpers
+        # (ensure_join_codes_columns) because Campaign.current_game_day and
+        # Player.campaign_id are now declared on the ORM models.
+        _safe_bootstrap(
+            "preflight_campaign_rekey",
+            preflight_campaign_rekey,
+            warn_if_preflight_applied,
+        )
+        _safe_bootstrap(
+            "ensure_campaign_current_game_day_column",
+            ensure_campaign_current_game_day_column,
+            warn_if_campaign_current_game_day_applied,
+        )
+        _safe_bootstrap(
+            "ensure_campaign_debt_column",
+            ensure_campaign_debt_column,
+            warn_if_campaign_debt_column_applied,
+        )
+        _safe_bootstrap(
+            "ensure_simulation_state_campaign_id",
+            ensure_simulation_state_campaign_id,
+            warn_if_simulation_state_campaign_applied,
+        )
+        _safe_bootstrap(
+            "ensure_gm_world_state_campaign_id",
+            ensure_gm_world_state_campaign_id,
+            warn_if_gm_world_state_campaign_applied,
+        )
+        _safe_bootstrap(
+            "ensure_player_campaign_id",
+            ensure_player_campaign_id,
+            warn_if_player_campaign_applied,
+        )
+
+        # Stage C — helpers that issue ORM queries against the re-keyed models.
+        _safe_bootstrap(
+            "solo_player_vault compatibility bootstrap",
+            ensure_solo_player_vault_schema,
+            warn_if_solo_vault_compat_applied,
+        )
+        _safe_bootstrap(
+            "join_codes compatibility bootstrap",
+            ensure_join_codes_columns,
+            warn_if_join_codes_compat_applied,
+        )
+
+        # Stage D — final cleanup that requires backfills to be complete.
+        _safe_bootstrap(
+            "drop_campaign_player_table",
+            drop_campaign_player_table,
+            warn_if_campaign_player_dropped,
+        )
+        _safe_bootstrap(
+            "ensure_world_tables_campaign_only",
+            ensure_world_tables_campaign_only,
+            warn_if_world_tables_campaign_only_applied,
+        )
 
     from app.routes.main_routes import main_bp
     from app.routes.auth_routes import auth

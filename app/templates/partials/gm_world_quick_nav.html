@@ -3,6 +3,7 @@
 {% set _show_add_city = show_add_city|default(true) %}
 {% set _show_add_item = show_add_item|default(true) %}
 {% set _show_add_region = show_add_region|default(true) %}
+{% set _show_debt_toggle = show_debt_toggle|default(false) %}
 <style>
     .gm-world-quick-nav .nav-buttons {
         display: flex;
@@ -10,6 +11,9 @@
         gap: 15px;
         margin-top: 20px;
         flex-wrap: wrap;
+    }
+    .gm-world-quick-nav .nav-form {
+        margin: 0;
     }
 </style>
 <div class="gm-world-quick-nav">
@@ -23,6 +27,16 @@
         <button type="button" onclick="MapsTo('{{ url_for('gm.add_shop') }}')" class="button">Add Shop</button>
         {% if _show_add_item %}
         <button type="button" onclick="MapsTo('{{ url_for('gm.add_item') }}')" class="button">Add Item</button>
+        {% endif %}
+        {% if _show_debt_toggle and campaign %}
+        <form method="POST" action="{{ url_for('gm.toggle_campaign_debt') }}" class="nav-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit"
+                    class="button"
+                    title="{% if campaign.allow_player_debt %}Players can go below 0 currency when buying items{% else %}Players cannot buy items that would go below 0 currency{% endif %}">
+                {% if campaign.allow_player_debt %}Debt On{% else %}Debt Off{% endif %}
+            </button>
+        </form>
         {% endif %}
         {% if _show_back %}
         <button type="button" onclick="MapsTo('{{ url_for('gm.home') }}')" class="nav-button">Back to Dashboard</button>

@@ -1,11 +1,9 @@
-# app/routes/modifier_routes.py
-
 from datetime import datetime
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from flask_login import current_user, login_required
 
-from app.models import DemandModifier, ModifierTarget, db
+from app.models import Campaign, DemandModifier, ModifierTarget, db
 
 modifier_routes = Blueprint("modifier_routes", __name__)
 
@@ -17,32 +15,38 @@ def _gm_profile_or_403():
     return profile, None
 
 
-def _modifier_for_gm_or_404(modifier_id: int, gm_profile_id: int):
+def _active_campaign_or_400(gm_profile):
+    raw_campaign_id = session.get("campaign_id")
+    if not raw_campaign_id:
+        return None, (
+            jsonify({"error": "Please select a campaign first."}),
+            400,
+        )
+    try:
+        cid = int(raw_campaign_id)
+    except (TypeError, ValueError):
+        return None, (jsonify({"error": "Invalid campaign session."}), 400)
+    camp = Campaign.query.filter_by(id=cid, gm_profile_id=gm_profile.id).first()
+    if camp is None:
+        return None, (jsonify({"error": "Invalid campaign session."}), 400)
+    return camp, None
+
+
+def _modifier_for_campaign_or_404(modifier_id: int, campaign_id: int):
     return DemandModifier.query.filter_by(
-        id=modifier_id, gm_profile_id=gm_profile_id
+        id=modifier_id, campaign_id=campaign_id
     ).first()
 
 
 @modifier_routes.route("/api/modifier/add", methods=["POST"])
 @login_required
 def add_modifier():
-    """
-    Adds a new demand modifier.
-    Example Payload:
-    {
-        "name": "Plague",
-        "description": "City-wide illness reducing demand",
-        "scope": "city",
-        "effect_value": -0.3,
-        "start_date": "2025-03-01",
-        "end_date": "2025-03-10",
-        "is_active": true,
-        "targets": [{"entity_type": "city", "entity_id": 2}]
-    }
-    """
     gm_profile, err = _gm_profile_or_403()
     if err:
         return err
+    campaign, camp_err = _active_campaign_or_400(gm_profile)
+    if camp_err:
+        return camp_err
 
     data = request.json or {}
     if "name" not in data or "scope" not in data or "effect_value" not in data:
@@ -62,7 +66,7 @@ def add_modifier():
             datetime.strptime(data["end_date"], "%Y-%m-%d") if "end_date" in data else None
         ),
         is_active=data.get("is_active", True),
-        gm_profile_id=gm_profile.id,
+        campaign_id=campaign.id,
     )
 
     db.session.add(new_modifier)
@@ -74,7 +78,7 @@ def add_modifier():
                 modifier_id=new_modifier.id,
                 entity_type=target["entity_type"],
                 entity_id=target["entity_id"],
-                gm_profile_id=gm_profile.id,
+                campaign_id=campaign.id,
             )
         )
 
@@ -87,14 +91,14 @@ def add_modifier():
 @modifier_routes.route("/api/modifier/update/<int:modifier_id>", methods=["PUT"])
 @login_required
 def update_modifier(modifier_id):
-    """
-    Updates an existing demand modifier.
-    """
     gm_profile, err = _gm_profile_or_403()
     if err:
         return err
+    campaign, camp_err = _active_campaign_or_400(gm_profile)
+    if camp_err:
+        return camp_err
 
-    modifier = _modifier_for_gm_or_404(modifier_id, gm_profile.id)
+    modifier = _modifier_for_campaign_or_404(modifier_id, campaign.id)
     if not modifier:
         return jsonify({"error": "Modifier not found"}), 404
 
@@ -115,12 +119,14 @@ def update_modifier(modifier_id):
 @modifier_routes.route("/api/modifier/delete/<int:modifier_id>", methods=["DELETE"])
 @login_required
 def delete_modifier(modifier_id):
-    """Deletes a demand modifier."""
     gm_profile, err = _gm_profile_or_403()
     if err:
         return err
+    campaign, camp_err = _active_campaign_or_400(gm_profile)
+    if camp_err:
+        return camp_err
 
-    modifier = _modifier_for_gm_or_404(modifier_id, gm_profile.id)
+    modifier = _modifier_for_campaign_or_404(modifier_id, campaign.id)
     if not modifier:
         return jsonify({"error": "Modifier not found"}), 404
 
@@ -132,14 +138,17 @@ def delete_modifier(modifier_id):
 @modifier_routes.route("/api/modifier/list", methods=["GET"])
 @login_required
 def list_modifiers():
-    """Retrieves active demand modifiers for the current GM campaign."""
+    """Retrieves active demand modifiers for the active campaign."""
     gm_profile, err = _gm_profile_or_403()
     if err:
         return err
+    campaign, camp_err = _active_campaign_or_400(gm_profile)
+    if camp_err:
+        return camp_err
 
     modifiers = DemandModifier.query.filter(
         DemandModifier.is_active == True,
-        DemandModifier.gm_profile_id == gm_profile.id,
+        DemandModifier.campaign_id == campaign.id,
     ).all()
     return (
         jsonify(

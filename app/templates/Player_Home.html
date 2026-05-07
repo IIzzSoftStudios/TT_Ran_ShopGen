@@ -548,6 +548,19 @@
             padding: 6px 8px;
         }
 
+        .flash-stack {
+            max-width: 960px;
+            margin: 0 auto 16px auto;
+        }
+        .flash-stack div {
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #fff8e1;
+            color: #3d2c00;
+            border: 1px solid #f0d98c;
+        }
+
         .search-section {
             background: white;
             padding: 15px;
@@ -1204,6 +1217,44 @@
             background: #f8d7da;
             color: #721c24;
         }
+
+        /* Purchase toast: matches the slide-in flash style used on
+           GM_Home.html so player-side buy errors surface with the same
+           motion/visual language instead of a plain blocking alert(). */
+        .purchase-toast-stack {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .purchase-toast {
+            min-width: 240px;
+            max-width: 360px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+            animation: purchase-toast-slide-in 0.3s ease-out;
+            pointer-events: auto;
+        }
+        .purchase-toast.error { background-color: #f44336; }
+        .purchase-toast.success { background-color: #4CAF50; }
+        .purchase-toast.fade-out {
+            animation: purchase-toast-fade-out 0.3s ease-in forwards;
+        }
+        @keyframes purchase-toast-slide-in {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes purchase-toast-fade-out {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
     </style>
     <script>
         function navigateTo(url) {
@@ -1216,11 +1267,75 @@
             return 'in-stock';
         }
 
-        // Buy a single unit of an item from the city->shop->items browse
-        // accordion. Mirrors Player_view_city_shops.html's buyItem(): POSTs
-        // to /player/shop/<shop>/buy/<item> with CSRF, then reloads so the
-        // currency pill, inventory table, and accordion stock counts all
-        // refresh against the new server state together.
+        // Show a slide-in toast (mirrors the GM_Home flash-message look)
+        // for purchase feedback that previously surfaced as a blocking
+        // alert(). Returns the toast element for callers that want to
+        // dismiss it earlier than the auto timeout.
+        function showPurchaseToast(message, kind) {
+            var stack = document.getElementById("purchase-toast-stack");
+            if (!stack) {
+                stack = document.createElement("div");
+                stack.id = "purchase-toast-stack";
+                stack.className = "purchase-toast-stack";
+                document.body.appendChild(stack);
+            }
+            var toast = document.createElement("div");
+            toast.className = "purchase-toast " + (kind === "success" ? "success" : "error");
+            toast.setAttribute("role", "alert");
+            toast.textContent = message || "Purchase failed.";
+            stack.appendChild(toast);
+            setTimeout(function () {
+                toast.classList.add("fade-out");
+                setTimeout(function () {
+                    if (toast.parentNode) toast.parentNode.removeChild(toast);
+                }, 300);
+            }, 3500);
+            return toast;
+        }
+
+        // Delegated submit handler for inventory "Sell" forms. Converts
+        // the synchronous POST + redirect (which previously surfaced as a
+        // `flash-stack` banner) into an AJAX call so the response goes
+        // through the same slide-in toast as the buy flow. Server still
+        // accepts plain HTML POSTs as a no-JS fallback.
+        document.addEventListener("submit", function (event) {
+            var form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (!form.classList.contains("sell-form")) return;
+            event.preventDefault();
+            var submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+            var formData = new FormData(form);
+            fetch(form.action, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                body: formData,
+            })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    var msg = (result.data && result.data.message) || "Sale failed.";
+                    if (result.ok && result.data && result.data.status === "success") {
+                        if (result.data.new_currency !== undefined) {
+                            var pill = document.getElementById("playerCurrency");
+                            if (pill) pill.textContent = result.data.new_currency;
+                        }
+                        showPurchaseToast(msg, "success");
+                        setTimeout(function () { location.reload(); }, 600);
+                    } else {
+                        showPurchaseToast(msg, "error");
+                        if (submitBtn) submitBtn.disabled = false;
+                    }
+                })
+                .catch(function (err) {
+                    showPurchaseToast("Sale failed: " + (err.message || "Network error"), "error");
+                    if (submitBtn) submitBtn.disabled = false;
+                });
+        });
+
         function browseBuyItem(shopId, itemId, btn) {
             shopId = parseInt(shopId, 10);
             itemId = parseInt(itemId, 10);
@@ -1244,12 +1359,17 @@
                 if (data && data.success) {
                     location.reload();
                 } else {
-                    alert("Purchase failed: " + ((data && data.message) || "Unknown error"));
+                    var msg = (data && data.message) || "Unknown error";
+                    if (data && data.error_code === "would_overdraft") {
+                        showPurchaseToast(msg, "error");
+                    } else {
+                        showPurchaseToast("Purchase failed: " + msg, "error");
+                    }
                     if (btn) { btn.disabled = false; btn.textContent = "Buy"; }
                 }
             })
             .catch(err => {
-                alert("Purchase failed: " + (err.message || "Network error"));
+                showPurchaseToast("Purchase failed: " + (err.message || "Network error"), "error");
                 if (btn) { btn.disabled = false; btn.textContent = "Buy"; }
             });
         }
@@ -1270,7 +1390,7 @@
 
         // --- Character model & stats ---
         function loadCharacterData() {
-            fetch("{{ url_for('player.character_data') }}")
+            fetch("{{ character_data_url|default(url_for('player.character_data')) }}")
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
@@ -1453,20 +1573,33 @@
 <body>
     <h1>{{ player_name }} Dashboard</h1>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-stack">
+                {% for category, message in messages %}
+                    <div><strong>{{ category|capitalize }}:</strong> {{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
     <!-- Navigation Buttons -->
     <div class="nav-buttons">
         <button class="nav-button" onclick="navigateTo('{{ url_for('main.campaigns') }}')">Character Manager</button>
         <details class="nav-code-panel">
             <summary class="nav-button">Player Code</summary>
             <div class="join-code-popover">
-                {% set reveal_url = url_for('player.reveal_player_join_code') %}
+                {% set reveal_url = player_join_code_reveal_url|default(url_for('player.reveal_player_join_code')) %}
                 {% include 'partials/player_join_code_reveal.html' %}
                 {% if not player_has_active_campaign %}
                 <form method="post" action="{{ url_for('player.redeem_campaign_code_route') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    {% if character and character.id %}
+                    <input type="hidden" name="player_id" value="{{ character.id }}"/>
+                    {% endif %}
                     <label for="player-home-camp-code">Join a campaign</label>
                     <input id="player-home-camp-code" name="campaign_code" type="text" autocomplete="off" placeholder="CAMP-XXXX-XXXX-XXXX"/>
-                    <button type="submit" class="nav-button" style="margin-top:10px;width:100%;">Redeem code</button>
+                    <button type="submit" class="nav-button" style="margin-top:10px;width:100%;">Join campaign</button>
                 </form>
                 {% endif %}
             </div>
@@ -1564,7 +1697,7 @@
                                 </li>
                                 {% endfor %}
                             </ul>
-                            <a href="{{ url_for('player.view_character') }}" class="button" style="margin-top: 8px; display: inline-block; font-size: 0.85em;">Full Character Sheet</a>
+                            <a href="{{ url_for('player.view_character_id', player_id=character.id) }}" class="button" style="margin-top: 8px; display: inline-block; font-size: 0.85em;">Full Character Sheet</a>
                         </div>
                     </div><!-- /.body-equipment-row -->
                 </div><!-- /.section (body + equipment card) -->
@@ -1575,7 +1708,11 @@
                 <h2>Your Inventory</h2>
                 <div class="currency-container">
                     Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
+                    {% if player_has_active_campaign %}
                     <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
+                    {% else %}
+                    <span class="small-text" style="margin-left: 10px;">Join a campaign to visit the market.</span>
+                    {% endif %}
                 </div>
                 {% if inventory_items %}
                     <table class="inventory-table">
@@ -1632,7 +1769,11 @@
                 {% else %}
                     <div class="empty-state">
                         <p>Your inventory is currently empty.</p>
+                        {% if player_has_active_campaign %}
                         <p class="small-text">Visit shops to purchase items!</p>
+                        {% else %}
+                        <p class="small-text">Join a campaign to unlock shops and market inventory.</p>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div><!-- /.section.inventory-container -->
@@ -1745,7 +1886,11 @@
                 </div>
                 {% else %}
                 <div class="empty-state">
+                    {% if player_has_active_campaign %}
                     <p>No cities available. Ask your GM to set up cities and shops.</p>
+                    {% else %}
+                    <p>This character is not in a campaign yet. Use the player code above or a campaign code to join one.</p>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>

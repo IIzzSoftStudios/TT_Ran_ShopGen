@@ -8,14 +8,14 @@ from flask_login import login_required, current_user
 from app.extensions import db, limiter
 from app.models import City, Shop, Item, ShopInventory, Region, CampaignWorldConfig
 from app.routes.handlers.gm_helpers import (
-    city_for_gm_or_404,
-    city_for_gm_optional,
-    item_for_gm_or_404,
-    shop_for_gm_or_404,
-    region_for_gm_or_404,
+    city_for_campaign_or_404,
+    city_for_campaign_optional,
+    item_for_campaign_or_404,
+    shop_for_campaign_or_404,
+    region_for_campaign_or_404,
     region_table_exists,
     active_campaign_id,
-    campaign_scope_columns_available,
+    require_active_campaign,
 )
 from app.routes.handlers.gm_players_handler import (
     list_players,
@@ -47,7 +47,6 @@ from app.routes.handlers.gm_shops_handler import (
 from app.routes.handlers.gm_campaigns_handler import (
     list_campaigns,
     create_campaign,
-    sync_players_to_campaign as sync_players_to_campaign_handler,
     delete_campaign as delete_campaign_handler,
     generate_world_form as generate_world_form_handler,
     generate_world_submit as generate_world_submit_handler,
@@ -91,10 +90,34 @@ def _partial_shop_gen_settings(campaign_id: int) -> dict:
     }
 
 
+def _active_campaign_or_redirect():
+    """Resolve the current GM's active campaign or return a redirect response."""
+    gm_profile = current_user.gm_profile
+    return require_active_campaign(gm_profile)
+
+
 @gm_bp.route("/")
 @login_required
 def home():
     return gm_dashboard_home()
+
+
+@gm_bp.route("/campaigns/debt/toggle", methods=["POST"])
+@login_required
+def toggle_campaign_debt():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+
+    camp.allow_player_debt = not bool(camp.allow_player_debt)
+    db.session.commit()
+    flash(
+        "Debt On: players can buy items even if currency goes negative."
+        if camp.allow_player_debt
+        else "Debt Off: players cannot buy items that would go below 0 currency.",
+        "success",
+    )
+    return redirect(request.referrer or url_for("gm.home"))
 
 
 @gm_bp.route("/seed_world", methods=["POST"])
@@ -107,16 +130,18 @@ def gm_seed_world():
 @gm_bp.route("/cities/")
 @login_required
 def view_cities():
-    campaign_id = active_campaign_id()
-    q = City.query.filter_by(gm_profile_id=current_user.gm_profile.id)
-    if campaign_id is not None and campaign_scope_columns_available():
-        q = q.filter(City.campaign_id == campaign_id)
-    cities = q.all()
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    cities = City.query.filter_by(campaign_id=camp.id).all()
     return render_template("GM_view_cities.html", cities=cities)
 
 @gm_bp.route("/cities/add", methods=["GET", "POST"])
 @login_required
 def add_city():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
     campaign_regions = _campaign_regions_for_city_forms()
     if request.method == "POST":
         name = request.form.get("name")
@@ -144,8 +169,7 @@ def add_city():
                 population=int(population),
                 region=region_str,
                 region_id=fk_id,
-                gm_profile_id=current_user.gm_profile.id,
-                campaign_id=session.get("campaign_id"),
+                campaign_id=camp.id,
             )
             db.session.add(new_city)
             db.session.commit()
@@ -160,7 +184,10 @@ def add_city():
 @gm_bp.route("/cities/edit/<int:city_id>", methods=["GET", "POST"])
 @login_required
 def edit_city(city_id):
-    city = city_for_gm_or_404(city_id, current_user.gm_profile.id)
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    city = city_for_campaign_or_404(city_id, camp.id)
     campaign_regions = _campaign_regions_for_city_forms()
 
     if request.method == "POST":
@@ -221,7 +248,10 @@ def edit_city(city_id):
 @gm_bp.route("/cities/delete/<int:city_id>", methods=["POST"])
 @login_required
 def delete_city(city_id):
-    city = city_for_gm_or_404(city_id, current_user.gm_profile.id)
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    city = city_for_campaign_or_404(city_id, camp.id)
     try:
         db.session.delete(city)
         db.session.commit()
@@ -240,16 +270,13 @@ def _parse_region_axis(raw):
     return max(0, min(10, v))
 
 
-def _unassigned_cities_for_gm():
-    """Cities in scope with no region_id (for assigning to a Region)."""
-    q = City.query.filter_by(
-        gm_profile_id=current_user.gm_profile.id,
-        region_id=None,
+def _unassigned_cities_for_campaign(campaign_id: int):
+    """Cities in this campaign with no region_id (for assigning to a Region)."""
+    return (
+        City.query.filter_by(campaign_id=campaign_id, region_id=None)
+        .order_by(City.name)
+        .all()
     )
-    campaign_id = session.get("campaign_id")
-    if campaign_id is not None and campaign_scope_columns_available():
-        q = q.filter(City.campaign_id == campaign_id)
-    return q.order_by(City.name).all()
 
 
 def _campaign_regions_for_city_forms():
@@ -259,17 +286,14 @@ def _campaign_regions_for_city_forms():
     if not cid:
         return []
     return (
-        Region.query.filter_by(
-            campaign_id=cid,
-            gm_profile_id=current_user.gm_profile.id,
-        )
+        Region.query.filter_by(campaign_id=cid)
         .order_by(Region.name)
         .all()
     )
 
 
 def _validated_region_fk_from_form():
-    """Region PK for active campaign/GM from form `region_id`, or None."""
+    """Region PK for active campaign from form `region_id`, or None."""
     raw = (request.form.get("region_id") or "").strip()
     if not raw or not region_table_exists():
         return None
@@ -280,11 +304,7 @@ def _validated_region_fk_from_form():
         rid = int(raw)
     except (TypeError, ValueError):
         return None
-    reg = Region.query.filter_by(
-        id=rid,
-        campaign_id=cid,
-        gm_profile_id=current_user.gm_profile.id,
-    ).first()
+    reg = Region.query.filter_by(id=rid, campaign_id=cid).first()
     return reg.id if reg else None
 
 
@@ -295,10 +315,10 @@ def add_region():
         flash("Region data is not available in this database.", "warning")
         return redirect(url_for("gm.home"))
 
-    campaign_id = session.get("campaign_id")
-    if not campaign_id:
-        flash("Please select a campaign first.", "warning")
-        return redirect(url_for("main.campaigns"))
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    campaign_id = camp.id
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
@@ -317,7 +337,6 @@ def add_region():
         new_region = Region(
             name=name,
             campaign_id=campaign_id,
-            gm_profile_id=current_user.gm_profile.id,
             local_flavor={"axis_position": axis},
         )
         try:
@@ -346,12 +365,12 @@ def edit_region(region_id):
         flash("Region data is not available in this database.", "warning")
         return redirect(url_for("gm.home"))
 
-    if not session.get("campaign_id"):
-        flash("Please select a campaign first.", "warning")
-        return redirect(url_for("main.campaigns"))
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
 
-    region = region_for_gm_or_404(region_id, current_user.gm_profile.id)
-    unassigned_cities = _unassigned_cities_for_gm()
+    region = region_for_campaign_or_404(region_id, camp.id)
+    unassigned_cities = _unassigned_cities_for_campaign(camp.id)
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
@@ -371,7 +390,7 @@ def edit_region(region_id):
                     except (TypeError, ValueError):
                         skipped_city_assignments = True
                         continue
-                    city = city_for_gm_optional(cid, current_user.gm_profile.id)
+                    city = city_for_campaign_optional(cid, camp.id)
                     if city is None:
                         skipped_city_assignments = True
                         continue
@@ -391,7 +410,7 @@ def edit_region(region_id):
                 db.session.rollback()
                 flash("Update failed: name conflict within this campaign.", "danger")
 
-        unassigned_cities = _unassigned_cities_for_gm()
+        unassigned_cities = _unassigned_cities_for_campaign(camp.id)
 
     return render_template(
         "GM_edit_region.html",
@@ -409,17 +428,16 @@ def generate_cities_for_region(region_id):
         flash("Region data is not available in this database.", "warning")
         return redirect(url_for("gm.home"))
 
-    campaign_id = session.get("campaign_id")
-    if not campaign_id:
-        flash("Please select a campaign first.", "warning")
-        return redirect(url_for("main.campaigns"))
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    campaign_id = camp.id
 
-    region_for_gm_or_404(region_id, current_user.gm_profile.id)
+    region_for_campaign_or_404(region_id, campaign_id)
 
     try:
         settings = _partial_shop_gen_settings(campaign_id)
         n_new = generate_cities_for_empty_region(
-            gm_profile_id=current_user.gm_profile.id,
             campaign_id=campaign_id,
             region_id=region_id,
             settings=settings,
@@ -455,17 +473,16 @@ def generate_shops_for_region(region_id):
         flash("Region data is not available in this database.", "warning")
         return redirect(url_for("gm.home"))
 
-    campaign_id = session.get("campaign_id")
-    if not campaign_id:
-        flash("Please select a campaign first.", "warning")
-        return redirect(url_for("main.campaigns"))
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    campaign_id = camp.id
 
-    region_for_gm_or_404(region_id, current_user.gm_profile.id)
+    region_for_campaign_or_404(region_id, campaign_id)
 
     try:
         settings = _partial_shop_gen_settings(campaign_id)
         result = generate_shops_onward(
-            gm_profile_id=current_user.gm_profile.id,
             campaign_id=campaign_id,
             region_id=region_id,
             settings=settings,
@@ -499,44 +516,35 @@ def view_shops():
 @gm_bp.route("/shops/add", methods=["GET", "POST"])
 @login_required
 def add_shop():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    campaign_id = camp.id
+
     if request.method == "POST":
         shop_name = request.form.get("name")
         shop_type = request.form.get("type")
         city_ids = request.form.getlist("city_ids")
 
-        print("DEBUG: Shop Name:", shop_name)
-        print("DEBUG: Shop Type:", shop_type)
-        print("DEBUG: City IDs:", city_ids)
-
         try:
-            gm_profile_id = current_user.gm_profile.id
-            print("DEBUG: GM Profile ID:", gm_profile_id)
-
             new_shop = Shop(
                 name=shop_name,
                 type=shop_type,
-                gm_profile_id=gm_profile_id,
-                campaign_id=session.get("campaign_id"),
+                campaign_id=campaign_id,
             )
             db.session.add(new_shop)
-            db.session.flush()  # Ensures new_shop gets an ID
+            db.session.flush()
 
             for city_id in city_ids:
                 try:
                     cid = int(city_id)
-                    city_q = City.query.filter_by(
-                        city_id=cid, gm_profile_id=gm_profile_id
-                    )
-                    if (
-                        session.get("campaign_id") is not None
-                        and campaign_scope_columns_available()
-                    ):
-                        city_q = city_q.filter(City.campaign_id == session.get("campaign_id"))
-                    city = city_q.first()
+                    city = City.query.filter_by(
+                        city_id=cid, campaign_id=campaign_id
+                    ).first()
                     if city:
                         new_shop.cities.append(city)
                     else:
-                        print(f"[WARNING] City ID {city_id} not found or not in campaign.")
+                        print(f"[WARNING] City ID {city_id} not found in campaign {campaign_id}.")
                 except ValueError:
                     print(f"[ERROR] Invalid city_id value: {city_id}")
 
@@ -551,12 +559,7 @@ def add_shop():
 
         return redirect(url_for("gm.view_shops"))
 
-    # GET request: render form
-    campaign_id = active_campaign_id()
-    gm_profile_id = current_user.gm_profile.id
-    q = City.query.filter_by(gm_profile_id=gm_profile_id)
-    if campaign_id is not None and campaign_scope_columns_available():
-        q = q.filter(City.campaign_id == campaign_id)
+    q = City.query.filter_by(campaign_id=campaign_id)
     if region_table_exists():
         q = q.options(subqueryload(City.region_obj))
     cities = q.order_by(City.name).all()
@@ -573,24 +576,23 @@ def add_shop():
 @gm_bp.route("/shops/edit/<int:shop_id>", methods=["GET", "POST"])
 @login_required
 def edit_shop(shop_id):
-    shop = shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
-    gm_profile_id = current_user.gm_profile.id
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    campaign_id = camp.id
+    shop = shop_for_campaign_or_404(shop_id, campaign_id)
 
     if request.method == "POST":
         shop.name = request.form["name"]
         shop.type = request.form["type"]
         city_ids = request.form.getlist("city_ids")
-        campaign_id = active_campaign_id()
         new_cities = []
         for city_id in city_ids:
             try:
                 cid = int(city_id)
             except ValueError:
                 continue
-            city_q = City.query.filter_by(city_id=cid, gm_profile_id=gm_profile_id)
-            if campaign_id is not None and campaign_scope_columns_available():
-                city_q = city_q.filter(City.campaign_id == campaign_id)
-            city = city_q.first()
+            city = City.query.filter_by(city_id=cid, campaign_id=campaign_id).first()
             if city:
                 new_cities.append(city)
         shop.cities = new_cities
@@ -603,10 +605,7 @@ def edit_shop(shop_id):
             db.session.refresh(shop)
             flash(f"Error updating shop: {e}", "danger")
 
-    campaign_id = active_campaign_id()
-    q = City.query.filter_by(gm_profile_id=gm_profile_id)
-    if campaign_id is not None and campaign_scope_columns_available():
-        q = q.filter(City.campaign_id == campaign_id)
+    q = City.query.filter_by(campaign_id=campaign_id)
     if region_table_exists():
         q = q.options(subqueryload(City.region_obj))
     cities = q.order_by(City.name).all()
@@ -633,7 +632,10 @@ def update_shop_basic(shop_id):
 @gm_bp.route("/shops/delete/<int:shop_id>", methods=["POST"])
 @login_required
 def delete_shop(shop_id):
-    shop = shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    shop = shop_for_campaign_or_404(shop_id, camp.id)
     try:
         db.session.delete(shop)
         db.session.commit()
@@ -646,20 +648,24 @@ def delete_shop(shop_id):
 @gm_bp.route("/shops/city/<int:city_id>/shops")
 @login_required
 def view_city_shops(city_id):
-    city = city_for_gm_or_404(city_id, current_user.gm_profile.id)
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    city = city_for_campaign_or_404(city_id, camp.id)
     shops = city.shops
     return render_template("GM_view_city_shops.html", city=city, shops=shops)
 
 @gm_bp.route("/shops/<int:shop_id>/items")
 @login_required
 def view_shop_items(shop_id):
-    shop = shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    shop = shop_for_campaign_or_404(shop_id, camp.id)
     city = shop.cities[0] if shop.cities else None
-    campaign_id = active_campaign_id()
-    inv_q = ShopInventory.query.filter_by(shop_id=shop_id)
-    if campaign_id is not None and campaign_scope_columns_available():
-        inv_q = inv_q.filter(ShopInventory.campaign_id == campaign_id)
-    shop_inventory = inv_q.all()
+    shop_inventory = ShopInventory.query.filter_by(
+        shop_id=shop_id, campaign_id=camp.id
+    ).all()
     item_ids = [inv.item_id for inv in shop_inventory]
     items = Item.query.filter(Item.item_id.in_(item_ids)).all()
     return render_template("GM_view_shop_items.html", items=items, shop=shop, city=city)
@@ -667,9 +673,14 @@ def view_shop_items(shop_id):
 @gm_bp.route("/shops/remove_item/<int:shop_id>/<int:item_id>", methods=["POST"])
 @login_required
 def remove_item_from_shop(shop_id, item_id):
-    shop_for_gm_or_404(shop_id, current_user.gm_profile.id)
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    shop_for_campaign_or_404(shop_id, camp.id)
     try:
-        inventory = ShopInventory.query.filter_by(shop_id=shop_id, item_id=item_id).first()
+        inventory = ShopInventory.query.filter_by(
+            shop_id=shop_id, item_id=item_id, campaign_id=camp.id
+        ).first()
         if inventory:
             db.session.delete(inventory)
             db.session.commit()
@@ -686,11 +697,10 @@ def remove_item_from_shop(shop_id, item_id):
 @gm_bp.route("/items/")
 @login_required
 def view_items():
-    campaign_id = active_campaign_id()
-    q = Item.query.filter_by(gm_profile_id=current_user.gm_profile.id)
-    if campaign_id is not None and campaign_scope_columns_available():
-        q = q.filter(Item.campaign_id == campaign_id)
-    q = q.order_by(Item.name).options(
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    q = Item.query.filter_by(campaign_id=camp.id).order_by(Item.name).options(
         selectinload(Item.inventory)
         .selectinload(ShopInventory.shop)
         .selectinload(Shop.cities)
@@ -705,79 +715,65 @@ def view_items():
 @gm_bp.route("/items/add", methods=["GET", "POST"])
 @login_required
 def add_item():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    campaign_id = camp.id
+
     if request.method == "POST":
-        # Get all form fields
         name = request.form.get("name")
         item_type = request.form.get("type")
         rarity = request.form.get("rarity")
         base_price = request.form.get("base_price", type=float)
         description = request.form.get("description")
         shop_ids = request.form.getlist("shop_ids")
-        stock = request.form.get("stock", type=int)
-        dynamic_price = request.form.get("dynamic_price", type=float)
-        
-        #stock
+
         stock = request.form.get("stock", type=int)
         if stock is None:
             stock = 0
 
-        #dynamic price
         dynamic_price = request.form.get("dynamic_price", type=float)
         if dynamic_price is None:
             dynamic_price = 0
 
-        # Debug print statements
-        print("DEBUG: Item Name:", name)
-        print("DEBUG: Shop IDs:", shop_ids)
-        print("DEBUG: Base Price:", base_price, "| Stock:", stock, "| Dyn Price:", dynamic_price)
-
         try:
-            gm_profile_id = current_user.gm_profile.id
-            print("DEBUG: GM Profile ID:", gm_profile_id)
-
             new_item = Item(
                 name=name,
                 type=item_type,
                 rarity=rarity,
                 base_price=base_price,
                 description=description,
-                gm_profile_id=gm_profile_id,
-                campaign_id=session.get("campaign_id"),
+                campaign_id=campaign_id,
             )
 
             db.session.add(new_item)
-            db.session.flush()  # assign item_id to new_item
+            db.session.flush()
 
             for shop_id in shop_ids:
                 try:
                     sid = int(shop_id)
-                    print(f"[DEBUG] Linking to Shop ID: {sid}")
                     shop = Shop.query.filter_by(
-                        shop_id=sid, gm_profile_id=gm_profile_id
+                        shop_id=sid, campaign_id=campaign_id
                     ).first()
                     if shop:
-                        print(f"[DEBUG] Found Shop: {shop.name}")
-                        print(f"[DEBUG] Stock: {stock} | Dyn Price: {dynamic_price}")  # <-- Add this here
                         entry = ShopInventory(
                             shop_id=shop.shop_id,
                             item_id=new_item.item_id,
-                            campaign_id=session.get("campaign_id"),
+                            campaign_id=campaign_id,
                             stock=stock,
-                            dynamic_price=dynamic_price
+                            dynamic_price=dynamic_price,
                         )
                         db.session.add(entry)
                     else:
-                        print(f"[WARNING] Shop ID {sid} not found.")
+                        print(f"[WARNING] Shop ID {sid} not found in campaign {campaign_id}.")
                 except ValueError:
                     print(f"[ERROR] Invalid shop_id: {shop_id}")
-
 
             db.session.commit()
             flash(f"Item '{name}' added successfully!", "success")
 
         except Exception as e:
             db.session.rollback()
-            import traceback
             print("[ERROR] Exception while adding item:")
             traceback.print_exc()
             flash(f"Error adding item: {e}", "danger")
@@ -795,8 +791,11 @@ def add_item():
 @gm_bp.route("/items/edit/<int:item_id>", methods=["GET", "POST"])
 @login_required
 def edit_item(item_id):
-    item = item_for_gm_or_404(item_id, current_user.gm_profile.id)
-    
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    item = item_for_campaign_or_404(item_id, camp.id)
+
     if request.method == "POST":
         item.name = request.form.get("name")
         item.type = request.form.get("type")
@@ -825,7 +824,10 @@ def edit_item(item_id):
 @gm_bp.route("/items/detail/<int:item_id>")
 @login_required
 def item_detail(item_id):
-    item = item_for_gm_or_404(item_id, current_user.gm_profile.id)
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    item = item_for_campaign_or_404(item_id, camp.id)
     grouped_shops, _city_shop_meta = get_grouped_shops(current_user.gm_profile)
     linked_shop_ids = get_linked_shop_ids_for_item(item.item_id)
     return render_template(
@@ -838,7 +840,10 @@ def item_detail(item_id):
 @gm_bp.route("/items/delete/<int:item_id>", methods=["POST"])
 @login_required
 def delete_item(item_id):
-    item = item_for_gm_or_404(item_id, current_user.gm_profile.id)
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    item = item_for_campaign_or_404(item_id, camp.id)
     try:
         db.session.delete(item)
         db.session.commit()
@@ -864,12 +869,6 @@ def view_campaigns():
 @login_required
 def add_campaign():
     return create_campaign()
-
-
-@gm_bp.route("/campaigns/sync/<int:campaign_id>", methods=["POST"])
-@login_required
-def sync_players_to_campaign(campaign_id):
-    return sync_players_to_campaign_handler(campaign_id)
 
 
 @gm_bp.route("/campaigns/delete/<int:campaign_id>", methods=["POST"])

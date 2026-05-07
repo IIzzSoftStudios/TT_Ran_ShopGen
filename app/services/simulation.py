@@ -3,9 +3,8 @@
 Primary tick path for the GM dashboard and Celery uses this module's ``SimulationEngine``
 with campaign-scoped inventory and ``calculate_dynamic_price`` (demand modifiers).
 
-A separate legacy path exists: ``EconomicSimulationTick`` in ``economy/simulation_tick.py``
-and ``app/routes/simulation.py`` (uses ``MarketService`` pricing, not demand modifiers).
-Consolidating those stacks is optional; tenant isolation for modifiers applies here.
+A separate legacy path exists in ``economy/simulation_tick.py`` (uses ``MarketService``
+pricing, not demand modifiers); both stacks now key off ``campaign_id`` only.
 
 Phase 1 instrumentation: ``t_load``, ``t_compute``, ``t_flush``, ``t_persist``; compute phase uses
 ``session.autoflush = False`` to avoid hidden flush mid-loop (SQLAlchemy autoflush before queries
@@ -28,9 +27,16 @@ from typing import Dict, List, Optional
 
 from app.constants.simulation_flags import world_state_writes_enabled
 from app.extensions import db
-from app.models import GMProfile, GMWorldState, PriceHistory, Shop, ShopInventory, SimulationState
+from app.models import (
+    Campaign,
+    GMWorldState,
+    PriceHistory,
+    Shop,
+    ShopInventory,
+    SimulationState,
+)
 from app.services.economy import calculate_dynamic_price
-from app.services.simulation_state_helpers import get_simulation_state_for_gm
+from app.services.simulation_state_helpers import get_simulation_state_for_campaign
 
 logger = logging.getLogger(__name__)
 
@@ -77,16 +83,15 @@ class SimulationEngine:
 
     def run_tick(
         self,
-        gm_profile_id: int,
-        campaign_id: Optional[int] = None,
+        campaign_id: int,
         commit: bool = True,
     ) -> Dict:
         """
-        Execute one simulation tick (one game day).
+        Execute one simulation tick (one game day) for a single campaign.
 
-        ``current_game_day`` is incremented only after the pricing loop, in the same transaction as
-        flush/commit; rollback restores the prior day. ``current_game_day`` is not advanced if
-        ``commit`` is False (session rolled back after flush timing).
+        ``current_game_day`` is incremented on the Campaign row only after the pricing loop, in
+        the same transaction as flush/commit; rollback restores the prior day. ``current_game_day``
+        is not advanced if ``commit`` is False (session rolled back after flush timing).
         """
         tick_start = perf_counter()
         stats: Dict = {
@@ -110,17 +115,16 @@ class SimulationEngine:
             self._log_tick("Starting simulation tick", "debug")
 
             t_load_start = perf_counter()
-            profile = GMProfile.query.filter_by(id=gm_profile_id).first()
-            if profile is None:
-                raise ValueError(f"No GMProfile found for id {gm_profile_id}")
-            tick_day = profile.current_game_day or 1
+            campaign = Campaign.query.filter_by(id=campaign_id).first()
+            if campaign is None:
+                raise ValueError(f"No Campaign found for id {campaign_id}")
+            tick_day = campaign.current_game_day or 1
 
-            sim_state = get_simulation_state_for_gm(db.session, gm_profile_id)
+            sim_state = get_simulation_state_for_campaign(db.session, campaign_id)
 
             inventory_rows = (
                 ShopInventory.query.join(Shop, ShopInventory.shop_id == Shop.shop_id)
-                .filter(Shop.gm_profile_id == gm_profile_id)
-                .filter(Shop.campaign_id == campaign_id if campaign_id is not None else True)
+                .filter(Shop.campaign_id == campaign_id)
                 .options(
                     db.joinedload(ShopInventory.item),
                     db.joinedload(ShopInventory.shop).joinedload(Shop.cities),
@@ -131,7 +135,7 @@ class SimulationEngine:
             stats["inventory_row_count"] = len(inventory_rows)
             stats["t_load"] = perf_counter() - t_load_start
 
-            seed_material = f"{gm_profile_id}_{tick_day}".encode("utf-8")
+            seed_material = f"{campaign_id}_{tick_day}".encode("utf-8")
             seed_int = int(hashlib.sha256(seed_material).hexdigest(), 16) % (2**32)
             local_rng = random.Random(seed_int)
 
@@ -161,7 +165,7 @@ class SimulationEngine:
                                 inventory.stock,
                                 shop.shop_id,
                                 city.city_id,
-                                gm_profile_id,
+                                campaign_id,
                                 item_id=inventory.item_id,
                                 rng=local_rng,
                             )
@@ -174,7 +178,7 @@ class SimulationEngine:
                             inventory.stock,
                             shop.shop_id if shop else None,
                             None,
-                            gm_profile_id,
+                            campaign_id,
                             item_id=inventory.item_id,
                             rng=local_rng,
                         )
@@ -188,7 +192,6 @@ class SimulationEngine:
                             "item_id": inventory.item_id,
                             "price": new_price,
                             "recorded_at": recorded_at,
-                            "gm_profile_id": gm_profile_id,
                             "campaign_id": campaign_id,
                         }
                     )
@@ -216,32 +219,31 @@ class SimulationEngine:
                 if price_history_rows:
                     db.session.bulk_insert_mappings(PriceHistory, price_history_rows)
 
-                # Calendar + simulation clock only after compute; same transaction as flush/commit.
-                profile.current_game_day = (profile.current_game_day or 1) + 1
-                stats["current_game_day"] = profile.current_game_day
+                campaign.current_game_day = (campaign.current_game_day or 1) + 1
+                stats["current_game_day"] = campaign.current_game_day
 
                 if sim_state:
-                    sim_state.current_tick = profile.current_game_day
+                    sim_state.current_tick = campaign.current_game_day
                     sim_state.last_tick_time = recorded_at
                 else:
                     db.session.add(
                         SimulationState(
-                            gm_profile_id=gm_profile_id,
-                            current_tick=profile.current_game_day,
+                            campaign_id=campaign_id,
+                            current_tick=campaign.current_game_day,
                             speed="pause",
                             last_tick_time=recorded_at,
                         )
                     )
 
                 if world_state_writes_enabled():
-                    gws = GMWorldState.query.filter_by(gm_profile_id=gm_profile_id).first()
+                    gws = GMWorldState.query.filter_by(campaign_id=campaign_id).first()
                     if gws is None:
-                        gws = GMWorldState(gm_profile_id=gm_profile_id)
+                        gws = GMWorldState(campaign_id=campaign_id)
                         db.session.add(gws)
                     if state_blob:
                         gws.state_json = state_blob
                     gws.schema_version = 1
-                    gws.tick_seq = profile.current_game_day
+                    gws.tick_seq = campaign.current_game_day
                     gws.tick_generation_id = str(uuid.uuid4())
                     gws.updated_at = recorded_at
                     stats["world_state_written"] = True

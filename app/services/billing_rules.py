@@ -4,7 +4,7 @@ from typing import Tuple
 from flask import current_app, has_app_context
 
 from app.extensions import db
-from app.models import Campaign, CampaignPlayer, Player
+from app.models import Campaign, Player
 
 FREE_SEAT_LIMIT = 3
 
@@ -71,11 +71,9 @@ def can_add_player_to_campaign(campaign: Campaign) -> Tuple[bool, str]:
     gm_user = campaign.gm_profile.user
     _cap, seat_limit, label = get_gm_limits(gm_user)
     active_seats = (
-        db.session.query(CampaignPlayer)
-        .join(Player, Player.id == CampaignPlayer.player_id)
+        db.session.query(Player.id)
         .filter(
-            CampaignPlayer.campaign_id == campaign.id,
-            CampaignPlayer.is_active.is_(True),
+            Player.campaign_id == campaign.id,
             Player.is_npc.is_(False),
         )
         .count()

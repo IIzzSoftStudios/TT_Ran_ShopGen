@@ -81,6 +81,33 @@
         .delete-button:hover {
             background-color: #c82333;
         }
+        .switch-button {
+            background-color: #28a745;
+        }
+        .switch-button:hover {
+            background-color: #218838;
+        }
+        .active-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+            border: 1px solid var(--color-accent);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: default;
+        }
+        .active-pill::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #28a745;
+            box-shadow: 0 0 6px rgba(40, 167, 69, 0.7);
+        }
         .empty-state {
             text-align: center;
             color: var(--color-muted);
@@ -175,6 +202,7 @@
                         <th>Name</th>
                         <th>System</th>
                         <th>Players</th>
+                        <th>Day</th>
                         <th>Created</th>
                         <th>Actions</th>
                     </tr>
@@ -184,16 +212,18 @@
                         <tr>
                             <td>{{ info.campaign.name }}</td>
                             <td>{{ info.campaign.system_type }}</td>
-                            <td>{{ info.player_count }} / {{ info.total_players }}</td>
+                            <td>{{ info.member_count }} / {{ info.seat_cap }} seats</td>
+                            <td>Day {{ info.campaign.current_game_day }}</td>
                             <td>{{ info.campaign.created_at.strftime('%Y-%m-%d') if info.campaign.created_at else '-' }}</td>
                             <td>
                                 <div class="campaign-actions-stack">
                                     <div class="campaign-actions-row">
-                                        {% if info.player_count < info.total_players %}
-                                            <form method="POST" action="{{ url_for('gm.sync_players_to_campaign', campaign_id=info.campaign.id) }}" style="display:inline;">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                <button type="submit" class="button" style="background-color: #28a745;" title="Add all players to this campaign">Sync Players</button>
-                                            </form>
+                                        {% if active_campaign_id == info.campaign.id %}
+                                            <span class="active-pill" title="This campaign is currently loaded">Active</span>
+                                        {% else %}
+                                            <a href="{{ url_for('main.load_campaign_route', campaign_id=info.campaign.id) }}"
+                                               class="button switch-button"
+                                               title="Switch session to this campaign">Switch to</a>
                                         {% endif %}
                                         <form method="POST" action="{{ url_for('gm.delete_campaign', campaign_id=info.campaign.id) }}" style="display:inline;" onsubmit="return confirm('Delete this campaign? This cannot be undone.');">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

@@ -12,7 +12,6 @@ from app.models import (
     Player,
     PlayerEquipment,
     PlayerInventory,
-    CampaignPlayer,
     PlayerCharacterSheet,
 )
 from app.routes.handlers.gm_helpers import get_campaign_for_gm_session
@@ -25,10 +24,8 @@ def _next_default_npc_label(campaign_id: int) -> str:
     """Return NPC1, NPC2, ... for the next NPC in this campaign (no custom name)."""
     n = (
         db.session.query(Player)
-        .join(CampaignPlayer, CampaignPlayer.player_id == Player.id)
         .filter(
-            CampaignPlayer.campaign_id == campaign_id,
-            CampaignPlayer.is_active.is_(True),
+            Player.campaign_id == campaign_id,
             Player.is_npc.is_(True),
         )
         .count()
@@ -36,10 +33,8 @@ def _next_default_npc_label(campaign_id: int) -> str:
     return f"NPC{n + 1}"
 
 
-def _player_for_gm(character_id: int, gm_profile_id: int):
-    return (
-        Player.query.filter_by(id=character_id, gm_profile_id=gm_profile_id).first()
-    )
+def _player_for_campaign(character_id: int, campaign_id: int):
+    return Player.query.filter_by(id=character_id, campaign_id=campaign_id).first()
 
 
 def list_players():
@@ -47,17 +42,14 @@ def list_players():
     if redir:
         return redir
 
-    memberships = (
-        CampaignPlayer.query.filter_by(campaign_id=campaign.id, is_active=True)
-        .order_by(CampaignPlayer.created_at.asc())
+    players = (
+        Player.query.filter_by(campaign_id=campaign.id)
+        .order_by(Player.id.asc())
         .all()
     )
 
     player_entries = []
-    for membership in memberships:
-        player = membership.player
-        if not player or player.gm_profile_id != gm_profile.id:
-            continue
+    for player in players:
         characters = [
             SimpleNamespace(
                 id=player.id,
@@ -96,23 +88,11 @@ def create_npc():
         player = Player(
             is_npc=True,
             user_id=None,
-            gm_profile_id=gm_profile.id,
+            campaign_id=campaign.id,
             currency=0,
         )
         db.session.add(player)
         db.session.flush()
-
-        if not CampaignPlayer.query.filter_by(
-            campaign_id=campaign.id, player_id=player.id
-        ).first():
-            db.session.add(
-                CampaignPlayer(
-                    campaign_id=campaign.id,
-                    player_id=player.id,
-                    status="active",
-                    is_active=True,
-                )
-            )
 
         sheet_dict = character_sheet_service.get_or_default_sheet(player, campaign)
         sheet_dict["name"] = resolved_sheet_name
@@ -140,11 +120,11 @@ def view_character(character_id: int):
     gm_profile, campaign, redir = get_campaign_for_gm_session()
     if redir:
         return redir
-    player = _player_for_gm(character_id, gm_profile.id)
+    player = _player_for_campaign(character_id, campaign.id)
     if not player:
         flash("Player not found in this campaign.", "danger")
         return redirect(url_for("gm.gm_view_players"))
-    items = Item.query.filter_by(gm_profile_id=gm_profile.id).order_by(Item.name).all()
+    items = Item.query.filter_by(campaign_id=campaign.id).order_by(Item.name).all()
     equipment = {e.slot: e for e in player.equipment_slots}
     for slot in EQUIPMENT_SLOTS:
         equipment.setdefault(slot, None)
@@ -175,7 +155,7 @@ def update_character(character_id: int):
     gm_profile, campaign, redir = get_campaign_for_gm_session()
     if redir:
         return redir
-    player = _player_for_gm(character_id, gm_profile.id)
+    player = _player_for_campaign(character_id, campaign.id)
     if not player:
         flash("Player not found.", "danger")
         return redirect(url_for("gm.gm_view_players"))
@@ -211,10 +191,10 @@ def update_character(character_id: int):
 
 
 def update_inventory(character_id: int):
-    gm_profile, _, redir = get_campaign_for_gm_session()
+    gm_profile, campaign, redir = get_campaign_for_gm_session()
     if redir:
         return redir
-    player = _player_for_gm(character_id, gm_profile.id)
+    player = _player_for_campaign(character_id, campaign.id)
     if not player:
         flash("Player not found.", "danger")
         return redirect(url_for("gm.gm_view_players"))
@@ -227,7 +207,7 @@ def update_inventory(character_id: int):
         flash("Item is required.", "danger")
         return redirect(url_for("gm.gm_view_character", character_id=character_id))
 
-    item = Item.query.filter_by(item_id=item_id, gm_profile_id=gm_profile.id).first()
+    item = Item.query.filter_by(item_id=item_id, campaign_id=campaign.id).first()
     if not item:
         flash("Invalid item for this campaign.", "danger")
         return redirect(url_for("gm.gm_view_character", character_id=character_id))
@@ -270,10 +250,10 @@ def update_inventory(character_id: int):
 
 
 def equip_item(character_id: int):
-    gm_profile, _, redir = get_campaign_for_gm_session()
+    gm_profile, campaign, redir = get_campaign_for_gm_session()
     if redir:
         return redir
-    player = _player_for_gm(character_id, gm_profile.id)
+    player = _player_for_campaign(character_id, campaign.id)
     if not player:
         flash("Player not found.", "danger")
         return redirect(url_for("gm.gm_view_players"))
@@ -287,7 +267,7 @@ def equip_item(character_id: int):
         flash("Item is required.", "danger")
         return redirect(url_for("gm.gm_view_character", character_id=character_id))
 
-    item = Item.query.filter_by(item_id=item_id, gm_profile_id=gm_profile.id).first()
+    item = Item.query.filter_by(item_id=item_id, campaign_id=campaign.id).first()
     if not item:
         flash("Invalid item.", "danger")
         return redirect(url_for("gm.gm_view_character", character_id=character_id))
@@ -334,10 +314,10 @@ def equip_item(character_id: int):
 
 
 def unequip_item(character_id: int):
-    gm_profile, _, redir = get_campaign_for_gm_session()
+    gm_profile, campaign, redir = get_campaign_for_gm_session()
     if redir:
         return redir
-    player = _player_for_gm(character_id, gm_profile.id)
+    player = _player_for_campaign(character_id, campaign.id)
     if not player:
         flash("Player not found.", "danger")
         return redirect(url_for("gm.gm_view_players"))
@@ -360,58 +340,52 @@ def unequip_item(character_id: int):
 
 
 def remove_player_from_campaign(player_id: int):
-    """Drop a PC from the active campaign only (keeps Player row and other seats)."""
+    """Drop a PC from the active campaign (clears Player.campaign_id, keeps Player row)."""
     gm_profile, campaign, redir = get_campaign_for_gm_session()
     if redir:
         return redir
-    player = Player.query.filter_by(id=player_id, gm_profile_id=gm_profile.id).first()
+    player = Player.query.filter_by(id=player_id, campaign_id=campaign.id).first()
     if not player or player.is_npc:
         flash("Player not found.", "danger")
         return redirect(url_for("gm.gm_view_players"))
-    row = CampaignPlayer.query.filter_by(
-        campaign_id=campaign.id, player_id=player.id
-    ).first()
-    if row:
-        try:
-            camp_sheet = PlayerCharacterSheet.query.filter_by(
-                player_id=player.id, campaign_id=campaign.id
-            ).first()
-            vault = PlayerCharacterSheet.query.filter(
-                PlayerCharacterSheet.player_id == player.id,
-                PlayerCharacterSheet.campaign_id.is_(None),
-            ).first()
-            vj = vault.sheet_json if vault and isinstance(vault.sheet_json, dict) else {}
-            vault_empty = vault is None or not vj or (
-                not vj.get("name")
-                and not vj.get("class_name")
-                and not (vj.get("abilities") or {})
-            )
-            if (
-                camp_sheet
-                and isinstance(camp_sheet.sheet_json, dict)
-                and vault_empty
-            ):
-                payload = dict(camp_sheet.sheet_json)
-                if vault is None:
-                    db.session.add(
-                        PlayerCharacterSheet(
-                            player_id=player.id,
-                            campaign_id=None,
-                            sheet_json=payload,
-                        )
+    try:
+        camp_sheet = PlayerCharacterSheet.query.filter_by(
+            player_id=player.id, campaign_id=campaign.id
+        ).first()
+        vault = PlayerCharacterSheet.query.filter(
+            PlayerCharacterSheet.player_id == player.id,
+            PlayerCharacterSheet.campaign_id.is_(None),
+        ).first()
+        vj = vault.sheet_json if vault and isinstance(vault.sheet_json, dict) else {}
+        vault_empty = vault is None or not vj or (
+            not vj.get("name")
+            and not vj.get("class_name")
+            and not (vj.get("abilities") or {})
+        )
+        if (
+            camp_sheet
+            and isinstance(camp_sheet.sheet_json, dict)
+            and vault_empty
+        ):
+            payload = dict(camp_sheet.sheet_json)
+            if vault is None:
+                db.session.add(
+                    PlayerCharacterSheet(
+                        player_id=player.id,
+                        campaign_id=None,
+                        sheet_json=payload,
                     )
-                else:
-                    vault.sheet_json = payload
-                    vault.updated_at = datetime.utcnow()
+                )
+            else:
+                vault.sheet_json = payload
+                vault.updated_at = datetime.utcnow()
 
-            db.session.delete(row)
-            db.session.commit()
-            flash("Removed player from this campaign.", "success")
-        except IntegrityError:
-            db.session.rollback()
-            flash("Could not remove player from this campaign.", "danger")
-    else:
-        flash("Player was not in this campaign.", "info")
+        player.campaign_id = None
+        db.session.commit()
+        flash("Removed player from this campaign.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash("Could not remove player from this campaign.", "danger")
     return redirect(url_for("gm.gm_view_players"))
 
 
@@ -420,15 +394,12 @@ def delete_npc_player(player_id: int):
     gm_profile, campaign, redir = get_campaign_for_gm_session()
     if redir:
         return redir
-    player = Player.query.filter_by(id=player_id, gm_profile_id=gm_profile.id).first()
+    player = Player.query.filter_by(id=player_id, campaign_id=campaign.id).first()
     if not player or not player.is_npc:
         flash("NPC not found.", "danger")
         return redirect(url_for("gm.gm_view_players"))
     try:
         PlayerCharacterSheet.query.filter_by(player_id=player.id).delete(
-            synchronize_session=False
-        )
-        CampaignPlayer.query.filter_by(player_id=player.id).delete(
             synchronize_session=False
         )
         PlayerInventory.query.filter_by(player_id=player.id).delete(

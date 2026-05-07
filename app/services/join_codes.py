@@ -11,7 +11,7 @@ from typing import Optional, Tuple
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.extensions import db
-from app.models import Campaign, CampaignPlayer, Player, PlayerCharacterSheet, User
+from app.models import Campaign, Player, PlayerCharacterSheet, User
 from app.services.billing_rules import (
     can_add_player_profile,
     can_add_player_to_campaign,
@@ -178,11 +178,24 @@ def assert_character_system_matches_campaign(player: Player, campaign: Campaign)
         )
 
 
-def redeem_campaign_code(user: User, raw_code: str, *, _commit: bool = True) -> Campaign:
-    """Attach ``user`` to ``campaign`` via join code; reuse (user, gm) Player row.
+def redeem_campaign_code(
+    user: User,
+    raw_code: str,
+    *,
+    player_id: Optional[int] = None,
+    _commit: bool = True,
+) -> Campaign:
+    """Attach the player's character to ``campaign`` by setting ``Player.campaign_id``.
 
     Locks the Campaign row (PostgreSQL ``FOR UPDATE``) while checking seat cap.
     When ``_commit`` is False, only flushes — caller commits (e.g. registration).
+
+    ``player_id`` is the optional id of the specific character row this
+    redemption is scoped to (e.g. the solo character whose dashboard the
+    player is on). When provided, that exact character is joined to the
+    campaign or the operation fails. Without ``player_id``, the user's
+    single solo (``campaign_id IS NULL``) character is promoted, or a new
+    Player row is created when billing allows.
     """
     if getattr(user, "role", None) != "Player":
         raise WrongRoleError("Only player accounts can redeem a campaign code.")
@@ -203,50 +216,49 @@ def redeem_campaign_code(user: User, raw_code: str, *, _commit: bool = True) -> 
             Campaign.query.filter_by(id=campaign.id).with_for_update().one()
         )
 
-        existing_gm = Player.query.filter_by(
-            user_id=user.id,
-            gm_profile_id=campaign.gm_profile_id,
-            is_npc=False,
-        ).first()
-        solo = Player.query.filter(
-            Player.user_id == user.id,
-            Player.gm_profile_id.is_(None),
-            Player.is_npc.is_(False),
-        ).first()
-
-        promote_solo = False
-        if existing_gm is not None:
-            player = existing_gm
-        elif solo is not None:
-            player = Player.query.filter_by(id=solo.id).with_for_update().one()
-            promote_solo = True
-        else:
-            ok_prof, msg_prof = can_add_player_profile(user)
-            if not ok_prof:
-                db.session.rollback()
-                raise ProfileLimitError(msg_prof or "Player profile limit reached.")
-            player = Player(
+        if player_id is not None:
+            requested = Player.query.filter_by(
+                id=int(player_id),
                 user_id=user.id,
-                gm_profile_id=campaign.gm_profile_id,
-                currency=0,
                 is_npc=False,
-            )
-            db.session.add(player)
-            db.session.flush()
-
-        dup = CampaignPlayer.query.filter_by(
-            campaign_id=campaign.id,
-            player_id=player.id,
-        ).first()
-        if dup is not None:
-            if dup.is_active:
+            ).with_for_update().first()
+            if requested is None:
+                raise InvalidCodeError("Character not found.")
+            if requested.campaign_id is not None and requested.campaign_id != campaign.id:
+                raise CrossGMError("This character already belongs to a different campaign.")
+            player = requested
+        else:
+            already_in = Player.query.filter_by(
+                user_id=user.id,
+                campaign_id=campaign.id,
+                is_npc=False,
+            ).first()
+            if already_in is not None:
                 _finish()
                 return campaign
-            assert_character_system_matches_campaign(player, campaign)
-            dup.is_active = True
-            dup.status = "active"
-            if promote_solo:
-                player.gm_profile_id = campaign.gm_profile_id
+
+            solo = Player.query.filter(
+                Player.user_id == user.id,
+                Player.campaign_id.is_(None),
+                Player.is_npc.is_(False),
+            ).first()
+            if solo is not None:
+                player = Player.query.filter_by(id=solo.id).with_for_update().one()
+            else:
+                ok_prof, msg_prof = can_add_player_profile(user)
+                if not ok_prof:
+                    db.session.rollback()
+                    raise ProfileLimitError(msg_prof or "Player profile limit reached.")
+                player = Player(
+                    user_id=user.id,
+                    campaign_id=None,
+                    currency=0,
+                    is_npc=False,
+                )
+                db.session.add(player)
+                db.session.flush()
+
+        if player.campaign_id == campaign.id:
             _finish()
             return campaign
 
@@ -257,17 +269,7 @@ def redeem_campaign_code(user: User, raw_code: str, *, _commit: bool = True) -> 
             db.session.rollback()
             raise SeatCapError(msg or "Campaign is full.")
 
-        if promote_solo:
-            player.gm_profile_id = campaign.gm_profile_id
-
-        db.session.add(
-            CampaignPlayer(
-                campaign_id=campaign.id,
-                player_id=player.id,
-                status="active",
-                is_active=True,
-            )
-        )
+        player.campaign_id = campaign.id
         _finish()
         return campaign
 
@@ -290,18 +292,18 @@ def redeem_player_code(
     campaign: Campaign,
     raw_code: str,
     _commit: bool = True,
-) -> CampaignPlayer:
-    """GM adds an existing player to ``campaign`` by that player's PLY- code."""
+) -> Player:
+    """GM adds an existing player character to ``campaign`` by its PLY- code."""
     normalized = normalize_code(raw_code)
     player = find_player_by_join_code(normalized)
     if not player or player.is_npc:
         raise InvalidCodeError("Invalid or unknown player code.")
 
-    if player.gm_profile_id is not None:
-        if player.gm_profile_id != gm_profile_id:
-            raise CrossGMError("That player code belongs to a different GM.")
-        if player.gm_profile_id != campaign.gm_profile_id:
-            raise CrossGMError("Campaign and player are not under the same GM.")
+    if campaign.gm_profile_id != gm_profile_id:
+        raise CrossGMError("Campaign does not belong to this GM.")
+
+    if player.campaign_id is not None and player.campaign_id != campaign.id:
+        raise CrossGMError("That player is already in a different campaign.")
 
     def _finish():
         if _commit:
@@ -310,26 +312,12 @@ def redeem_player_code(
             db.session.flush()
 
     try:
-        # Lock campaign (seat cap) then player row; same order as other paths that
-        # take the campaign lock, to reduce deadlock risk.
         locked = Campaign.query.filter_by(id=campaign.id).with_for_update().one()
         Player.query.filter_by(id=player.id).with_for_update().one()
 
-        dup = CampaignPlayer.query.filter_by(
-            campaign_id=locked.id,
-            player_id=player.id,
-        ).first()
-        if dup is not None:
-            if dup.is_active:
-                _finish()
-                return dup
-            assert_character_system_matches_campaign(player, locked)
-            dup.is_active = True
-            dup.status = "active"
-            if player.gm_profile_id is None:
-                player.gm_profile_id = locked.gm_profile_id
+        if player.campaign_id == locked.id:
             _finish()
-            return dup
+            return player
 
         assert_character_system_matches_campaign(player, locked)
 
@@ -338,18 +326,9 @@ def redeem_player_code(
             db.session.rollback()
             raise SeatCapError(msg or "Campaign is full.")
 
-        if player.gm_profile_id is None:
-            player.gm_profile_id = locked.gm_profile_id
-
-        row = CampaignPlayer(
-            campaign_id=locked.id,
-            player_id=player.id,
-            status="active",
-            is_active=True,
-        )
-        db.session.add(row)
+        player.campaign_id = locked.id
         _finish()
-        return row
+        return player
 
     except SeatCapError:
         raise

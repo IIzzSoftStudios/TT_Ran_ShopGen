@@ -230,7 +230,7 @@ def handle_register():
                         db.session.add(
                             Player(
                                 user_id=new_user.id,
-                                gm_profile_id=None,
+                                campaign_id=None,
                                 currency=0,
                                 is_npc=False,
                             )
@@ -280,7 +280,7 @@ def handle_register():
                     db.session.add(
                         Player(
                             user_id=new_user.id,
-                            gm_profile_id=None,
+                            campaign_id=None,
                             currency=0,
                             is_npc=False,
                         )

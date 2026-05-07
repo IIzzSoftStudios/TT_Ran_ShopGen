@@ -14,8 +14,8 @@ Security invariants (from the Cyber-Architect review passes):
 - Proficiency tier values must be in the rule set's declared tier set.
 - Ability scores are clamped to the rule set's ability_min / ability_max.
 - The caller is responsible for loading the right Player + Campaign (scope
-  enforcement: player self-access via current_user, GM access via
-  gm_profile_id match). This service trusts the objects it is handed.
+  enforcement: player self-access via current_user, GM access via the
+  campaign's owning GM). This service trusts the objects it is handed.
 """
 from datetime import datetime
 from types import SimpleNamespace
@@ -55,6 +55,28 @@ def _ruleset_for_sheet(campaign, sheet: dict) -> Ruleset:
     if not st or st == "generic":
         st = _system_type_of(campaign)
     return get_ruleset(st)
+
+
+def create_initial_vault_sheet(player_id, *, system_type, name=None):
+    """Insert a fresh vault (campaign_id NULL) sheet for ``player_id``.
+
+    Used by the character-creation form so a brand new ``Player`` row lands
+    with the system the user picked baked into ``sheet_json``. Caller owns
+    the surrounding transaction (no commit here).
+    """
+    st = (system_type or "").strip().lower() or "generic"
+    sheet = _empty_sheet(st)
+    if name:
+        clean = str(name).strip()
+        if clean:
+            sheet["name"] = clean[:100]
+    row = PlayerCharacterSheet(
+        player_id=player_id,
+        campaign_id=None,
+        sheet_json=sheet,
+    )
+    db.session.add(row)
+    return row
 
 
 def get_or_default_sheet(player, campaign):
@@ -232,10 +254,17 @@ def build_character_view(player, campaign, *, name=None, equipment_slots=None):
         display_name = name
     elif stored_name:
         display_name = stored_name
-    elif player is not None and getattr(player, "user", None):
-        display_name = player.user.username
     elif player is not None and getattr(player, "is_npc", False):
         display_name = "NPC"
+    elif player is not None and getattr(player, "id", None) is not None:
+        # Stay consistent with list views (`list_characters`,
+        # `_player_character_rows_for_campaign`, and
+        # `_build_solo_characters_for_user`) which all fall back to
+        # ``Character #N``. Surfacing the account username here was a
+        # cross-character PII leak: another player viewing a sheet would
+        # learn the owner's login name even though the character was
+        # left intentionally unnamed.
+        display_name = f"Character #{player.id}"
     else:
         display_name = "Character"
 

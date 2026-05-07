@@ -56,19 +56,19 @@ class _RedisSimLock:
 
 
 def acquire_simulation_lock(
-    gm_profile_id: int,
+    campaign_id: int,
     *,
     ttl_seconds: int,
     blocking: bool = False,
 ) -> Optional[_RedisSimLock]:
-    """Acquire the per-GM simulation lock.
+    """Acquire the per-campaign simulation lock.
 
     Returns the lock handle on success, `None` if not acquired and
     `blocking=False`. Callers should wrap critical sections in try/finally
     and call `release()` to surrender the lock early.
     """
     client = get_redis_client()
-    lock_key = f"lock:sim:{int(gm_profile_id)}"
+    lock_key = f"lock:sim:{int(campaign_id)}"
     token = str(uuid.uuid4())
 
     acquired = bool(client.set(lock_key, token, nx=True, ex=int(ttl_seconds)))
@@ -76,6 +76,8 @@ def acquire_simulation_lock(
         return _RedisSimLock(lock_key=lock_key, token=token, ttl_seconds=int(ttl_seconds))
 
     if blocking:
-        raise TimeoutError(f"Could not acquire simulation lock for gm_profile_id={gm_profile_id}")
+        raise TimeoutError(
+            f"Could not acquire simulation lock for campaign_id={campaign_id}"
+        )
 
     return None
