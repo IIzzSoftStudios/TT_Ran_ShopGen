@@ -40,8 +40,8 @@ substitutions:
   _REGION: us-central1
   _AR_REPO: trsg
   _SERVICE: trsg-web
-  _CLOUD_SQL_INSTANCE: PROJECT:REGION:INSTANCE
-  _VPC_CONNECTOR: ""
+  _CLOUD_SQL_INSTANCE: econo-forge:us-central1:trsg-db
+  _VPC_CONNECTOR: "trsg-connector"
   _CPU: "1"
   _MEMORY: "1Gi"
   _MAX_INSTANCES: "3"
