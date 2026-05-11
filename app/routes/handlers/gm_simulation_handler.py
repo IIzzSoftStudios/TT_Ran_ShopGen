@@ -8,16 +8,14 @@ from functools import wraps
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
 from app.services.logging_config import gm_logger
-from app.services.simulation import SimulationEngine
 from app.scripts.seeder import seed_gm_data
 from app.extensions import db
 from app.models import Campaign, SimulationState
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
 from app.routes.handlers.gm_helpers import get_current_gm_profile, require_active_campaign
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
-from app.services.distributed_lock import acquire_simulation_lock
 from app.services.distributed_lock import get_redis_client
-from app.tasks.simulation_tasks import run_period_task
+from app.tasks.simulation_tasks import SimJobStatus, run_period_task
 
 
 REDIS_OFFLINE_ERROR = "Simulation service is currently offline. Please try again in a few minutes."
@@ -172,52 +170,6 @@ def seed_world():
     return redirect(url_for("gm.home"))
 
 
-@handle_redis_outage
-def run_simulation_tick():
-    """Execute one simulation tick manually from the GM dashboard."""
-    _debug_request("POST", "/gm/simulation/tick")
-
-    gm_profile, redirect_response = get_current_gm_profile()
-    if redirect_response:
-        return redirect_response
-    campaign_id, campaign_error = _active_campaign_id_for_simulation(gm_profile)
-    if campaign_error:
-        return campaign_error
-
-    lock = acquire_simulation_lock(campaign_id, ttl_seconds=10, blocking=False)
-    if lock is None:
-        return jsonify({"error": "Simulation already running", "status": "busy"}), 409
-
-    simulation_engine = SimulationEngine()
-    try:
-        stats = simulation_engine.run_tick(campaign_id=campaign_id)
-
-        gm_logger.debug(
-            f"Manual tick execution:\n"
-            f"  Campaign ID: {campaign_id}\n"
-            f"  Shops updated: {stats['shops_updated']}\n"
-            f"  Items updated: {stats['items_updated']}\n"
-            f"  Tick duration: {stats.get('tick_duration')}s\n"
-        )
-
-        return jsonify(
-            {
-                "status": "success",
-                "message": (
-                    f"Simulation tick completed: Updated {stats['shops_updated']} shops "
-                    f"and {stats['items_updated']} items."
-                ),
-                "stats": stats,
-                "current_game_day": stats.get("current_game_day"),
-            }
-        )
-    except Exception as e:
-        gm_logger.error(f"Error during simulation tick: {str(e)}")
-        return jsonify({"error": str(e), "status": "error"}), 500
-    finally:
-        lock.release()
-
-
 def update_simulation_speed():
     """Set simulation speed to pause (matches ``/api/simulation/status`` and ``SimulationState``)."""
     _debug_request("POST", "/gm/simulation/speed")
@@ -275,7 +227,13 @@ def update_simulation_speed():
 
 @handle_redis_outage
 def run_period_stream():
-    """Enqueue day/week/month/year simulation as a background Celery job."""
+    """Enqueue day/week/month/year simulation as a background Celery job.
+
+    All four periods (Day/Week/Month/Year) flow through a single Celery
+    task ``run_period_task`` — there is no separate synchronous tick path.
+    The task runs as one ACID batch (commit at end, rollback on failure)
+    so a failed run never leaves the campaign world half-advanced.
+    """
     gm_profile, redirect_response = get_current_gm_profile()
     if redirect_response:
         return redirect_response
@@ -292,19 +250,26 @@ def run_period_stream():
     redis_client = get_redis_client()
     lock_key = f"lock:sim:{int(campaign_id)}"
     if redis_client.exists(lock_key):
-        return jsonify({"error": "Simulation already running", "status": "busy"}), 409
+        return (
+            jsonify({"error": "Simulation already running", "status": SimJobStatus.BUSY}),
+            409,
+        )
 
     task = run_period_task.delay(int(campaign_id), period)
 
     campaign = Campaign.query.get(campaign_id)
+    # Seed the job key so the polling UI sees an entry before the worker
+    # picks the task up. The task overwrites this with its own queued/running
+    # frames and an authoritative current_game_day.
     redis_client.hset(
         f"sim_job:{task.id}",
         mapping={
-            "status": "queued",
+            "status": SimJobStatus.QUEUED,
             "ticks_done": 0,
             "ticks_total": ticks_map[period],
             "current_game_day": campaign.current_game_day if campaign else 0,
             "campaign_id": campaign_id or "",
+            "period": period,
         },
     )
 
@@ -316,6 +281,18 @@ def run_period_stream():
         gm_logger.warning("Could not persist simulation button click count", exc_info=True)
 
     return jsonify({"job_id": task.id}), 202
+
+
+# Terminal job statuses that mean "world unchanged" — UI uses this set to
+# decide whether to re-enable run buttons immediately or block on operator
+# reconciliation. lock_lost is included because the ACID batch rolls back on
+# refresh failure too.
+_REENTRANT_TERMINAL_STATUSES = {
+    SimJobStatus.SUCCESS,
+    SimJobStatus.ERROR,
+    SimJobStatus.LOCK_LOST,
+    SimJobStatus.BUSY,
+}
 
 
 @handle_redis_outage
@@ -333,12 +310,18 @@ def simulation_job_status(job_id: str):
         except Exception:
             return None
 
+    status = data.get("status")
     out = {
-        "status": data.get("status"),
+        "status": status,
         "ticks_done": _to_int(data.get("ticks_done")),
         "ticks_total": _to_int(data.get("ticks_total")),
         "current_game_day": _to_int(data.get("current_game_day")),
         "error": data.get("error"),
+        # `world_changed=False` means the campaign is byte-for-byte identical
+        # to its pre-run state and the GM can re-click the period button. The
+        # ACID batch guarantees this is true for every non-success terminal.
+        "world_changed": status == SimJobStatus.SUCCESS,
+        "terminal": status in _REENTRANT_TERMINAL_STATUSES,
     }
     return jsonify(out)
 

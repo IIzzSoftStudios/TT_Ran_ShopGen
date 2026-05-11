@@ -1,13 +1,10 @@
 from flask import Blueprint, jsonify, request, make_response, session
 from flask_login import login_required, current_user
-from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.constants.simulation_flags import ALLOWED_SIMULATION_SPEEDS
 from app.extensions import db
 from app.models import Campaign, SimulationLog, SimulationState
-from app.services.distributed_lock import acquire_simulation_lock
-from app.services.simulation import SimulationEngine
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
 
 simulation_bp = Blueprint("simulation", __name__)
@@ -101,65 +98,6 @@ def set_simulation_speed():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
-
-@simulation_bp.route("/api/simulation/tick", methods=["POST"])
-@login_required
-def manual_tick():
-    gm_profile, err = _gm_profile_or_403()
-    if err:
-        return err
-    campaign, campaign_err = _active_campaign_or_400(gm_profile)
-    if campaign_err:
-        return campaign_err
-
-    try:
-        try:
-            lock = acquire_simulation_lock(campaign.id, ttl_seconds=10, blocking=False)
-        except (RedisConnectionError, RedisTimeoutError):
-            return (
-                jsonify(
-                    {
-                        "error": "Simulation service is currently offline. Please try again later.",
-                        "status": "offline",
-                    }
-                ),
-                503,
-            )
-
-        if lock is None:
-            return jsonify({"error": "Simulation already running", "status": "busy"}), 409
-
-        try:
-            engine = SimulationEngine()
-            stats = engine.run_tick(campaign_id=campaign.id, commit=True)
-            state = get_simulation_state_for_campaign(db.session, campaign.id)
-            status_payload = {
-                "active": bool(state and state.speed != "pause"),
-                "tick": state.current_tick if state else 0,
-                "speed": state.speed if state else "pause",
-                "last_tick": state.last_tick_time.isoformat() if state and state.last_tick_time else None,
-                "current_game_day": stats.get("current_game_day"),
-            }
-            return jsonify(
-                {
-                    "success": True,
-                    "message": (
-                        f"Simulation tick completed: Updated {stats['shops_updated']} shops "
-                        f"and {stats['items_updated']} items."
-                    ),
-                    "stats": stats,
-                    "status": status_payload,
-                }
-            )
-        finally:
-            lock.release()
-    except SQLAlchemyError:
-        db.session.rollback()
-        return jsonify({"error": "Database error occurred"}), 500
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e), "success": False}), 500
 
 
 @simulation_bp.route("/api/simulation/status", methods=["GET"])

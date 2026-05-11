@@ -31,7 +31,6 @@ from app.routes.handlers.gm_players_handler import (
 from app.routes.handlers.gm_simulation_handler import (
     home as gm_dashboard_home,
     seed_world,
-    run_simulation_tick,
     update_simulation_speed,
     run_period_stream,
     simulation_job_status,
@@ -923,13 +922,10 @@ def skip_world_generation_submit():
     return skip_world_generation_submit_handler()
 
 
-# Simulation routes
-@gm_bp.route("/simulation/tick", methods=["POST"])
-@login_required
-def gm_run_simulation_tick():
-    """Execute one simulation tick manually from the GM dashboard"""
-    return run_simulation_tick()
-
+# Simulation routes — Day/Week/Month/Year all flow through `run_period_stream`
+# (Celery + Redis lock + ACID batch). The synchronous /simulation/tick endpoint
+# was retired so every period shares one commit/rollback/lock policy; see the
+# year-batch-acid and sim-unify-entrypoints todos.
 @gm_bp.route("/simulation/speed", methods=["POST"])
 @login_required
 def gm_update_simulation_speed():

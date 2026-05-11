@@ -1,22 +1,41 @@
-"""Per-GM distributed lock backed by Redis SET NX EX.
+"""Per-campaign distributed lock backed by Redis SET NX EX.
 
 A single shared lazy client is reused across requests/tasks. Cloud Run
 aggressively reaps idle TCP connections, so `health_check_interval=30` plus
 `socket_keepalive=True` keep pooled sockets fresh and surface dead peers
 before the next command crashes with `ConnectionError: Broken pipe`.
+
+Lock holders that run longer than the initial TTL (e.g. a 365-tick Year
+batch) MUST call ``lock.refresh()`` periodically to extend the TTL while
+they still own the token. Without refresh, the key can expire mid-batch
+and a second worker will acquire the lock for the same campaign — the
+exact split-brain the lock is meant to prevent.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from typing import Optional
 
 import redis
 
+logger = logging.getLogger(__name__)
+
 RELEASE_LUA = """
 if redis.call("get", KEYS[1]) == ARGV[1] then
     return redis.call("del", KEYS[1])
+else
+    return 0
+end
+"""
+
+# Compare-and-extend: only re-arm the TTL when we still own the lock token.
+# Returns 1 on success, 0 if another worker has stolen the key.
+REFRESH_LUA = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("expire", KEYS[1], ARGV[2])
 else
     return 0
 end
@@ -43,11 +62,31 @@ def get_redis_client() -> redis.Redis:
     return _redis_client
 
 
+class LockLost(RuntimeError):
+    """Raised when a refresh discovers the lock token has been overwritten."""
+
+
 class _RedisSimLock:
     def __init__(self, lock_key: str, token: str, ttl_seconds: int):
         self.lock_key = lock_key
         self.token = token
-        self.ttl_seconds = ttl_seconds
+        self.ttl_seconds = int(ttl_seconds)
+
+    def refresh(self, ttl_seconds: Optional[int] = None) -> bool:
+        """Extend the TTL only if we still own the lock.
+
+        Returns True on success. Returns False if another worker has stolen
+        the key (caller should treat the batch as failed and abort).
+        """
+        client = get_redis_client()
+        ttl = int(ttl_seconds if ttl_seconds is not None else self.ttl_seconds)
+        ok = int(client.eval(REFRESH_LUA, 1, self.lock_key, self.token, ttl))
+        if not ok:
+            logger.warning(
+                "Lock %s refresh failed: token mismatch (lock stolen or expired)",
+                self.lock_key,
+            )
+        return bool(ok)
 
     def release(self) -> int:
         """Token-checked release; another worker cannot delete our lock."""

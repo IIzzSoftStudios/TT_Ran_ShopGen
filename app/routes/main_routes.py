@@ -1,5 +1,10 @@
+import logging
+
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import login_required, current_user
+from redis.exceptions import RedisError
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db, limiter
 from app.models import AccessRequest
@@ -10,8 +15,11 @@ from app.routes.handlers.campaign_selection_handler import (
     load_campaign_character,
     redeem_campaign_post,
 )
+from app.services.distributed_lock import get_redis_client
 
 main_bp = Blueprint("main", __name__)
+
+_ready_logger = logging.getLogger(__name__)
 
 
 @main_bp.route("/healthz")
@@ -19,9 +27,58 @@ def healthz():
     """Cloud Run startup / liveness probe.
 
     Intentionally dependency-free: a slow DB or Redis must not flap the
-    revision out. Deeper readiness checks belong on a separate path.
+    revision out. Deeper readiness checks belong on /ready.
     """
     return jsonify(ok=True), 200
+
+
+@main_bp.route("/ready")
+def ready():
+    """Deep readiness probe — Redis (over the VPC path) and DB.
+
+    Suitable for post-deploy smoke tests and low-frequency probes; do NOT wire
+    this as an aggressive Cloud Run startup probe (each call talks to Redis
+    over the connector and to Cloud SQL, amplifying load on every cold start).
+    /healthz remains the cheap probe.
+
+    Response shape:
+        200 {ok: true, redis: "ok", db: "ok"}
+        503 {ok: false, redis: <ok|error>, db: <ok|error>, error: "..."}
+    """
+    payload = {"ok": True, "redis": "ok", "db": "ok"}
+    status_code = 200
+
+    try:
+        client = get_redis_client()
+        if not client.ping():
+            raise RuntimeError("PING returned falsy")
+    except (RedisError, RuntimeError, OSError) as exc:
+        payload["ok"] = False
+        payload["redis"] = "error"
+        payload["error"] = f"redis: {exc.__class__.__name__}"
+        status_code = 503
+        _ready_logger.warning("/ready Redis check failed: %s", exc)
+
+    try:
+        db.session.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        payload["ok"] = False
+        payload["db"] = "error"
+        existing = payload.get("error")
+        payload["error"] = (
+            f"{existing}; db: {exc.__class__.__name__}"
+            if existing
+            else f"db: {exc.__class__.__name__}"
+        )
+        status_code = 503
+        _ready_logger.warning("/ready DB check failed: %s", exc)
+    finally:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+    return jsonify(payload), status_code
 
 
 @main_bp.route("/")

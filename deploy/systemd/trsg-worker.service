@@ -10,27 +10,50 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=60
 
-# Pull latest image before each (re)start so `systemctl restart trsg-worker`
-# also rolls forward to the most recent Artifact Registry tag.
+# Image pinning policy:
+#   /etc/trsg/worker.env supplies TRSG_IMAGE — it MUST be a digest reference
+#     (region-docker.pkg.dev/PROJECT/REPO/SERVICE@sha256:...), not a `:latest`
+#     or floating tag. Cloud Build writes the deployed digest to
+#     gs://$PROJECT-cloudbuild-artifacts/<service>/<sha>/image_digest.txt;
+#     update worker.env from that artifact in the same change window the
+#     Cloud Run web revision rolls forward, so web and worker run identical
+#     bytes (no schema/task-payload skew).
+#   `docker pull` is still issued so a freshly added VM warms its local
+#     cache; with a digest, the pull is a no-op when already present.
 ExecStartPre=-/usr/bin/docker rm -f trsg-worker
 ExecStartPre=/usr/bin/docker pull ${TRSG_IMAGE}
+
+# Concurrency / timeouts are env-tunable so Alpha can ramp from --concurrency=1
+# upward (target ~10) without touching the service file:
+#   CELERY_CONCURRENCY      Worker processes per VM (default 1 — start small,
+#                           ramp while watching RAM and Cloud SQL connections).
+#   CELERY_TIME_LIMIT       Hard kill (s). Default 7200 (2h) — a 365-tick Year
+#                           must finish well under this; profile and tune.
+#   CELERY_SOFT_TIME_LIMIT  Soft (raises SoftTimeLimitExceeded). Default 6900.
+#   CELERY_MAX_TASKS_PER_CHILD  Process recycle threshold (default 50) bounds
+#                           memory growth from long-lived workers.
+# TRSG_ROLE=worker tags the connection pool sizing in app/__init__.py so a
+# worker holding DB connections per task does not starve the Cloud Run web tier.
 ExecStart=/usr/bin/docker run --rm --name trsg-worker \
   --network host \
   --env-file /etc/trsg/worker.env \
+  --env TRSG_ROLE=worker \
+  --env CELERY_WORKER_RUNNING=1 \
   ${TRSG_IMAGE} \
   celery -A celery_app.celery worker \
     --loglevel=info \
-    --concurrency=1 \
-    --max-tasks-per-child=50 \
-    --time-limit=600 \
-    --soft-time-limit=540
+    --concurrency=${CELERY_CONCURRENCY:-1} \
+    --max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD:-50} \
+    --time-limit=${CELERY_TIME_LIMIT:-7200} \
+    --soft-time-limit=${CELERY_SOFT_TIME_LIMIT:-6900}
 ExecStop=/usr/bin/docker stop -t 30 trsg-worker
 
 # /etc/trsg/worker.env supplies REDIS_URL (typically redis://127.0.0.1:6379/0
 # when Redis is local on the same VM), SQLALCHEMY_DATABASE_URI pointing at
-# the Cloud SQL Auth Proxy on 127.0.0.1:5432, SECRET_KEY, and FLASK_ENV.
-# TRSG_IMAGE is set in /etc/systemd/system/trsg-worker.service.d/override.conf
-# so version bumps are a single `systemctl daemon-reload` away.
+# the Cloud SQL Auth Proxy on 127.0.0.1:5432, SECRET_KEY, FLASK_ENV, and
+# the CELERY_* and DB_* tunables above. TRSG_IMAGE (a sha256 digest) is set
+# in /etc/systemd/system/trsg-worker.service.d/override.conf so version bumps
+# are a single `systemctl daemon-reload && systemctl restart trsg-worker` away.
 
 [Install]
 WantedBy=multi-user.target

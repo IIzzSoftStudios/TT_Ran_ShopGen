@@ -3,14 +3,33 @@
 # Steps:
 #   1. Build the Docker image, tagging it with the commit SHA + `latest`.
 #   2. Push both tags to Artifact Registry.
-#   3. Deploy the new image as a fresh revision of the Cloud Run web service.
+#   3. Resolve the immutable image digest for the SHA tag (used by the deploy
+#      step and persisted as a build artifact for the GCE worker to pin to).
+#   4. Run schema migrations against Cloud SQL via the Cloud SQL Auth Proxy
+#      (one-shot Job container) so Cloud Run instances never touch DDL on
+#      startup. See `_RUN_MIGRATIONS` to disable this step for hot-fix rollbacks.
+#   5. Deploy the new image (by digest) as a fresh revision of the Cloud Run
+#      web service with explicit memory / cpu / max-instances.
 #
 # Substitutions (override per-trigger or in the trigger UI):
 #   _REGION              GCP region (must match Cloud SQL, GCE worker, VPC connector).
 #   _AR_REPO             Artifact Registry repo name.
 #   _SERVICE             Cloud Run service name for the web tier.
 #   _CLOUD_SQL_INSTANCE  PROJECT:REGION:INSTANCE for Cloud Run's --add-cloudsql-instances.
-#   _VPC_CONNECTOR       Serverless VPC Access connector name (or omit when using Direct VPC egress).
+#   _VPC_CONNECTOR       Serverless VPC Access connector name (mandatory for
+#                        private Redis on GCE; leave empty only if Direct VPC
+#                        egress is configured separately or Redis is publicly
+#                        reachable, which is unacceptable in production).
+#   _CPU                 vCPU per Cloud Run instance (default 1).
+#   _MEMORY              Memory per Cloud Run instance (default 1Gi). Sized for
+#                        gunicorn 2 workers x 4 threads + SQLAlchemy + caches.
+#   _MAX_INSTANCES       Hard cap on horizontal autoscaling (default 3 for Alpha;
+#                        also bounds Cloud SQL connection budget).
+#   _CONCURRENCY         Per-instance request concurrency (default 40).
+#   _TIMEOUT             Cloud Run request timeout in seconds (default 60).
+#   _RUN_MIGRATIONS      When "true" (default) run the migration step before deploy.
+#                        Set "false" only for emergency rollbacks where the
+#                        target image expects an already-migrated schema.
 #
 # Secrets are wired into the Cloud Run revision at deploy time via
 # --set-secrets (each entry maps an env var to a Secret Manager secret).
@@ -23,6 +42,12 @@ substitutions:
   _SERVICE: trsg-web
   _CLOUD_SQL_INSTANCE: PROJECT:REGION:INSTANCE
   _VPC_CONNECTOR: ""
+  _CPU: "1"
+  _MEMORY: "1Gi"
+  _MAX_INSTANCES: "3"
+  _CONCURRENCY: "40"
+  _TIMEOUT: "60"
+  _RUN_MIGRATIONS: "true"
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -38,6 +63,25 @@ steps:
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
       - .
 
+  - id: test
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        # The image already contains source + requirements; run pytest inside it
+        # so the gate validates exactly the artifact about to be promoted. Tests
+        # use SQLite in-memory and a stub PhaseEntitlements; no external services.
+        # pytest is in requirements.txt for the same reason — keeps the image
+        # self-contained for the migration job too.
+        docker run --rm \
+          -e FLASK_ENV=development \
+          -e SECRET_KEY=ci_only \
+          -e PYTHONDONTWRITEBYTECODE=1 \
+          ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA \
+          python -m pytest -q
+
   - id: push-sha
     name: gcr.io/cloud-builders/docker
     args:
@@ -50,6 +94,76 @@ steps:
       - push
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
 
+  - id: resolve-digest
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        DIGEST=$(gcloud artifacts docker images describe \
+          ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA \
+          --format='value(image_summary.digest)')
+        if [ -z "$$DIGEST" ]; then
+          echo "Failed to resolve image digest" >&2
+          exit 1
+        fi
+        IMAGE_REF="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}@$$DIGEST"
+        echo "$$IMAGE_REF" > /workspace/image_digest.txt
+        echo "resolved $$IMAGE_REF"
+
+  - id: migrate
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        if [ "${_RUN_MIGRATIONS}" != "true" ]; then
+          echo "Skipping migrations (_RUN_MIGRATIONS=${_RUN_MIGRATIONS})"
+          exit 0
+        fi
+        IMAGE_REF=$(cat /workspace/image_digest.txt)
+        JOB_NAME="${_SERVICE}-migrate"
+        # Create or update a Cloud Run Job that runs scripts/init_schema.py +
+        # scripts/apply_sql_migrations.py against Cloud SQL via the auth proxy
+        # bundled into Cloud Run. RUN_BOOTSTRAP_IN_PROD=true so the migration
+        # container can DDL even though the long-lived web service does not.
+        #
+        # Both scripts must run in this order:
+        #   1) init_schema.py    — ORM `db.create_all()` for any new tables.
+        #   2) apply_sql_migrations.py — replays sql/migrations/*.sql for DDL
+        #                          tweaks (indexes, constraints, column types)
+        #                          that aren't expressed via the ORM.
+        # The chain runs via `bash -c "...A && B..."`. gcloud's `--args`
+        # accepts the `^DELIM^` form so the embedded `&&` is not split by the
+        # default `,` separator and is passed through to bash verbatim.
+        MIGRATE_CMD='python scripts/init_schema.py && python scripts/apply_sql_migrations.py'
+        if gcloud run jobs describe "$$JOB_NAME" --region=${_REGION} >/dev/null 2>&1; then
+          gcloud run jobs update "$$JOB_NAME" \
+            --image "$$IMAGE_REF" \
+            --region ${_REGION} \
+            --add-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
+            --set-env-vars FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO \
+            --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest \
+            --command bash \
+            --args="^@^-c@$$MIGRATE_CMD" \
+            --task-timeout 600s \
+            --max-retries 0
+        else
+          gcloud run jobs create "$$JOB_NAME" \
+            --image "$$IMAGE_REF" \
+            --region ${_REGION} \
+            --add-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
+            --set-env-vars FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO \
+            --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest \
+            --command bash \
+            --args="^@^-c@$$MIGRATE_CMD" \
+            --task-timeout 600s \
+            --max-retries 0
+        fi
+        gcloud run jobs execute "$$JOB_NAME" --region ${_REGION} --wait
+
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: bash
@@ -57,26 +171,39 @@ steps:
       - -c
       - |
         set -euo pipefail
+        IMAGE_REF=$(cat /workspace/image_digest.txt)
         VPC_FLAGS=""
         if [ -n "${_VPC_CONNECTOR}" ]; then
           VPC_FLAGS="--vpc-connector=${_VPC_CONNECTOR} --vpc-egress=private-ranges-only"
+        else
+          echo "WARNING: _VPC_CONNECTOR is empty. VPC attachment is mandatory for"
+          echo "private Redis on GCE; deploy will succeed but Redis-backed sessions,"
+          echo "rate limits, and sim locks will fail in the running revision."
         fi
         gcloud run deploy ${_SERVICE} \
-          --image ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA \
+          --image "$$IMAGE_REF" \
           --region ${_REGION} \
           --platform managed \
           --allow-unauthenticated \
-          --max-instances 3 \
-          --concurrency 40 \
+          --cpu ${_CPU} \
+          --memory ${_MEMORY} \
+          --max-instances ${_MAX_INSTANCES} \
+          --concurrency ${_CONCURRENCY} \
           --cpu-throttling \
-          --timeout 60 \
+          --timeout ${_TIMEOUT} \
           --add-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
           --set-env-vars FLASK_ENV=production,SQLALCHEMY_ECHO=false,LOG_LEVEL=INFO \
           --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest,REDIS_URL=REDIS_URL:latest,MAIL_USERNAME=MAIL_USERNAME:latest,MAIL_PASSWORD=MAIL_PASSWORD:latest,MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER:latest,MAIL_SERVER=MAIL_SERVER:latest \
-          $VPC_FLAGS
+          $$VPC_FLAGS
+
+artifacts:
+  objects:
+    location: gs://$PROJECT_ID-cloudbuild-artifacts/${_SERVICE}/$SHORT_SHA
+    paths:
+      - /workspace/image_digest.txt
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
 
-timeout: 1200s
+timeout: 1800s

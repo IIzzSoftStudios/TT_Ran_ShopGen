@@ -1,34 +1,79 @@
-"""Celery task: run N simulation ticks for a campaign with a per-campaign Redis lock.
+"""Celery task: run N simulation ticks for a campaign as one atomic batch.
 
-Progress is written to Redis under `sim_job:{task_id}` so the polling UI can
-read state without involving the DB. All Redis writes go through `_safe_*`
-helpers so a transient Redis outage degrades gracefully (the task fails the
-job rather than raising into the Celery retry machinery).
+ACID model
+----------
+A "Year" run advances the campaign by 365 game days. Earlier versions
+committed after each tick, which left the world partially advanced if the
+worker died at tick 200 — a rerun then continued from the midpoint instead
+of replaying the failed batch cleanly. The current model holds **one**
+database transaction across the whole period and commits only after the
+final tick succeeds. On any failure the entire batch (campaign state, sim
+state, GMWorldState writes, **and** PriceHistory rows) rolls back together,
+so a failed run leaves the world byte-for-byte where it started and the GM
+can simply rerun.
+
+Lock policy
+-----------
+Concurrency is enforced with the per-campaign Redis lock
+``lock:sim:{campaign_id}``. The initial TTL is sized for the worst-case
+period plus margin (``SIMULATION_LOCK_TTL_SECONDS``); the task also calls
+``lock.refresh()`` between ticks (cadence ``SIMULATION_LOCK_REFRESH_SECONDS``)
+so a long Year cannot expire the key mid-batch and let a second worker
+acquire it. If a refresh discovers the lock was stolen — possible only on
+extreme clock skew or operator intervention — the task aborts the
+transaction and reports a ``failed`` job rather than continuing on stolen
+authority.
+
+Progress shape
+--------------
+Progress is written to Redis at ``sim_job:{task_id}`` so the polling UI can
+read state without involving the DB. The status field follows a strict
+contract; see :func:`SimJobStatus` for values. All Redis writes go through
+``_safe_*`` helpers so a transient Redis outage degrades to a job-level
+error rather than entering Celery's retry machinery.
 """
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 from typing import Dict
 
 from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
 
 from celery_app import celery
 from app.extensions import db
-from app.services.distributed_lock import acquire_simulation_lock, get_redis_client
+from app.services.distributed_lock import (
+    acquire_simulation_lock,
+    get_redis_client,
+)
+from app.services.sim_metrics import (
+    record_job_finished,
+    record_job_rejected,
+    record_job_started,
+)
 from app.services.simulation import SimulationEngine
+
+logger = logging.getLogger(__name__)
 
 TICKS_MAP: Dict[str, int] = {"day": 1, "week": 7, "month": 30, "year": 365}
 
 
+# Job status contract (single source of truth for the polling UI).
+# See deploy/README.md for the UX implications of each terminal state.
+class SimJobStatus:
+    QUEUED = "queued"          # accepted by the worker, lock not yet held
+    RUNNING = "running"        # actively executing ticks under the lock
+    SUCCESS = "success"        # all ticks committed
+    BUSY = "busy"              # another batch is already running for this campaign
+    ERROR = "error"            # batch rolled back; world is unchanged from start
+    LOCK_LOST = "lock_lost"    # the campaign lock was stolen mid-batch; batch rolled back
+
+
 @celery.task(bind=True)
 def run_period_task(self, campaign_id: int, period: str) -> dict:
-    """Run simulation for a campaign for the given period.
-
-    Progress is written to Redis under ``sim_job:{task_id}`` for the polling UI.
-    Concurrency is enforced with a per-campaign distributed lock
-    ``lock:sim:{campaign_id}``.
-    """
+    """Run an ACID simulation batch for a campaign for the given period."""
     redis_client = get_redis_client()
     job_id = self.request.id
     job_key = f"sim_job:{job_id}"
@@ -51,96 +96,164 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
     if ticks_total is None:
         _safe_hset(
             {
-                "status": "error",
+                "status": SimJobStatus.ERROR,
                 "error": f"Invalid period: {period}",
                 "ticks_done": 0,
                 "ticks_total": 0,
             }
         )
-        return {"status": "error", "error": f"Invalid period: {period}"}
+        return {"status": SimJobStatus.ERROR, "error": f"Invalid period: {period}"}
 
     if not _safe_hset(
         {
-            "status": "queued",
+            "status": SimJobStatus.QUEUED,
             "ticks_done": 0,
             "ticks_total": ticks_total,
+            "campaign_id": int(campaign_id),
+            "period": period,
         }
     ):
         return {
-            "status": "error",
+            "status": SimJobStatus.ERROR,
             "error": "Redis unavailable while initializing simulation job state",
         }
     _safe_expire(int(os.getenv("SIM_JOB_TTL_SECONDS", "86400")))
 
-    lock_ttl_seconds = int(os.getenv("SIMULATION_LOCK_TTL_SECONDS", "300"))
+    # Lock TTL must exceed the worst-case period runtime; refresh runs between
+    # ticks to keep the key alive without a separate heartbeat thread. Default
+    # 7200s = 2h matches the worker --time-limit; tighten with profiling data.
+    lock_ttl_seconds = int(os.getenv("SIMULATION_LOCK_TTL_SECONDS", "7200"))
+    refresh_seconds = int(os.getenv("SIMULATION_LOCK_REFRESH_SECONDS", "60"))
+
     try:
         lock = acquire_simulation_lock(
             int(campaign_id), ttl_seconds=lock_ttl_seconds, blocking=False
         )
     except (RedisConnectionError, RedisTimeoutError):
         _safe_hset(
-            {"status": "error", "error": "Redis unavailable while acquiring simulation lock"}
+            {
+                "status": SimJobStatus.ERROR,
+                "error": "Redis unavailable while acquiring simulation lock",
+            }
         )
         return {
-            "status": "error",
+            "status": SimJobStatus.ERROR,
             "error": "Redis unavailable while acquiring simulation lock",
         }
 
     if lock is None:
-        _safe_hset({"status": "busy", "error": "Simulation already running"})
-        return {"status": "busy", "error": "Simulation already running"}
+        _safe_hset(
+            {"status": SimJobStatus.BUSY, "error": "Simulation already running"}
+        )
+        # Use record_job_rejected (terminal-only) here — no record_job_started
+        # has run, so calling record_job_finished would decrement the
+        # in-flight gauge without a paired increment and drift it negative.
+        record_job_rejected(period, SimJobStatus.BUSY)
+        return {
+            "status": SimJobStatus.BUSY,
+            "error": "Simulation already running",
+        }
 
-    stats = None
+    started_at = record_job_started(job_id, period)
+    last_refresh = time.monotonic()
+    final_game_day = None
+    terminal_status = SimJobStatus.ERROR
     try:
         from app import app as flask_app
 
         with flask_app.app_context():
             engine = SimulationEngine()
-            for i in range(1, ticks_total + 1):
-                stats = engine.run_tick(campaign_id=int(campaign_id), commit=True)
-                db.session.expire_all()
-                if not _safe_hset(
-                    {
-                        "status": "running",
-                        "ticks_done": i,
-                        "ticks_total": ticks_total,
-                        "current_game_day": stats.get("current_game_day"),
-                    }
-                ):
-                    return {
-                        "status": "error",
-                        "error": "Redis unavailable while writing simulation progress",
-                    }
+            try:
+                for i in range(1, ticks_total + 1):
+                    # Refresh the lock between ticks so a multi-hour batch
+                    # cannot expire the key while we still own it.
+                    now = time.monotonic()
+                    if now - last_refresh >= refresh_seconds:
+                        if not lock.refresh():
+                            raise _LockStolen(
+                                f"Lost simulation lock at tick {i}/{ticks_total}"
+                            )
+                        last_refresh = now
 
-            if not _safe_hset(
+                    stats = engine.run_tick(
+                        campaign_id=int(campaign_id), flush_only=True
+                    )
+                    final_game_day = stats.get("current_game_day")
+
+                    if not _safe_hset(
+                        {
+                            "status": SimJobStatus.RUNNING,
+                            "ticks_done": i,
+                            "ticks_total": ticks_total,
+                            "current_game_day": final_game_day,
+                        }
+                    ):
+                        raise _RedisProgressFailure(
+                            "Redis unavailable while writing simulation progress"
+                        )
+
+                # All ticks computed and flushed; commit the whole batch.
+                db.session.commit()
+                # Expire ORM cache so subsequent reads on the same context
+                # see the committed state.
+                db.session.expire_all()
+            except Exception:
+                # Single rollback unwinds every tick + every PriceHistory row.
+                # The campaign is restored to its pre-batch state and the GM
+                # can rerun without an off-by-N midpoint.
+                db.session.rollback()
+                raise
+
+            _safe_hset(
                 {
-                    "status": "success",
+                    "status": SimJobStatus.SUCCESS,
                     "ticks_done": ticks_total,
                     "ticks_total": ticks_total,
-                    "current_game_day": stats.get("current_game_day") if stats else None,
+                    "current_game_day": final_game_day,
                 }
-            ):
-                return {
-                    "status": "error",
-                    "error": "Redis unavailable while finalizing simulation job",
-                }
+            )
+            terminal_status = SimJobStatus.SUCCESS
             return {
-                "status": "success",
-                "current_game_day": stats.get("current_game_day") if stats else None,
+                "status": SimJobStatus.SUCCESS,
+                "current_game_day": final_game_day,
             }
+    except _LockStolen as exc:
+        logger.error("Simulation lock lost mid-batch: %s", exc)
+        _safe_hset({"status": SimJobStatus.LOCK_LOST, "error": str(exc)})
+        terminal_status = SimJobStatus.LOCK_LOST
+        return {"status": SimJobStatus.LOCK_LOST, "error": str(exc)}
+    except _RedisProgressFailure as exc:
+        _safe_hset({"status": SimJobStatus.ERROR, "error": str(exc)})
+        terminal_status = SimJobStatus.ERROR
+        return {"status": SimJobStatus.ERROR, "error": str(exc)}
     except (RedisConnectionError, RedisTimeoutError):
         _safe_hset(
-            {"status": "error", "error": "Redis unavailable during simulation execution"}
+            {
+                "status": SimJobStatus.ERROR,
+                "error": "Redis unavailable during simulation execution",
+            }
         )
+        terminal_status = SimJobStatus.ERROR
         return {
-            "status": "error",
+            "status": SimJobStatus.ERROR,
             "error": "Redis unavailable during simulation execution",
         }
     except Exception as e:
-        _safe_hset({"status": "error", "error": str(e)})
-        return {"status": "error", "error": str(e)}
+        logger.exception("Simulation batch failed; transaction rolled back")
+        _safe_hset({"status": SimJobStatus.ERROR, "error": str(e)})
+        terminal_status = SimJobStatus.ERROR
+        return {"status": SimJobStatus.ERROR, "error": str(e)}
     finally:
         try:
             lock.release()
         except Exception:
             pass
+        record_job_finished(job_id, period, terminal_status, started_at)
+
+
+class _LockStolen(RuntimeError):
+    """Internal — raised when lock.refresh() finds the token has been overwritten."""
+
+
+class _RedisProgressFailure(RuntimeError):
+    """Internal — raised when sim_job HSET fails so the outer except can roll back."""

@@ -1,5 +1,5 @@
 """Admin vault routes."""
-from flask import Blueprint
+from flask import Blueprint, jsonify
 from flask_login import login_required
 
 from app.decorators import admin_required
@@ -14,6 +14,7 @@ from app.routes.handlers.admin_handler import (
     handle_gm_simulation_usage_api,
     handle_gm_simulation_usage_export,
 )
+from app.services.sim_metrics import snapshot as simulation_metrics_snapshot
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -79,3 +80,16 @@ def access_request_hold(request_id):
 @admin_required
 def access_request_reject(request_id):
     return handle_reject_access_request(request_id)
+
+
+@admin_bp.route("/vault/metrics/simulation", methods=["GET"])
+@login_required
+@admin_required
+def simulation_metrics():
+    """Operator view of simulation queue depth, in-flight count, and durations.
+
+    Backs the alpha-metrics-queue todo: replaces "unknown concurrent load"
+    with concrete numbers for sizing worker concurrency, Cloud SQL tier, and
+    the eventual alpha-year-hard-no thresholds.
+    """
+    return jsonify(simulation_metrics_snapshot())

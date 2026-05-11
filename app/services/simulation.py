@@ -85,6 +85,7 @@ class SimulationEngine:
         self,
         campaign_id: int,
         commit: bool = True,
+        flush_only: bool = False,
     ) -> Dict:
         """
         Execute one simulation tick (one game day) for a single campaign.
@@ -92,6 +93,13 @@ class SimulationEngine:
         ``current_game_day`` is incremented on the Campaign row only after the pricing loop, in
         the same transaction as flush/commit; rollback restores the prior day. ``current_game_day``
         is not advanced if ``commit`` is False (session rolled back after flush timing).
+
+        When ``flush_only=True`` the engine flushes pending changes but neither commits nor
+        rolls back — the caller owns the outer transaction. This is the path used by the ACID
+        batch driver (``run_period_task``): all 365 ticks of a Year share one transaction, so
+        a mid-batch failure rolls back every tick (and every PriceHistory row) atomically and
+        the campaign world is never left half-advanced. ``flush_only`` takes precedence over
+        ``commit``.
         """
         tick_start = perf_counter()
         stats: Dict = {
@@ -266,7 +274,9 @@ class SimulationEngine:
             t_flush_end = perf_counter()
             stats["t_flush"] = t_flush_end - t_flush_start
 
-            if commit:
+            if flush_only:
+                stats["t_persist"] = 0.0
+            elif commit:
                 t_commit_start = perf_counter()
                 db.session.commit()
                 db.session.expire_all()
