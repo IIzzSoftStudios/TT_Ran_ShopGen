@@ -54,6 +54,7 @@ from app.services.sim_metrics import (
     record_job_started,
 )
 from app.services.simulation import SimulationEngine
+from app.utils.safe_errors import public_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -219,9 +220,10 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
             }
     except _LockStolen as exc:
         logger.error("Simulation lock lost mid-batch: %s", exc)
-        _safe_hset({"status": SimJobStatus.LOCK_LOST, "error": str(exc)})
+        lock_msg = "Simulation was interrupted. You can try running it again."
+        _safe_hset({"status": SimJobStatus.LOCK_LOST, "error": lock_msg})
         terminal_status = SimJobStatus.LOCK_LOST
-        return {"status": SimJobStatus.LOCK_LOST, "error": str(exc)}
+        return {"status": SimJobStatus.LOCK_LOST, "error": lock_msg}
     except _RedisProgressFailure as exc:
         _safe_hset({"status": SimJobStatus.ERROR, "error": str(exc)})
         terminal_status = SimJobStatus.ERROR
@@ -240,9 +242,10 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
         }
     except Exception as e:
         logger.exception("Simulation batch failed; transaction rolled back")
-        _safe_hset({"status": SimJobStatus.ERROR, "error": str(e)})
+        safe = public_error_message(e, audience="redis_job")
+        _safe_hset({"status": SimJobStatus.ERROR, "error": safe})
         terminal_status = SimJobStatus.ERROR
-        return {"status": SimJobStatus.ERROR, "error": str(e)}
+        return {"status": SimJobStatus.ERROR, "error": safe}
     finally:
         try:
             lock.release()

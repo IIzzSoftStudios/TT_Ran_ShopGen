@@ -16,6 +16,7 @@ from app.routes.handlers.gm_helpers import get_current_gm_profile, require_activ
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
 from app.services.distributed_lock import get_redis_client
 from app.tasks.simulation_tasks import SimJobStatus, run_period_task
+from app.utils.safe_errors import public_error_message, redact_sim_job_error_for_client
 
 
 REDIS_OFFLINE_ERROR = "Simulation service is currently offline. Please try again in a few minutes."
@@ -165,7 +166,7 @@ def seed_world():
     except Exception as e:
         db.session.rollback()
         gm_logger.error(f"Error during seeding world: {str(e)}", exc_info=True)
-        flash(f"An error occurred during seeding: {str(e)}", "error")
+        flash(public_error_message(e), "error")
 
     return redirect(url_for("gm.home"))
 
@@ -221,8 +222,8 @@ def update_simulation_speed():
         )
     except Exception as e:
         db.session.rollback()
-        gm_logger.error(f"Error during simulation: {str(e)}")
-        return jsonify({"error": str(e), "status": "error"}), 500
+        gm_logger.error(f"Error during simulation: {str(e)}", exc_info=True)
+        return jsonify({"error": public_error_message(e), "status": "error"}), 500
 
 
 @handle_redis_outage
@@ -316,7 +317,7 @@ def simulation_job_status(job_id: str):
         "ticks_done": _to_int(data.get("ticks_done")),
         "ticks_total": _to_int(data.get("ticks_total")),
         "current_game_day": _to_int(data.get("current_game_day")),
-        "error": data.get("error"),
+        "error": redact_sim_job_error_for_client(data.get("error")),
         # `world_changed=False` means the campaign is byte-for-byte identical
         # to its pre-run state and the GM can re-click the period button. The
         # ACID batch guarantees this is true for every non-success terminal.

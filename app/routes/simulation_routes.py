@@ -6,6 +6,7 @@ from app.constants.simulation_flags import ALLOWED_SIMULATION_SPEEDS
 from app.extensions import db
 from app.models import Campaign, SimulationLog, SimulationState
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
+from app.utils.safe_errors import public_error_message
 
 simulation_bp = Blueprint("simulation", __name__)
 
@@ -97,7 +98,7 @@ def set_simulation_speed():
         return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": public_error_message(e)}), 500
 
 
 @simulation_bp.route("/api/simulation/status", methods=["GET"])
@@ -135,7 +136,7 @@ def get_simulation_status():
     except SQLAlchemyError:
         return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": public_error_message(e)}), 500
 
 
 @simulation_bp.route("/api/simulation/logs", methods=["GET"])
@@ -169,4 +170,4 @@ def get_simulation_logs():
     except SQLAlchemyError:
         return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": public_error_message(e)}), 500
