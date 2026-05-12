@@ -5,6 +5,9 @@ Usage (Compose Postgres after base schema exists):
         python scripts/apply_sql_migrations.py
 
 Staging / Cloud SQL: same command with the instance connection string.
+
+When there are no ``*.sql`` files yet (ORM-only schema), the script exits 0
+after logging — Cloud Build migrate should not fail on an empty directory.
 """
 
 from __future__ import annotations
@@ -27,8 +30,11 @@ def main() -> int:
     mig_dir = _PROJECT_ROOT / "sql" / "migrations"
     files = sorted(mig_dir.glob("*.sql"))
     if not files:
-        sys.stderr.write(f"No .sql files in {mig_dir}\n")
-        return 1
+        print(
+            f"No .sql files under {mig_dir}; skipping apply_sql_migrations.",
+            flush=True,
+        )
+        return 0
 
     from sqlalchemy import create_engine, text
 
