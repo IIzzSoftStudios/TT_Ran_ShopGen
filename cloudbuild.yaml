@@ -8,6 +8,9 @@
 #   4. Run schema migrations against Cloud SQL via the Cloud SQL Auth Proxy
 #      (one-shot Job container) so Cloud Run instances never touch DDL on
 #      startup. See `_RUN_MIGRATIONS` to disable this step for hot-fix rollbacks.
+#      IMPORTANT: `gcloud run jobs create/update` require `--set-cloudsql-instances`
+#      (not `--add-cloudsql-instances`). If Cloud Build logs still show `--add-`,
+#      the trigger built an old commit — push this file to your trigger branch.
 #   5. Deploy the new image (by digest) as a fresh revision of the Cloud Run
 #      web service with explicit memory / cpu / max-instances.
 #
@@ -123,6 +126,7 @@ steps:
           echo "Skipping migrations (_RUN_MIGRATIONS=${_RUN_MIGRATIONS})"
           exit 0
         fi
+        echo "migrate step: using --set-cloudsql-instances for Cloud Run Job (gcloud run jobs does not accept --add-cloudsql-instances)."
         IMAGE_REF=$(cat /workspace/image_digest.txt)
         JOB_NAME="${_SERVICE}-migrate"
         # Create or update a Cloud Run Job that runs scripts/init_schema.py +
@@ -143,7 +147,7 @@ steps:
           gcloud run jobs update "$$JOB_NAME" \
             --image "$$IMAGE_REF" \
             --region ${_REGION} \
-            --set-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
+            --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE} \
             --set-env-vars FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO \
             --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest \
             --command bash \
@@ -154,7 +158,7 @@ steps:
           gcloud run jobs create "$$JOB_NAME" \
             --image "$$IMAGE_REF" \
             --region ${_REGION} \
-            --set-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
+            --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE} \
             --set-env-vars FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO \
             --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest \
             --command bash \
@@ -191,7 +195,7 @@ steps:
           --concurrency ${_CONCURRENCY} \
           --cpu-throttling \
           --timeout ${_TIMEOUT} \
-          --set-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
+          --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE} \
           --set-env-vars FLASK_ENV=production,SQLALCHEMY_ECHO=false,LOG_LEVEL=INFO \
           --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest,REDIS_URL=REDIS_URL:latest,MAIL_USERNAME=MAIL_USERNAME:latest,MAIL_PASSWORD=MAIL_PASSWORD:latest,MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER:latest,MAIL_SERVER=MAIL_SERVER:latest \
           $$VPC_FLAGS
