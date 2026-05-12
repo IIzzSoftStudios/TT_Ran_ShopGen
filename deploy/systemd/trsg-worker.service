@@ -25,21 +25,11 @@ TimeoutStartSec=60
 ExecStartPre=-/usr/bin/docker rm -f trsg-worker
 ExecStartPre=/usr/bin/docker pull ${TRSG_IMAGE}
 
-# Defaults: concurrency 1 (raise after profiling RAM + Cloud SQL connections).
-# time limits: 365-tick Year must finish inside hard limit (default 2h / soft 1h55m).
-# TRSG_ROLE=worker tags connection pool sizing in app/__init__.py.
-ExecStart=/usr/bin/docker run --rm --name trsg-worker \
-  --network host \
-  --env-file /etc/trsg/worker.env \
-  --env TRSG_ROLE=worker \
-  --env CELERY_WORKER_RUNNING=1 \
-  ${TRSG_IMAGE} \
-  celery -A celery_app.celery worker \
-    --loglevel=info \
-    --concurrency=1 \
-    --max-tasks-per-child=50 \
-    --time-limit=7200 \
-    --soft-time-limit=6900
+# Defaults: concurrency 1; hard time limit 7200s (2h), soft 6900s (~1h55m).
+# TRSG_ROLE=worker tags DB pool sizing in app/__init__.py.
+# Single-line ExecStart avoids truncated flags (e.g. --soft-time-limi) when editors
+# or systemd line handling mangle backslash-continued lines.
+ExecStart=/usr/bin/docker run --rm --name trsg-worker --network host --env-file /etc/trsg/worker.env --env TRSG_ROLE=worker --env CELERY_WORKER_RUNNING=1 --env CELERY_CONCURRENCY=1 --env CELERY_WORKER_CONCURRENCY=1 ${TRSG_IMAGE} celery -A celery_app.celery worker --loglevel=info --concurrency=1 --max-tasks-per-child=50 --time-limit=7200 --soft-time-limit=6900
 ExecStop=/usr/bin/docker stop -t 30 trsg-worker
 
 # /etc/trsg/worker.env supplies REDIS_URL (typically redis://127.0.0.1:6379/0
