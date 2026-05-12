@@ -10,14 +10,15 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=60
 
+# Defaults for Celery CLI flags (systemd expands ${VAR} here; bash-style
+# ${VAR:-default} is NOT supported — use Environment= below or override.conf).
+Environment=CELERY_CONCURRENCY=1 CELERY_MAX_TASKS_PER_CHILD=50 CELERY_TIME_LIMIT=7200 CELERY_SOFT_TIME_LIMIT=6900
+
 # Image pinning policy:
-#   /etc/trsg/worker.env supplies TRSG_IMAGE — it MUST be a digest reference
-#     (region-docker.pkg.dev/PROJECT/REPO/SERVICE@sha256:...), not a `:latest`
-#     or floating tag. Cloud Build writes the deployed digest to
-#     gs://$PROJECT-cloudbuild-artifacts/<service>/<sha>/image_digest.txt;
-#     update worker.env from that artifact in the same change window the
-#     Cloud Run web revision rolls forward, so web and worker run identical
-#     bytes (no schema/task-payload skew).
+#   TRSG_IMAGE MUST be a digest (set in override.conf), e.g.
+#   region-docker.pkg.dev/PROJECT/REPO/trsg-web@sha256:...
+#   Cloud Build writes it to gs://$PROJECT-cloudbuild-artifacts/trsg-web/$SHA/image_digest.txt;
+#   align worker with the same digest as Cloud Run.
 #   `docker pull` is still issued so a freshly added VM warms its local
 #     cache; with a digest, the pull is a no-op when already present.
 ExecStartPre=-/usr/bin/docker rm -f trsg-worker
@@ -42,10 +43,10 @@ ExecStart=/usr/bin/docker run --rm --name trsg-worker \
   ${TRSG_IMAGE} \
   celery -A celery_app.celery worker \
     --loglevel=info \
-    --concurrency=${CELERY_CONCURRENCY:-1} \
-    --max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD:-50} \
-    --time-limit=${CELERY_TIME_LIMIT:-7200} \
-    --soft-time-limit=${CELERY_SOFT_TIME_LIMIT:-6900}
+    --concurrency=${CELERY_CONCURRENCY} \
+    --max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD} \
+    --time-limit=${CELERY_TIME_LIMIT} \
+    --soft-time-limit=${CELERY_SOFT_TIME_LIMIT}
 ExecStop=/usr/bin/docker stop -t 30 trsg-worker
 
 # /etc/trsg/worker.env supplies REDIS_URL (typically redis://127.0.0.1:6379/0
