@@ -86,10 +86,11 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+pytestdebug.log
+junit.xml
 
 # Project specific
 migrations/
-tests/
 images/
 uploads/
 media/

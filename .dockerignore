@@ -1,5 +1,6 @@
 # Mirror of .gcloudignore. Keep these in sync so local `docker build`
 # matches the Cloud Build image content.
+# tests/ tree intentionally included for Cloud Build pytest step.
 
 config.env
 config.env.*

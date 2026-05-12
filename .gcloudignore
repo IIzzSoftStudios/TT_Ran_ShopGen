@@ -1,6 +1,7 @@
 # Files NOT uploaded to Cloud Build / Artifact Registry build context.
 # Production secrets must come from Cloud Run / GCE service config + Secret Manager,
 # never from a baked-in file.
+# tests/ tree intentionally included for Cloud Build pytest step.
 
 # Local secrets and dotfiles
 config.env

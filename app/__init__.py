@@ -216,37 +216,42 @@ def create_app():
     _install_dev_session_fallback(app)
 
     app.config["SQLALCHEMY_COMMIT_ON_TEARDOWN"] = True
-    # Connection pool sizing is split by deployment role so a Celery worker
-    # holding connections for an entire 365-tick Year cannot starve the web
-    # tier (or vice versa). Cloud Run web revisions are short-lived and
-    # request-bound; Celery workers are long-lived and hold connections per
-    # in-flight task. Effective ceiling per role:
-    #     web:    DB_POOL_SIZE  + DB_MAX_OVERFLOW
-    #     worker: DB_POOL_SIZE  + DB_MAX_OVERFLOW
-    # Operator must keep
-    #   (web_max_instances * gunicorn_workers * web_pool_total)
-    #     + (worker_vms * worker_concurrency * worker_pool_total)
-    # under the Cloud SQL tier `max_connections`. See deploy/README.md.
-    _is_celery_worker = os.getenv("TRSG_ROLE", "").lower() == "worker" or bool(
-        os.getenv("CELERY_WORKER_RUNNING")
-    )
-    if _is_celery_worker:
-        _default_pool_size = "2"
-        _default_max_overflow = "2"
+    # SQLite (e.g. in-memory pytest) rejects pool_size / max_overflow / pool_timeout.
+    _is_sqlite = (db_uri or "").lower().startswith("sqlite")
+    if _is_sqlite:
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     else:
-        _default_pool_size = "5"
-        _default_max_overflow = "5"
-    _pool_size = int(os.getenv("DB_POOL_SIZE", _default_pool_size))
-    _max_overflow = int(os.getenv("DB_MAX_OVERFLOW", _default_max_overflow))
-    _pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "1800"))
-    _pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_pre_ping": True,
-        "pool_recycle": _pool_recycle,
-        "pool_size": _pool_size,
-        "max_overflow": _max_overflow,
-        "pool_timeout": _pool_timeout,
-    }
+        # Connection pool sizing is split by deployment role so a Celery worker
+        # holding connections for an entire 365-tick Year cannot starve the web
+        # tier (or vice versa). Cloud Run web revisions are short-lived and
+        # request-bound; Celery workers are long-lived and hold connections per
+        # in-flight task. Effective ceiling per role:
+        #     web:    DB_POOL_SIZE  + DB_MAX_OVERFLOW
+        #     worker: DB_POOL_SIZE  + DB_MAX_OVERFLOW
+        # Operator must keep
+        #   (web_max_instances * gunicorn_workers * web_pool_total)
+        #     + (worker_vms * worker_concurrency * worker_pool_total)
+        # under the Cloud SQL tier `max_connections`. See deploy/README.md.
+        _is_celery_worker = os.getenv("TRSG_ROLE", "").lower() == "worker" or bool(
+            os.getenv("CELERY_WORKER_RUNNING")
+        )
+        if _is_celery_worker:
+            _default_pool_size = "2"
+            _default_max_overflow = "2"
+        else:
+            _default_pool_size = "5"
+            _default_max_overflow = "5"
+        _pool_size = int(os.getenv("DB_POOL_SIZE", _default_pool_size))
+        _max_overflow = int(os.getenv("DB_MAX_OVERFLOW", _default_max_overflow))
+        _pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "1800"))
+        _pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,
+            "pool_recycle": _pool_recycle,
+            "pool_size": _pool_size,
+            "max_overflow": _max_overflow,
+            "pool_timeout": _pool_timeout,
+        }
 
     app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "localhost")
     app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
