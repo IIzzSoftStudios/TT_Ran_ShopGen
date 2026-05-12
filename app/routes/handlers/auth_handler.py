@@ -16,7 +16,7 @@ from flask import (
 )
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_mailman import EmailMessage
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
 from app.extensions import db
 from app.models import (
@@ -27,6 +27,7 @@ from app.models import (
     Player,
 )
 from app.services.billing_rules import can_add_player_profile
+from app.services.schema_compat import ensure_user_password_history_table
 from app.utils.validators import (
     is_password_strong,
     PASSWORD_REUSE_FORBIDDEN_DAYS,
@@ -364,7 +365,29 @@ def handle_reset_password():
 
     user = User.query.filter_by(email=email).first() if email else None
 
-    if user and user.verify_reset_otp(otp_code):
+    otp_ok = False
+    if user:
+        try:
+            otp_ok = user.verify_reset_otp(otp_code)
+        except (ValueError, TypeError) as e:
+            log.warning("Reset OTP verify failed: %s", e)
+            otp_ok = False
+
+    if not (user and otp_ok):
+        flash("Invalid or expired reset code.", "danger")
+        return render_template("reset_password.html")
+
+    # Prod skips runtime schema bootstrap; password reuse helpers require this table.
+    try:
+        ensure_user_password_history_table()
+    except Exception as e:
+        log.warning("ensure_user_password_history_table: %s", e)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+    try:
         if user.plaintext_matches_recent_password(password):
             flash(
                 f"You cannot reuse a password from the last {PASSWORD_REUSE_FORBIDDEN_DAYS} days. "
@@ -376,15 +399,17 @@ def handle_reset_password():
         user.archive_password_hash_before_change()
         user.set_password(password)
         user.clear_reset_otp()
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            log.exception("Reset password commit error: %s", e)
-            flash("Something went wrong. Please try again.", "danger")
-            return render_template("reset_password.html")
-        flash("Password reset successful. You may now log in.", "success")
-        return redirect(url_for("auth.login"))
+        db.session.commit()
+    except (OperationalError, ProgrammingError) as e:
+        db.session.rollback()
+        log.exception("Reset password database error: %s", e)
+        flash("Something went wrong. Please try again.", "danger")
+        return render_template("reset_password.html")
+    except Exception as e:
+        db.session.rollback()
+        log.exception("Reset password error: %s", e)
+        flash("Something went wrong. Please try again.", "danger")
+        return render_template("reset_password.html")
 
-    flash("Invalid or expired reset code.", "danger")
-    return render_template("reset_password.html")
+    flash("Password reset successful. You may now log in.", "success")
+    return redirect(url_for("auth.login"))
