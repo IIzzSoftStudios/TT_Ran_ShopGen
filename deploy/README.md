@@ -38,6 +38,54 @@ Redis-dependent code path.
 it via the build trigger UI or in `substitutions:` before merging to the
 `deploy` branch.
 
+## Cloud Run runtime service account (migrate job + web)
+
+Cloud Build runs `gcloud run jobs create/update` and `gcloud run deploy` **without**
+`--service-account`, so revisions use the **default Compute Engine service account**:
+
+`PROJECT_NUMBER-compute@developer.gserviceaccount.com`
+
+That identity must read any secret mounted with `--set-secrets` and open the
+Cloud SQL Auth Proxy socket. If either is missing, you will see errors such as:
+
+`Permission denied on secret ... for Revision service account ...-compute@developer.gserviceaccount.com`
+
+### Fix (Alpha, project-wide)
+
+From a workstation with Owner / Security Admin on the project:
+
+```bash
+export PROJECT_ID=econo-forge
+export RUNTIME_SA="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')-compute@developer.gserviceaccount.com"
+bash deploy/grant-runtime-sa-iam.sh
+```
+
+Or use the Console: **IAM & Admin → IAM → Grant access** → principal = that
+service account → add **Secret Manager Secret Accessor** and **Cloud SQL Client**.
+
+Secrets referenced today (grant accessor on each secret, or use project-level
+binding above): `SECRET_KEY`, `SQLALCHEMY_DATABASE_URI`, `REDIS_URL`,
+`MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`, `MAIL_SERVER` (see
+[`cloudbuild.yaml`](../cloudbuild.yaml) migrate and deploy steps).
+
+### Per-secret alternative (tighter blast radius)
+
+**Secret Manager →** each secret → **Permissions** → grant **Secret Manager Secret
+Accessor** to `PROJECT_NUMBER-compute@developer.gserviceaccount.com`.
+
+### Verification
+
+After IAM propagates (~1 minute), re-run the Cloud Build trigger. The migrate
+step should create or update `trsg-web-migrate` and the job execution should
+proceed past secret mounting (next failures, if any, are app or DB URI issues).
+
+### Optional hardening
+
+Create a dedicated service account (e.g. `trsg-cloud-run@PROJECT_ID.iam.gserviceaccount.com`),
+grant it only **Secret Accessor** + **Cloud SQL Client**, then add
+`--service-account=...` to the `gcloud run jobs` and `gcloud run deploy` commands
+in `cloudbuild.yaml` (and document the substitution here).
+
 ### Connector throughput (and when to pivot to Memorystore)
 
 Serverless VPC Access connectors have a fixed bandwidth ceiling per machine
