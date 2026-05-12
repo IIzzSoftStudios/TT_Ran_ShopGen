@@ -15,7 +15,7 @@
 #   _REGION              GCP region (must match Cloud SQL, GCE worker, VPC connector).
 #   _AR_REPO             Artifact Registry repo name.
 #   _SERVICE             Cloud Run service name for the web tier.
-#   _CLOUD_SQL_INSTANCE  PROJECT:REGION:INSTANCE for Cloud Run's --add-cloudsql-instances.
+#   _CLOUD_SQL_INSTANCE  PROJECT:REGION:INSTANCE for --set-cloudsql-instances (Jobs + deploy).
 #   _VPC_CONNECTOR       Serverless VPC Access connector name (mandatory for
 #                        private Redis on GCE; leave empty only if Direct VPC
 #                        egress is configured separately or Redis is publicly
@@ -191,7 +191,7 @@ steps:
           --concurrency ${_CONCURRENCY} \
           --cpu-throttling \
           --timeout ${_TIMEOUT} \
-          --add-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
+          --set-cloudsql-instances ${_CLOUD_SQL_INSTANCE} \
           --set-env-vars FLASK_ENV=production,SQLALCHEMY_ECHO=false,LOG_LEVEL=INFO \
           --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest,REDIS_URL=REDIS_URL:latest,MAIL_USERNAME=MAIL_USERNAME:latest,MAIL_PASSWORD=MAIL_PASSWORD:latest,MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER:latest,MAIL_SERVER=MAIL_SERVER:latest \
           $$VPC_FLAGS
