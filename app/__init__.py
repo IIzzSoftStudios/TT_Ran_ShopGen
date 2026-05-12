@@ -106,18 +106,23 @@ def _resolve_required_config() -> tuple[str, str | None]:
     backend all read it; a missing value would silently fall through to the
     ``redis://localhost:6379/0`` default, which on Cloud Run resolves to the
     container's own loopback (no Redis listening) and breaks every sim path.
+
+    When ``TRSG_CLOUD_RUN_MIGRATE`` is true (Cloud Build migrate job), Redis is
+    not required: sessions use filesystem storage and the limiter uses memory.
     """
     flask_env = os.getenv("FLASK_ENV", "development").lower()
     secret_key = os.getenv("SECRET_KEY")
     db_uri = os.getenv("SQLALCHEMY_DATABASE_URI")
     redis_url = os.getenv("REDIS_URL")
+    migrate_job = os.getenv("TRSG_CLOUD_RUN_MIGRATE", "").lower() in ("1", "true", "yes")
 
     if flask_env == "production":
-        required = (
+        required = [
             ("SECRET_KEY", secret_key),
             ("SQLALCHEMY_DATABASE_URI", db_uri),
-            ("REDIS_URL", redis_url),
-        )
+        ]
+        if not migrate_job:
+            required.append(("REDIS_URL", redis_url))
         missing = [name for name, value in required if not value]
         if missing:
             sys.stderr.write(f"CRITICAL: missing required env in production: {missing}\n")
@@ -187,15 +192,23 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ECHO"] = os.getenv("SQLALCHEMY_ECHO", "false").lower() in ("1", "true", "yes")
 
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    app.config["SESSION_TYPE"] = "redis"
-    app.config["SESSION_REDIS"] = redis.from_url(
-        redis_url,
-        health_check_interval=30,
-        socket_keepalive=True,
-        socket_connect_timeout=2,
-        socket_timeout=2,
-    )
+    migrate_job = os.getenv("TRSG_CLOUD_RUN_MIGRATE", "").lower() in ("1", "true", "yes")
+    if migrate_job:
+        # One-shot Cloud Run Job: no VPC Redis required; only DB + ORM bootstrap run.
+        _session_dir = "/tmp/.flask_session_migrate"
+        os.makedirs(_session_dir, exist_ok=True)
+        app.config["SESSION_TYPE"] = "filesystem"
+        app.config["SESSION_FILE_DIR"] = _session_dir
+    else:
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        app.config["SESSION_TYPE"] = "redis"
+        app.config["SESSION_REDIS"] = redis.from_url(
+            redis_url,
+            health_check_interval=30,
+            socket_keepalive=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
     app.config["SESSION_PERMANENT"] = False
     app.config["SESSION_USE_SIGNER"] = True
     # Secure cookies are not stored/sent over plain HTTP; default off in dev so

@@ -61,7 +61,12 @@ def _resolve_limiter_storage_uri() -> str:
     as a critical misconfiguration: per-process counters across multiple
     Cloud Run instances make every documented limit trivially bypassable
     (TDoS exposure on DB-heavy routes).
+
+    ``TRSG_CLOUD_RUN_MIGRATE`` (Cloud Build one-shot job) intentionally uses
+    in-memory limiter storage — no HTTP traffic and no cross-instance limits.
     """
+    if os.getenv("TRSG_CLOUD_RUN_MIGRATE", "").lower() in ("1", "true", "yes"):
+        return "memory://"
     explicit = os.getenv("LIMITER_STORAGE_URI")
     if explicit:
         return explicit

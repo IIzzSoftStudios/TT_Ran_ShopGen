@@ -11,8 +11,8 @@
 #      IMPORTANT: `gcloud run jobs create/update` require `--set-cloudsql-instances`
 #      (not `--add-cloudsql-instances`). If Cloud Build logs still show `--add-`,
 #      the trigger built an old commit — push this file to your trigger branch.
-#      Migrate job mounts REDIS_URL and uses _VPC_CONNECTOR like deploy so the
-#      Flask app factory can start against private Redis while running DDL.
+#      Migrate job sets TRSG_CLOUD_RUN_MIGRATE so the app factory skips Redis
+#      (filesystem sessions + in-memory limiter); only DB secrets are mounted.
 #   5. Deploy the new image (by digest) as a fresh revision of the Cloud Run
 #      web service with explicit memory / cpu / max-instances.
 #
@@ -144,42 +144,51 @@ steps:
         # The chain runs via `bash -c "...A && B..."`. gcloud's `--args`
         # accepts the `^DELIM^` form so the embedded `&&` is not split by the
         # default `,` separator and is passed through to bash verbatim.
-        # REDIS_URL + VPC mirror the web deploy: production app factory fails fast
-        # without REDIS_URL; private Redis requires the same connector as deploy.
+        # TRSG_CLOUD_RUN_MIGRATE: app/__init__.py skips Redis + relaxes REDIS_URL
+        # requirement so this job only needs Cloud SQL + DB/secret_key secrets.
         MIGRATE_CMD='python scripts/init_schema.py && python scripts/apply_sql_migrations.py'
-        VPC_FLAGS=""
-        if [ -n "${_VPC_CONNECTOR}" ]; then
-          VPC_FLAGS="--vpc-connector=${_VPC_CONNECTOR} --vpc-egress=private-ranges-only"
-        else
-          echo "WARNING: _VPC_CONNECTOR is empty. Migrate job may be unable to reach private Redis."
-        fi
-        MIGRATE_SECRETS="SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest,REDIS_URL=REDIS_URL:latest"
+        MIGRATE_SECRETS="SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest"
+        MIGRATE_ENV="FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO,TRSG_CLOUD_RUN_MIGRATE=true"
         if gcloud run jobs describe "$$JOB_NAME" --region=${_REGION} >/dev/null 2>&1; then
           gcloud run jobs update "$$JOB_NAME" \
             --image "$$IMAGE_REF" \
             --region ${_REGION} \
             --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE} \
-            --set-env-vars FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO \
+            --set-env-vars "$$MIGRATE_ENV" \
             --set-secrets "$$MIGRATE_SECRETS" \
             --command bash \
             --args="^@^-c@$$MIGRATE_CMD" \
             --task-timeout 600s \
-            --max-retries 0 \
-            $$VPC_FLAGS
+            --max-retries 0
         else
           gcloud run jobs create "$$JOB_NAME" \
             --image "$$IMAGE_REF" \
             --region ${_REGION} \
             --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE} \
-            --set-env-vars FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO \
+            --set-env-vars "$$MIGRATE_ENV" \
             --set-secrets "$$MIGRATE_SECRETS" \
             --command bash \
             --args="^@^-c@$$MIGRATE_CMD" \
             --task-timeout 600s \
-            --max-retries 0 \
-            $$VPC_FLAGS
+            --max-retries 0
         fi
+        set +e
         gcloud run jobs execute "$$JOB_NAME" --region ${_REGION} --wait
+        EC=$$?
+        set -e
+        if [ "$$EC" -ne 0 ]; then
+          echo "migrate: job execute failed (exit $$EC). Recent logs for latest execution:"
+          EXEC_NAME=$$(gcloud run jobs executions list --job="$$JOB_NAME" --region=${_REGION} --limit=1 --format='value(metadata.name)' 2>/dev/null || true)
+          if [ -n "$$EXEC_NAME" ]; then
+            gcloud logging read \
+              "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"$$JOB_NAME\" AND labels.\"run.googleapis.com/execution_name\"=\"$$EXEC_NAME\"" \
+              --project="$PROJECT_ID" \
+              --limit=50 \
+              --format='table(timestamp,severity,textPayload)' \
+              --freshness=24h || true
+          fi
+          exit "$$EC"
+        fi
 
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk

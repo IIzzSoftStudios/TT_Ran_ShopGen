@@ -17,6 +17,9 @@ Usage (Cloud SQL via Auth Proxy or direct connection):
 
 The app factory in `app/__init__.py` requires SECRET_KEY in production. Set
 FLASK_ENV=development (or supply SECRET_KEY) when running this script.
+
+Cloud Build migrate job sets ``TRSG_CLOUD_RUN_MIGRATE=true`` so production
+startup skips Redis (filesystem sessions) and does not require ``REDIS_URL``.
 """
 
 from __future__ import annotations
