@@ -11,6 +11,8 @@
 #      IMPORTANT: `gcloud run jobs create/update` require `--set-cloudsql-instances`
 #      (not `--add-cloudsql-instances`). If Cloud Build logs still show `--add-`,
 #      the trigger built an old commit — push this file to your trigger branch.
+#      Migrate job mounts REDIS_URL and uses _VPC_CONNECTOR like deploy so the
+#      Flask app factory can start against private Redis while running DDL.
 #   5. Deploy the new image (by digest) as a fresh revision of the Cloud Run
 #      web service with explicit memory / cpu / max-instances.
 #
@@ -142,29 +144,40 @@ steps:
         # The chain runs via `bash -c "...A && B..."`. gcloud's `--args`
         # accepts the `^DELIM^` form so the embedded `&&` is not split by the
         # default `,` separator and is passed through to bash verbatim.
+        # REDIS_URL + VPC mirror the web deploy: production app factory fails fast
+        # without REDIS_URL; private Redis requires the same connector as deploy.
         MIGRATE_CMD='python scripts/init_schema.py && python scripts/apply_sql_migrations.py'
+        VPC_FLAGS=""
+        if [ -n "${_VPC_CONNECTOR}" ]; then
+          VPC_FLAGS="--vpc-connector=${_VPC_CONNECTOR} --vpc-egress=private-ranges-only"
+        else
+          echo "WARNING: _VPC_CONNECTOR is empty. Migrate job may be unable to reach private Redis."
+        fi
+        MIGRATE_SECRETS="SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest,REDIS_URL=REDIS_URL:latest"
         if gcloud run jobs describe "$$JOB_NAME" --region=${_REGION} >/dev/null 2>&1; then
           gcloud run jobs update "$$JOB_NAME" \
             --image "$$IMAGE_REF" \
             --region ${_REGION} \
             --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE} \
             --set-env-vars FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO \
-            --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest \
+            --set-secrets "$$MIGRATE_SECRETS" \
             --command bash \
             --args="^@^-c@$$MIGRATE_CMD" \
             --task-timeout 600s \
-            --max-retries 0
+            --max-retries 0 \
+            $$VPC_FLAGS
         else
           gcloud run jobs create "$$JOB_NAME" \
             --image "$$IMAGE_REF" \
             --region ${_REGION} \
             --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE} \
             --set-env-vars FLASK_ENV=production,RUN_BOOTSTRAP_IN_PROD=true,LOG_LEVEL=INFO \
-            --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest \
+            --set-secrets "$$MIGRATE_SECRETS" \
             --command bash \
             --args="^@^-c@$$MIGRATE_CMD" \
             --task-timeout 600s \
-            --max-retries 0
+            --max-retries 0 \
+            $$VPC_FLAGS
         fi
         gcloud run jobs execute "$$JOB_NAME" --region ${_REGION} --wait
 
