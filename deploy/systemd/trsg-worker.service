@@ -10,9 +10,10 @@ Restart=on-failure
 RestartSec=5
 TimeoutStartSec=60
 
-# Defaults for Celery CLI flags (systemd expands ${VAR} here; bash-style
-# ${VAR:-default} is NOT supported — use Environment= below or override.conf).
-Environment=CELERY_CONCURRENCY=1 CELERY_MAX_TASKS_PER_CHILD=50 CELERY_TIME_LIMIT=7200 CELERY_SOFT_TIME_LIMIT=6900
+# Celery worker flags: use literals here. systemd often does not expand
+# ${CELERY_CONCURRENCY} inside ExecStart= the way a shell would; empty expansion
+# breaks Celery (--concurrency ''). To tune, edit this file or add a drop-in
+# that overrides ExecStart= entirely.
 
 # Image pinning policy:
 #   TRSG_IMAGE MUST be a digest (set in override.conf), e.g.
@@ -24,17 +25,9 @@ Environment=CELERY_CONCURRENCY=1 CELERY_MAX_TASKS_PER_CHILD=50 CELERY_TIME_LIMIT
 ExecStartPre=-/usr/bin/docker rm -f trsg-worker
 ExecStartPre=/usr/bin/docker pull ${TRSG_IMAGE}
 
-# Concurrency / timeouts are env-tunable so Alpha can ramp from --concurrency=1
-# upward (target ~10) without touching the service file:
-#   CELERY_CONCURRENCY      Worker processes per VM (default 1 — start small,
-#                           ramp while watching RAM and Cloud SQL connections).
-#   CELERY_TIME_LIMIT       Hard kill (s). Default 7200 (2h) — a 365-tick Year
-#                           must finish well under this; profile and tune.
-#   CELERY_SOFT_TIME_LIMIT  Soft (raises SoftTimeLimitExceeded). Default 6900.
-#   CELERY_MAX_TASKS_PER_CHILD  Process recycle threshold (default 50) bounds
-#                           memory growth from long-lived workers.
-# TRSG_ROLE=worker tags the connection pool sizing in app/__init__.py so a
-# worker holding DB connections per task does not starve the Cloud Run web tier.
+# Defaults: concurrency 1 (raise after profiling RAM + Cloud SQL connections).
+# time limits: 365-tick Year must finish inside hard limit (default 2h / soft 1h55m).
+# TRSG_ROLE=worker tags connection pool sizing in app/__init__.py.
 ExecStart=/usr/bin/docker run --rm --name trsg-worker \
   --network host \
   --env-file /etc/trsg/worker.env \
@@ -43,17 +36,17 @@ ExecStart=/usr/bin/docker run --rm --name trsg-worker \
   ${TRSG_IMAGE} \
   celery -A celery_app.celery worker \
     --loglevel=info \
-    --concurrency=${CELERY_CONCURRENCY} \
-    --max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD} \
-    --time-limit=${CELERY_TIME_LIMIT} \
-    --soft-time-limit=${CELERY_SOFT_TIME_LIMIT}
+    --concurrency=1 \
+    --max-tasks-per-child=50 \
+    --time-limit=7200 \
+    --soft-time-limit=6900
 ExecStop=/usr/bin/docker stop -t 30 trsg-worker
 
 # /etc/trsg/worker.env supplies REDIS_URL (typically redis://127.0.0.1:6379/0
 # when Redis is local on the same VM), SQLALCHEMY_DATABASE_URI pointing at
 # the Cloud SQL Auth Proxy on 127.0.0.1:5432, SECRET_KEY, FLASK_ENV, and
-# the CELERY_* and DB_* tunables above. TRSG_IMAGE (a sha256 digest) is set
-# in /etc/systemd/system/trsg-worker.service.d/override.conf so version bumps
+# optional DB_* for the app. TRSG_IMAGE (a sha256 digest) is set in
+# /etc/systemd/system/trsg-worker.service.d/override.conf so version bumps
 # are a single `systemctl daemon-reload && systemctl restart trsg-worker` away.
 
 [Install]
