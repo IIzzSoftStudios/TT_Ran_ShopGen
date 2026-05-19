@@ -189,6 +189,87 @@ def warn_if_password_history_compat_applied(patched_any: bool) -> None:
         )
 
 
+def ensure_user_avatar_column() -> bool:
+    """Add account-menu avatar timestamp column when missing."""
+    if db.engine.dialect.name != "postgresql":
+        return False
+    if not _regclass_exists("user"):
+        return False
+    if _column_exists("user", "avatar_updated_at"):
+        return False
+    db.session.execute(
+        text(
+            'ALTER TABLE "user" ADD COLUMN avatar_updated_at '
+            "TIMESTAMP WITHOUT TIME ZONE"
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def warn_if_user_avatar_column_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "user.avatar_updated_at added via compat bootstrap. "
+            "Run sql/migrations/005_user_avatar.sql in controlled deploys."
+        )
+
+
+def ensure_user_submissions_table() -> bool:
+    """Create user_submissions when missing (account menu feedback)."""
+    if db.engine.dialect.name != "postgresql":
+        return False
+    if not _regclass_exists("user"):
+        return False
+    if _regclass_exists("user_submissions"):
+        return False
+    db.session.execute(
+        text(
+            """
+            CREATE TABLE user_submissions (
+                id SERIAL PRIMARY KEY,
+                kind VARCHAR(20) NOT NULL,
+                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                username_snapshot VARCHAR(100) NOT NULL,
+                submitted_session_mode VARCHAR(20) NOT NULL,
+                account_role VARCHAR(50) NOT NULL,
+                category VARCHAR(50) NOT NULL,
+                title VARCHAR(120),
+                body TEXT NOT NULL,
+                extra JSONB NOT NULL DEFAULT '{}'::jsonb,
+                page_url VARCHAR(500) NOT NULL,
+                campaign_id INTEGER,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                    DEFAULT (NOW() AT TIME ZONE 'utc')
+            )
+            """
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_user_submissions_kind_status "
+            "ON user_submissions(kind, status)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_user_submissions_created_at "
+            "ON user_submissions(created_at DESC)"
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def warn_if_user_submissions_table_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "user_submissions table created via compat bootstrap. "
+            "Run sql/migrations/004_user_submissions.sql in controlled deploys."
+        )
+
+
 def ensure_player_npc_columns() -> bool:
     """Add is_npc and allow NULL on player user FK columns for GM-only NPC rows.
 
@@ -479,6 +560,112 @@ def warn_if_simulation_state_clicks_applied(patched_any: bool) -> None:
         log.warning(
             "simulation_state sim_clicks_* columns were added by schema compat. "
             "Align with TTRSG_TableCreation.sql in production."
+        )
+
+
+def _sqlite_table_exists(table_name: str) -> bool:
+    return (
+        db.session.execute(
+            text(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:n"
+            ),
+            {"n": table_name},
+        ).first()
+        is not None
+    )
+
+
+def _sqlite_column_exists(table_name: str, column_name: str) -> bool:
+    if not _sqlite_table_exists(table_name):
+        return False
+    rows = db.session.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+    return any(row[1] == column_name for row in rows)
+
+
+def ensure_global_market_baseline_stock_column() -> bool:
+    """Add ``baseline_avg_stock`` on ``global_markets`` and ``last_market_run`` on ``simulation_state``.
+
+    Runs a best-effort backfill of baseline stock from current inventory averages for
+    rows where baseline is NULL or zero. Pre-existing worlds may have slightly stale baselines.
+    """
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        patched_any = False
+        if _sqlite_table_exists("simulation_state") and not _sqlite_column_exists(
+            "simulation_state", "last_market_run"
+        ):
+            patched_any = True
+            db.session.execute(
+                text("ALTER TABLE simulation_state ADD COLUMN last_market_run JSON")
+            )
+        if patched_any:
+            db.session.commit()
+        return patched_any
+
+    if dialect != "postgresql":
+        return False
+
+    patched_any = False
+
+    if _regclass_exists("global_markets") and not _column_exists(
+        "global_markets", "baseline_avg_stock"
+    ):
+        patched_any = True
+        db.session.execute(
+            text(
+                "ALTER TABLE global_markets "
+                "ADD COLUMN baseline_avg_stock DOUBLE PRECISION"
+            )
+        )
+
+    if _regclass_exists("simulation_state") and not _column_exists(
+        "simulation_state", "last_market_run"
+    ):
+        patched_any = True
+        db.session.execute(
+            text(
+                "ALTER TABLE simulation_state ADD COLUMN last_market_run JSONB"
+            )
+        )
+
+    if patched_any:
+        db.session.commit()
+
+    if _regclass_exists("global_markets") and _column_exists(
+        "global_markets", "baseline_avg_stock"
+    ):
+        try:
+            db.session.execute(
+                text(
+                    """
+                    UPDATE global_markets gm
+                    SET baseline_avg_stock = sub.avg_stock
+                    FROM (
+                        SELECT s.campaign_id, si.item_id,
+                               COALESCE(AVG(si.stock), 0.0) AS avg_stock
+                        FROM shop_inventory si
+                        JOIN shops s ON si.shop_id = s.shop_id
+                        GROUP BY s.campaign_id, si.item_id
+                    ) sub
+                    WHERE gm.campaign_id = sub.campaign_id
+                      AND gm.item_id = sub.item_id
+                      AND (gm.baseline_avg_stock IS NULL OR gm.baseline_avg_stock = 0.0)
+                    """
+                )
+            )
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            log.error("Failed to backfill baseline_avg_stock on global_markets: %s", exc)
+
+    return patched_any
+
+
+def warn_if_global_market_baseline_stock_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "global_markets.baseline_avg_stock and/or simulation_state.last_market_run "
+            "were added by schema compat. Align with TTRSG_TableCreation.sql in production."
         )
 
 
@@ -1460,4 +1647,36 @@ def warn_if_region_campaign_only_applied(applied: bool) -> None:
             "column/constraints removed, FK CASCADE confirmed, "
             "uq_region_campaign_name in place. World generation should now "
             "succeed for fresh campaigns."
+        )
+
+
+def ensure_shop_next_restock_day_column() -> bool:
+    """Add shops.next_restock_day when missing (dev / pre-migration DBs)."""
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        if not _sqlite_table_exists("shops"):
+            return False
+        if _sqlite_column_exists("shops", "next_restock_day"):
+            return False
+        db.session.execute(text("ALTER TABLE shops ADD COLUMN next_restock_day INTEGER"))
+        db.session.commit()
+        return True
+
+    if dialect != "postgresql":
+        return False
+
+    if not _regclass_exists("shops"):
+        return False
+    if _column_exists("shops", "next_restock_day"):
+        return False
+    db.session.execute(text("ALTER TABLE shops ADD COLUMN next_restock_day INTEGER"))
+    db.session.commit()
+    return True
+
+
+def warn_if_shop_next_restock_day_applied(applied: bool) -> None:
+    if applied:
+        log.warning(
+            "shops.next_restock_day added via schema_compat; "
+            "run sql/shops_next_restock_day.sql in production."
         )

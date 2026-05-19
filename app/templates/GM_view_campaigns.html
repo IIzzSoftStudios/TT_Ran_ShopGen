@@ -225,7 +225,7 @@
                                                class="button switch-button"
                                                title="Switch session to this campaign">Switch to</a>
                                         {% endif %}
-                                        <form method="POST" action="{{ url_for('gm.delete_campaign', campaign_id=info.campaign.id) }}" style="display:inline;" onsubmit="return confirm('Delete this campaign? This cannot be undone.');">
+                                        <form method="POST" action="{{ url_for('gm.delete_campaign', campaign_id=info.campaign.id) }}" style="display:inline;" data-confirm-delete="Are you sure you want to delete the campaign &quot;{{ info.campaign.name|e }}&quot;? This cannot be undone.">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" class="button delete-button">Delete</button>
                                         </form>
@@ -254,6 +254,7 @@
             </div>
         {% endif %}
     </div>
+    {% include 'partials/confirm_delete_script.html' %}
 </body>
 </html>
 

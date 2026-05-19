@@ -95,6 +95,7 @@ class Shop(db.Model):
         index=True,
     )
     preferred_region = db.Column(db.String(100), nullable=True)  # Preferred region for sourcing
+    next_restock_day = db.Column(db.Integer, nullable=True)
 
     # Many-to-Many relationship with City
     cities = db.relationship("City", secondary=shop_cities, back_populates="shops")
@@ -226,6 +227,7 @@ class GlobalMarket(db.Model):
     total_supply = db.Column(db.Integer, default=0)
     total_demand = db.Column(db.Integer, default=0)
     average_price = db.Column(db.Float, nullable=False)
+    baseline_avg_stock = db.Column(db.Float, nullable=True)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
     campaign_id = db.Column(
         db.Integer,
@@ -305,6 +307,7 @@ class User(db.Model, UserMixin):
     reset_token_expires = db.Column(db.DateTime, nullable=True)
     reset_otp_hash = db.Column(db.String(128), nullable=True)
     reset_otp_expires = db.Column(db.DateTime, nullable=True)
+    avatar_updated_at = db.Column(db.DateTime, nullable=True)
 
     # For GMs: Their players
     players = db.relationship("Player", backref="user", foreign_keys="Player.user_id")
@@ -477,6 +480,37 @@ class Campaign(db.Model):
             "dow": day_of_week,
             "total": total_days,
         }
+
+
+class UserSubmission(db.Model):
+    """Account-menu feedback, bug reports, and suggestions."""
+
+    __tablename__ = "user_submissions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(20), nullable=False, index=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    username_snapshot = db.Column(db.String(100), nullable=False)
+    submitted_session_mode = db.Column(db.String(20), nullable=False)
+    account_role = db.Column(db.String(50), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    title = db.Column(db.String(120), nullable=True)
+    body = db.Column(db.Text, nullable=False)
+    extra = db.Column(_json_with_jsonb(), nullable=False, default=dict)
+    page_url = db.Column(db.String(500), nullable=False)
+    campaign_id = db.Column(db.Integer, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="pending", index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = db.relationship(
+        "User",
+        backref=db.backref("submissions", lazy="dynamic"),
+    )
 
 
 class AccessRequest(db.Model):
@@ -696,6 +730,7 @@ class SimulationState(db.Model):
     sim_clicks_month = db.Column(db.Integer, nullable=False, default=0)
     sim_clicks_year = db.Column(db.Integer, nullable=False, default=0)
     sim_clicks_pause = db.Column(db.Integer, nullable=False, default=0)
+    last_market_run = db.Column(db.JSON, nullable=True)
 
     campaign = db.relationship(
         "Campaign",

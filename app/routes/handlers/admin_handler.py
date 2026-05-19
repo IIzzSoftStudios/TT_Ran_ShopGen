@@ -16,6 +16,7 @@ from flask import (
     current_app,
     Response,
     send_file,
+    abort,
 )
 from flask_login import current_user
 from sqlalchemy.orm import joinedload
@@ -27,7 +28,9 @@ from app.models import (
     GMProfile,
     RegistrationKey,
     User,
+    UserSubmission,
 )
+from app.constants.submission_categories import VALID_STATUSES
 from app.services.key_generator import create_bulk_keys, generate_secure_code
 
 audit_logger = logging.getLogger("admin_audit")
@@ -78,7 +81,7 @@ def _gm_simulation_usage_serialized_rows() -> list[dict]:
     timestamp for the UI to render a "deleted" badge.
     """
     users = (
-        User.query.filter_by(role="GM")
+        User.query.filter(User.role.in_(["GM", "Both"]))
         .options(
             joinedload(User.gm_profile).joinedload(GMProfile.campaigns),
             joinedload(User.registration_key_used),
@@ -302,6 +305,18 @@ def handle_gm_simulation_usage_export():
     )
 
 
+def _submission_sort_key(submission: UserSubmission):
+    priority = {"pending": 0, "reviewed": 1, "closed": 2}.get(submission.status, 3)
+    created = submission.created_at or datetime.min
+    return (priority, -created.timestamp())
+
+
+def _load_submissions_by_kind(kind: str):
+    rows = UserSubmission.query.filter_by(kind=kind).all()
+    rows.sort(key=_submission_sort_key)
+    return rows
+
+
 def handle_admin_keys():
     keys = (
         RegistrationKey.query.filter_by(is_admin_test_key=False)
@@ -357,7 +372,45 @@ def handle_admin_keys():
         all_phase_slugs=all_phase_slugs,
         show_gm_usage_tab=show_gm_usage_tab,
         gm_simulation_rows=gm_simulation_rows,
+        bug_reports=_load_submissions_by_kind("bug_report"),
+        feedback_items=_load_submissions_by_kind("feedback"),
+        suggestions=_load_submissions_by_kind("suggestion"),
     )
+
+
+def handle_submission_action(submission_id: int, action: str):
+    if getattr(current_user, "role", None) != "vault_keeper":
+        abort(404)
+    submission = UserSubmission.query.get_or_404(submission_id)
+    if action == "review":
+        if submission.status != "pending":
+            return (
+                jsonify(
+                    {
+                        "error": (
+                            "Only pending submissions can be marked reviewed."
+                        )
+                    }
+                ),
+                409,
+            )
+        submission.status = "reviewed"
+    elif action == "close":
+        if submission.status == "closed":
+            return jsonify({"error": "Submission is already archived."}), 409
+        submission.status = "closed"
+    else:
+        return jsonify({"error": "Unknown action."}), 400
+    if submission.status not in VALID_STATUSES:
+        return jsonify({"error": "Invalid status."}), 400
+    db.session.commit()
+    audit_logger.info(
+        "Submission %s | id=%s | admin=%s",
+        action,
+        submission_id,
+        current_user.id,
+    )
+    return jsonify({"success": True, "new_status": submission.status})
 
 
 def _validate_phase_slug(selected: str | None) -> str | None:

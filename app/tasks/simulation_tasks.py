@@ -53,6 +53,13 @@ from app.services.sim_metrics import (
     record_job_rejected,
     record_job_started,
 )
+from app.models import Campaign
+from app.services.market_overview import (
+    aggregate_item_metrics,
+    parse_start_metrics_json,
+    persist_last_market_run_snapshot,
+    start_metrics_json,
+)
 from app.services.simulation import SimulationEngine
 from app.utils.safe_errors import public_error_message
 
@@ -163,7 +170,24 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
         from app import app as flask_app
 
         with flask_app.app_context():
+            campaign_row = Campaign.query.get(int(campaign_id))
+            game_day_start = (
+                int(campaign_row.current_game_day)
+                if campaign_row and campaign_row.current_game_day is not None
+                else 0
+            )
+            start_metrics = parse_start_metrics_json(
+                redis_client.hget(job_key, "start_metrics_json")
+            )
+            if start_metrics is None:
+                start_metrics = aggregate_item_metrics(
+                    int(campaign_id), in_stock_only=True
+                )
+                _safe_hset({"start_metrics_json": start_metrics_json(start_metrics)})
+
             engine = SimulationEngine()
+            units_sold_total = 0
+            shops_restocked_total = 0
             try:
                 for i in range(1, ticks_total + 1):
                     # Refresh the lock between ticks so a multi-hour batch
@@ -179,6 +203,8 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
                     stats = engine.run_tick(
                         campaign_id=int(campaign_id), flush_only=True
                     )
+                    units_sold_total += int(stats.get("units_sold") or 0)
+                    shops_restocked_total += int(stats.get("shops_restocked") or 0)
                     final_game_day = stats.get("current_game_day")
 
                     if not _safe_hset(
@@ -205,18 +231,71 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
                 db.session.rollback()
                 raise
 
+            game_day_end = final_game_day
+            if game_day_end is None and campaign_row is not None:
+                db.session.refresh(campaign_row)
+                game_day_end = campaign_row.current_game_day
+            try:
+                end_metrics = aggregate_item_metrics(
+                    int(campaign_id), in_stock_only=True
+                )
+                persist_last_market_run_snapshot(
+                    int(campaign_id),
+                    period,
+                    game_day_start,
+                    int(game_day_end or game_day_start),
+                    start_metrics,
+                    end_metrics,
+                )
+            except Exception as snap_exc:
+                # Ticks are already committed; rollback only clears the failed
+                # snapshot write. Do not report SUCCESS — the UI must surface
+                # that market deltas were not recorded for this run.
+                db.session.rollback()
+                logger.exception(
+                    "Failed to persist last_market_run snapshot for campaign %s",
+                    campaign_id,
+                )
+                snap_msg = public_error_message(
+                    snap_exc,
+                    audience="redis_job",
+                ) or (
+                    "Simulation finished but the market overview snapshot could "
+                    "not be saved. The world was updated; check server logs."
+                )
+                _safe_hset(
+                    {
+                        "status": SimJobStatus.ERROR,
+                        "ticks_done": ticks_total,
+                        "ticks_total": ticks_total,
+                        "current_game_day": final_game_day,
+                        "error": snap_msg,
+                        "world_changed": "true",
+                    }
+                )
+                terminal_status = SimJobStatus.ERROR
+                return {
+                    "status": SimJobStatus.ERROR,
+                    "error": snap_msg,
+                    "current_game_day": final_game_day,
+                }
+
             _safe_hset(
                 {
                     "status": SimJobStatus.SUCCESS,
                     "ticks_done": ticks_total,
                     "ticks_total": ticks_total,
                     "current_game_day": final_game_day,
+                    "units_sold_total": units_sold_total,
+                    "shops_restocked_total": shops_restocked_total,
                 }
             )
             terminal_status = SimJobStatus.SUCCESS
             return {
                 "status": SimJobStatus.SUCCESS,
                 "current_game_day": final_game_day,
+                "units_sold_total": units_sold_total,
+                "shops_restocked_total": shops_restocked_total,
             }
     except _LockStolen as exc:
         logger.error("Simulation lock lost mid-batch: %s", exc)

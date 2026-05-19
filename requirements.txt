@@ -23,6 +23,7 @@ flask-limiter>=3.5
 flask-session>=0.5
 
 # App dependencies
+Pillow>=10.0
 Faker>=20.0
 numpy>=1.24
 PyYAML>=6.0

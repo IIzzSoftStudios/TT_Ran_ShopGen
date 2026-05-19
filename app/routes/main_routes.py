@@ -203,6 +203,12 @@ def home():
     if "campaign_id" not in session:
         return redirect(url_for("main.campaigns"))
 
+    mode = session.get("session_mode")
+    if mode == "gm":
+        return redirect(url_for("gm.home"))
+    if mode == "player":
+        return redirect(url_for("player.player_home"))
+    # Legacy sessions before session_mode existed
     if current_user.role == "GM":
         return redirect(url_for("gm.home"))
     return redirect(url_for("player.player_home"))

@@ -15,6 +15,7 @@ from app.services.simulation_state_helpers import get_simulation_state_for_campa
 from app.routes.handlers.gm_helpers import get_current_gm_profile, require_active_campaign
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
 from app.services.distributed_lock import get_redis_client
+from app.services.market_overview import capture_start_metrics_for_job
 from app.tasks.simulation_tasks import SimJobStatus, run_period_task
 from app.utils.safe_errors import public_error_message, redact_sim_job_error_for_client
 
@@ -129,15 +130,14 @@ def home():
         return redirect_response
     _debug_request("GET", "/gm/")
 
-    campaign, redirect_response = require_active_campaign(gm_profile)
+    _campaign, redirect_response = require_active_campaign(gm_profile)
     if redirect_response is not None:
         return redirect_response
 
-    shops_panel = get_shop_city_panel_context(gm_profile)
+    shops_panel = get_shop_city_panel_context(gm_profile, include_nav_toggles=True)
     return render_template(
         "GM_Home.html",
         gm_profile=gm_profile,
-        campaign=campaign,
         current_speed="pause",
         **shops_panel,
     )
@@ -256,12 +256,11 @@ def run_period_stream():
             409,
         )
 
-    task = run_period_task.delay(int(campaign_id), period)
-
     campaign = Campaign.query.get(campaign_id)
-    # Seed the job key so the polling UI sees an entry before the worker
-    # picks the task up. The task overwrites this with its own queued/running
-    # frames and an authoritative current_game_day.
+    start_metrics_json = capture_start_metrics_for_job(int(campaign_id))
+    task = run_period_task.delay(int(campaign_id), period)
+    # Seed the job key (with pre-tick metrics) before the worker can read an
+    # empty hash. The task overwrites status/ticks with its own frames.
     redis_client.hset(
         f"sim_job:{task.id}",
         mapping={
@@ -271,6 +270,7 @@ def run_period_stream():
             "current_game_day": campaign.current_game_day if campaign else 0,
             "campaign_id": campaign_id or "",
             "period": period,
+            "start_metrics_json": start_metrics_json,
         },
     )
 
@@ -312,16 +312,24 @@ def simulation_job_status(job_id: str):
             return None
 
     status = data.get("status")
+    world_changed_flag = data.get("world_changed")
+    if world_changed_flag is not None:
+        world_changed = str(world_changed_flag).lower() in ("true", "1", "yes")
+    else:
+        # Default: only a clean SUCCESS means the world advanced and snapshot
+        # was saved. ERROR without an explicit flag still means unchanged
+        # (failed batch rolled back).
+        world_changed = status == SimJobStatus.SUCCESS
+
     out = {
         "status": status,
         "ticks_done": _to_int(data.get("ticks_done")),
         "ticks_total": _to_int(data.get("ticks_total")),
         "current_game_day": _to_int(data.get("current_game_day")),
+        "units_sold_total": _to_int(data.get("units_sold_total")),
+        "shops_restocked_total": _to_int(data.get("shops_restocked_total")),
         "error": redact_sim_job_error_for_client(data.get("error")),
-        # `world_changed=False` means the campaign is byte-for-byte identical
-        # to its pre-run state and the GM can re-click the period button. The
-        # ACID batch guarantees this is true for every non-success terminal.
-        "world_changed": status == SimJobStatus.SUCCESS,
+        "world_changed": world_changed,
         "terminal": status in _REENTRANT_TERMINAL_STATUSES,
     }
     return jsonify(out)

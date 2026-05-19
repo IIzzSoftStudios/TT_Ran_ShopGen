@@ -21,7 +21,9 @@ def ensure_solo_player_profile(user) -> Optional[Player]:
     Does not run when the user already has one or more non-NPC rows (ambiguous
     multi-character state is left to ``get_active_player`` / character pick).
     """
-    if user is None or getattr(user, "role", None) != "Player":
+    from app.services.user_capabilities import has_player_capability
+
+    if user is None or not has_player_capability(user):
         return None
     if (
         db.session.query(Player.id)
@@ -52,7 +54,7 @@ def get_active_player_or_ensure_solo(user) -> Optional[Player]:
 
 def user_has_player_profile(user) -> bool:
     """True if this login has at least one non-NPC Player row."""
-    if user is None or getattr(user, "role", None) != "Player":
+    if user is None:
         return False
     return (
         db.session.query(Player.id)
@@ -127,7 +129,9 @@ def get_active_player(user, *, campaign_id: Optional[int] = None) -> Optional[Pl
     Stale state (deleted character, wrong owner) clears the offending session
     key and falls through to the next step.
     """
-    if user is None or getattr(user, "role", None) != "Player":
+    from app.services.user_capabilities import has_player_capability
+
+    if user is None or not has_player_capability(user):
         return None
 
     cid = campaign_id if campaign_id is not None else session.get("campaign_id")
@@ -159,7 +163,9 @@ def get_active_player(user, *, campaign_id: Optional[int] = None) -> Optional[Pl
 
 def all_player_ids_for_user(user) -> list[int]:
     """All non-NPC Player PKs for this user (for aggregating memberships)."""
-    if user is None or getattr(user, "role", None) != "Player":
+    from app.services.user_capabilities import has_player_capability
+
+    if user is None or not has_player_capability(user):
         return []
     return [
         r.id
@@ -172,7 +178,9 @@ def list_user_characters(user) -> list[Player]:
 
     Ordered by id ascending so the oldest character renders first in lists.
     """
-    if user is None or getattr(user, "role", None) != "Player":
+    from app.services.user_capabilities import has_player_capability
+
+    if user is None or not has_player_capability(user):
         return []
     return (
         Player.query.filter_by(user_id=user.id, is_npc=False)
@@ -186,7 +194,9 @@ def get_character_for_user(user, player_id: int) -> Optional[Player]:
 
     Returns the Player row only when it belongs to ``user`` and is not an NPC.
     """
-    if user is None or getattr(user, "role", None) != "Player":
+    from app.services.user_capabilities import has_player_capability
+
+    if user is None or not has_player_capability(user):
         return None
     try:
         pid = int(player_id)

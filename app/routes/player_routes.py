@@ -141,11 +141,23 @@ def before_request():
     print(f"[DEBUG] Player Blueprint - Current User: {current_user.username if current_user.is_authenticated else 'Not authenticated'}")
     if not current_user.is_authenticated:
         return None
-    if getattr(current_user, "role", None) != "Player":
-        return None
     ep = request.endpoint
     if ep in _PLAYER_ALLOWLIST or ep in _CHARACTER_VAULT_ENDPOINTS:
         return None
+
+    from app.services.user_capabilities import has_player_capability
+
+    if session.get("session_mode") == "gm":
+        flash(
+            "You are currently using GM tools. Please return to the picker to switch your active view.",
+            "info",
+        )
+        return redirect(url_for("main.campaigns"))
+
+    if not has_player_capability(current_user):
+        flash("Access to player tools is restricted.", "danger")
+        return redirect(url_for("main.campaigns"))
+
     if get_active_player(current_user) is None:
         return redirect(url_for("main.campaigns"))
     return None
@@ -157,7 +169,9 @@ def before_request():
 def redeem_campaign_code_route():
     from app.routes.handlers import campaign_selection_handler as csh
 
-    if getattr(current_user, "role", None) != "Player":
+    from app.services.user_capabilities import can_redeem_campaign_code
+
+    if not can_redeem_campaign_code(current_user):
         flash("Only players can redeem a campaign code.", "warning")
         return redirect(url_for("main.campaigns"))
     code = (request.form.get("campaign_code") or "").strip()
@@ -1079,10 +1093,9 @@ def create_character():
     """
     from app.services.rulesets import get_ruleset, known_system_types
 
-    if getattr(current_user, "role", None) == "GM":
-        flash("Use the Game Master interface to manage characters.", "info")
-        return redirect(url_for("gm.home"))
-    if getattr(current_user, "role", None) != "Player":
+    from app.services.user_capabilities import has_player_capability
+
+    if not has_player_capability(current_user):
         return redirect(url_for("main.campaigns"))
 
     valid_systems = list(known_system_types())
@@ -1147,8 +1160,10 @@ def create_character():
 @login_required
 def list_characters():
     """Picker / index for all characters this user owns (solo + per-campaign)."""
-    if getattr(current_user, "role", None) == "GM":
-        return redirect(url_for("gm.home"))
+    from app.services.user_capabilities import has_player_capability
+
+    if not has_player_capability(current_user):
+        return redirect(url_for("main.campaigns"))
 
     characters = list_user_characters(current_user)
     rows = []
@@ -1180,8 +1195,10 @@ def list_characters():
 @login_required
 def view_character():
     """Backwards-compatible entry point: pick a sensible character or list them."""
-    if getattr(current_user, "role", None) == "GM":
-        return redirect(url_for("gm.home"))
+    from app.services.user_capabilities import has_player_capability
+
+    if not has_player_capability(current_user):
+        return redirect(url_for("main.campaigns"))
 
     characters = list_user_characters(current_user)
     if not characters:

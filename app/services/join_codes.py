@@ -197,7 +197,9 @@ def redeem_campaign_code(
     single solo (``campaign_id IS NULL``) character is promoted, or a new
     Player row is created when billing allows.
     """
-    if getattr(user, "role", None) != "Player":
+    from app.services.user_capabilities import can_redeem_campaign_code
+
+    if not can_redeem_campaign_code(user):
         raise WrongRoleError("Only player accounts can redeem a campaign code.")
 
     normalized = normalize_code(raw_code)

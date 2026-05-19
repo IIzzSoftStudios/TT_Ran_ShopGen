@@ -48,10 +48,27 @@ def region_for_campaign_or_404(region_id: int, campaign_id: int) -> Region:
     return region
 
 
+_GM_SESSION_ALLOWLIST = frozenset(
+    {
+        "gm.generate_world_form",
+    }
+)
+
+
 def get_current_gm_profile():
     """Return ``(gm_profile, None)`` or ``(None, redirect)``."""
     if not current_user.is_authenticated:
         return None, redirect(url_for("auth.login"))
+    from flask import request
+
+    ep = request.endpoint
+    if ep not in _GM_SESSION_ALLOWLIST and session.get("session_mode") == "player":
+        flash(
+            "You are currently viewing a campaign as a player. "
+            "Return to the campaign picker to switch views.",
+            "info",
+        )
+        return None, redirect(url_for("main.campaigns"))
     profile = getattr(current_user, "gm_profile", None)
     if profile is None:
         flash("A Game Master profile is required for this page.", "danger")

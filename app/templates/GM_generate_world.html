@@ -73,6 +73,69 @@
             color: var(--color-text, #111827);
         }
 
+        .field-label-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .field-label-row .field-label-text {
+            flex: 1;
+            font-weight: 600;
+            margin: 0;
+            color: var(--color-text, #111827);
+        }
+
+        .field-help {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .field-help-trigger {
+            list-style: none;
+            width: 24px;
+            height: 24px;
+            margin: 0;
+            padding: 0;
+            border-radius: 50%;
+            border: 1px solid var(--color-accent, #7c3aed);
+            background: var(--color-surface, #fff);
+            color: var(--color-accent, #7c3aed);
+            font-weight: 700;
+            font-size: 0.85rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .field-help-trigger::-webkit-details-marker {
+            display: none;
+        }
+
+        .field-help-popover {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            z-index: 30;
+            min-width: 260px;
+            max-width: 360px;
+            margin: 0;
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            font-weight: normal;
+            line-height: 1.45;
+            color: var(--color-text, #111827);
+            background: var(--color-surface, #fff);
+            border: 1px solid var(--color-border, #e0e0e0);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+
         .field-row .floor-ceiling {
             font-size: 0.85em;
             color: var(--color-muted, #777);
@@ -411,7 +474,7 @@
                     Skip Generation
                 </button>
                 <button type="button" class="btn btn-secondary" id="reset-btn">Reset to defaults</button>
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-link">Logout</a>
+                <a href="{{ url_for('main.campaigns') }}" class="btn btn-link">Back</a>
             </div>
 
             <fieldset>
@@ -438,7 +501,10 @@
                 {% for key in ['num_regions', 'num_cities'] %}
                     {% set r = ranges[key] %}
                     <div class="field-row">
-                        <label>{{ labels[key] }}<span class="floor-ceiling">(floor {{ r.floor }}, ceiling {{ r.ceiling }})</span></label>
+                        <div class="field-label-row">
+                            <p class="field-label-text">{{ labels[key] }}<span class="floor-ceiling">(floor {{ r.floor }}, ceiling {{ r.ceiling }})</span></p>
+                            {% with help_key=key %}{% include 'partials/world_gen_field_help.html' %}{% endwith %}
+                        </div>
                         <div class="range-row" data-setting="{{ key }}" data-floor="{{ r.floor }}" data-ceiling="{{ r.ceiling }}">
                             <input type="number" class="range-min-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
                                    value="{{ r.min }}" aria-label="Minimum {{ labels[key] }}">
@@ -460,10 +526,13 @@
 
             <fieldset>
                 <legend>Economy</legend>
-                {% for key in ['global_item_pool_size', 'shops_per_city', 'items_per_shop'] %}
+                {% for key in ['global_item_pool_size', 'city_size_variation', 'items_per_shop'] %}
                     {% set r = ranges[key] %}
                     <div class="field-row">
-                        <label>{{ labels[key] }}<span class="floor-ceiling">(floor {{ r.floor }}, ceiling {{ r.ceiling }})</span></label>
+                        <div class="field-label-row">
+                            <p class="field-label-text">{{ labels[key] }}<span class="floor-ceiling">(floor {{ r.floor }}, ceiling {{ r.ceiling }})</span></p>
+                            {% with help_key=key %}{% include 'partials/world_gen_field_help.html' %}{% endwith %}
+                        </div>
                         <div class="range-row" data-setting="{{ key }}" data-floor="{{ r.floor }}" data-ceiling="{{ r.ceiling }}">
                             <input type="number" class="range-min-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
                                    value="{{ r.min }}" aria-label="Minimum {{ labels[key] }}">
@@ -489,9 +558,12 @@
             <fieldset>
                 <legend>Society</legend>
                 <div class="field-row">
-                    <label>Magic &harr; Tech Balance (region-level)
-                        <span class="floor-ceiling">0 = God Magic, 5 = Medieval, 10 = Post-Apoc Tech</span>
-                    </label>
+                    <div class="field-label-row">
+                        <p class="field-label-text">Magic &harr; Tech Balance (region-level)
+                            <span class="floor-ceiling">0 = God Magic, 5 = Medieval, 10 = Post-Apoc Tech</span>
+                        </p>
+                        {% with help_key='tech_magic_balance' %}{% include 'partials/world_gen_field_help.html' %}{% endwith %}
+                    </div>
                     {% set r = ranges['tech_magic_balance'] %}
                     <div class="range-row" data-setting="tech_magic_balance" data-floor="{{ r.floor }}" data-ceiling="{{ r.ceiling }}">
                         <input type="number" class="range-min-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
@@ -548,6 +620,7 @@
         "use strict";
 
         var SHOP_INVENTORY_CAP = {{ shop_inventory_cap | tojson }};
+        var MAX_SHOPS_PER_CITY = {{ max_shops_per_city | tojson }};
         var DEFAULTS = {{ defaults_json | tojson }};
 
         function parseIntSafe(value, fallback) {
@@ -665,7 +738,7 @@
 
         function updateEstimator() {
             var cMax = getValue("num_cities", "max");
-            var sMax = getValue("shops_per_city", "max");
+            var sMax = typeof MAX_SHOPS_PER_CITY === "number" ? MAX_SHOPS_PER_CITY : 12;
             var iMax = getValue("items_per_shop", "max");
             var product = cMax * sMax * iMax;
             if (!estimatorValue) return;

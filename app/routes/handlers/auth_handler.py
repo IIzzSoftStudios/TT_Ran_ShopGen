@@ -13,6 +13,9 @@ from flask import (
     request,
     session,
     current_app,
+    jsonify,
+    send_file,
+    abort,
 )
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_mailman import EmailMessage
@@ -40,6 +43,12 @@ from app.services.join_codes import (
     JoinCodeError,
 )
 from app.services.player_resolution import user_has_player_profile
+from app.services.user_capabilities import ensure_gm_profile
+from app.services.submission_ingest import (
+    SubmissionValidationError,
+    build_submission,
+)
+from app.services import user_avatar as user_avatar_service
 
 log = logging.getLogger(__name__)
 
@@ -79,8 +88,6 @@ def handle_login():
                 return redirect(next_url)
             if user.role == "vault_keeper":
                 return redirect(url_for("admin.keys_overview"))
-            if user.role == "Player" and not user_has_player_profile(user):
-                flash("Enter your campaign code below to join a game.", "info")
             return redirect(url_for("main.campaigns"))
         flash("Invalid username or password", "danger")
 
@@ -92,10 +99,29 @@ def handle_logout():
     next_url = request.args.get("next")
     logout_user()
     session.pop("user_id", None)
+    session.pop("session_mode", None)
     flash("You have been logged out", "info")
     if _is_safe_next(next_url):
         return redirect(next_url)
     return redirect(url_for("auth.login"))
+
+
+def _setup_new_unified_user(new_user, campaign_code: str) -> None:
+    """Create GM profile and optional player row / campaign join for role=Both."""
+    ensure_gm_profile(new_user)
+    if campaign_code:
+        redeem_campaign_code(new_user, campaign_code, _commit=False)
+        return
+    okp, _ = can_add_player_profile(new_user)
+    if okp:
+        db.session.add(
+            Player(
+                user_id=new_user.id,
+                campaign_id=None,
+                currency=0,
+                is_npc=False,
+            )
+        )
 
 
 def _register_redirect_fail(registration_key=""):
@@ -115,7 +141,7 @@ def handle_register():
     if request.method == "POST":
         username_raw = request.form.get("username")
         password = request.form.get("password")
-        role = request.form.get("role")
+        confirm_password = request.form.get("confirm_password")
         campaign_code = (request.form.get("campaign_code") or "").strip()
         registration_key = (
             request.form.get("registration_key", "").strip().replace("_", "-").upper()
@@ -143,10 +169,16 @@ def handle_register():
             registration_relaxed = bool(key_row.is_admin_test_key)
 
         username = (username_raw or "").strip()
-        if not username or not password or not role:
+        if not username or not password or not confirm_password:
             if keyed:
                 db.session.rollback()
             flash("All fields are required!", "warning")
+            return _register_redirect_fail(registration_key)
+
+        if password != confirm_password:
+            if keyed:
+                db.session.rollback()
+            flash("Passwords do not match.", "danger")
             return _register_redirect_fail(registration_key)
 
         if registration_relaxed:
@@ -161,12 +193,6 @@ def handle_register():
                     db.session.rollback()
                 flash(msg, "danger")
                 return _register_redirect_fail(registration_key)
-
-        if role not in ["GM", "Player"]:
-            if keyed:
-                db.session.rollback()
-            flash("Invalid role selected!", "warning")
-            return _register_redirect_fail(registration_key)
 
         if User.query.filter_by(username=username).first():
             if keyed:
@@ -196,7 +222,7 @@ def handle_register():
                     return _register_redirect_fail(registration_key)
 
             try:
-                new_user = User(username=username, role=role, email=email)
+                new_user = User(username=username, role="Both", email=email)
                 new_user.set_password(password)
                 db.session.add(new_user)
                 db.session.flush()
@@ -211,31 +237,16 @@ def handle_register():
                         ar.vault_key_used = True
                         ar.vault_key_used_at = datetime.utcnow()
 
-                if role == "GM":
-                    gm_profile = GMProfile(user_id=new_user.id)
-                    db.session.add(gm_profile)
-                elif campaign_code:
-                    try:
-                        redeem_campaign_code(new_user, campaign_code, _commit=False)
-                    except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
-                        db.session.rollback()
-                        flash(
-                            getattr(e, "args", [None])[0]
-                            or "Could not join with that campaign code.",
-                            "danger",
-                        )
-                        return _register_redirect_fail(registration_key)
-                elif role == "Player":
-                    okp, _ = can_add_player_profile(new_user)
-                    if okp:
-                        db.session.add(
-                            Player(
-                                user_id=new_user.id,
-                                campaign_id=None,
-                                currency=0,
-                                is_npc=False,
-                            )
-                        )
+                try:
+                    _setup_new_unified_user(new_user, campaign_code)
+                except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
+                    db.session.rollback()
+                    flash(
+                        getattr(e, "args", [None])[0]
+                        or "Could not join with that campaign code.",
+                        "danger",
+                    )
+                    return _register_redirect_fail(registration_key)
 
                 db.session.commit()
                 flash(
@@ -256,36 +267,21 @@ def handle_register():
             return _register_redirect_fail(registration_key)
 
         try:
-            new_user = User(username=username, role=role, email=email)
+            new_user = User(username=username, role="Both", email=email)
             new_user.set_password(password)
             db.session.add(new_user)
             db.session.flush()
 
-            if role == "GM":
-                gm_profile = GMProfile(user_id=new_user.id)
-                db.session.add(gm_profile)
-            elif campaign_code:
-                try:
-                    redeem_campaign_code(new_user, campaign_code, _commit=False)
-                except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
-                    db.session.rollback()
-                    flash(
-                        getattr(e, "args", [None])[0]
-                        or "Could not join with that campaign code.",
-                        "danger",
-                    )
-                    return redirect(url_for("auth.register"))
-            elif role == "Player":
-                okp, _ = can_add_player_profile(new_user)
-                if okp:
-                    db.session.add(
-                        Player(
-                            user_id=new_user.id,
-                            campaign_id=None,
-                            currency=0,
-                            is_npc=False,
-                        )
-                    )
+            try:
+                _setup_new_unified_user(new_user, campaign_code)
+            except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
+                db.session.rollback()
+                flash(
+                    getattr(e, "args", [None])[0]
+                    or "Could not join with that campaign code.",
+                    "danger",
+                )
+                return redirect(url_for("auth.register"))
 
             db.session.commit()
             flash("Account created! You can now log in.", "success")
@@ -413,3 +409,54 @@ def handle_reset_password():
 
     flash("Password reset successful. You may now log in.", "success")
     return redirect(url_for("auth.login"))
+
+
+@login_required
+def handle_post_submission():
+    data = request.get_json(silent=True) or {}
+    result = build_submission(data, current_user, session)
+    if isinstance(result, SubmissionValidationError):
+        return jsonify({"error": result.message}), result.status_code
+    db.session.add(result)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        log.exception("user_submission commit failed")
+        return jsonify({"error": "Could not save submission."}), 500
+    return jsonify(
+        {"success": True, "message": "Submission received successfully."}
+    ), 201
+
+
+@login_required
+def handle_get_avatar():
+    path = user_avatar_service.avatar_path_for_user(current_user.id)
+    if not path.exists():
+        abort(404)
+    return send_file(path, mimetype="image/webp")
+
+
+@login_required
+def handle_upload_avatar():
+    if "avatar" not in request.files:
+        return jsonify({"error": "No file provided."}), 400
+    file = request.files["avatar"]
+    if not file or not file.filename:
+        return jsonify({"error": "Empty filename."}), 400
+    try:
+        user_avatar_service.save_avatar(current_user.id, file)
+        ts = user_avatar_service.touch_avatar_timestamp(current_user)
+        db.session.commit()
+        return jsonify(
+            {
+                "success": True,
+                "avatar_url": f"{url_for('auth.account_avatar')}?t={int(ts.timestamp())}",
+            }
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        log.exception("avatar upload failed")
+        return jsonify({"error": "Could not process image."}), 500

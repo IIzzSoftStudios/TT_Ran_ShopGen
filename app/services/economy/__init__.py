@@ -7,6 +7,7 @@ from app.extensions import db
 from app.models import Shop
 
 from app.services.economy.demand import calculate_demand
+from app.services.world_generator.pricing import rarity_for_simulation
 
 _PRICE_FLOOR_MULTIPLIER = 0.20
 _PRICE_CEILING_MULTIPLIER = 5.00
@@ -49,7 +50,7 @@ def update_shop_prices(campaign_id: int):
             if not inventory.item:
                 continue
             base_price = inventory.item.base_price
-            rarity = int(inventory.item.rarity) if inventory.item.rarity.isdigit() else 5
+            rarity = rarity_for_simulation(inventory.item.rarity)
             stock_level = inventory.stock
             new_price = calculate_dynamic_price(
                 base_price,

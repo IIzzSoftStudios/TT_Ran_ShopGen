@@ -13,6 +13,7 @@ from app.routes.handlers.admin_handler import (
     handle_reject_access_request,
     handle_gm_simulation_usage_api,
     handle_gm_simulation_usage_export,
+    handle_submission_action,
 )
 from app.services.sim_metrics import snapshot as simulation_metrics_snapshot
 
@@ -80,6 +81,13 @@ def access_request_hold(request_id):
 @admin_required
 def access_request_reject(request_id):
     return handle_reject_access_request(request_id)
+
+
+@admin_bp.route("/vault/submissions/<int:submission_id>/<action>", methods=["POST"])
+@login_required
+@admin_required
+def submission_action(submission_id, action):
+    return handle_submission_action(submission_id, action)
 
 
 @admin_bp.route("/vault/metrics/simulation", methods=["GET"])

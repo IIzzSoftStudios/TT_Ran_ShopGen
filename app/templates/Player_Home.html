@@ -501,17 +501,6 @@
             background-color: #555;
         }
 
-        /* Push Logout to the right edge of the nav bar so it visually
-           separates from the navigational group. */
-        .nav-button-logout {
-            margin-left: auto;
-            background-color: #8a2a2a;
-        }
-
-        .nav-button-logout:hover {
-            background-color: #6d1f1f;
-        }
-
         details.nav-code-panel {
             position: relative;
             display: inline-block;
@@ -1585,7 +1574,7 @@
 
     <!-- Navigation Buttons -->
     <div class="nav-buttons">
-        <button class="nav-button" onclick="navigateTo('{{ url_for('main.campaigns') }}')">Character Manager</button>
+        <button class="nav-button" onclick="navigateTo('{{ url_for('main.campaigns') }}')">Select Campaign</button>
         <details class="nav-code-panel">
             <summary class="nav-button">Player Code</summary>
             <div class="join-code-popover">
@@ -1604,7 +1593,6 @@
                 {% endif %}
             </div>
         </details>
-        <button class="nav-button nav-button-logout" onclick="navigateTo('{{ url_for('auth.logout') }}')">Logout</button>
     </div>
 
     <!-- Main Layout with Dashboard and Market Panel -->

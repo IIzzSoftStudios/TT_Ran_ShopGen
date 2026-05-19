@@ -30,6 +30,34 @@ RARITY_MULTIPLIER: Dict[str, float] = {
     "Legendary": 50.0,
 }
 
+# Simulation ``calculate_dynamic_price`` expects a small integer scalar (not
+# the string label and not the price multiplier above).
+RARITY_SIMULATION_SCALAR: Dict[str, int] = {
+    "common": 1,
+    "uncommon": 2,
+    "rare": 3,
+    "legendary": 4,
+}
+
+
+def rarity_for_simulation(rarity_label: Any) -> int:
+    """Map item rarity labels to the integer scalar used in tick pricing."""
+    if rarity_label is None:
+        return 3
+    text = str(rarity_label).strip()
+    if text.isdigit():
+        return max(1, min(10, int(text)))
+    key = text.lower()
+    if key in RARITY_SIMULATION_SCALAR:
+        return RARITY_SIMULATION_SCALAR[key]
+    for label, scalar in RARITY_SIMULATION_SCALAR.items():
+        if label in key:
+            return scalar
+    title = text.title()
+    if title in RARITY_MULTIPLIER:
+        return max(1, min(10, int(RARITY_MULTIPLIER[title])))
+    return 3
+
 # Base "utility floor" by category when stats are missing/minimal.
 CATEGORY_BASELINE: Dict[str, float] = {
     "Melee":      5.0,

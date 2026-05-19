@@ -2,7 +2,8 @@
 
 import time
 
-from flask import render_template, redirect, url_for, flash, session, request
+from flask import render_template, redirect, url_for, flash, session, request, abort
+from werkzeug.exceptions import HTTPException
 from flask_login import current_user
 
 from app.extensions import db
@@ -26,6 +27,11 @@ from app.services.player_resolution import (
     list_user_characters,
 )
 from app.services import character_sheet_service
+from app.services.user_capabilities import (
+    has_gm_capability,
+    has_player_capability,
+    can_redeem_campaign_code,
+)
 
 
 def _redeem_failures_in_window():
@@ -48,6 +54,16 @@ def _clear_redeem_failures():
     session.modified = True
 
 
+def _character_label_for_campaign_players(players, campaign):
+    """Human-readable label for player campaign cards."""
+    if not players:
+        return "—"
+    if len(players) == 1:
+        sheet = character_sheet_service.get_or_default_sheet(players[0], campaign)
+        return (sheet.get("name") or "").strip() or f"Character #{players[0].id}"
+    return f"{len(players)} characters"
+
+
 def _build_solo_characters_for_user(user):
     """Return display rows for the user's solo Player characters (no campaign).
 
@@ -56,7 +72,7 @@ def _build_solo_characters_for_user(user):
     player to also pick a campaign first. Only non-NPC rows belonging to
     ``user`` are returned, so this never leaks other accounts' characters.
     """
-    if user is None or getattr(user, "role", None) != "Player":
+    if user is None or not has_player_capability(user):
         return []
     rows = []
     for p in list_user_characters(user):
@@ -82,78 +98,62 @@ def select_campaign():
         campaigns = []
         solo_characters = []
 
-        if current_user.role == "GM":
-            gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
-            if gm_profile:
-                gm_campaigns = Campaign.query.filter_by(
-                    gm_profile_id=gm_profile.id
-                ).all()
-                for campaign in gm_campaigns:
-                    player_count = Player.query.filter_by(
-                        campaign_id=campaign.id, is_npc=False
-                    ).count()
-                    campaigns.append(
-                        {
-                            "id": campaign.id,
-                            "name": campaign.name,
-                            "type": "GM",
-                            "system_type": campaign.system_type,
-                            "gm_username": current_user.username,
-                            "player_count": player_count,
-                        }
-                    )
-        else:
-            seen_cids = set()
-            joined_players = (
-                Player.query.filter(
-                    Player.user_id == current_user.id,
-                    Player.is_npc.is_(False),
-                    Player.campaign_id.isnot(None),
-                ).all()
-            )
-            for player in joined_players:
-                campaign = player.campaign
-                if (
-                    not campaign
-                    or campaign.id in seen_cids
-                    or not campaign.gm_profile
-                    or not campaign.gm_profile.user
-                ):
-                    continue
-                seen_cids.add(campaign.id)
+        if has_gm_capability(current_user):
+            gm_profile = current_user.gm_profile
+            gm_campaigns = Campaign.query.filter_by(gm_profile_id=gm_profile.id).all()
+            for campaign in gm_campaigns:
+                player_count = Player.query.filter_by(
+                    campaign_id=campaign.id, is_npc=False
+                ).count()
                 campaigns.append(
                     {
                         "id": campaign.id,
                         "name": campaign.name,
-                        "type": "Player",
+                        "type": "GM",
                         "system_type": campaign.system_type,
-                        "gm_username": campaign.gm_profile.user.username,
-                        "player_count": Player.query.filter_by(
-                            campaign_id=campaign.id, is_npc=False
-                        ).count(),
+                        "gm_username": current_user.username,
+                        "player_count": player_count,
                     }
                 )
-            solo_characters = _build_solo_characters_for_user(current_user)
+        campaign_char_map = {}
+        joined_players = Player.query.filter(
+            Player.user_id == current_user.id,
+            Player.is_npc.is_(False),
+            Player.campaign_id.isnot(None),
+        ).all()
+        for player in joined_players:
+            campaign = player.campaign
+            if not campaign:
+                continue
+            campaign_char_map.setdefault(campaign.id, {"campaign": campaign, "players": []})
+            campaign_char_map[campaign.id]["players"].append(player)
 
-        if not campaigns and not solo_characters:
-            if current_user.role == "GM":
-                flash(
-                    "You don't have any campaigns yet. Create your first campaign!",
-                    "info",
-                )
-                return redirect(url_for("gm.generate_world_form"))
-            return render_template(
-                "campaign_selection.html",
-                campaigns=[],
-                solo_characters=[],
-                show_redeem_only=True,
+        for c_id, data in campaign_char_map.items():
+            camp = data["campaign"]
+            chars = data["players"]
+            if not camp.gm_profile or not camp.gm_profile.user:
+                continue
+            campaigns.append(
+                {
+                    "id": camp.id,
+                    "name": camp.name,
+                    "type": "Player",
+                    "system_type": camp.system_type,
+                    "character_label": _character_label_for_campaign_players(chars, camp),
+                    "player_count": Player.query.filter_by(
+                        campaign_id=camp.id, is_npc=False
+                    ).count(),
+                }
             )
+
+        solo_characters = _build_solo_characters_for_user(current_user)
+        show_redeem_only = not campaigns and not solo_characters
 
         return render_template(
             "campaign_selection.html",
             campaigns=campaigns,
             solo_characters=solo_characters,
-            show_redeem_only=False,
+            show_redeem_only=show_redeem_only,
         )
     except Exception as e:
         print(f"[ERROR] Error in select_campaign: {str(e)}")
@@ -167,7 +167,7 @@ def _player_character_rows_for_campaign(user, campaign):
     Order is stable (oldest character first by id) so the chooser doesn't
     shuffle between requests.
     """
-    if user is None or getattr(user, "role", None) != "Player" or campaign is None:
+    if user is None or not has_player_capability(user) or campaign is None:
         return []
     players = (
         Player.query.filter(
@@ -212,16 +212,8 @@ def _commit_active_session(campaign, player):
 def load_campaign(campaign_id):
     """GET /campaigns/load/<id>: enter a campaign.
 
-    Behavior depends on how many of the current user's characters are joined
-    to ``campaign_id``:
-
-      * **GM**: load straight through (no character concept on the GM side).
-      * **Player, 0 characters**: 403 — you do not have access.
-      * **Player, 1 character**: pin both ``campaign_id`` and ``player_id``,
-        redirect to the player home.
-      * **Player, 2+ characters**: render the character chooser. The user
-        commits a pick via :func:`load_campaign_character`.
-    """
+    Query ``as=gm`` or ``as=player`` selects session_mode after authorization.
+  """
     if getattr(current_user, "role", None) == "vault_keeper":
         return redirect(url_for("admin.keys_overview"))
     try:
@@ -230,51 +222,80 @@ def load_campaign(campaign_id):
             flash("Campaign not found.", "error")
             return redirect(url_for("main.campaigns"))
 
-        if current_user.role == "GM":
-            gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
-            has_access = (
-                gm_profile is not None and campaign.gm_profile_id == gm_profile.id
-            )
-            if not has_access:
-                flash("You do not have access to this campaign.", "error")
+        requested_mode = (request.args.get("as") or "").lower()
+        gm_profile = current_user.gm_profile if has_gm_capability(current_user) else None
+        is_owner = (
+            gm_profile is not None and campaign.gm_profile_id == gm_profile.id
+        )
+        has_characters = (
+            Player.query.filter_by(
+                campaign_id=campaign.id,
+                user_id=current_user.id,
+                is_npc=False,
+            ).count()
+            > 0
+        )
+
+        if not requested_mode:
+            if is_owner and has_characters:
+                flash(
+                    "Please choose to enter as GM or Player using the option on the card.",
+                    "info",
+                )
                 return redirect(url_for("main.campaigns"))
+            requested_mode = "gm" if is_owner else "player"
+
+        if requested_mode == "gm":
+            if not is_owner:
+                abort(403)
+            session["session_mode"] = "gm"
             _commit_active_session(campaign, None)
             return redirect(url_for("gm.home"), code=303)
 
-        characters = (
-            Player.query.filter(
-                Player.user_id == current_user.id,
-                Player.is_npc.is_(False),
-                Player.campaign_id == campaign.id,
+        if requested_mode == "player":
+            if not has_characters:
+                abort(403)
+            session["session_mode"] = "player"
+
+            characters = (
+                Player.query.filter(
+                    Player.user_id == current_user.id,
+                    Player.is_npc.is_(False),
+                    Player.campaign_id == campaign.id,
+                )
+                .order_by(Player.id.asc())
+                .all()
             )
-            .order_by(Player.id.asc())
-            .all()
-        )
 
-        if not characters:
-            flash("You do not have access to this campaign.", "error")
-            return redirect(url_for("main.campaigns"))
+            if len(characters) == 1:
+                _commit_active_session(campaign, characters[0])
+                return redirect(url_for("player.player_home"), code=303)
 
-        if len(characters) == 1:
-            _commit_active_session(campaign, characters[0])
-            return redirect(url_for("player.player_home"), code=303)
+            rows = _player_character_rows_for_campaign(current_user, campaign)
+            session["campaign_id"] = campaign.id
+            session["system_type"] = campaign.system_type
+            session.pop("player_id", None)
+            session.permanent = True
+            session.modified = True
+            return render_template(
+                "campaign_character_select.html",
+                campaign={
+                    "id": campaign.id,
+                    "name": campaign.name,
+                    "system_type": campaign.system_type,
+                    "gm_username": (
+                        campaign.gm_profile.user.username
+                        if campaign.gm_profile and campaign.gm_profile.user
+                        else "—"
+                    ),
+                },
+                characters=rows,
+            )
 
-        rows = _player_character_rows_for_campaign(current_user, campaign)
-        return render_template(
-            "campaign_character_select.html",
-            campaign={
-                "id": campaign.id,
-                "name": campaign.name,
-                "system_type": campaign.system_type,
-                "gm_username": (
-                    campaign.gm_profile.user.username
-                    if campaign.gm_profile and campaign.gm_profile.user
-                    else "—"
-                ),
-            },
-            characters=rows,
-        )
+        abort(400)
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[ERROR] Error in load_campaign: {str(e)}")
         flash("An error occurred while loading the campaign. Please try again.", "error")
@@ -291,7 +312,7 @@ def load_campaign_character(campaign_id, player_id):
     """
     if getattr(current_user, "role", None) == "vault_keeper":
         return redirect(url_for("admin.keys_overview"))
-    if getattr(current_user, "role", None) != "Player":
+    if not has_player_capability(current_user):
         flash("Only players choose a character.", "warning")
         return redirect(url_for("main.campaigns"))
 
@@ -313,6 +334,7 @@ def load_campaign_character(campaign_id, player_id):
         flash("That character is not available in this campaign.", "warning")
         return redirect(url_for("main.campaigns"))
 
+    session["session_mode"] = "player"
     _commit_active_session(campaign, player)
     return redirect(url_for("player.player_home"), code=303)
 
@@ -324,7 +346,7 @@ def delete_campaign_character(campaign_id, player_id):
     intentionally scoped by user_id + campaign_id + player_id so the chooser
     cannot be used to remove another player's character.
     """
-    if getattr(current_user, "role", None) != "Player":
+    if not has_player_capability(current_user):
         flash("Only players can delete their own characters.", "warning")
         return redirect(url_for("main.campaigns"))
 
@@ -380,7 +402,7 @@ def delete_campaign_character(campaign_id, player_id):
 
 def redeem_campaign_post():
     """POST /campaigns/redeem — logged-in player pastes a CAMP- code."""
-    if getattr(current_user, "role", None) != "Player":
+    if not can_redeem_campaign_code(current_user):
         flash("Only players can redeem a campaign code.", "warning")
         return redirect(url_for("main.campaigns"))
 

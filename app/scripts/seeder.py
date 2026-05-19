@@ -45,7 +45,7 @@ def _default_settings(
     ranges = {}
     overrides = {
         "num_cities": num_cities,
-        "shops_per_city": num_shops_per_city,
+        "city_size_variation": num_shops_per_city,
         "items_per_shop": num_items_per_shop,
         "global_item_pool_size": num_global_items,
     }
@@ -65,6 +65,8 @@ def _default_settings(
         "system_type": "dnd5e",
         "world_seed": 1,  # deterministic: test fixtures rely on this
         "ranges": ranges,
+        "inventory_mode": "axis",
+        "supply_demand_enabled": True,
     }
 
 

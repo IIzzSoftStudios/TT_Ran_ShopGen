@@ -150,7 +150,7 @@
             <p class="system-help">Determines abilities, skills, saves, and proficiency rules on the sheet.</p>
 
             <div class="actions-row">
-                <a href="{{ url_for('player.list_characters') }}" class="button">Back</a>
+                <a href="{{ url_for('main.campaigns') }}" class="button">Back</a>
                 <button type="submit" class="button" {% if not can_add %}disabled aria-disabled="true"{% endif %}>
                     Create character
                 </button>

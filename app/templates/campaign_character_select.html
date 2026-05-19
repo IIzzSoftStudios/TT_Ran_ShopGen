@@ -219,7 +219,7 @@
                     <form method="POST"
                           action="{{ url_for('main.delete_campaign_character_route', campaign_id=campaign.id, player_id=ch.id) }}"
                           class="card-delete-form"
-                          onsubmit="return confirm('Delete {{ ch.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.');">
+                          data-confirm-delete="Are you sure you want to delete {{ ch.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="card-delete-btn" aria-label="Delete {{ ch.name|e }}">Delete character</button>
                     </form>
@@ -228,8 +228,9 @@
         </div>
 
         <div class="footer-row">
-            <a href="{{ url_for('main.campaigns') }}" class="back-link">&larr; Back to campaigns</a>
+            <a href="{{ url_for('main.campaigns') }}" class="back-link">&larr; Select Campaign</a>
         </div>
     </div>
+    {% include 'partials/confirm_delete_script.html' %}
 </body>
 </html>

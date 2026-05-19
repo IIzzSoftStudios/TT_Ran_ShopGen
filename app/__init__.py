@@ -5,7 +5,8 @@ import sys
 
 import redis
 from dotenv import load_dotenv
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, url_for
+from flask_login import current_user
 from flask.sessions import SecureCookieSession, SecureCookieSessionInterface
 
 from app.extensions import db, migrate, bcrypt, login_manager, session, csrf, mail, limiter
@@ -18,6 +19,7 @@ from app.services.schema_compat import (
     ensure_campaign_scope_columns,
     ensure_deleted_campaign_sim_snapshot_table,
     ensure_gm_world_state_campaign_id,
+    ensure_global_market_baseline_stock_column,
     ensure_join_codes_columns,
     ensure_phase_entitlement_columns,
     ensure_player_campaign_id,
@@ -29,6 +31,9 @@ from app.services.schema_compat import (
     ensure_simulation_state_click_columns,
     ensure_solo_player_vault_schema,
     ensure_user_password_history_table,
+    ensure_user_avatar_column,
+    ensure_user_submissions_table,
+    ensure_shop_next_restock_day_column,
     ensure_world_tables_campaign_only,
     preflight_campaign_rekey,
     warn_if_campaign_current_game_day_applied,
@@ -37,8 +42,11 @@ from app.services.schema_compat import (
     warn_if_compat_mode_applied,
     warn_if_deleted_campaign_sim_snapshot_table_created,
     warn_if_gm_world_state_campaign_applied,
+    warn_if_global_market_baseline_stock_applied,
     warn_if_join_codes_compat_applied,
     warn_if_password_history_compat_applied,
+    warn_if_user_avatar_column_applied,
+    warn_if_user_submissions_table_applied,
     warn_if_phase_compat_applied,
     warn_if_player_campaign_applied,
     warn_if_player_npc_compat_applied,
@@ -49,6 +57,7 @@ from app.services.schema_compat import (
     warn_if_simulation_state_campaign_applied,
     warn_if_simulation_state_clicks_applied,
     warn_if_solo_vault_compat_applied,
+    warn_if_shop_next_restock_day_applied,
     warn_if_world_tables_campaign_only_applied,
 )
 
@@ -365,6 +374,16 @@ def create_app():
                 warn_if_password_history_compat_applied,
             )
             _safe_bootstrap(
+                "user avatar column compatibility bootstrap",
+                ensure_user_avatar_column,
+                warn_if_user_avatar_column_applied,
+            )
+            _safe_bootstrap(
+                "user_submissions table compatibility bootstrap",
+                ensure_user_submissions_table,
+                warn_if_user_submissions_table_applied,
+            )
+            _safe_bootstrap(
                 "player NPC compatibility bootstrap",
                 ensure_player_npc_columns,
                 warn_if_player_npc_compat_applied,
@@ -373,6 +392,11 @@ def create_app():
                 "simulation_state sim_clicks compatibility bootstrap",
                 ensure_simulation_state_click_columns,
                 warn_if_simulation_state_clicks_applied,
+            )
+            _safe_bootstrap(
+                "global_markets baseline_avg_stock + simulation_state.last_market_run",
+                ensure_global_market_baseline_stock_column,
+                warn_if_global_market_baseline_stock_applied,
             )
             _safe_bootstrap(
                 "ensure_simulation_logs_table",
@@ -448,6 +472,11 @@ def create_app():
                 warn_if_campaign_player_dropped,
             )
             _safe_bootstrap(
+                "ensure_shop_next_restock_day_column",
+                ensure_shop_next_restock_day_column,
+                warn_if_shop_next_restock_day_applied,
+            )
+            _safe_bootstrap(
                 "ensure_world_tables_campaign_only",
                 ensure_world_tables_campaign_only,
                 warn_if_world_tables_campaign_only_applied,
@@ -485,6 +514,40 @@ def create_app():
     app.config.setdefault(
         "WTF_CSRF_HEADERS", ["X-CSRFToken", "X-CSRF-Token", "X-Csrf-Token"]
     )
+
+    @app.context_processor
+    def inject_account_menu_context():
+        from flask import session as flask_session
+
+        from app.constants.submission_categories import categories_for_json
+        from app.services.account_stats import get_campaign_counts
+
+        show_account_menu = False
+        account_menu_config = {}
+        if current_user.is_authenticated and request.endpoint:
+            if not request.endpoint.startswith("auth.") and not request.endpoint.startswith(
+                "static"
+            ):
+                show_account_menu = True
+                counts = get_campaign_counts(current_user)
+                mode = flask_session.get("session_mode")
+                submitted_as = "Account hub" if mode is None else str(mode).upper()
+                account_menu_config = {
+                    "submission_categories": categories_for_json(),
+                    "submission_post_url": url_for("auth.account_submissions"),
+                    "avatar_post_url": url_for("auth.account_avatar"),
+                    "avatar_get_url": url_for("auth.account_avatar"),
+                    "submitted_as": submitted_as,
+                    "gm_count": counts["gm"],
+                    "player_count": counts["player"],
+                    "is_vault_keeper": getattr(current_user, "role", "") == "vault_keeper",
+                    "campaigns_url": url_for("main.campaigns"),
+                    "logout_url": url_for("auth.logout"),
+                }
+        return {
+            "show_account_menu": show_account_menu,
+            "account_menu_config": account_menu_config,
+        }
 
     @app.after_request
     def add_no_store_headers(response):

@@ -28,6 +28,7 @@ from app.routes.handlers.gm_players_handler import (
     remove_player_from_campaign as remove_player_from_campaign_handler,
     delete_npc_player as delete_npc_player_handler,
 )
+from app.routes.handlers.gm_market_handler import get_market_overview_data
 from app.routes.handlers.gm_simulation_handler import (
     home as gm_dashboard_home,
     seed_world,
@@ -99,6 +100,32 @@ def _active_campaign_or_redirect():
 @login_required
 def home():
     return gm_dashboard_home()
+
+
+@gm_bp.route("/campaigns/supply-demand/toggle", methods=["POST"])
+@login_required
+def toggle_campaign_supply_demand():
+    """Toggle daily sales + periodic restock on simulation ticks."""
+    from app.services.world_generator.campaign_settings import toggle_supply_demand
+
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+
+    enabled, _cfg = toggle_supply_demand(camp.id)
+    db.session.commit()
+    if enabled:
+        flash(
+            "Supply On: each game-day tick applies daily sales and shop restocks.",
+            "success",
+        )
+    else:
+        flash(
+            "Supply Off: ticks update prices only (no simulated sales or restock). "
+            "Click again to turn supply back on.",
+            "warning",
+        )
+    return redirect(request.referrer or url_for("gm.home"))
 
 
 @gm_bp.route("/campaigns/debt/toggle", methods=["POST"])
@@ -509,7 +536,9 @@ def generate_shops_for_region(region_id):
 @gm_bp.route("/shops/")
 @login_required
 def view_shops():
-    ctx = get_shop_city_panel_context(current_user.gm_profile)
+    ctx = get_shop_city_panel_context(
+        current_user.gm_profile, include_nav_toggles=True
+    )
     return render_template("GM_view_shops.html", **ctx)
 
 @gm_bp.route("/shops/add", methods=["GET", "POST"])
@@ -526,11 +555,19 @@ def add_shop():
         city_ids = request.form.getlist("city_ids")
 
         try:
+            from app.models import Campaign as CampaignModel
+            from app.services.economy.supply_demand import seed_next_restock_day
+            import random as _random
+
+            camp_row = CampaignModel.query.filter_by(id=campaign_id).first()
+            game_day = int(camp_row.current_game_day or 1) if camp_row else 1
+
             new_shop = Shop(
                 name=shop_name,
                 type=shop_type,
                 campaign_id=campaign_id,
             )
+            seed_next_restock_day(new_shop, game_day, _random.Random())
             db.session.add(new_shop)
             db.session.flush()
 
@@ -920,6 +957,13 @@ def generate_world_submit():
 @login_required
 def skip_world_generation_submit():
     return skip_world_generation_submit_handler()
+
+
+@gm_bp.route("/market-overview", methods=["GET"])
+@login_required
+def gm_market_overview():
+    """Campaign-wide item price/stock overview for the GM dashboard."""
+    return get_market_overview_data()
 
 
 # Simulation routes — Day/Week/Month/Year all flow through `run_period_stream`

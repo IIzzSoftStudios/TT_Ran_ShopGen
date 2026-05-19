@@ -114,6 +114,39 @@
             border-color: rgba(124, 58, 237, 0.7);
         }
 
+        html.dark-mode .landing-page .cta-band .btn-secondary {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+            border-color: transparent;
+        }
+
+        html.dark-mode .landing-page .cta-band .btn-secondary:hover {
+            background: var(--color-accent-hover);
+        }
+
+        .cta-band-tagline {
+            color: var(--color-muted);
+            font-weight: 650;
+            font-size: 2rem;
+            line-height: 1.2;
+        }
+
+        .hero-media {
+            width: 50%;
+            justify-self: center;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 18px;
+            overflow: hidden;
+            background: rgba(30, 41, 59, 0.55);
+        }
+
+        .hero-media video {
+            display: block;
+            width: 100%;
+            height: auto;
+            vertical-align: middle;
+        }
+
         .search-form {
             display: flex;
             align-items: center;
@@ -308,8 +341,8 @@
 
         <section class="hero">
             <div>
-                <h1>Stop Guessing. Start Simulating.</h1>
-                <p>Econo-Forge is the first professional-grade economic engine built for TTRPG verisimilitude. Manage tens of thousands of market data points, automate scarcity, and keep your world’s commerce alive—without drowning in spreadsheets.</p>
+                <h1>Stop Stressing. Start Simulating.</h1>
+                <p>Shops that restock. Prices that move when supply runs thin. Econo-Forge runs your campaign’s economy in the background—so the table stays believable and you stay out of the spreadsheet.</p>
                 <div class="hero-ctas">
                     {% if current_user.is_authenticated %}
                         <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
@@ -321,13 +354,10 @@
                 </div>
             </div>
 
-            <div class="hero-card">
-                <h3>Designed for GMs at the table</h3>
-                <div class="preview">
-                    Two things matter:<br>
-                    1) fast access to Login/Search on mobile<br>
-                    2) world-consistent prices—without spreadsheet fatigue
-                </div>
+            <div class="hero-media">
+                <video autoplay muted loop playsinline aria-label="Econo-Forge marketing banner">
+                    <source src="{{ url_for('static', filename='media/banner.mp4') }}" type="video/mp4">
+                </video>
             </div>
         </section>
 
@@ -336,13 +366,13 @@
                 <div class="panel">
                     <h2>The Problem</h2>
                     <p style="color: var(--color-muted); margin: 0; line-height: 1.55;">
-                        Most fantasy economies collapse the moment a player tests them. Static magic-shop lists, flat prices, and hand-waved scarcity break immersion and put all the burden on the GM.
+                        Players always test the economy—buying in bulk, selling loot, asking what’s actually on the shelf. Static shop lists and flat prices fall apart fast, and you’re left making up numbers mid-session.
                     </p>
                 </div>
                 <div class="panel">
                     <h2>The Forge</h2>
                     <p style="color: var(--color-muted); margin: 0; line-height: 1.55;">
-                        Econo-Forge replaces brittle tables with a living simulation. It tracks supply, demand, and regional variance in real time so you can focus on the story while the engine handles the numbers.
+                        Econo-Forge models shops, stock, and prices as one system. When the party clears a market or a war cuts supply, the world responds—and you don’t have to track every change yourself.
                     </p>
                 </div>
             </div>
@@ -351,16 +381,16 @@
                 <h2>Core Features</h2>
                 <div class="feature-grid">
                     <div class="feature">
-                        <strong>Algorithmic Pricing</strong>
-                        Dynamic price scaling from regional scarcity and history; no flat-rate longswords.
+                        <strong>Prices that react</strong>
+                        Costs rise when stock runs low or a region is strained. A sword in the capital shouldn’t price like one hauled through a famine—unless you want it to.
                     </div>
                     <div class="feature">
-                        <strong>Inventory State-Management</strong>
-                        Persistent inventories across entities with transactional integrity.
+                        <strong>Inventories that stick</strong>
+                        Shops, stashes, and character gear share the same counts. Sell the last potion in town and it’s gone until restock—not “wait, did we have more?”
                     </div>
                     <div class="feature">
-                        <strong>GM Management Hub</strong>
-                        Create items, manage players, and run the table from one place.
+                        <strong>GM hub</strong>
+                        Add items, invite players, and advance the simulation between sessions—all from one place.
                     </div>
                 </div>
             </div>
@@ -368,9 +398,9 @@
 
         <section class="section" style="padding-top:0;">
             <div class="panel">
-                <h2>Built for Systems-Heavy Narratives</h2>
+                <h2>Built for long campaigns</h2>
                 <p style="color: var(--color-muted); margin: 0; line-height: 1.65;">
-                    Econo-Forge isn’t a random loot table. It’s a simulation engine informed by systems like Pathfinder and D&D 5E, tuned for GMs who treat economies as first-class. Whether you’re running a long campaign or a sandbox of competing factions, Econo-Forge keeps the numbers consistent so your players can take the fiction seriously.
+                    This isn’t a loot roller—it’s a campaign economy. Designed with Pathfinder and D&D 5E in mind, for tables where trade and scarcity matter. Whether you run a sandbox or a year-long arc, stock and prices stay consistent so players trust what they see at the shop.
                 </p>
 
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px;">
@@ -379,29 +409,19 @@
                     <span style="padding:8px 12px; border-radius: 999px; background: rgba(148, 163, 184, 0.12); border: 1px solid rgba(148, 163, 184, 0.25); font-weight: 800;">More systems soon</span>
                 </div>
 
-                <div style="margin-top: 18px; display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                    <div class="hero-card" style="padding:16px; background: rgba(30, 41, 59, 0.35);">
-                        <div style="font-weight:900; margin-bottom: 6px;">Testimonial (placeholder)</div>
-                        <div style="color: var(--color-muted); line-height: 1.6;">“This kept my economy coherent without killing session flow.”</div>
-                    </div>
-                    <div class="hero-card" style="padding:16px; background: rgba(30, 41, 59, 0.35);">
-                        <div style="font-weight:900; margin-bottom: 6px;">Testimonial (placeholder)</div>
-                        <div style="color: var(--color-muted); line-height: 1.6;">“The prices feel alive. Players buy in harder.”</div>
-                    </div>
-                </div>
             </div>
         </section>
 
         <div class="cta-band">
             <div class="cta-band-inner">
-                <div style="color: var(--color-muted); font-weight: 650;">Ready when you are.</div>
+                <div class="cta-band-tagline">Ready when you are.</div>
                 <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
                     {% if current_user.is_authenticated %}
                         <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
-                        <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}" style="background:transparent;">Log out</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
                     {% else %}
                         <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
-                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}" style="background:transparent;">Or go straight to Login</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Or go straight to Login</a>
                     {% endif %}
                 </div>
             </div>

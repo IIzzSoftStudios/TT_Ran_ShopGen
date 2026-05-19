@@ -28,6 +28,7 @@ from app.services.world_generator import (
 )
 from app.services.world_generator.generator import GenerationTimeoutError
 from app.services.world_generator.validator import ValidationError
+from app.services.user_capabilities import has_gm_capability
 from app.services.join_codes import (
     reveal_campaign_code_for_gm,
     log_reveal,
@@ -232,9 +233,41 @@ _RANGE_LABELS = {
     "num_cities": "Number of Cities",
     "num_regions": "Number of Regions",
     "global_item_pool_size": "Global Item Pool Size",
-    "shops_per_city": "Shops per City",
+    "city_size_variation": "City Size Variation",
     "items_per_shop": "Items per Shop",
     "tech_magic_balance": "Magic <-> Tech Balance",
+}
+
+_SETTING_HINTS = {
+    "num_regions": (
+        "How many world regions are generated. Each region gets its own name and "
+        "a rolled position on the magic–tech axis. The final count is random "
+        "between your min and max."
+    ),
+    "num_cities": (
+        "Towns and cities placed across those regions. More cities add travel "
+        "hubs and shop locations but increase generation time and database size."
+    ),
+    "global_item_pool_size": (
+        "Size of the master item catalog built once for the campaign. Every shop "
+        "draws stock from this pool; a larger pool means more unique gear "
+        "world-wide."
+    ),
+    "city_size_variation": (
+        "Dual range (1–20): lower values bias toward hamlets and villages, "
+        "higher values toward cities and megaplexes. Shop count per settlement "
+        "comes from the catalog shops_per_size table for the rolled tier."
+    ),
+    "items_per_shop": (
+        "How many items each shop stocks. Together with cities and shops per "
+        "city, this drives the shop-inventory estimate shown below."
+    ),
+    "tech_magic_balance": (
+        "Range for the fused magic-vs-technology axis (0 = high magic, "
+        "10 = post-apocalyptic tech). Each region, item, and shop roll picks a "
+        "value within your min–max; it affects naming, stats, and which items "
+        "feel native vs imported in a city."
+    ),
 }
 
 
@@ -270,16 +303,22 @@ def _build_defaults_payload(form_override=None):
         "system_type": "dnd5e",
     }
 
+    from app.services.shop_roll.catalog import get_catalog
+
+    catalog = get_catalog()
     return {
         "ranges": ranges,
         "labels": _RANGE_LABELS,
+        "setting_hints": _SETTING_HINTS,
         "system_types": wg_defaults.SYSTEM_TYPES,
         "shop_inventory_cap": wg_defaults.SHOP_INVENTORY_CAP,
+        "max_shops_per_city": catalog.max_shops_per_city(),
         "defaults_json": defaults_json,
         "form_values": {
             "campaign_name": override.get("campaign_name", ""),
             "system_type": override.get("system_type", "dnd5e"),
             "world_seed": override.get("world_seed", ""),
+            "inventory_mode": override.get("inventory_mode", "axis"),
         },
     }
 
@@ -291,7 +330,7 @@ def generate_world_form():
     Only GMs may render this page. Anyone else is redirected to the
     main campaign selection screen.
     """
-    if getattr(current_user, "role", None) != "GM":
+    if not has_gm_capability(current_user):
         flash("Only GMs can create campaigns.", "error")
         return redirect(url_for("main.campaigns"))
 
@@ -327,7 +366,7 @@ def generate_world_submit():
 
     All failures roll back and re-render the form with a flash message.
     """
-    if getattr(current_user, "role", None) != "GM":
+    if not has_gm_capability(current_user):
         flash("Only GMs can create campaigns.", "error")
         return redirect(url_for("main.campaigns")), 403
 
@@ -493,7 +532,7 @@ def generate_world_submit():
 @login_required
 def skip_world_generation_submit():
     """Create a campaign without running procedural world generation."""
-    if getattr(current_user, "role", None) != "GM":
+    if not has_gm_capability(current_user):
         flash("Only GMs can create campaigns.", "error")
         return redirect(url_for("main.campaigns")), 403
 
@@ -572,7 +611,7 @@ def skip_world_generation_submit():
 @login_required
 def reveal_campaign_join_code(campaign_id: int):
     """JSON: lazy-fetch campaign join code for authorized GM."""
-    if getattr(current_user, "role", None) != "GM":
+    if not has_gm_capability(current_user):
         return jsonify(error="forbidden"), 403
     gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
     if not gm_profile:
@@ -605,7 +644,7 @@ def reveal_campaign_join_code(campaign_id: int):
 @login_required
 def post_redeem_player_code(campaign_id: int):
     """POST: GM pastes a PLY- code to seat a player on this campaign."""
-    if getattr(current_user, "role", None) != "GM":
+    if not has_gm_capability(current_user):
         flash("Only GMs can add players by code.", "error")
         return redirect(url_for("main.campaigns"))
     gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()

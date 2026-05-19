@@ -4,6 +4,8 @@
 {% set _show_add_item = show_add_item|default(true) %}
 {% set _show_add_region = show_add_region|default(true) %}
 {% set _show_debt_toggle = show_debt_toggle|default(false) %}
+{% set _show_supply_demand_toggle = show_supply_demand_toggle|default(false) %}
+{% set _supply_demand_enabled = supply_demand_enabled|default(true) %}
 <style>
     .gm-world-quick-nav .nav-buttons {
         display: flex;
@@ -27,6 +29,16 @@
         <button type="button" onclick="MapsTo('{{ url_for('gm.add_shop') }}')" class="button">Add Shop</button>
         {% if _show_add_item %}
         <button type="button" onclick="MapsTo('{{ url_for('gm.add_item') }}')" class="button">Add Item</button>
+        {% endif %}
+        {% if _show_supply_demand_toggle and campaign %}
+        <form method="POST" action="{{ url_for('gm.toggle_campaign_supply_demand') }}" class="nav-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit"
+                    class="button"
+                    title="{% if _supply_demand_enabled %}Each game-day tick simulates sales and periodic shop restocks{% else %}Ticks update prices only; no simulated sales or restock{% endif %}">
+                {% if _supply_demand_enabled %}Supply On{% else %}Supply Off{% endif %}
+            </button>
+        </form>
         {% endif %}
         {% if _show_debt_toggle and campaign %}
         <form method="POST" action="{{ url_for('gm.toggle_campaign_debt') }}" class="nav-form">

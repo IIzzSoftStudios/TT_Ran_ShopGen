@@ -8,6 +8,9 @@ from app.routes.handlers.auth_handler import (
     handle_register,
     handle_forgot_password,
     handle_reset_password,
+    handle_post_submission,
+    handle_get_avatar,
+    handle_upload_avatar,
 )
 
 auth = Blueprint("auth", __name__)
@@ -39,3 +42,19 @@ def forgot_password():
 @limiter.limit("10 per hour", exempt_when=lambda: request.method != "POST")
 def reset_password():
     return handle_reset_password()
+
+
+@auth.route("/account/submissions", methods=["POST"])
+@login_required
+@limiter.limit("10 per hour", exempt_when=lambda: request.method != "POST")
+def account_submissions():
+    return handle_post_submission()
+
+
+@auth.route("/account/avatar", methods=["GET", "POST"])
+@login_required
+@limiter.limit("20 per hour", exempt_when=lambda: request.method == "GET")
+def account_avatar():
+    if request.method == "GET":
+        return handle_get_avatar()
+    return handle_upload_avatar()

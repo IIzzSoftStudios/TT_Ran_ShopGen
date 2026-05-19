@@ -17,8 +17,10 @@ The project is built using **Python, PostgreSQL, and Flask**, with a potential *
 - Track item availability across multiple shops.
 
 ### **Dynamic Pricing & Inventory Management**
-- Item prices fluctuate based on stock levels, rarity, and demand.
-- Shops restock periodically, influenced by city size and economic factors.
+- Item prices fluctuate based on stock levels, rarity, and demand modifiers.
+- Each simulation tick (one game day) runs bounded price-elasticity **daily sales**, then recalculates prices from updated stock.
+- Shops **restock every 15–30 game days** (per-shop schedule), with replenishment scaled by city size (`data/shop_roll_catalog.yaml`).
+- World generation builds a **procedural item pool** (random names, stats, rarity, axis placement) and stocks shops from that pool; **City Size Variation** (1–20) uses `data/shop_roll_catalog.yaml` for settlement tiers and shop counts.
 - Events (e.g., war, trade booms, supply shortages) dynamically affect item availability.
 
 ### **Database Structure**

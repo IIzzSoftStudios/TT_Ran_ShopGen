@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterable, Mapping, Optional
 
+from app.services.shop_roll.catalog import get_catalog
 from app.services.world_generator.defaults import (
     RANGE_SETTINGS,
     SCHEMA_VERSION,
@@ -20,6 +21,8 @@ from app.services.world_generator.defaults import (
     SYSTEM_TYPES,
     TOTAL_ENTITY_CAP,
 )
+
+INVENTORY_MODE = "axis"  # procedural random names, stats, rarity (only mode)
 
 
 class ValidationError(Exception):
@@ -125,7 +128,10 @@ def _parse_name(form: Mapping[str, Any]) -> str:
 def _enforce_caps(ranges: Dict[str, Dict[str, int]]) -> None:
     """Check ShopInventory cap, total entity cap, and item-pool density rule."""
     cities_max = ranges["num_cities"]["max"]
-    shops_max = ranges["shops_per_city"]["max"]
+    if "shops_per_city" in ranges:
+        shops_max = ranges["shops_per_city"]["max"]
+    else:
+        shops_max = get_catalog().max_shops_per_city()
     items_per_shop_max = ranges["items_per_shop"]["max"]
     pool_min = ranges["global_item_pool_size"]["min"]
     pool_max = ranges["global_item_pool_size"]["max"]
@@ -210,10 +216,26 @@ def validate(form: Mapping[str, Any]) -> Dict[str, Any]:
 
     world_seed = _parse_seed(form)
 
+    # Controlled from GM dashboard after creation; new worlds default to enabled.
+    supply_raw = form.get("supply_demand_enabled")
+    if supply_raw is None:
+        supply_demand_enabled_flag = True
+    elif isinstance(supply_raw, str):
+        supply_demand_enabled_flag = supply_raw.strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+    else:
+        supply_demand_enabled_flag = bool(supply_raw)
+
     return {
         "schema_version": SCHEMA_VERSION,
         "campaign_name": campaign_name,
         "system_type": system_type,
         "world_seed": world_seed,
         "ranges": ranges,
+        "inventory_mode": INVENTORY_MODE,
+        "supply_demand_enabled": supply_demand_enabled_flag,
     }

@@ -5,7 +5,6 @@
     {% include 'partials/theme_head.html' %}
 
     <style>
-        /* Center everything */
         body {
             display: flex;
             flex-direction: column;
@@ -17,13 +16,11 @@
             background-color: #f4f4f4;
         }
 
-        /* Styling for the heading */
         h2 {
             font-size: 2.5rem;
             margin-bottom: 20px;
         }
 
-        /* Form Styling */
         form {
             display: flex;
             flex-direction: column;
@@ -41,12 +38,13 @@
             text-align: center;
         }
 
-        input, select {
+        input:not(.password-field input), select {
             padding: 8px;
             margin-top: 7px;
             border: 1px solid #ccc;
             border-radius: 5px;
             width: 100%;
+            box-sizing: border-box;
         }
 
         .form-group {
@@ -54,7 +52,49 @@
             margin-bottom: 10px;
         }
 
-        button {
+        .password-field {
+            position: relative;
+            width: 100%;
+            margin-top: 7px;
+        }
+
+        .password-field input {
+            width: 100%;
+            padding: 8px 40px 8px 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            display: block;
+            margin: 0;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            color: #666;
+            padding: 4px 6px;
+            z-index: 1;
+        }
+
+        .password-toggle:hover {
+            color: purple;
+        }
+
+        .password-mismatch {
+            color: #c0392b;
+            font-size: 0.9rem;
+            margin-top: 6px;
+            display: none;
+        }
+
+        button[type="submit"] {
             background-color: purple;
             color: white;
             border: none;
@@ -66,17 +106,13 @@
             transition: background-color 0.3s, transform 0.3s;
         }
 
-        button:hover {
+        button[type="submit"]:hover {
             background-color: #2980b9;
             transform: scale(1.1);
         }
 
         p {
             margin-top: 15px;
-        }
-
-        .player-campaign-code {
-            display: none;
         }
 
         .password-info {
@@ -114,10 +150,28 @@
         }
     </style>
     <script>
-        function togglePlayerCampaignCode() {
-            const role = document.getElementById('role').value;
-            const box = document.getElementById('player-campaign-code');
-            if (box) box.style.display = role === 'Player' ? 'block' : 'none';
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+            btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            btn.textContent = show ? '🙈' : '👁';
+        }
+
+        function validateRegisterForm(e) {
+            const pw = document.getElementById('password');
+            const confirm = document.getElementById('confirm_password');
+            const err = document.getElementById('password-mismatch');
+            if (!pw || !confirm) return true;
+            if (pw.value !== confirm.value) {
+                e.preventDefault();
+                if (err) err.style.display = 'block';
+                return false;
+            }
+            if (err) err.style.display = 'none';
+            return true;
         }
     </script>
 </head>
@@ -134,7 +188,7 @@
             </div>
         {% endif %}
     {% endwith %}
-    <form method="POST">
+    <form method="POST" onsubmit="return validateRegisterForm(event)">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-group">
             <label for="registration_key">Registration Key:</label>
@@ -148,26 +202,28 @@
             <label for="email">Email (required if your vault key is tied to an access request):</label>
             <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
         </div>
-        
+
         <div class="form-group">
             <label for="password">Password <span class="password-info" tabindex="0" aria-label="Password requirements">!</span>:</label>
-            <input type="password" id="password" name="password" required
-                   title="Normal keys: 8+ chars with upper, lower, and special. TEST admin keys: any length.">
+            <div class="password-field">
+                <input type="password" id="password" name="password" required
+                       title="Normal keys: 8+ chars with upper, lower, and special. TEST admin keys: any length.">
+                <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password"
+                        onclick="togglePasswordVisibility('password', this)">👁</button>
+            </div>
         </div>
-        
+
         <div class="form-group">
-            <label for="role">Role:</label>
-            <select id="role" name="role" onchange="togglePlayerCampaignCode()" required>
-                <option value="GM">Game Master</option>
-                <option value="Player">Player</option>
-            </select>
+            <label for="confirm_password">Confirm password:</label>
+            <div class="password-field">
+                <input type="password" id="confirm_password" name="confirm_password" required
+                       title="Re-enter your password">
+                <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password"
+                        onclick="togglePasswordVisibility('confirm_password', this)">👁</button>
+            </div>
+            <p id="password-mismatch" class="password-mismatch">Passwords do not match.</p>
         </div>
-        
-        <div id="player-campaign-code" class="form-group player-campaign-code">
-            <label for="campaign_code">Campaign code (optional — from your GM, starts with <code>CAMP-</code>):</label>
-            <input type="text" id="campaign_code" name="campaign_code" placeholder="CAMP-XXXX-XXXX-XXXX" autocomplete="off">
-        </div>
-        
+
         <button type="submit">Register</button>
     </form>
     <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>

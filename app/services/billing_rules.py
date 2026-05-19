@@ -50,7 +50,7 @@ def can_create_campaign(gm_profile) -> Tuple[bool, str]:
 
 def can_add_player_profile(user) -> Tuple[bool, str]:
     """Enforce max non-NPC Player rows per login (mirrors GM ``campaign_limit`` for the same key phase)."""
-    if user is None or getattr(user, "role", None) != "Player":
+    if user is None or getattr(user, "role", None) not in ("Player", "Both"):
         return True, ""
     cap, _seats, label = get_gm_limits(user)
     n = (

@@ -242,6 +242,28 @@ html.dark-mode .gm-dashboard .simulation-panel h2 {
   color: #F8F9FA !important;
 }
 
+html.dark-mode .simulation-panel .gm-panel-tab {
+  color: var(--color-text-muted);
+}
+html.dark-mode .simulation-panel .gm-panel-tab:hover,
+html.dark-mode .simulation-panel .gm-panel-tab.active {
+  color: var(--color-text);
+}
+html.dark-mode .simulation-panel .gm-panel-tabs {
+  border-bottom-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .market-table-wrapper {
+  border-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .market-overview-table th {
+  background-color: var(--color-table-stripe);
+  color: var(--color-text);
+  border-bottom-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .market-overview-table td {
+  border-bottom-color: var(--color-border);
+}
+
 /* Character panel: make class/level and stat section headers white in dark mode */
 html.dark-mode .character-class-level,
 html.dark-mode .stat-section-title {

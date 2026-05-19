@@ -1,0 +1,184 @@
+# Random shop roll + supply/demand catalog (in-repo; never import spreadsheets).
+
+city_sizes:
+  - Hamlet
+  - Village
+  - "Small Town"
+  - "Large Town"
+  - "Small City"
+  - "Medium City"
+  - "Large City"
+  - Metropolis
+  - Megaplex
+
+variation_tier_steps:
+  1: 0
+  2: 0
+  3: 1
+  4: 1
+  5: 2
+  6: 2
+  7: 3
+  8: 3
+  9: 4
+  10: 4
+  11: 5
+  12: 5
+  13: 6
+  14: 6
+  15: 7
+  16: 7
+  17: 8
+  18: 8
+  19: 8
+  20: 8
+
+population_bands:
+  Hamlet: [1, 200]
+  Village: [200, 1000]
+  "Small Town": [1000, 5000]
+  "Large Town": [5000, 20000]
+  "Small City": [20000, 50000]
+  "Medium City": [50000, 200000]
+  "Large City": [200000, 1000000]
+  Metropolis: [1000000, 10000000]
+  Megaplex: [10000000, 50000000]
+
+shops_per_size:
+  Hamlet: [0, 1]
+  Village: [1, 2]
+  "Small Town": [1, 3]
+  "Large Town": [2, 4]
+  "Small City": [2, 5]
+  "Medium City": [3, 6]
+  "Large City": [4, 8]
+  Metropolis: [5, 10]
+  Megaplex: [6, 12]
+
+daily_demand_units:
+  Hamlet: 0.5
+  Village: 1.0
+  "Small Town": 1.5
+  "Large Town": 2.0
+  "Small City": 2.5
+  "Medium City": 3.0
+  "Large City": 3.5
+  Metropolis: 4.0
+  Megaplex: 5.0
+
+restock_units:
+  Hamlet: 2
+  Village: 4
+  "Small Town": 6
+  "Large Town": 8
+  "Small City": 10
+  "Medium City": 14
+  "Large City": 18
+  Metropolis: 22
+  Megaplex: 28
+
+stock_cap:
+  Hamlet: 8
+  Village: 12
+  "Small Town": 16
+  "Large Town": 20
+  "Small City": 24
+  "Medium City": 30
+  "Large City": 36
+  Metropolis: 42
+  Megaplex: 50
+
+price_elasticity: 1.0
+price_ratio_floor: 0.2
+demand_multiplier_min: 0.01
+demand_multiplier_max: 5.0
+daily_variance: [0.85, 1.15]
+restock_variance: [0.9, 1.1]
+restock_interval_days: [15, 30]
+
+price_elasticity_by_category:
+  general: 1.0
+  weapons: 1.1
+  armor: 1.0
+  magic: 1.2
+  consumables: 0.9
+  tavern: 0.8
+
+categories:
+  - general
+  - weapons
+  - armor
+  - magic
+  - consumables
+  - tavern
+
+slot_ranges:
+  Hamlet: [1, 3]
+  Village: [2, 4]
+  "Small Town": [3, 6]
+  "Large Town": [4, 8]
+  "Small City": [5, 10]
+  "Medium City": [6, 12]
+  "Large City": [8, 14]
+  Metropolis: [10, 16]
+  Megaplex: [12, 18]
+
+item_pools:
+  general:
+    - Rope Coil
+    - Travel Rations
+    - Oil Flask
+    - Bedroll
+    - Lantern
+  weapons:
+    - Iron Blade
+    - Oak Bow
+    - Crossbow Bolt Case
+    - Throwing Knife Set
+  armor:
+    - Leather Vest
+    - Chain Shirt
+    - Studded Bracers
+    - Padded Helm
+  magic:
+    - Minor Healing Draught
+    - Arcane Spark
+    - Rune Shard
+    - Blessed Charm
+  consumables:
+    - Healing Tonic
+    - Stamina Brew
+    - Antitoxin Vial
+    - Field Bandage
+  tavern:
+    - House Ale
+    - Smoked Jerky
+    - Hardtack Crate
+    - Spice Satchel
+
+base_prices_copper:
+  Rope Coil: 25
+  Travel Rations: 15
+  Oil Flask: 20
+  Bedroll: 35
+  Lantern: 40
+  Iron Blade: 120
+  Oak Bow: 95
+  Crossbow Bolt Case: 45
+  Throwing Knife Set: 60
+  Leather Vest: 150
+  Chain Shirt: 280
+  Studded Bracers: 90
+  Padded Helm: 75
+  Minor Healing Draught: 80
+  Arcane Spark: 110
+  Rune Shard: 65
+  Blessed Charm: 200
+  Healing Tonic: 50
+  Stamina Brew: 55
+  Antitoxin Vial: 70
+  Field Bandage: 30
+  House Ale: 8
+  Smoked Jerky: 12
+  Hardtack Crate: 18
+  Spice Satchel: 22

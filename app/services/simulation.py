@@ -36,7 +36,13 @@ from app.models import (
     SimulationState,
 )
 from app.services.economy import calculate_dynamic_price
+from app.services.economy.supply_demand import (
+    apply_supply_demand_to_inventory_rows,
+    backfill_shop_restock_schedules,
+)
+from app.services.world_generator.pricing import rarity_for_simulation
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
+from app.services.world_generator.campaign_settings import read_supply_demand_flag
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +122,10 @@ class SimulationEngine:
             "session_new_count": 0,
             "inventory_row_count": 0,
             "world_state_written": False,
+            "units_sold": 0,
+            "shops_restocked": 0,
+            "supply_demand_ms": 0.0,
+            "supply_demand_enabled": True,
         }
         shops_seen = set()
 
@@ -147,6 +157,36 @@ class SimulationEngine:
             seed_int = int(hashlib.sha256(seed_material).hexdigest(), 16) % (2**32)
             local_rng = random.Random(seed_int)
 
+            run_supply = read_supply_demand_flag(campaign_id)
+            stats["supply_demand_enabled"] = run_supply
+
+            if run_supply and inventory_rows:
+                backfill_shop_restock_schedules(
+                    campaign_id, tick_day, local_rng
+                )
+                sd_stats = apply_supply_demand_to_inventory_rows(
+                    inventory_rows,
+                    tick_day,
+                    local_rng,
+                )
+                stats["units_sold"] = sd_stats.get("units_sold", 0)
+                stats["shops_restocked"] = sd_stats.get("shops_restocked", 0)
+                stats["supply_demand_ms"] = sd_stats.get("supply_demand_ms", 0.0)
+                if stats["units_sold"] == 0 and any(
+                    int(inv.stock or 0) > 0 for inv in inventory_rows
+                ):
+                    logger.warning(
+                        "supply_demand sold 0 units but campaign %s has in-stock "
+                        "rows on game day %s (check Supply On and item prices)",
+                        campaign_id,
+                        tick_day,
+                    )
+            elif not run_supply and inventory_rows:
+                logger.debug(
+                    "supply_demand skipped for campaign %s (Supply Off in world config)",
+                    campaign_id,
+                )
+
             recorded_at = datetime.utcnow()
             price_history_rows: List[Dict] = []
             state_blob: Dict[str, Dict] = {}
@@ -160,7 +200,7 @@ class SimulationEngine:
                         continue
                     old_price = inventory.dynamic_price
                     base_price = inventory.item.base_price
-                    rarity = int(inventory.item.rarity) if inventory.item.rarity.isdigit() else 5
+                    rarity = rarity_for_simulation(inventory.item.rarity)
                     shop = inventory.shop
                     cities = sorted((shop.cities if shop else []), key=lambda c: c.city_id)
 
@@ -291,7 +331,10 @@ class SimulationEngine:
                 f"Tick completed: shops={stats['shops_updated']} items={stats['items_updated']} "
                 f"duration={stats['tick_duration']:.4f}s "
                 f"t_load={stats['t_load']:.4f} t_compute={stats['t_compute']:.4f} "
-                f"t_flush={stats['t_flush']:.4f} t_persist={stats['t_persist']:.4f}",
+                f"t_flush={stats['t_flush']:.4f} t_persist={stats['t_persist']:.4f} "
+                f"units_sold={stats.get('units_sold', 0)} "
+                f"shops_restocked={stats.get('shops_restocked', 0)} "
+                f"supply_demand_ms={stats.get('supply_demand_ms', 0):.3f}",
                 "debug",
             )
 

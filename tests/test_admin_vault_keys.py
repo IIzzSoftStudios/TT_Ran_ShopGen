@@ -232,7 +232,7 @@ def _mock_campaign(
 
 
 def _patched_query_chain(users):
-    """Return a MagicMock that matches the ``User.query.filter_by(role="GM").options(...).order_by(...).all()`` shape."""
+    """Return a MagicMock that matches ``User.query.filter(...).options(...).order_by(...).all()``."""
 
     chain = MagicMock()
     chain.options.return_value.order_by.return_value.all.return_value = list(users)
@@ -327,7 +327,7 @@ def test_gm_simulation_usage_payload_includes_per_campaign_rows():
                 admin_handler, "_load_snapshot_index_by_gm", _empty_snapshot_index()
             ):
                 with patch.object(admin_handler, "User") as user_mock:
-                    user_mock.query.filter_by.return_value = _patched_query_chain([user])
+                    user_mock.query.filter.return_value = _patched_query_chain([user])
                     rows = admin_handler._gm_simulation_usage_serialized_rows()
 
     assert len(rows) == 1
@@ -370,7 +370,7 @@ def test_gm_simulation_usage_payload_handles_gm_without_campaigns():
                 admin_handler, "_load_snapshot_index_by_gm", _empty_snapshot_index()
             ):
                 with patch.object(admin_handler, "User") as user_mock:
-                    user_mock.query.filter_by.return_value = _patched_query_chain([user])
+                    user_mock.query.filter.return_value = _patched_query_chain([user])
                     rows = admin_handler._gm_simulation_usage_serialized_rows()
 
     assert rows == [
@@ -440,7 +440,7 @@ def test_gm_simulation_usage_payload_folds_in_deleted_campaign_snapshots():
                 MagicMock(return_value={77: [snap]}),
             ):
                 with patch.object(admin_handler, "User") as user_mock:
-                    user_mock.query.filter_by.return_value = _patched_query_chain([user])
+                    user_mock.query.filter.return_value = _patched_query_chain([user])
                     rows = admin_handler._gm_simulation_usage_serialized_rows()
 
     r = rows[0]
@@ -513,7 +513,7 @@ def test_gm_simulation_usage_payload_supports_only_deleted_campaigns():
                 MagicMock(return_value={88: snaps}),
             ):
                 with patch.object(admin_handler, "User") as user_mock:
-                    user_mock.query.filter_by.return_value = _patched_query_chain([user])
+                    user_mock.query.filter.return_value = _patched_query_chain([user])
                     rows = admin_handler._gm_simulation_usage_serialized_rows()
 
     r = rows[0]

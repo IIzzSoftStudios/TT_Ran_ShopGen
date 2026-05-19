@@ -25,8 +25,11 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy import func
+
 from app.extensions import db
 from app.models import (
+    Campaign,
     City,
     GlobalMarket,
     Item,
@@ -35,6 +38,13 @@ from app.models import (
     Shop,
     ShopInventory,
     SimulationState,
+)
+from app.services.economy.supply_demand import seed_next_restock_day
+from app.services.shop_roll.catalog import get_catalog
+from app.services.shop_roll.city_size import pick_city_size_and_population
+from app.services.world_generator.settings_resolve import (
+    city_size_variation_range,
+    shops_count_for_city,
 )
 
 # Region is defined in app/models.py by this plan's migration.
@@ -56,6 +66,23 @@ from app.services.world_generator.defaults import (
 )
 
 log = logging.getLogger(__name__)
+
+
+def seed_campaign_baseline_stock(campaign_id: int) -> None:
+    """Set ``GlobalMarket.baseline_avg_stock`` from AVG(stock) per item after inventory exists."""
+    stock_rows = (
+        db.session.query(ShopInventory.item_id, func.avg(ShopInventory.stock))
+        .join(Shop, ShopInventory.shop_id == Shop.shop_id)
+        .filter(Shop.campaign_id == campaign_id)
+        .group_by(ShopInventory.item_id)
+        .all()
+    )
+    stock_map = {
+        int(item_id): float(avg_stock) if avg_stock is not None else 0.0
+        for item_id, avg_stock in stock_rows
+    }
+    for mkt in GlobalMarket.query.filter_by(campaign_id=campaign_id).all():
+        mkt.baseline_avg_stock = stock_map.get(mkt.item_id, 0.0)
 
 
 class GenerationTimeoutError(RuntimeError):
@@ -154,6 +181,11 @@ def generate(
     system_type = settings["system_type"]
     sim_speed = DEFAULT_SIMULATION_SPEED
     effective_seed = _resolve_seed(settings.get("world_seed"))
+    catalog = get_catalog()
+    use_city_variation = "city_size_variation" in ranges
+    variation_range = city_size_variation_range(settings)
+    campaign_row = Campaign.query.filter_by(id=campaign_id).first()
+    game_day = int(campaign_row.current_game_day or 1) if campaign_row else 1
 
     root_rng = random.Random(effective_seed)
     rng_cities = _derive_subrng(root_rng, "cities")
@@ -280,8 +312,22 @@ def generate(
             name = naming_logic.city_name(
                 rng_cities, city_axis, city_gov, city_names
             )
-            population = rng_cities.randint(500, 25_000)
-            size = "Small" if population < 3_000 else "Medium" if population < 12_000 else "Large"
+            if use_city_variation:
+                size, population = pick_city_size_and_population(
+                    rng_cities,
+                    variation_range["min"],
+                    variation_range["max"],
+                    catalog,
+                )
+            else:
+                population = rng_cities.randint(500, 25_000)
+                size = (
+                    "Small"
+                    if population < 3_000
+                    else "Medium"
+                    if population < 12_000
+                    else "Large"
+                )
             city = City(
                 name=name,
                 government_type=city_gov,
@@ -312,9 +358,11 @@ def generate(
         city_shop_pairs: List[Tuple[City, Shop]] = []
         shops_per_city_counts: List[int] = []
         for city in cities:
-            n_shops_here = rng_shops.randint(
-                ranges["shops_per_city"]["min"],
-                ranges["shops_per_city"]["max"],
+            n_shops_here = shops_count_for_city(
+                city.size or "Small Town",
+                rng_shops,
+                settings,
+                catalog,
             )
             shops_per_city_counts.append(n_shops_here)
             region = next(
@@ -334,6 +382,7 @@ def generate(
                     campaign_id=campaign_id,
                     preferred_region=city.region,
                 )
+                seed_next_restock_day(shop, game_day, rng_shops, catalog)
                 all_shops.append(shop)
                 city_shop_pairs.append((city, shop))
         db.session.add_all(all_shops)
@@ -352,12 +401,14 @@ def generate(
         # Build inventory.
         n_inventory_rows = 0
         inventory_batch: List[ShopInventory] = []
+
         for city, shop in city_shop_pairs:
             region = next(
                 (r for r in regions_sorted if r.name == city.region),
                 regions_sorted[0] if regions_sorted else None,
             )
             city_axis = region.local_flavor["axis_position"] if region else 5
+
             n_items_here = rng_inventory.randint(
                 ranges["items_per_shop"]["min"],
                 ranges["items_per_shop"]["max"],
@@ -465,6 +516,8 @@ def generate(
         ]
         if global_markets:
             db.session.add_all(global_markets)
+            db.session.flush()
+        seed_campaign_baseline_stock(campaign_id)
         log.info(
             "world_gen phase=markets campaign_id=%s regional=%d global=%d",
             campaign_id,
@@ -530,6 +583,9 @@ def generate_cities_for_empty_region(
 
     ranges = settings["ranges"]
     effective_seed = _resolve_seed(settings.get("world_seed"))
+    catalog = get_catalog()
+    use_city_variation = "city_size_variation" in ranges
+    variation_range = city_size_variation_range(settings)
     root_rng = random.Random(effective_seed)
     rng_cities = _derive_subrng(root_rng, f"empty_region_{region_id}_cities")
 
@@ -578,14 +634,22 @@ def generate_cities_for_empty_region(
             name = naming_logic.city_name(
                 rng_cities, axis_pos, city_gov, city_names
             )
-            population = rng_cities.randint(500, 25_000)
-            size = (
-                "Small"
-                if population < 3_000
-                else "Medium"
-                if population < 12_000
-                else "Large"
-            )
+            if use_city_variation:
+                size, population = pick_city_size_and_population(
+                    rng_cities,
+                    variation_range["min"],
+                    variation_range["max"],
+                    catalog,
+                )
+            else:
+                population = rng_cities.randint(500, 25_000)
+                size = (
+                    "Small"
+                    if population < 3_000
+                    else "Medium"
+                    if population < 12_000
+                    else "Large"
+                )
             new_cities.append(
                 City(
                     name=name,
@@ -638,6 +702,9 @@ def generate_shops_onward(
     ranges = settings["ranges"]
     sim_speed = DEFAULT_SIMULATION_SPEED
     effective_seed = _resolve_seed(settings.get("world_seed"))
+    catalog = get_catalog()
+    campaign_row = Campaign.query.filter_by(id=campaign_id).first()
+    game_day = int(campaign_row.current_game_day or 1) if campaign_row else 1
 
     root_rng = random.Random(effective_seed)
     rng_shops = _derive_subrng(root_rng, "shops")
@@ -719,9 +786,11 @@ def generate_shops_onward(
 
     with db.session.no_autoflush:
         for city in cities_to_stock:
-            n_shops_here = rng_shops.randint(
-                ranges["shops_per_city"]["min"],
-                ranges["shops_per_city"]["max"],
+            n_shops_here = shops_count_for_city(
+                city.size or "Small Town",
+                rng_shops,
+                settings,
+                catalog,
             )
             reg = regions_by_id.get(city.region_id)
             city_axis = _city_axis(city)
@@ -738,6 +807,7 @@ def generate_shops_onward(
                     campaign_id=campaign_id,
                     preferred_region=pref or None,
                 )
+                seed_next_restock_day(shop, game_day, rng_shops, catalog)
                 all_shops.append(shop)
                 city_shop_pairs.append((city, shop))
             _check_budget()
@@ -757,6 +827,7 @@ def generate_shops_onward(
 
         n_inventory_rows = 0
         inventory_batch: List[ShopInventory] = []
+
         for city, shop in city_shop_pairs:
             city_axis = _city_axis(city)
             n_items_here = rng_inventory.randint(
@@ -880,6 +951,8 @@ def generate_shops_onward(
         ]
         if global_markets:
             db.session.add_all(global_markets)
+            db.session.flush()
+        seed_campaign_baseline_stock(campaign_id)
         log.info(
             "world_gen phase=markets_partial campaign_id=%s regional_new=%d global_new=%d",
             campaign_id,

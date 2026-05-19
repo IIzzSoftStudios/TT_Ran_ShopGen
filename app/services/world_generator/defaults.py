@@ -11,8 +11,8 @@ from typing import Dict, Optional, Tuple
 
 
 # Schema version stamped into CampaignWorldConfig.settings_json.
-# Phase 1 = 1. Bump this whenever the settings_json shape changes.
-SCHEMA_VERSION: int = 1
+# Phase 1 = 1; city_size_variation + supply/demand = 2.
+SCHEMA_VERSION: int = 2
 
 
 # -----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ RANGE_SETTINGS: Dict[str, Tuple[int, int, int, int]] = {
     "num_cities":             (1,   40,  3,  8),
     "num_regions":            (1,   10,  2,  4),
     "global_item_pool_size":  (25, 500, 50, 120),
-    "shops_per_city":         (1,   20,  3,  8),
+    "city_size_variation":    (1,   20,  3,  8),
     "items_per_shop":         (1,   30,  5, 15),
     # Fused axis: 0 = God Magic, 5 = Medieval, 10 = Post-Apoc Tech.
     "tech_magic_balance":     (0,   10,  4,  6),
@@ -35,7 +35,7 @@ RANGE_SETTINGS: Dict[str, Tuple[int, int, int, int]] = {
 # -----------------------------------------------------------------------------
 # Hard composite caps (swarm-approved)
 # -----------------------------------------------------------------------------
-# ShopInventory worst-case: cities.max * shops_per_city.max * items_per_shop.max.
+# ShopInventory worst-case: cities.max * max(shops_per_size) * items_per_shop.max.
 SHOP_INVENTORY_CAP: int = 15_000
 # Total entity cap across all generated tables (cities + shops + items + markets
 # + inventory + regions + sim_state + config + campaign ...).

@@ -71,16 +71,24 @@ def _normalize_shop_name(raw):
     return str(raw).strip()
 
 
-def get_shop_city_panel_context(gm_profile):
-    """Build city_data, region_labels, and type_suggestions for the shops-by-city UI."""
+def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False):
+    """Build city_data, region_labels, and type_suggestions for the shops-by-city UI.
+
+    When ``include_nav_toggles`` is True and a campaign is active, also passes
+    ``campaign`` and ``supply_demand_enabled`` for ``gm_world_quick_nav.html``.
+    """
     campaign_id = active_campaign_id()
     if not campaign_id:
-        return {
+        base = {
             "city_data": [],
             "region_labels": [],
             "campaign_regions": [],
             "type_suggestions": sorted(SHOP_TYPE_DEFAULTS),
         }
+        if include_nav_toggles:
+            base["campaign"] = None
+            base["supply_demand_enabled"] = True
+        return base
 
     q = City.query.filter_by(campaign_id=campaign_id).options(
         subqueryload(City.shops)
@@ -139,12 +147,18 @@ def get_shop_city_panel_context(gm_profile):
             .all()
         )
 
-    return {
+    out = {
         "city_data": city_data,
         "region_labels": region_labels,
         "campaign_regions": campaign_regions,
         "type_suggestions": type_suggestions,
     }
+    if include_nav_toggles:
+        from app.services.world_generator.campaign_settings import read_supply_demand_flag
+
+        out["campaign"] = Campaign.query.filter_by(id=campaign_id).first()
+        out["supply_demand_enabled"] = read_supply_demand_flag(campaign_id)
+    return out
 
 
 def get_grouped_shops(gm_profile):

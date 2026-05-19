@@ -200,7 +200,7 @@
                 <form method="POST"
                       action="{{ url_for('player.delete_character', player_id=c.id) }}"
                       class="card-delete-form"
-                      onsubmit="return confirm('Delete {{ c.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.');">
+                      data-confirm-delete="Are you sure you want to delete {{ c.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="card-delete-btn" aria-label="Delete {{ c.name|e }}">Delete character</button>
                 </form>
@@ -223,8 +223,9 @@
                 {% if cap_message %}<div class="cap-note">{{ cap_message }}</div>{% endif %}
                 {% endif %}
             </div>
-            <a href="{{ url_for('main.campaigns') }}" class="button-secondary">Back to Campaigns</a>
+            <a href="{{ url_for('main.campaigns') }}" class="button-secondary">Select Campaign</a>
         </div>
     </div>
+    {% include 'partials/confirm_delete_script.html' %}
 </body>
 </html>

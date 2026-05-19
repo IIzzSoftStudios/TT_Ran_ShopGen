@@ -12,7 +12,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         is_authed = current_user.is_authenticated
         role = getattr(current_user, "role", None)
-        allowed_roles = {"GM", "vault_keeper"}
+        allowed_roles = {"GM", "Both", "vault_keeper"}
         if not is_authed or role not in allowed_roles:
             abort(404)
         return f(*args, **kwargs)
