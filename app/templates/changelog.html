@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Changelog — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        .changelog-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 18px 60px;
+        }
+
+        .changelog-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .changelog-back {
+            text-decoration: none;
+            font-weight: 700;
+            color: var(--color-accent);
+        }
+
+        .changelog-card {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 14px;
+        }
+
+        .patch-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 10px 14px;
+            margin-bottom: 10px;
+        }
+
+        .patch-version {
+            margin: 0;
+            font-size: 1.35rem;
+        }
+
+        .patch-date {
+            color: var(--color-muted);
+            font-weight: 650;
+            font-size: 0.95rem;
+        }
+
+        .patch-tag {
+            display: inline-block;
+            font-weight: 800;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            background: rgba(124, 58, 237, 0.18);
+            color: var(--color-accent);
+        }
+
+        .changelog-section {
+            margin-top: 16px;
+        }
+
+        .changelog-section h3 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+        }
+
+        .changelog-section ul {
+            margin: 0;
+            padding-left: 1.25rem;
+            color: var(--color-muted);
+            line-height: 1.65;
+        }
+
+        .changelog-section li + li {
+            margin-top: 6px;
+        }
+
+        .changelog-nav {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .changelog-nav a {
+            color: var(--color-accent);
+            font-weight: 650;
+            text-decoration: none;
+        }
+
+        .changelog-nav a:hover {
+            color: var(--color-accent-hover);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="changelog-wrap">
+        <div class="changelog-top">
+            <a class="changelog-back" href="{{ url_for('main.index') }}">← Back to Home</a>
+            <nav class="changelog-nav" aria-label="Related pages">
+                <a href="{{ url_for('main.docs') }}">Documentation</a>
+                <a href="{{ url_for('main.access_request') }}">Request access</a>
+            </nav>
+        </div>
+
+        <div class="changelog-card">
+            <h1 style="margin: 0 0 8px;">Changelog</h1>
+            <p style="margin: 0; color: var(--color-muted); line-height: 1.65;">
+                Release notes for the Econo-Forge tech demo. Patches are listed newest first.
+            </p>
+        </div>
+
+        <article class="changelog-card" id="tech-demo-patch-1-1">
+            <header class="patch-header">
+                <h2 class="patch-version">Tech Demo Patch 1.1</h2>
+                <span class="patch-date">May 19, 2026</span>
+                <span class="patch-tag">Latest</span>
+            </header>
+            <p style="margin: 0; color: var(--color-muted); line-height: 1.65;">
+                Account experience and in-app feedback for the live tech demo.
+            </p>
+
+            <div class="changelog-section">
+                <h3>Account menu</h3>
+                <ul>
+                    <li>Global account menu on authenticated GM, player, and campaign pages — avatar trigger, greeting, and sign out in one place.</li>
+                    <li>Live GM and Player campaign counts in the menu for quick context.</li>
+                    <li>One-click link to switch campaigns from any supported screen.</li>
+                </ul>
+            </div>
+
+            <div class="changelog-section">
+                <h3>Profile avatars</h3>
+                <ul>
+                    <li>Upload a profile image (JPEG, PNG, WebP, or GIF) from the account menu.</li>
+                    <li>Username initials shown when no avatar is set; cache-busted URLs after upload.</li>
+                </ul>
+            </div>
+
+            <div class="changelog-section">
+                <h3>Help &amp; feedback</h3>
+                <ul>
+                    <li>In-app bug reports with category, severity, reproduction steps, and expected behavior.</li>
+                    <li>Feedback and suggestion forms with structured categories for the demo team.</li>
+                    <li>Submissions capture session mode, account role, and page context so the team can follow up faster.</li>
+                </ul>
+            </div>
+
+        </article>
+    </div>
+</body>
+</html>

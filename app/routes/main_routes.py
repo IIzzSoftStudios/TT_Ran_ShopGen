@@ -86,10 +86,23 @@ def index():
     return render_template("landing.html")
 
 
+_DOCS_SECTIONS = frozenset(
+    {"overview", "getting-started", "gm-hub", "player", "items", "faq"}
+)
+
+
 @main_bp.route("/docs")
 def docs():
     q = (request.args.get("q") or "").strip()
-    return render_template("docs.html", q=q)
+    section = (request.args.get("section") or "getting-started").strip()
+    if section not in _DOCS_SECTIONS:
+        section = "getting-started"
+    return render_template("docs.html", q=q, section=section)
+
+
+@main_bp.route("/changelog")
+def changelog():
+    return render_template("changelog.html")
 
 
 @main_bp.route("/register")

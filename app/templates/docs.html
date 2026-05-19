@@ -2,9 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Documentation (WIP) — Econo-Forge</title>
+    <title>Documentation — Econo-Forge</title>
     {% include 'partials/theme_head.html' %}
     <style>
+        .docs-skip {
+            position: absolute;
+            left: -9999px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+
+        .docs-skip:focus {
+            position: static;
+            width: auto;
+            height: auto;
+            display: inline-block;
+            margin: 12px 18px 0;
+            padding: 8px 12px;
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
         .docs-wrap {
             max-width: 1100px;
             margin: 0 auto;
@@ -20,18 +43,17 @@
             margin-bottom: 18px;
         }
 
+        .docs-top-actions {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
         .docs-back {
             text-decoration: none;
             font-weight: 700;
             color: var(--color-accent);
-        }
-
-        .docs-card {
-            border: 1px solid rgba(148, 163, 184, 0.25);
-            background: rgba(30, 41, 59, 0.25);
-            border-radius: 16px;
-            padding: 18px;
-            margin-bottom: 14px;
         }
 
         .docs-search {
@@ -41,32 +63,176 @@
         }
 
         .docs-search input {
-            width: 280px;
+            width: min(280px, 100%);
             padding: 10px 12px;
             border-radius: 12px;
         }
 
-        .coming {
+        .docs-badge {
             display: inline-block;
             font-weight: 800;
             font-size: 0.75rem;
             padding: 4px 10px;
             border-radius: 999px;
-            border: 1px solid rgba(148, 163, 184, 0.25);
-            color: var(--color-muted);
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            background: rgba(124, 58, 237, 0.18);
+            color: var(--color-accent);
             margin-left: 10px;
+            vertical-align: middle;
         }
 
-        .docs-section-title {
-            display: flex;
+        .docs-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .docs-sidebar-backdrop {
+            display: none;
+        }
+
+        .docs-sidebar-toggle {
+            display: none;
             align-items: center;
-            gap: 12px;
+            justify-content: center;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            background: transparent;
+            color: var(--color-accent);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .docs-sidebar {
+            position: sticky;
+            top: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            padding: 14px;
+        }
+
+        .docs-sidebar-label {
+            margin: 0 0 10px;
+            padding: 0 10px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--color-muted);
+        }
+
+        .docs-nav {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .docs-nav a {
+            display: block;
+            padding: 10px 12px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 650;
+            color: var(--color-text);
+            border: 1px solid transparent;
+        }
+
+        .docs-nav a:hover {
+            background: rgba(124, 58, 237, 0.12);
+        }
+
+        .docs-nav a:focus-visible {
+            outline: 2px solid var(--color-accent);
+            outline-offset: 2px;
+        }
+
+        .docs-nav a.active {
+            background: rgba(124, 58, 237, 0.18);
+            border-color: rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+
+        .docs-main {
+            min-width: 0;
+        }
+
+        .docs-panel {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            padding: 22px 24px;
+        }
+
+        .docs-panel[hidden] {
+            display: none !important;
+        }
+
+        .docs-panel h1,
+        .docs-panel h2 {
+            margin: 0 0 12px;
+        }
+
+        .docs-panel h3 {
+            margin: 20px 0 8px;
+            font-size: 1.05rem;
+        }
+
+        .docs-panel p,
+        .docs-panel li {
+            color: var(--color-muted);
+            line-height: 1.65;
+        }
+
+        .docs-panel p {
+            margin: 0 0 12px;
+        }
+
+        .docs-panel ul,
+        .docs-panel ol {
+            margin: 0 0 14px;
+            padding-left: 1.35rem;
+        }
+
+        .docs-panel li {
             margin-bottom: 6px;
+        }
+
+        .docs-panel a {
+            color: var(--color-accent);
+            font-weight: 650;
+        }
+
+        .docs-panel mark {
+            background: rgba(250, 204, 21, 0.35);
+            color: var(--color-text);
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+
+        .docs-search-hint {
+            margin: 0 0 14px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(124, 58, 237, 0.12);
+            border: 1px solid rgba(124, 58, 237, 0.25);
+            color: var(--color-muted);
+            font-weight: 650;
+            font-size: 0.95rem;
+        }
+
+        .docs-search-hint[hidden] {
+            display: none !important;
         }
 
         .conversion-callout {
             border-top: 1px solid rgba(148, 163, 184, 0.25);
-            margin-top: 22px;
+            margin-top: 28px;
             padding-top: 18px;
             display: flex;
             align-items: center;
@@ -104,88 +270,319 @@
             cursor: pointer;
             white-space: nowrap;
         }
+
+        @media (max-width: 768px) {
+            .docs-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .docs-sidebar-toggle {
+                display: inline-flex;
+            }
+
+            .docs-sidebar-backdrop {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.55);
+                z-index: 40;
+            }
+
+            .docs-layout.docs-sidebar-open .docs-sidebar-backdrop {
+                display: block;
+            }
+
+            .docs-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: min(280px, 88vw);
+                z-index: 50;
+                border-radius: 0 16px 16px 0;
+                overflow-y: auto;
+                transform: translateX(-105%);
+                transition: transform 0.2s ease;
+            }
+
+            .docs-layout.docs-sidebar-open .docs-sidebar {
+                transform: translateX(0);
+            }
+        }
     </style>
 </head>
 
-<body>
+<body data-initial-section="{{ section }}" data-initial-q="{{ q or '' }}">
+    <a class="docs-skip" href="#docs-main">Skip to content</a>
+
     <div class="docs-wrap">
         <div class="docs-top">
             <a class="docs-back" href="{{ url_for('main.index') }}">← Back to Home</a>
-            <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
+            <div class="docs-top-actions">
+                <button type="button" class="docs-sidebar-toggle" id="docs-sidebar-toggle"
+                    aria-expanded="false" aria-controls="docs-sidebar">
+                    Sections
+                </button>
                 <div class="docs-search">
-                    <form method="GET" action="{{ url_for('main.docs') }}" style="display:flex; gap:10px; align-items:center;">
-                        <input type="search" name="q" placeholder="Search docs..." value="{{ q or '' }}">
+                    <form method="GET" action="{{ url_for('main.docs') }}" id="docs-search-form"
+                        style="display:flex; gap:10px; align-items:center;">
+                        <input type="hidden" name="section" id="docs-search-section" value="{{ section }}">
+                        <input type="search" name="q" id="docs-search-input" placeholder="Search docs..."
+                            value="{{ q or '' }}" aria-label="Search documentation">
                         <button type="submit" class="btn btn-secondary" style="padding:10px 12px;">Search</button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="docs-card">
-            <div class="docs-section-title">
-                <h1 style="margin:0;">Documentation (WIP)</h1>
-                <span class="coming">Under Construction</span>
-            </div>
-            <p style="margin: 0; color: var(--color-muted); line-height: 1.65;">
-                This page exists now so Search has a destination and users can learn the system as it grows.
-                Content is incomplete; sections below are placeholders.
-            </p>
+        <div class="docs-layout" id="docs-layout">
+            <div class="docs-sidebar-backdrop" id="docs-sidebar-backdrop" hidden aria-hidden="true"></div>
 
-            {% if q %}
-                <p style="margin-top: 10px; color: var(--color-muted); font-weight: 650;">
-                    Showing guidance for query: <span style="color: var(--color-text);">{{ q }}</span>
-                </p>
-            {% endif %}
-        </div>
+            <aside class="docs-sidebar" id="docs-sidebar" aria-label="Documentation sections">
+                <p class="docs-sidebar-label">On this page</p>
+                <nav>
+                    <ul class="docs-nav" id="docs-nav">
+                        <li><a href="#overview" data-section="overview">Overview</a></li>
+                        <li><a href="#getting-started" data-section="getting-started">Getting Started</a></li>
+                        <li><a href="#gm-hub" data-section="gm-hub">GM Management Hub</a></li>
+                        <li><a href="#player" data-section="player">Player Use</a></li>
+                        <li><a href="#items" data-section="items">Item &amp; Inventory Concepts</a></li>
+                        <li><a href="#faq" data-section="faq">FAQ / Known Limitations</a></li>
+                    </ul>
+                </nav>
+            </aside>
 
-        <div class="docs-card">
-            <div class="docs-section-title">
-                <h2 style="margin:0;">Getting Started</h2>
-                <span class="coming">Coming soon</span>
-            </div>
-            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
-                WIP — onboarding steps, campaign setup, and first successful price read.
-            </p>
-        </div>
+            <main class="docs-main" id="docs-main">
+                <p class="docs-search-hint" id="docs-search-hint" hidden></p>
 
-        <div class="docs-card">
-            <div class="docs-section-title">
-                <h2 style="margin:0;">GM Management Hub</h2>
-                <span class="coming">Coming soon</span>
-            </div>
-            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
-                WIP — create items, manage players, and run your table from one place.
-            </p>
-        </div>
+                <article id="section-overview" class="docs-panel" role="region"
+                    aria-labelledby="heading-overview" hidden>
+                    <h1 id="heading-overview">Documentation <span class="docs-badge">Expanding</span></h1>
+                    <p>
+                        <strong>Econo-Forge</strong> is a campaign economy tool for tabletop GMs running
+                        systems-heavy tables—especially Pathfinder and D&amp;D 5E. It replaces spreadsheet
+                        shop tracking with a database-backed world: shops, stock, and prices that move when
+                        supply runs thin or the party clears a shelf.
+                    </p>
+                    <p>
+                        This documentation explains how to get access, what GMs and players can do today, and
+                        how items, inventory, and simulation ticks fit together. Sections are updated as features
+                        ship; see the <a href="{{ url_for('main.changelog') }}">changelog</a> for release notes.
+                    </p>
+                    <h3>What you will find here</h3>
+                    <ul>
+                        <li><strong>Getting Started</strong> — access request, registration, and first login paths</li>
+                        <li><strong>GM Management Hub</strong> — campaigns, world generation, simulation, and players</li>
+                        <li><strong>Player Use</strong> — joining a campaign, browsing shops, and inventory</li>
+                        <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, and game-day ticks</li>
+                        <li><strong>FAQ</strong> — limitations, rulesets, and infrastructure expectations</li>
+                    </ul>
+                    <p>
+                        Use the sidebar to jump between sections, or search above to jump to the best match.
+                    </p>
+                </article>
 
-        <div class="docs-card">
-            <div class="docs-section-title">
-                <h2 style="margin:0;">Player Use</h2>
-                <span class="coming">Coming soon</span>
-            </div>
-            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
-                WIP — how players view markets, buy inventory, and keep the world ledger consistent.
-            </p>
-        </div>
+                <article id="section-getting-started" class="docs-panel" role="region"
+                    aria-labelledby="heading-getting-started" hidden>
+                    <h2 id="heading-getting-started">Getting Started</h2>
+                    <p>
+                        Econo-Forge is in early access. New accounts typically flow through a request-and-approval
+                        step before you can register and log in.
+                    </p>
+                    <h3>1. Request access</h3>
+                    <p>
+                        From the landing page, choose <strong>Register For Access</strong> and submit the form at
+                        <a href="{{ url_for('main.access_request') }}">Request Access</a>. Tell us whether you are a
+                        GM, player, or both, and which ruleset you run. When approved, you receive a vault key by email
+                        (when approval automation is enabled in your environment).
+                    </p>
+                    <h3>2. Register with your vault key</h3>
+                    <p>
+                        Open the registration link from your approval email—it includes your vault key. Finish account
+                        setup, then log in.
+                    </p>
+                    <h3>3. Log in</h3>
+                    <p>
+                        Use <a href="{{ url_for('auth.login') }}">Login</a>. After authentication, the app routes you
+                        to the right home screen—GM dashboard or player view—based on your role and campaign membership.
+                    </p>
+                    <h3>4. GM path: campaign and world</h3>
+                    <ol>
+                        <li>Create or select a campaign from your campaigns list.</li>
+                        <li>Optional: run the world generation wizard to seed regions, cities, shops, and starter inventory.</li>
+                        <li>You can also skip generation and build regions, cities, and shops manually over time.</li>
+                        <li>Land on the <strong>Game Master Dashboard</strong> to manage the economy and advance simulation between sessions.</li>
+                    </ol>
+                    <h3>5. Player path: join a campaign</h3>
+                    <p>
+                        Ask your GM for a <strong>campaign join code</strong>. The GM reveals it from dashboard join
+                        tools. Redeem the code on the player side to attach your character to that campaign, then browse
+                        cities and shops from your player home screen.
+                    </p>
+                    <p>
+                        Without an active campaign, you can still use a solo <strong>character vault</strong> to manage
+                        a character sheet; full world browsing requires joining a campaign.
+                    </p>
+                </article>
 
-        <div class="docs-card">
-            <div class="docs-section-title">
-                <h2 style="margin:0;">Item & Inventory Concepts</h2>
-                <span class="coming">Coming soon</span>
-            </div>
-            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
-                WIP — inventory state, transactional integrity, and why prices make sense.
-            </p>
-        </div>
+                <article id="section-gm-hub" class="docs-panel" role="region"
+                    aria-labelledby="heading-gm-hub" hidden>
+                    <h2 id="heading-gm-hub">GM Management Hub</h2>
+                    <p>
+                        The GM dashboard is your control center for one active campaign at a time. Everything below
+                        assumes you have selected that campaign in session.
+                    </p>
+                    <h3>Dashboard and simulation</h3>
+                    <p>
+                        From the Game Master Dashboard you can advance the economy by <strong>game-day ticks</strong>—not
+                        in real time during play, but between sessions when you choose to run a period (day, week, month,
+                        or year) or pause the world.
+                    </p>
+                    <ul>
+                        <li><strong>Supply On</strong> — each tick applies simulated daily sales and periodic shop restocks, then recalculates prices from updated stock.</li>
+                        <li><strong>Supply Off</strong> — ticks update prices only; no simulated sales or restock on that path.</li>
+                    </ul>
+                    <p>
+                        Long simulation periods run as <strong>background jobs</strong> (worker + Redis). If the
+                        simulation service is unavailable, you may see a user-safe offline message rather than partial
+                        updates—wait and retry rather than clicking repeatedly.
+                    </p>
+                    <h3>World setup</h3>
+                    <ul>
+                        <li><strong>World generation</strong> — the world generation wizard creates campaign structure, regions, cities, shops, and inventory from your chosen settings and seed.</li>
+                        <li><strong>Regions and cities</strong> — edit regions, add cities, and generate shops for a region when cities already exist.</li>
+                        <li><strong>Shops and markets</strong> — view grouped shops, adjust shop details, and use market overview tools to see how stock and prices are distributed.</li>
+                    </ul>
+                    <h3>Catalog and items</h3>
+                    <p>
+                        Maintain the shared <strong>item catalog</strong> (name, type, rarity, base price) and per-shop
+                        inventory rows. Manual edits apply immediately; simulation ticks then move stock and prices
+                        according to supply and demand rules.
+                    </p>
+                    <h3>Players and join codes</h3>
+                    <p>
+                        Invite players with campaign join codes, manage NPCs, and open character sheets from the players
+                        area. You can redeem player codes when moving characters between campaigns if your table uses
+                        that workflow.
+                    </p>
+                </article>
 
-        <div class="docs-card">
-            <div class="docs-section-title">
-                <h2 style="margin:0;">FAQ / Known Limitations</h2>
-                <span class="coming">Coming soon</span>
-            </div>
-            <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
-                WIP — performance, supported rulesets, and what is still evolving.
-            </p>
+                <article id="section-player" class="docs-panel" role="region"
+                    aria-labelledby="heading-player" hidden>
+                    <h2 id="heading-player">Player Use</h2>
+                    <p>
+                        Players interact with the same economic ledger the GM simulates—what you see at the shop should
+                        match what the GM sees after the last tick.
+                    </p>
+                    <h3>Join a campaign</h3>
+                    <p>
+                        Redeem the join code your GM provides. Once linked, your player home screen lists cities and
+                        shops in that campaign.
+                    </p>
+                    <h3>Browse and buy</h3>
+                    <ul>
+                        <li>Navigate by city and shop to see what is on the shelf.</li>
+                        <li>Prices and stock reflect the campaign’s current world state after simulation has run.</li>
+                        <li>Purchases spend your character’s <strong>currency</strong> and add items to your inventory when stock allows.</li>
+                    </ul>
+                    <h3>Inventory and equipment</h3>
+                    <p>
+                        Your personal inventory lists owned items; equipment slots (weapon, armor, accessory) track what
+                        your character has equipped. Selling or buying updates both your ledger and the shop in one flow
+                        so counts stay consistent.
+                    </p>
+                    <h3>Solo character vault</h3>
+                    <p>
+                        If you are not in a campaign yet, you can still open your character vault to edit a sheet. Join
+                        a campaign when you are ready to browse the shared world and shop in play.
+                    </p>
+                    <h3>What is still evolving</h3>
+                    <p>
+                        Core browsing and buying are available, but the player experience continues to improve—filters,
+                        polish, and table-side workflows may change between releases. Check the changelog for player-facing updates.
+                    </p>
+                </article>
+
+                <article id="section-items" class="docs-panel" role="region"
+                    aria-labelledby="heading-items" hidden>
+                    <h2 id="heading-items">Item &amp; Inventory Concepts</h2>
+                    <p>
+                        Econo-Forge treats items, shop stock, and player gear as one system so scarcity and price moves
+                        stay believable across a long campaign.
+                    </p>
+                    <h3>Items</h3>
+                    <p>
+                        Each <strong>item</strong> in the catalog has a name, category/type, rarity, description, and
+                        <strong>base price</strong>. GMs can add or edit items; shops reference the same catalog entries.
+                    </p>
+                    <h3>Shop inventory</h3>
+                    <p>
+                        Every shop holds <strong>inventory rows</strong>: how many units are on hand and how price
+                        modifiers apply. After simulation runs, the app reads <strong>effective price</strong> and
+                        <strong>effective stock</strong> from world state so GM and player views agree.
+                    </p>
+                    <h3>Game-day ticks</h3>
+                    <ul>
+                        <li>One tick advances the campaign by one <strong>game day</strong>.</li>
+                        <li>With supply enabled, ticks apply bounded daily sales, then recalculate prices from remaining stock.</li>
+                        <li>Shops <strong>restock on a schedule</strong> (typically every 15–30 game days per shop), scaled by settlement size.</li>
+                    </ul>
+                    <p>
+                        Running a week or month of game time is a batch operation—useful between sessions, not something
+                        the table waits on mid-combat.
+                    </p>
+                    <h3>Transactional integrity</h3>
+                    <p>
+                        Buys and sells update player currency, player inventory, and shop stock together. If a purchase
+                        fails (insufficient funds, out of stock), you should see a clear message and no partial change.
+                    </p>
+                </article>
+
+                <article id="section-faq" class="docs-panel" role="region"
+                    aria-labelledby="heading-faq" hidden>
+                    <h2 id="heading-faq">FAQ / Known Limitations</h2>
+
+                    <h3>Do I need a vault key to register?</h3>
+                    <p>
+                        In most early-access deployments, yes—registration is gated until you receive a key from an
+                        approved access request. If your group runs a private instance with keys disabled, your admin
+                        can confirm local policy.
+                    </p>
+
+                    <h3>Which rulesets are supported?</h3>
+                    <p>
+                        World generation defaults to <strong>D&amp;D 5E</strong> item assumptions. Pathfinder-style tables
+                        are a common fit for the economy model, but Econo-Forge is not a licensed rules product—treat
+                        stats and pricing as table aids you can adjust.
+                    </p>
+
+                    <h3>Why did simulation say the service is offline?</h3>
+                    <p>
+                        Background simulation depends on Redis and worker processes. If that stack is down, period runs
+                        return an offline response instead of half-updating your campaign. Retry after a few minutes;
+                        contact your host if it persists.
+                    </p>
+
+                    <h3>How fast are ticks?</h3>
+                    <p>
+                        A single game-day tick is designed to stay lightweight, but running a full in-game year is a
+                        large batch—expect progress feedback rather than instant completion. Do not assume sub-second
+                        world updates.
+                    </p>
+
+                    <h3>Are Terms and Privacy on this site?</h3>
+                    <p>
+                        Footer links may still route here until dedicated legal pages exist. Do not treat this docs page
+                        as legal advice or a privacy policy.
+                    </p>
+
+                    <h3>Where do I report bugs or ask for features?</h3>
+                    <p>
+                        Use in-app feedback channels if you are logged in, or reach out through the community links on
+                        the landing page footer when available.
+                    </p>
+                </article>
+            </main>
         </div>
 
         <div class="conversion-callout">
@@ -201,6 +598,223 @@
             </div>
         </div>
     </div>
+
+    <script>
+        (function () {
+            var ALLOWED = ['overview', 'getting-started', 'gm-hub', 'player', 'items', 'faq'];
+            var layout = document.getElementById('docs-layout');
+            var nav = document.getElementById('docs-nav');
+            var panels = document.querySelectorAll('.docs-panel');
+            var searchInput = document.getElementById('docs-search-input');
+            var searchSection = document.getElementById('docs-search-section');
+            var searchHint = document.getElementById('docs-search-hint');
+            var sidebarToggle = document.getElementById('docs-sidebar-toggle');
+            var sidebarBackdrop = document.getElementById('docs-sidebar-backdrop');
+            var currentSection = null;
+            var highlightMarks = [];
+
+            function normalizeSection(id) {
+                if (!id) return null;
+                var s = String(id).replace(/^#/, '').trim();
+                if (s.indexOf('section-') === 0) s = s.slice('section-'.length);
+                return ALLOWED.indexOf(s) >= 0 ? s : null;
+            }
+
+            function panelForSection(sectionId) {
+                return document.getElementById('section-' + sectionId);
+            }
+
+            function clearHighlights() {
+                highlightMarks.forEach(function (mark) {
+                    var parent = mark.parentNode;
+                    if (!parent) return;
+                    parent.replaceChild(document.createTextNode(mark.textContent), mark);
+                    parent.normalize();
+                });
+                highlightMarks = [];
+            }
+
+            function closeSidebar() {
+                layout.classList.remove('docs-sidebar-open');
+                sidebarToggle.setAttribute('aria-expanded', 'false');
+                if (sidebarBackdrop) sidebarBackdrop.hidden = true;
+            }
+
+            function openSidebar() {
+                layout.classList.add('docs-sidebar-open');
+                sidebarToggle.setAttribute('aria-expanded', 'true');
+                if (sidebarBackdrop) sidebarBackdrop.hidden = false;
+            }
+
+            function showSection(sectionId, options) {
+                options = options || {};
+                sectionId = normalizeSection(sectionId) || 'getting-started';
+                if (currentSection === sectionId && !options.force) {
+                    return;
+                }
+                clearHighlights();
+                currentSection = sectionId;
+
+                panels.forEach(function (panel) {
+                    var pid = panel.id.replace('section-', '');
+                    panel.hidden = pid !== sectionId;
+                });
+
+                nav.querySelectorAll('a').forEach(function (link) {
+                    var active = link.getAttribute('data-section') === sectionId;
+                    link.classList.toggle('active', active);
+                    if (active) {
+                        link.setAttribute('aria-current', 'page');
+                    } else {
+                        link.removeAttribute('aria-current');
+                    }
+                });
+
+                if (searchSection) searchSection.value = sectionId;
+
+                if (!options.skipHash) {
+                    var newUrl = window.location.pathname + '?section=' + encodeURIComponent(sectionId);
+                    var q = searchInput && searchInput.value.trim();
+                    if (q) newUrl += '&q=' + encodeURIComponent(q);
+                    newUrl += '#' + sectionId;
+                    history.replaceState({ section: sectionId }, '', newUrl);
+                }
+
+                if (window.matchMedia('(max-width: 768px)').matches) {
+                    closeSidebar();
+                }
+            }
+
+            function scorePanel(panel, query) {
+                var text = (panel.getAttribute('data-search-text') || panel.textContent || '').toLowerCase();
+                var q = query.toLowerCase();
+                if (!q) return 0;
+                var count = 0;
+                var idx = 0;
+                while ((idx = text.indexOf(q, idx)) !== -1) {
+                    count++;
+                    idx += q.length;
+                }
+                return count;
+            }
+
+            function highlightQuery(panel, query) {
+                clearHighlights();
+                if (!query || query.length < 2) return;
+
+                var q = query.toLowerCase();
+                var walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT);
+                var node;
+                while ((node = walker.nextNode())) {
+                    if (!node.nodeValue || !node.parentElement) continue;
+                    var tag = node.parentElement.tagName;
+                    if (tag === 'SCRIPT' || tag === 'STYLE') continue;
+
+                    var val = node.nodeValue;
+                    var lower = val.toLowerCase();
+                    var start = lower.indexOf(q);
+                    if (start < 0) continue;
+
+                    var frag = document.createDocumentFragment();
+                    var cursor = 0;
+                    while (start >= 0) {
+                        if (start > cursor) {
+                            frag.appendChild(document.createTextNode(val.slice(cursor, start)));
+                        }
+                        var mark = document.createElement('mark');
+                        mark.textContent = val.slice(start, start + q.length);
+                        frag.appendChild(mark);
+                        highlightMarks.push(mark);
+                        cursor = start + q.length;
+                        start = lower.indexOf(q, cursor);
+                    }
+                    if (cursor < val.length) {
+                        frag.appendChild(document.createTextNode(val.slice(cursor)));
+                    }
+                    node.parentNode.replaceChild(frag, node);
+                }
+            }
+
+            function applySearch(query) {
+                query = (query || '').trim();
+                if (!query) {
+                    if (searchHint) {
+                        searchHint.hidden = true;
+                        searchHint.textContent = '';
+                    }
+                    clearHighlights();
+                    return;
+                }
+
+                var best = null;
+                var bestScore = 0;
+                panels.forEach(function (panel) {
+                    var s = scorePanel(panel, query);
+                    if (s > bestScore) {
+                        bestScore = s;
+                        best = panel.id.replace('section-', '');
+                    }
+                });
+
+                if (best && bestScore > 0) {
+                    showSection(best, { force: true, skipHash: false });
+                    var panel = panelForSection(best);
+                    if (panel) highlightQuery(panel, query);
+                    if (searchHint) {
+                        searchHint.hidden = false;
+                        searchHint.textContent = 'Showing best match for “' + query + '” in ' +
+                            (panel && panel.querySelector('h1,h2') ? panel.querySelector('h1,h2').textContent : best) + '.';
+                    }
+                } else if (searchHint) {
+                    searchHint.hidden = false;
+                    searchHint.textContent = 'No matches for “' + query + '”. Try restock, vault key, or simulation.';
+                }
+            }
+
+            panels.forEach(function (panel) {
+                panel.setAttribute('data-search-text', panel.textContent);
+            });
+
+            nav.addEventListener('click', function (e) {
+                var link = e.target.closest('a[data-section]');
+                if (!link) return;
+                e.preventDefault();
+                showSection(link.getAttribute('data-section'));
+            });
+
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function () {
+                    if (layout.classList.contains('docs-sidebar-open')) {
+                        closeSidebar();
+                    } else {
+                        openSidebar();
+                    }
+                });
+            }
+
+            if (sidebarBackdrop) {
+                sidebarBackdrop.addEventListener('click', closeSidebar);
+            }
+
+            window.addEventListener('hashchange', function () {
+                var fromHash = normalizeSection(window.location.hash);
+                if (fromHash) showSection(fromHash);
+            });
+
+            var params = new URLSearchParams(window.location.search);
+            var fromQuery = normalizeSection(params.get('section'));
+            var fromHash = normalizeSection(window.location.hash);
+            var initial = normalizeSection(document.body.getAttribute('data-initial-section')) ||
+                fromQuery || fromHash || 'getting-started';
+            showSection(initial, { force: true });
+
+            var initialQ = document.body.getAttribute('data-initial-q') || params.get('q') || '';
+            if (initialQ) applySearch(initialQ);
+
+            document.getElementById('docs-search-form').addEventListener('submit', function () {
+                if (searchSection && currentSection) searchSection.value = currentSection;
+            });
+        })();
+    </script>
 </body>
 </html>
-
