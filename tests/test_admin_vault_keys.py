@@ -28,6 +28,7 @@ def test_handle_admin_keys_skips_gm_simulation_query_for_gm_role():
             current_user=MagicMock(id=2, role="GM"),
             render_template=MagicMock(return_value="ok"),
             _gm_simulation_usage_serialized_rows=MagicMock(),
+            _load_submissions_by_kind=MagicMock(return_value=[]),
         ):
             admin_handler.RegistrationKey.query.filter_by.return_value = reg_chain
             admin_handler.AccessRequest.query.filter.return_value.all.return_value = []
@@ -51,6 +52,7 @@ def test_handle_admin_keys_loads_gm_simulation_for_vault_keeper():
             current_user=MagicMock(id=1, role="vault_keeper"),
             render_template=MagicMock(return_value="ok"),
             _gm_simulation_usage_serialized_rows=MagicMock(return_value=fake_rows),
+            _load_submissions_by_kind=MagicMock(return_value=[]),
         ):
             admin_handler.RegistrationKey.query.filter_by.return_value = reg_chain
             admin_handler.AccessRequest.query.filter.return_value.all.return_value = []

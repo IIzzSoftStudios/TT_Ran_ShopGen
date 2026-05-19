@@ -10,6 +10,8 @@ os.environ.setdefault("FLASK_ENV", "development")
 os.environ.setdefault("SECRET_KEY", "ci-testing-secret-key")
 os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "sqlite:///:memory:")
 os.environ.setdefault("SESSION_REDIS_FALLBACK", "true")
+# Pytest/CI has no Redis; filesystem sessions avoid split-transaction key loss.
+os.environ.setdefault("TRSG_TEST_FILESYSTEM_SESSION", "1")
 
 from flask import Flask
 

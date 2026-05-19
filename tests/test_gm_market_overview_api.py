@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from flask_login import login_user
 
 from app import app as flask_app
+from tests.session_helpers import seed_client_session
 from app.extensions import db
 import app.models  # noqa: F401
 from app.models import Campaign, GlobalMarket, GMProfile, Item, Shop, ShopInventory, User
@@ -20,11 +20,6 @@ def _db_tables():
         yield
         db.session.rollback()
         db.drop_all()
-
-
-def _login_as(user: User):
-    with flask_app.test_request_context():
-        login_user(user)
 
 
 def test_market_overview_requires_login():
@@ -82,10 +77,8 @@ def test_market_overview_returns_json_for_gm_with_campaign():
     )
     db.session.commit()
 
-    _login_as(user)
     client = flask_app.test_client()
-    with client.session_transaction() as sess:
-        sess["campaign_id"] = campaign.id
+    seed_client_session(client, user, campaign_id=campaign.id)
 
     resp = client.get("/gm/market-overview")
     assert resp.status_code == 200

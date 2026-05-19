@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 
 import redis
 from dotenv import load_dotenv
@@ -202,10 +203,19 @@ def create_app():
     app.config["SQLALCHEMY_ECHO"] = os.getenv("SQLALCHEMY_ECHO", "false").lower() in ("1", "true", "yes")
 
     migrate_job = os.getenv("TRSG_CLOUD_RUN_MIGRATE", "").lower() in ("1", "true", "yes")
+    test_fs_session = os.getenv("TRSG_TEST_FILESYSTEM_SESSION", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
     if migrate_job:
         # One-shot Cloud Run Job: no VPC Redis required; only DB + ORM bootstrap run.
         _session_dir = "/tmp/.flask_session_migrate"
         os.makedirs(_session_dir, exist_ok=True)
+        app.config["SESSION_TYPE"] = "filesystem"
+        app.config["SESSION_FILE_DIR"] = _session_dir
+    elif test_fs_session:
+        _session_dir = tempfile.mkdtemp(prefix="trsg_pytest_sess_")
         app.config["SESSION_TYPE"] = "filesystem"
         app.config["SESSION_FILE_DIR"] = _session_dir
     else:
@@ -524,7 +534,7 @@ def create_app():
 
         show_account_menu = False
         account_menu_config = {}
-        if current_user.is_authenticated and request.endpoint:
+        if getattr(current_user, "is_authenticated", False) and request.endpoint:
             if not request.endpoint.startswith("auth.") and not request.endpoint.startswith(
                 "static"
             ):

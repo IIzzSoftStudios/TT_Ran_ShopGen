@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from flask_login import login_user
 
 from app import app as flask_app
+from tests.session_helpers import seed_client_session
 from app.extensions import db
 import app.models  # noqa: F401
 from app.models import Campaign, GMProfile, Player, User
@@ -20,11 +20,6 @@ def _db_tables():
         yield
         db.session.rollback()
         db.drop_all()
-
-
-def _login_as(user: User):
-    with flask_app.test_request_context():
-        login_user(user)
 
 
 def _make_user(username: str, role: str = "Both", password: str = "Secret1!") -> User:
@@ -66,7 +61,7 @@ def test_unauthorized_gm_mode_returns_403(client):
         owner = _make_user("gm-owner2", role="GM")
         intruder = _make_user("intruder2", role="Player")
         camp = _make_gm_campaign(owner)
-        _login_as(intruder)
+        seed_client_session(client, intruder)
         resp = client.get(f"/campaigns/load/{camp.id}?as=gm")
         assert resp.status_code == 403
 
@@ -76,7 +71,7 @@ def test_unauthorized_gm_mode_does_not_set_session(client):
         owner = _make_user("gm-owner", role="GM")
         intruder = _make_user("intruder", role="Player")
         camp = _make_gm_campaign(owner)
-        _login_as(intruder)
+        seed_client_session(client, intruder)
         with client.session_transaction() as sess:
             sess.clear()
         client.get(f"/campaigns/load/{camp.id}?as=gm")
@@ -90,7 +85,7 @@ def test_player_mode_requires_character_403(client):
         owner = _make_user("gm-owner3", role="GM")
         intruder = _make_user("intruder3", role="Player")
         camp = _make_gm_campaign(owner)
-        _login_as(intruder)
+        seed_client_session(client, intruder)
         resp = client.get(f"/campaigns/load/{camp.id}?as=player")
         assert resp.status_code == 403
 
@@ -99,10 +94,9 @@ def test_session_mode_home_routing_gm(client):
     with flask_app.app_context():
         gm = _make_user("gm-home", role="GM")
         camp = _make_gm_campaign(gm)
-        _login_as(gm)
-        with client.session_transaction() as sess:
-            sess["campaign_id"] = camp.id
-            sess["session_mode"] = "gm"
+        seed_client_session(
+            client, gm, campaign_id=camp.id, session_mode="gm"
+        )
         resp = client.get("/home", follow_redirects=False)
         assert resp.status_code in (302, 303)
         assert "gm" in (resp.location or "").lower()
@@ -114,9 +108,7 @@ def test_mode_guard_gm_on_player_route(client):
         p = Player(user_id=u.id, campaign_id=None, currency=0, is_npc=False)
         db.session.add(p)
         db.session.commit()
-        _login_as(u)
-        with client.session_transaction() as sess:
-            sess["session_mode"] = "gm"
+        seed_client_session(client, u, session_mode="gm")
         resp = client.get("/player/home", follow_redirects=False)
         assert resp.status_code in (302, 303)
         assert "campaigns" in (resp.location or "")
