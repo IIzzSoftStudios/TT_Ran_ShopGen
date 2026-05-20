@@ -19,6 +19,7 @@ from app import app
 from app.extensions import db
 from app.models import (
     Campaign,
+    City,
     DeletedCampaignSimSnapshot,
     GMProfile,
     GMWorldState,
@@ -27,9 +28,14 @@ from app.models import (
     PlayerCharacterSheet,
     PlayerEquipment,
     PlayerInventory,
+    PriceHistory,
+    Region,
+    Shop,
+    ShopInventory,
     SimulationLog,
     SimulationState,
     User,
+    shop_cities,
 )
 from app.routes.handlers import gm_campaigns_handler
 
@@ -520,6 +526,111 @@ def test_delete_campaign_with_full_simulation_stack_cascades(cascade_app):
     assert SimulationState.query.filter_by(campaign_id=campaign_id).count() == 0
     assert GMWorldState.query.filter_by(campaign_id=campaign_id).count() == 0
     assert SimulationLog.query.filter_by(campaign_id=campaign_id).count() == 0
+
+
+def test_delete_campaign_handler_post_simulated_world_no_players(client):
+    """Regression: delete succeeds when world + ticks exist but no players."""
+    from app import app as flask_app
+    from app.models import User
+    from app.services.user_capabilities import ensure_gm_profile
+    from tests.session_helpers import seed_client_session
+
+    flask_app.config["WTF_CSRF_ENABLED"] = False
+    with flask_app.app_context():
+        db.create_all()
+        user = User(username="gm_world_del", password="x", role="GM")
+        user.set_password("Secret1!")
+        db.session.add(user)
+        db.session.commit()
+        ensure_gm_profile(user)
+        db.session.commit()
+        db.session.refresh(user)
+        gm = user.gm_profile
+        campaign = _make_campaign(gm, "SimulatedNoPlayers")
+        region = Region(campaign_id=campaign.id, name="North")
+        db.session.add(region)
+        db.session.flush()
+        city = City(
+            campaign_id=campaign.id,
+            name="Ironhold",
+            region_id=region.id,
+            region="North",
+        )
+        shop = Shop(
+            campaign_id=campaign.id,
+            name="Forge",
+            type="blacksmith",
+        )
+        db.session.add_all([city, shop])
+        db.session.flush()
+        db.session.execute(
+            shop_cities.insert().values(
+                shop_id=shop.shop_id,
+                city_id=city.city_id,
+            )
+        )
+        item = Item(
+            campaign_id=campaign.id,
+            name="Iron Sword",
+            type="Weapon",
+            rarity="common",
+            base_price=25,
+        )
+        db.session.add(item)
+        db.session.flush()
+        db.session.add_all(
+            [
+                ShopInventory(
+                    shop_id=shop.shop_id,
+                    item_id=item.item_id,
+                    campaign_id=campaign.id,
+                    stock=3,
+                    dynamic_price=25.0,
+                ),
+                PriceHistory(
+                    shop_id=shop.shop_id,
+                    item_id=item.item_id,
+                    campaign_id=campaign.id,
+                    price=25.0,
+                ),
+                SimulationState(
+                    campaign_id=campaign.id,
+                    current_tick=7,
+                    speed="pause",
+                    sim_clicks_day=2,
+                ),
+                GMWorldState(
+                    campaign_id=campaign.id,
+                    state_json={"shops": [{"id": shop.shop_id}]},
+                    schema_version=1,
+                    tick_seq=7,
+                ),
+                SimulationLog(
+                    tick_id=7,
+                    event_type="price_change",
+                    details={"item": item.item_id},
+                    campaign_id=campaign.id,
+                ),
+            ]
+        )
+        db.session.commit()
+        campaign_id = campaign.id
+        assert Player.query.filter_by(campaign_id=campaign_id).count() == 0
+        seed_client_session(client, user)
+
+    resp = client.post(f"/gm/campaigns/delete/{campaign_id}")
+    assert resp.status_code in (302, 303)
+    with flask_app.app_context():
+        assert Campaign.query.filter_by(id=campaign_id).count() == 0
+        assert SimulationState.query.filter_by(campaign_id=campaign_id).count() == 0
+        assert GMWorldState.query.filter_by(campaign_id=campaign_id).count() == 0
+        assert SimulationLog.query.filter_by(campaign_id=campaign_id).count() == 0
+        snaps = DeletedCampaignSimSnapshot.query.filter_by(
+            campaign_id=campaign_id
+        ).all()
+        assert len(snaps) == 1
+        assert snaps[0].sim_clicks_day == 2
+        db.drop_all()
 
 
 if __name__ == "__main__":

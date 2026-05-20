@@ -9,6 +9,7 @@ import traceback
 
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import login_required, current_user
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
@@ -17,13 +18,26 @@ from app.models import (
     Player,
     Campaign,
     CampaignWorldConfig,
+    City,
+    DemandModifier,
+    GlobalMarket,
     Item,
+    MarketEvent,
+    ModifierTarget,
     PlayerEquipment,
     PlayerCharacterSheet,
     PlayerInventory,
     DeletedCampaignSimSnapshot,
     GMWorldState,
+    PriceHistory,
+    RegionalMarket,
+    ResourceTransform,
+    Shop,
+    ShopInventory,
+    SimulationLog,
     SimulationState,
+    SimRule,
+    shop_cities,
 )
 from app.scripts.seeder import seed_gm_data
 from app.services.billing_rules import (
@@ -204,6 +218,45 @@ def _snapshot_campaign_for_analytics(campaign: Campaign) -> DeletedCampaignSimSn
     return snapshot
 
 
+def _purge_campaign_dependencies(campaign_id: int) -> None:
+    """Remove campaign-scoped rows that block parent delete on legacy Postgres.
+
+    ``shop_cities`` and several shop/item FKs were created without
+    ``ON DELETE CASCADE``; simulated worlds also accumulate ``price_history``,
+    markets, and logs. Bulk-delete by ``campaign_id`` (and junction rows by
+    shop/city membership) before ``session.delete(campaign)``.
+    """
+    cid = campaign_id
+    shop_ids = db.session.query(Shop.shop_id).filter(Shop.campaign_id == cid)
+    city_ids = db.session.query(City.city_id).filter(City.campaign_id == cid)
+    db.session.execute(
+        shop_cities.delete().where(
+            or_(
+                shop_cities.c.shop_id.in_(shop_ids),
+                shop_cities.c.city_id.in_(city_ids),
+            )
+        )
+    )
+    for model in (
+        SimulationLog,
+        SimRule,
+        PriceHistory,
+        ShopInventory,
+        RegionalMarket,
+        GlobalMarket,
+        ModifierTarget,
+        DemandModifier,
+        MarketEvent,
+        ResourceTransform,
+        SimulationState,
+        GMWorldState,
+        CampaignWorldConfig,
+    ):
+        db.session.query(model).filter_by(campaign_id=cid).delete(
+            synchronize_session=False
+        )
+
+
 @login_required
 def delete_campaign(campaign_id: int):
     gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
@@ -238,23 +291,21 @@ def delete_campaign(campaign_id: int):
         Player.query.filter_by(campaign_id=campaign.id).update(
             {Player.campaign_id: None}, synchronize_session=False
         )
-        # Remove one-to-one children before the parent so SQLAlchemy never NULLs
-        # NOT NULL FK columns and legacy DBs without ON DELETE CASCADE still clean up.
-        SimulationState.query.filter_by(campaign_id=campaign.id).delete(
-            synchronize_session=False
-        )
-        db.session.query(GMWorldState).filter_by(campaign_id=campaign.id).delete(
-            synchronize_session=False
-        )
+        _purge_campaign_dependencies(campaign.id)
         db.session.expire(campaign, ["simulation_state", "world_state"])
         db.session.delete(campaign)
         db.session.commit()
     except (IntegrityError, OperationalError) as exc:
         db.session.rollback()
+        pg_detail = getattr(getattr(exc, "orig", None), "diag", None)
+        constraint = getattr(pg_detail, "constraint_name", None) if pg_detail else None
         log.exception(
-            "Campaign delete failed | campaign_id=%s gm_profile_id=%s",
+            "Campaign delete failed | campaign_id=%s gm_profile_id=%s "
+            "constraint=%s detail=%s",
             campaign_id,
             gm_profile.id,
+            constraint,
+            getattr(exc, "orig", exc),
         )
         flash(
             "Could not delete this campaign. If it has been simulated or has players, "
