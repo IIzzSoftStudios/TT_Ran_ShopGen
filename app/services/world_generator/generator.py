@@ -42,6 +42,7 @@ from app.models import (
 from app.services.economy.supply_demand import seed_next_restock_day
 from app.services.shop_roll.catalog import get_catalog
 from app.services.shop_roll.city_size import pick_city_size_and_population
+from app.services.shop_roll.shop_type_map import get_biased_shop_pool
 from app.services.world_generator.settings_resolve import (
     city_size_variation_range,
     shops_count_for_city,
@@ -429,6 +430,10 @@ def generate(
                 # Fallback: take the full pool. Should be unreachable after
                 # the density rule in validator, but defensive.
                 native = items
+
+            min_category_pool = max(2, n_items_here)
+            native = get_biased_shop_pool(native, shop.type, min_category_pool)
+            imported = get_biased_shop_pool(imported, shop.type, min_category_pool)
 
             picked_items = set()
             attempts = 0
