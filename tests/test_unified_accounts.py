@@ -153,6 +153,29 @@ def test_registration_password_mismatch(client):
         assert resp.status_code == 200
 
 
+def test_registration_without_campaign_code_does_not_create_character(client, monkeypatch):
+    monkeypatch.delenv("REQUIRE_REGISTRATION_KEY", raising=False)
+    with flask_app.app_context():
+        resp = client.post(
+            "/auth/register",
+            data={
+                "username": "newuser2",
+                "email": "newuser2@example.com",
+                "password": "ValidPass1!",
+                "confirm_password": "ValidPass1!",
+                "registration_key": "",
+                "campaign_code": "",
+            },
+            follow_redirects=False,
+        )
+
+        user = User.query.filter_by(username="newuser2").first()
+        assert resp.status_code in (302, 303)
+        assert user is not None
+        assert GMProfile.query.filter_by(user_id=user.id).count() == 1
+        assert Player.query.filter_by(user_id=user.id, is_npc=False).count() == 0
+
+
 def test_user_capabilities_can_redeem():
     with flask_app.app_context():
         from app.services.user_capabilities import can_redeem_campaign_code

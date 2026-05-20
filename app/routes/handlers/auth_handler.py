@@ -27,9 +27,7 @@ from app.models import (
     GMProfile,
     RegistrationKey,
     AccessRequest,
-    Player,
 )
-from app.services.billing_rules import can_add_player_profile
 from app.services.schema_compat import ensure_user_password_history_table
 from app.utils.validators import (
     is_password_strong,
@@ -107,21 +105,10 @@ def handle_logout():
 
 
 def _setup_new_unified_user(new_user, campaign_code: str) -> None:
-    """Create GM profile and optional player row / campaign join for role=Both."""
+    """Create GM profile and optionally join a campaign for role=Both."""
     ensure_gm_profile(new_user)
     if campaign_code:
         redeem_campaign_code(new_user, campaign_code, _commit=False)
-        return
-    okp, _ = can_add_player_profile(new_user)
-    if okp:
-        db.session.add(
-            Player(
-                user_id=new_user.id,
-                campaign_id=None,
-                currency=0,
-                is_npc=False,
-            )
-        )
 
 
 def _register_redirect_fail(registration_key=""):
