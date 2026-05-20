@@ -596,9 +596,20 @@
 
             function dispIso(iso) {
                 if (!iso) return '—';
-                var d = new Date(iso);
+                var normalized = String(iso);
+                if (!/(Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) {
+                    normalized += 'Z';
+                }
+                var d = new Date(normalized);
                 if (isNaN(d.getTime())) return escapeHtml(iso);
-                try { return escapeHtml(d.toLocaleString()); } catch (e) { return escapeHtml(iso); }
+                try {
+                    return escapeHtml(d.toLocaleString('en-US', {
+                        timeZone: 'America/Chicago',
+                        timeZoneName: 'short',
+                    }));
+                } catch (e) {
+                    return escapeHtml(iso);
+                }
             }
 
             function escapeHtml(s) {

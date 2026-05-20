@@ -3,12 +3,12 @@
         const modal = document.getElementById('deleteModal');
         const modalText = document.getElementById('deleteModalText');
         modalText.textContent = 'Are you sure you want to delete ' + shopName + '? This action cannot be undone.';
-        modal.style.display = 'block';
+        modal.classList.add('is-open');
         window.shopIdToDelete = shopId;
     }
 
     function closeDeleteModal() {
-        document.getElementById('deleteModal').style.display = 'none';
+        document.getElementById('deleteModal').classList.remove('is-open');
     }
 
     function confirmDelete() {
@@ -30,12 +30,12 @@
         const modal = document.getElementById('cityDeleteModal');
         const modalText = document.getElementById('cityDeleteModalText');
         modalText.textContent = 'Are you sure you want to delete ' + cityName + '? This action cannot be undone.';
-        modal.style.display = 'block';
+        modal.classList.add('is-open');
         window.cityIdToDelete = cityId;
     }
 
     function closeCityDeleteModal() {
-        document.getElementById('cityDeleteModal').style.display = 'none';
+        document.getElementById('cityDeleteModal').classList.remove('is-open');
     }
 
     function confirmCityDelete() {
@@ -105,7 +105,7 @@
                 var cname = cityBtn.getAttribute('data-city-name') || '';
                 showCityDeleteConfirmation(cid, cname);
             }
-        });
+        }, true);
     });
 
     window.addEventListener('click', function (event) {
