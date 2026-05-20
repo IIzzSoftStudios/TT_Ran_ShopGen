@@ -193,7 +193,9 @@
         btn.type = "button";
         btn.addEventListener("click", function (e) {
           e.preventDefault();
-          showPopover(form, btn, msg);
+          if (window.confirm(msg)) {
+            HTMLFormElement.prototype.submit.call(form);
+          }
         });
       });
     });

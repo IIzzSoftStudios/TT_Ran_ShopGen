@@ -22,6 +22,11 @@ from app.models import (
     DeletedCampaignSimSnapshot,
     GMProfile,
     GMWorldState,
+    Item,
+    Player,
+    PlayerCharacterSheet,
+    PlayerEquipment,
+    PlayerInventory,
     SimulationLog,
     SimulationState,
     User,
@@ -60,7 +65,13 @@ class CampaignDeleteIsolationTests(unittest.TestCase):
         _sim_state_model_mock.query.filter_by.return_value.first.return_value = None
 
         with app.test_request_context("/gm/campaigns/delete/11", method="POST"):
-            gm_campaigns_handler.delete_campaign.__wrapped__(campaign.id)
+            with patch.multiple(
+                gm_campaigns_handler,
+                Player=MagicMock(),
+                PlayerInventory=MagicMock(),
+                PlayerEquipment=MagicMock(),
+            ):
+                gm_campaigns_handler.delete_campaign.__wrapped__(campaign.id)
 
         sheet_model_mock.query.filter_by.assert_called_once_with(campaign_id=campaign.id)
         db_mock.session.delete.assert_called_once_with(campaign)
@@ -106,7 +117,13 @@ class CampaignDeleteIsolationTests(unittest.TestCase):
             session["campaign_id"] = 11
             session["system_type"] = "dnd5e"
 
-            response = gm_campaigns_handler.delete_campaign.__wrapped__(campaign.id)
+            with patch.multiple(
+                gm_campaigns_handler,
+                Player=MagicMock(),
+                PlayerInventory=MagicMock(),
+                PlayerEquipment=MagicMock(),
+            ):
+                response = gm_campaigns_handler.delete_campaign.__wrapped__(campaign.id)
 
             assert response == "/campaigns"
             assert "campaign_id" not in session
@@ -394,6 +411,21 @@ def test_delete_campaign_handler_post_with_simulation_stack(client):
         db.session.refresh(user)
         gm = user.gm_profile
         campaign = _make_campaign(gm, "DeleteViaPost")
+        item = Item(
+            campaign_id=campaign.id,
+            name="Campaign Sword",
+            type="Weapon",
+            rarity="common",
+            base_price=10,
+        )
+        player = Player(
+            user_id=user.id,
+            campaign_id=campaign.id,
+            currency=100,
+            is_npc=False,
+        )
+        db.session.add_all([item, player])
+        db.session.flush()
         db.session.add_all(
             [
                 SimulationState(
@@ -408,16 +440,37 @@ def test_delete_campaign_handler_post_with_simulation_stack(client):
                     schema_version=1,
                     tick_seq=2,
                 ),
+                PlayerInventory(
+                    player_id=player.id,
+                    item_id=item.item_id,
+                    quantity=1,
+                ),
+                PlayerEquipment(
+                    player_id=player.id,
+                    slot="weapon",
+                    item_id=item.item_id,
+                ),
+                PlayerCharacterSheet(
+                    player_id=player.id,
+                    campaign_id=campaign.id,
+                    sheet_json={"name": "Campaign Sheet"},
+                ),
             ]
         )
         db.session.commit()
         campaign_id = campaign.id
+        player_id = player.id
+        item_id = item.item_id
         seed_client_session(client, user)
 
     resp = client.post(f"/gm/campaigns/delete/{campaign_id}")
     assert resp.status_code in (302, 303)
     with flask_app.app_context():
         assert Campaign.query.filter_by(id=campaign_id).count() == 0
+        assert Player.query.filter_by(id=player_id).one().campaign_id is None
+        assert PlayerInventory.query.filter_by(item_id=item_id).count() == 0
+        assert PlayerEquipment.query.filter_by(player_id=player_id).one().item_id is None
+        assert PlayerCharacterSheet.query.filter_by(campaign_id=campaign_id).count() == 0
         assert SimulationState.query.filter_by(campaign_id=campaign_id).count() == 0
         assert GMWorldState.query.filter_by(campaign_id=campaign_id).count() == 0
         snaps = DeletedCampaignSimSnapshot.query.filter_by(campaign_id=campaign_id).all()

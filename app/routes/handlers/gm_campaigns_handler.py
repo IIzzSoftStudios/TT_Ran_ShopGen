@@ -17,7 +17,10 @@ from app.models import (
     Player,
     Campaign,
     CampaignWorldConfig,
+    Item,
+    PlayerEquipment,
     PlayerCharacterSheet,
+    PlayerInventory,
     DeletedCampaignSimSnapshot,
     GMWorldState,
     SimulationState,
@@ -217,13 +220,24 @@ def delete_campaign(campaign_id: int):
 
     deleting_active_campaign = session.get("campaign_id") == campaign_id
 
-    # Character sheets are campaign-scoped and should be purged with campaign delete.
-    PlayerCharacterSheet.query.filter_by(campaign_id=campaign.id).delete(
-        synchronize_session=False
-    )
     snapshot = None
     try:
         snapshot = _snapshot_campaign_for_analytics(campaign)
+        campaign_item_ids = db.session.query(Item.item_id).filter(
+            Item.campaign_id == campaign.id
+        )
+        PlayerInventory.query.filter(
+            PlayerInventory.item_id.in_(campaign_item_ids)
+        ).delete(synchronize_session=False)
+        PlayerEquipment.query.filter(
+            PlayerEquipment.item_id.in_(campaign_item_ids)
+        ).update({PlayerEquipment.item_id: None}, synchronize_session=False)
+        PlayerCharacterSheet.query.filter_by(campaign_id=campaign.id).delete(
+            synchronize_session=False
+        )
+        Player.query.filter_by(campaign_id=campaign.id).update(
+            {Player.campaign_id: None}, synchronize_session=False
+        )
         # Remove one-to-one children before the parent so SQLAlchemy never NULLs
         # NOT NULL FK columns and legacy DBs without ON DELETE CASCADE still clean up.
         SimulationState.query.filter_by(campaign_id=campaign.id).delete(
