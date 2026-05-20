@@ -33,6 +33,7 @@ class CampaignDeleteIsolationTests(unittest.TestCase):
     @patch("app.routes.handlers.gm_campaigns_handler.flash")
     @patch("app.routes.handlers.gm_campaigns_handler.redirect")
     @patch("app.routes.handlers.gm_campaigns_handler.url_for", return_value="/gm/campaigns/")
+    @patch("app.routes.handlers.gm_campaigns_handler.SimulationState")
     @patch("app.routes.handlers.gm_campaigns_handler.PlayerCharacterSheet")
     @patch("app.routes.handlers.gm_campaigns_handler.Campaign")
     @patch("app.routes.handlers.gm_campaigns_handler.GMProfile")
@@ -45,6 +46,7 @@ class CampaignDeleteIsolationTests(unittest.TestCase):
         gm_profile_model_mock,
         campaign_model_mock,
         sheet_model_mock,
+        _sim_state_model_mock,
         _url_for_mock,
         _redirect_mock,
         _flash_mock,
@@ -55,6 +57,7 @@ class CampaignDeleteIsolationTests(unittest.TestCase):
 
         gm_profile_model_mock.query.filter_by.return_value.first.return_value = gm_profile
         campaign_model_mock.query.filter_by.return_value.first.return_value = campaign
+        _sim_state_model_mock.query.filter_by.return_value.first.return_value = None
 
         with app.test_request_context("/gm/campaigns/delete/11", method="POST"):
             gm_campaigns_handler.delete_campaign.__wrapped__(campaign.id)
@@ -66,6 +69,7 @@ class CampaignDeleteIsolationTests(unittest.TestCase):
     @patch("app.routes.handlers.gm_campaigns_handler.flash")
     @patch("app.routes.handlers.gm_campaigns_handler.redirect")
     @patch("app.routes.handlers.gm_campaigns_handler.url_for")
+    @patch("app.routes.handlers.gm_campaigns_handler.SimulationState")
     @patch("app.routes.handlers.gm_campaigns_handler.PlayerCharacterSheet")
     @patch("app.routes.handlers.gm_campaigns_handler.Campaign")
     @patch("app.routes.handlers.gm_campaigns_handler.GMProfile")
@@ -78,6 +82,7 @@ class CampaignDeleteIsolationTests(unittest.TestCase):
         gm_profile_model_mock,
         campaign_model_mock,
         _sheet_model_mock,
+        _sim_state_model_mock,
         url_for_mock,
         redirect_mock,
         _flash_mock,
@@ -88,6 +93,7 @@ class CampaignDeleteIsolationTests(unittest.TestCase):
 
         gm_profile_model_mock.query.filter_by.return_value.first.return_value = gm_profile
         campaign_model_mock.query.filter_by.return_value.first.return_value = campaign
+        _sim_state_model_mock.query.filter_by.return_value.first.return_value = None
         url_for_mock.side_effect = lambda endpoint, **_kwargs: {
             "main.campaigns": "/campaigns",
             "gm.view_campaigns": "/gm/campaigns/",
@@ -367,6 +373,57 @@ def test_snapshot_cascades_when_gm_profile_deleted(cascade_app):
     db.session.delete(gm)
     db.session.commit()
     assert DeletedCampaignSimSnapshot.query.count() == 0
+
+
+def test_delete_campaign_handler_post_with_simulation_stack(client):
+    """Regression: POST delete must not 500 when simulation_state is loaded for snapshot."""
+    from app import app as flask_app
+    from app.models import User
+    from app.services.user_capabilities import ensure_gm_profile
+    from tests.session_helpers import seed_client_session
+
+    flask_app.config["WTF_CSRF_ENABLED"] = False
+    with flask_app.app_context():
+        db.create_all()
+        user = User(username="gm_del_post", password="x", role="GM")
+        user.set_password("Secret1!")
+        db.session.add(user)
+        db.session.commit()
+        ensure_gm_profile(user)
+        db.session.commit()
+        db.session.refresh(user)
+        gm = user.gm_profile
+        campaign = _make_campaign(gm, "DeleteViaPost")
+        db.session.add_all(
+            [
+                SimulationState(
+                    campaign_id=campaign.id,
+                    current_tick=2,
+                    speed="pause",
+                    sim_clicks_day=1,
+                ),
+                GMWorldState(
+                    campaign_id=campaign.id,
+                    state_json={"shops": []},
+                    schema_version=1,
+                    tick_seq=2,
+                ),
+            ]
+        )
+        db.session.commit()
+        campaign_id = campaign.id
+        seed_client_session(client, user)
+
+    resp = client.post(f"/gm/campaigns/delete/{campaign_id}")
+    assert resp.status_code in (302, 303)
+    with flask_app.app_context():
+        assert Campaign.query.filter_by(id=campaign_id).count() == 0
+        assert SimulationState.query.filter_by(campaign_id=campaign_id).count() == 0
+        assert GMWorldState.query.filter_by(campaign_id=campaign_id).count() == 0
+        snaps = DeletedCampaignSimSnapshot.query.filter_by(campaign_id=campaign_id).all()
+        assert len(snaps) == 1
+        assert snaps[0].sim_clicks_day == 1
+        db.drop_all()
 
 
 def test_delete_campaign_with_full_simulation_stack_cascades(cascade_app):

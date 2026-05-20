@@ -1108,7 +1108,7 @@ def create_character():
     if request.method == "GET":
         ok, msg = can_add_player_profile(current_user)
         return render_template(
-            "Player_create_character.html",
+            "Player_Create_Character.html",
             systems=system_options,
             default_system=default_system,
             can_add=ok,

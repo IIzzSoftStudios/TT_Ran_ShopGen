@@ -13,8 +13,14 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.extensions import db
 from app.models import (
-    GMProfile, Player, Campaign, CampaignWorldConfig, PlayerCharacterSheet,
+    GMProfile,
+    Player,
+    Campaign,
+    CampaignWorldConfig,
+    PlayerCharacterSheet,
     DeletedCampaignSimSnapshot,
+    GMWorldState,
+    SimulationState,
 )
 from app.scripts.seeder import seed_gm_data
 from app.services.billing_rules import (
@@ -164,7 +170,18 @@ def _snapshot_campaign_for_analytics(campaign: Campaign) -> DeletedCampaignSimSn
     write trustworthy regardless of caller context.
     """
 
-    sim = getattr(campaign, "simulation_state", None)
+    # Query directly — do not load ``campaign.simulation_state``. A loaded
+    # one-to-one child makes SQLAlchemy emit ``UPDATE … SET campaign_id = NULL``
+    # before the parent delete, which fails on NOT NULL ``campaign_id``.
+    sim = None
+    try:
+        sim = SimulationState.query.filter_by(campaign_id=campaign.id).first()
+    except OperationalError:
+        log.debug(
+            "simulation_state unavailable for delete snapshot (campaign_id=%s)",
+            campaign.id,
+            exc_info=True,
+        )
     snapshot = DeletedCampaignSimSnapshot(
         gm_profile_id=campaign.gm_profile_id,
         campaign_id=campaign.id,
@@ -204,17 +221,52 @@ def delete_campaign(campaign_id: int):
     PlayerCharacterSheet.query.filter_by(campaign_id=campaign.id).delete(
         synchronize_session=False
     )
-    snapshot = _snapshot_campaign_for_analytics(campaign)
-    db.session.delete(campaign)
-    db.session.commit()
+    snapshot = None
+    try:
+        snapshot = _snapshot_campaign_for_analytics(campaign)
+        # Remove one-to-one children before the parent so SQLAlchemy never NULLs
+        # NOT NULL FK columns and legacy DBs without ON DELETE CASCADE still clean up.
+        SimulationState.query.filter_by(campaign_id=campaign.id).delete(
+            synchronize_session=False
+        )
+        db.session.query(GMWorldState).filter_by(campaign_id=campaign.id).delete(
+            synchronize_session=False
+        )
+        db.session.expire(campaign, ["simulation_state", "world_state"])
+        db.session.delete(campaign)
+        db.session.commit()
+    except (IntegrityError, OperationalError) as exc:
+        db.session.rollback()
+        log.exception(
+            "Campaign delete failed | campaign_id=%s gm_profile_id=%s",
+            campaign_id,
+            gm_profile.id,
+        )
+        flash(
+            "Could not delete this campaign. If it has been simulated or has players, "
+            "contact support with the campaign name. "
+            f"({type(exc).__name__})",
+            "error",
+        )
+        return redirect(url_for("gm.view_campaigns"))
+    except Exception:
+        db.session.rollback()
+        log.exception(
+            "Campaign delete failed | campaign_id=%s gm_profile_id=%s",
+            campaign_id,
+            gm_profile.id,
+        )
+        flash("Could not delete this campaign. Please try again.", "error")
+        return redirect(url_for("gm.view_campaigns"))
+
     logging.getLogger(__name__).info(
         "Campaign deleted | campaign_id=%s name=%r gm_profile_id=%s "
         "snapshot_id=%s days_simulated=%s",
         campaign_id,
-        snapshot.campaign_name,
-        snapshot.gm_profile_id,
-        snapshot.snapshot_id,
-        snapshot.days_simulated,
+        snapshot.campaign_name if snapshot else "?",
+        snapshot.gm_profile_id if snapshot else gm_profile.id,
+        getattr(snapshot, "snapshot_id", None),
+        getattr(snapshot, "days_simulated", None),
     )
     if deleting_active_campaign:
         session.pop("campaign_id", None)

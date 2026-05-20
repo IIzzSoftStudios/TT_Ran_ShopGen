@@ -432,13 +432,12 @@
                 <div class="footer-col">
                     <div style="font-weight:800;">Product</div>
                     <a href="{{ url_for('main.docs') }}">Overview</a>
-                    <a href="{{ url_for('main.changelog') }}">Changelog</a>
-                    <a href="{{ url_for('main.docs') }}">Roadmap</a>
+                    <a href="{{ url_for('main.docs', section='changelog') }}#changelog">Changelog</a>
+                    <a href="{{ url_for('main.docs', section='faq') }}#faq">Roadmap</a>
                 </div>
                 <div class="footer-col">
                     <div style="font-weight:800;">Resources</div>
                     <a href="{{ url_for('main.docs') }}">Documentation</a>
-                    <a href="{{ url_for('main.docs') }}">API</a>
                     <a href="{{ url_for('main.docs') }}">Guides</a>
                 </div>
                 <div class="footer-col">
@@ -447,8 +446,8 @@
                 </div>
                 <div class="footer-col">
                     <div style="font-weight:800;">Legal</div>
-                    <a href="{{ url_for('main.docs') }}">Terms of Service</a>
-                    <a href="{{ url_for('main.docs') }}">Privacy Policy</a>
+                    <a href="{{ url_for('main.docs', section='terms') }}#terms">Terms of Service</a>
+                    <a href="{{ url_for('main.docs', section='privacy') }}#privacy">Privacy Policy</a>
                 </div>
             </div>
 

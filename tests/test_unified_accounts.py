@@ -153,6 +153,16 @@ def test_registration_password_mismatch(client):
         assert resp.status_code == 200
 
 
+def test_create_character_get_renders_form(client):
+    """Template name must match on-disk casing (Linux/GCP is case-sensitive)."""
+    with flask_app.app_context():
+        user = _make_user("char-creator", role="Both")
+        seed_client_session(client, user)
+        resp = client.get("/player/character/create")
+        assert resp.status_code == 200
+        assert b"Create character" in resp.data or b"Character name" in resp.data
+
+
 def test_registration_without_campaign_code_does_not_create_character(client, monkeypatch):
     monkeypatch.delenv("REQUIRE_REGISTRATION_KEY", raising=False)
     with flask_app.app_context():

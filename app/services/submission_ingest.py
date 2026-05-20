@@ -80,7 +80,7 @@ def build_submission(
 ) -> UserSubmission | SubmissionValidationError:
     if user.role == "vault_keeper":
         return SubmissionValidationError(
-            "Vault keepers are barred from submitting triage items.", 403
+            "Admin review accounts cannot submit feedback from this form.", 403
         )
 
     kind = data.get("kind")

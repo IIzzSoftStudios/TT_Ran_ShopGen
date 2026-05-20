@@ -120,14 +120,41 @@
             </p>
         </div>
 
+        <article class="changelog-card" id="tech-demo-patch-1-2">
+            <header class="patch-header">
+                <h2 class="patch-version">Tech Demo Patch 1.2</h2>
+                <span class="patch-date">May 20, 2026</span>
+                <span class="patch-tag">Latest</span>
+            </header>
+            <p style="margin: 0; color: var(--color-muted); line-height: 1.65;">
+                Public docs cleanup and production reliability fixes.
+            </p>
+
+            <div class="changelog-section">
+                <h3>Documentation and footer links</h3>
+                <ul>
+                    <li>Moved changelog content into the Documentation page so release notes live beside guides, Terms, and Privacy.</li>
+                    <li>Footer links now open the correct Documentation sections for Changelog, Terms of Service, and Privacy Policy.</li>
+                </ul>
+            </div>
+
+            <div class="changelog-section">
+                <h3>Production reliability</h3>
+                <ul>
+                    <li>Fixed the Create character page failing on Linux/GCP because of a template filename casing mismatch.</li>
+                    <li>Improved campaign delete handling for campaigns with simulation state so deleted campaigns can archive metrics and clean up safely.</li>
+                </ul>
+            </div>
+
+        </article>
+
         <article class="changelog-card" id="tech-demo-patch-1-1">
             <header class="patch-header">
                 <h2 class="patch-version">Tech Demo Patch 1.1</h2>
                 <span class="patch-date">May 19, 2026</span>
-                <span class="patch-tag">Latest</span>
             </header>
             <p style="margin: 0; color: var(--color-muted); line-height: 1.65;">
-                Account experience and in-app feedback for the live tech demo.
+                Account experience, economy controls, and in-app feedback for the live tech demo.
             </p>
 
             <div class="changelog-section">
@@ -153,6 +180,22 @@
                     <li>In-app bug reports with category, severity, reproduction steps, and expected behavior.</li>
                     <li>Feedback and suggestion forms with structured categories for the demo team.</li>
                     <li>Submissions capture session mode, account role, and page context so the team can follow up faster.</li>
+                </ul>
+            </div>
+
+            <div class="changelog-section">
+                <h3>Economy</h3>
+                <ul>
+                    <li>GMs can now choose whether to use Supply and Demand mechanics for a campaign.</li>
+                    <li>When Supply and Demand is enabled, shops sell items each game day and restock on a 15- to 30-day cadence.</li>
+                    <li>Prices update based on available supply and related shop/economy factors.</li>
+                </ul>
+            </div>
+
+            <div class="changelog-section">
+                <h3>Debt</h3>
+                <ul>
+                    <li>GMs can now choose whether players are allowed to buy items when the purchase would make their currency go negative.</li>
                 </ul>
             </div>
 

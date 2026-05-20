@@ -158,6 +158,20 @@
             color: var(--color-accent);
         }
 
+        .docs-nav-heading {
+            margin: 12px 0 2px;
+            padding: 0 12px;
+            font-size: 0.68rem;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-muted);
+        }
+
+        .docs-nav-heading:first-child {
+            margin-top: 0;
+        }
+
         .docs-main {
             min-width: 0;
         }
@@ -206,6 +220,63 @@
         .docs-panel a {
             color: var(--color-accent);
             font-weight: 650;
+        }
+
+        .changelog-layout {
+            display: grid;
+            grid-template-columns: minmax(180px, 220px) 1fr;
+            gap: 20px;
+            align-items: start;
+            margin-top: 18px;
+        }
+
+        .changelog-index {
+            position: sticky;
+            top: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.18);
+        }
+
+        .changelog-index-title {
+            margin: 0 0 10px;
+            font-size: 0.72rem;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-muted);
+        }
+
+        .changelog-index a {
+            display: block;
+            padding: 9px 10px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--color-text);
+        }
+
+        .changelog-index a:hover,
+        .changelog-index a:focus-visible {
+            background: rgba(124, 58, 237, 0.12);
+            color: var(--color-accent);
+        }
+
+        .changelog-patches {
+            min-width: 0;
+        }
+
+        .changelog-patch {
+            scroll-margin-top: 24px;
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+            padding-top: 18px;
+            margin-top: 18px;
+        }
+
+        .changelog-patch:first-child {
+            border-top: 0;
+            padding-top: 0;
+            margin-top: 0;
         }
 
         .docs-panel mark {
@@ -276,6 +347,14 @@
                 grid-template-columns: 1fr;
             }
 
+            .changelog-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .changelog-index {
+                position: static;
+            }
+
             .docs-sidebar-toggle {
                 display: inline-flex;
             }
@@ -339,15 +418,26 @@
             <div class="docs-sidebar-backdrop" id="docs-sidebar-backdrop" hidden aria-hidden="true"></div>
 
             <aside class="docs-sidebar" id="docs-sidebar" aria-label="Documentation sections">
-                <p class="docs-sidebar-label">On this page</p>
                 <nav>
                     <ul class="docs-nav" id="docs-nav">
+                        <li class="docs-nav-heading" aria-hidden="true">Product Guide</li>
                         <li><a href="#overview" data-section="overview">Overview</a></li>
                         <li><a href="#getting-started" data-section="getting-started">Getting Started</a></li>
                         <li><a href="#gm-hub" data-section="gm-hub">GM Management Hub</a></li>
                         <li><a href="#player" data-section="player">Player Use</a></li>
                         <li><a href="#items" data-section="items">Item &amp; Inventory Concepts</a></li>
+                        <li class="docs-nav-heading" aria-hidden="true">Updates</li>
+                        <li><a href="#changelog" data-section="changelog">Changelog</a></li>
+                        <li class="docs-nav-heading" aria-hidden="true">Policies</li>
+                        <li><a href="#terms" data-section="terms">Terms of Service</a></li>
+                        <li><a href="#privacy" data-section="privacy">Privacy Policy</a></li>
                         <li><a href="#faq" data-section="faq">FAQ / Known Limitations</a></li>
+                        <li class="docs-nav-heading" aria-hidden="true">Community</li>
+                        <li>
+                            <a href="https://discord.gg/dkNVnBXMMB" target="_blank" rel="noreferrer">
+                                Discord
+                            </a>
+                        </li>
                     </ul>
                 </nav>
             </aside>
@@ -367,7 +457,7 @@
                     <p>
                         This documentation explains how to get access, what GMs and players can do today, and
                         how items, inventory, and simulation ticks fit together. Sections are updated as features
-                        ship; see the <a href="{{ url_for('main.changelog') }}">changelog</a> for release notes.
+                        ship; see the <a href="{{ url_for('main.docs', section='changelog') }}#changelog">changelog</a> for release notes.
                     </p>
                     <h3>What you will find here</h3>
                     <ul>
@@ -375,6 +465,8 @@
                         <li><strong>GM Management Hub</strong> — campaigns, world generation, simulation, and players</li>
                         <li><strong>Player Use</strong> — joining a campaign, browsing shops, and inventory</li>
                         <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, and game-day ticks</li>
+                        <li><strong>Changelog</strong> — release notes for the live tech demo</li>
+                        <li><strong>Terms &amp; Privacy</strong> — general site rules and privacy notes</li>
                         <li><strong>FAQ</strong> — limitations, rulesets, and infrastructure expectations</li>
                     </ul>
                     <p>
@@ -393,12 +485,12 @@
                     <p>
                         From the landing page, choose <strong>Register For Access</strong> and submit the form at
                         <a href="{{ url_for('main.access_request') }}">Request Access</a>. Tell us whether you are a
-                        GM, player, or both, and which ruleset you run. When approved, you receive a vault key by email
+                        GM, player, or both, and which ruleset you run. When approved, you receive a key by email
                         (when approval automation is enabled in your environment).
                     </p>
-                    <h3>2. Register with your vault key</h3>
+                    <h3>2. Register with your access key</h3>
                     <p>
-                        Open the registration link from your approval email—it includes your vault key. Finish account
+                        Open the registration link from your approval email—it includes your key. Finish account
                         setup, then log in.
                     </p>
                     <h3>3. Log in</h3>
@@ -538,11 +630,141 @@
                     </p>
                 </article>
 
+                <article id="section-changelog" class="docs-panel" role="region"
+                    aria-labelledby="heading-changelog" hidden>
+                    <h2 id="heading-changelog">Changelog</h2>
+                    <p>
+                        Release notes for the Econo-Forge tech demo. Patches are listed newest first.
+                    </p>
+
+                    <div class="changelog-layout">
+                        <aside class="changelog-index" aria-label="Patch notes">
+                            <p class="changelog-index-title">Patch Notes</p>
+                            <a href="#patch-1-2">Tech Demo Patch 1.2</a>
+                            <a href="#patch-1-1">Tech Demo Patch 1.1</a>
+                        </aside>
+
+                        <div class="changelog-patches">
+                            <section class="changelog-patch" id="patch-1-2" aria-labelledby="heading-patch-1-2">
+                                <h3 id="heading-patch-1-2">Tech Demo Patch 1.2 <span class="docs-badge">Latest</span></h3>
+                                <p>
+                                    <strong>May 20, 2026.</strong> Public docs cleanup and production reliability fixes.
+                                </p>
+                                <h3>Documentation and footer links</h3>
+                                <ul>
+                                    <li>Moved changelog content into the Documentation page so release notes live beside guides, Terms, and Privacy.</li>
+                                    <li>Footer links now open the correct Documentation sections for Changelog, Terms of Service, and Privacy Policy.</li>
+                                </ul>
+                                <h3>Production reliability</h3>
+                                <ul>
+                                    <li>Fixed the Create character page failing on Linux/GCP because of a template filename casing mismatch.</li>
+                                    <li>Improved campaign delete handling for campaigns with simulation state so deleted campaigns can archive metrics and clean up safely.</li>
+                                </ul>
+                            </section>
+
+                            <section class="changelog-patch" id="patch-1-1" aria-labelledby="heading-patch-1-1">
+                                <h3 id="heading-patch-1-1">Tech Demo Patch 1.1</h3>
+                                <p>
+                                    <strong>May 19, 2026.</strong> Account experience and in-app feedback for the live tech demo.
+                                </p>
+                                <h3>Account menu</h3>
+                                <ul>
+                                    <li>Global account menu on authenticated GM, player, and campaign pages — avatar trigger, greeting, and sign out in one place.</li>
+                                    <li>Live GM and Player campaign counts in the menu for quick context.</li>
+                                    <li>One-click link to switch campaigns from any supported screen.</li>
+                                </ul>
+                                <h3>Profile avatars</h3>
+                                <ul>
+                                    <li>Upload a profile image (JPEG, PNG, WebP, or GIF) from the account menu.</li>
+                                    <li>Username initials shown when no avatar is set; cache-busted URLs after upload.</li>
+                                </ul>
+                                <h3>Help &amp; feedback</h3>
+                                <ul>
+                                    <li>In-app bug reports with category, severity, reproduction steps, and expected behavior.</li>
+                                    <li>Feedback and suggestion forms with structured categories for the demo team.</li>
+                                    <li>Submissions capture session mode, account role, and page context so the team can follow up faster.</li>
+                                </ul>
+                                <h3>Economy</h3>
+                                <ul>
+                                    <li>GMs can now choose whether to use Supply and Demand mechanics for a campaign.</li>
+                                    <li>When Supply and Demand is enabled, shops sell items each game day and restock on a 15- to 30-day cadence.</li>
+                                    <li>Prices update based on available supply and related shop/economy factors.</li>
+                                </ul>
+                                <h3>Debt</h3>
+                                <ul>
+                                    <li>GMs can now choose whether players are allowed to buy items when the purchase would make their currency go negative.</li>
+                                </ul>
+                            </section>
+                        </div>
+                    </div>
+                </article>
+
+                <article id="section-terms" class="docs-panel" role="region"
+                    aria-labelledby="heading-terms" hidden>
+                    <h2 id="heading-terms">Terms of Service</h2>
+                    <p>
+                        These general terms apply to the Econo-Forge tech demo. They are written for clarity and are
+                        not a substitute for formal legal advice.
+                    </p>
+                    <h3>Use of the service</h3>
+                    <ul>
+                        <li>Use Econo-Forge for lawful tabletop campaign planning, economy simulation, inventory tracking, and related play support.</li>
+                        <li>Do not attempt to bypass authentication, access another table's campaign, scrape private data, or disrupt the service.</li>
+                        <li>Accounts, access keys, join codes, and campaign content may be limited, revoked, or removed if abuse, security risk, or operational harm is detected.</li>
+                    </ul>
+                    <h3>Tech demo status</h3>
+                    <p>
+                        Econo-Forge is an evolving demo. Features, limits, copy, pricing assumptions, and data shape may
+                        change as the product matures. Avoid relying on demo behavior as a permanent contract.
+                    </p>
+                    <h3>Your content</h3>
+                    <p>
+                        You are responsible for campaign names, item text, character information, feedback, and other
+                        content you submit. Do not upload content you do not have permission to use.
+                    </p>
+                    <h3>No guarantee of uninterrupted service</h3>
+                    <p>
+                        The app may be unavailable during maintenance, deployment, infrastructure failure, or demo
+                        testing. Use exports or table notes for anything you need outside the app during a session.
+                    </p>
+                </article>
+
+                <article id="section-privacy" class="docs-panel" role="region"
+                    aria-labelledby="heading-privacy" hidden>
+                    <h2 id="heading-privacy">Privacy Policy</h2>
+                    <p>
+                        This general privacy policy describes the data Econo-Forge may process during the tech demo.
+                        It is intentionally plain-language and should be revisited before a commercial launch.
+                    </p>
+                    <h3>Information you provide</h3>
+                    <ul>
+                        <li>Account details such as username, email, role, password hash, and registration key status.</li>
+                        <li>Campaign and gameplay data such as campaigns, worlds, shops, items, inventory, character sheets, join codes, and simulation activity.</li>
+                        <li>Support and feedback data such as bug reports, suggestions, severity, reproduction steps, page context, and uploaded avatar images.</li>
+                    </ul>
+                    <h3>How data is used</h3>
+                    <ul>
+                        <li>To authenticate users, route them to GM or player tools, and enforce campaign access.</li>
+                        <li>To run campaign economy features including world generation, market views, stock, pricing, and simulation jobs.</li>
+                        <li>To review access requests, diagnose bugs, improve the demo, and respond to feedback.</li>
+                    </ul>
+                    <h3>Sharing and retention</h3>
+                    <p>
+                        Demo data is not presented as a public dataset. Access is limited to the app flows and authorized
+                        admin/support review. Retention and deletion rules may evolve as formal account controls are added.
+                    </p>
+                    <h3>Your choices</h3>
+                    <p>
+                        Avoid entering sensitive personal data into campaign content or feedback forms. If you need help
+                        with account data, submit a feedback request from inside the app or use the listed community/contact channel.
+                    </p>
+                </article>
+
                 <article id="section-faq" class="docs-panel" role="region"
                     aria-labelledby="heading-faq" hidden>
                     <h2 id="heading-faq">FAQ / Known Limitations</h2>
 
-                    <h3>Do I need a vault key to register?</h3>
+                    <h3>Do I need a key to register?</h3>
                     <p>
                         In most early-access deployments, yes—registration is gated until you receive a key from an
                         approved access request. If your group runs a private instance with keys disabled, your admin
@@ -570,10 +792,10 @@
                         world updates.
                     </p>
 
-                    <h3>Are Terms and Privacy on this site?</h3>
+                    <h3>Are Terms and Privacy formal legal documents?</h3>
                     <p>
-                        Footer links may still route here until dedicated legal pages exist. Do not treat this docs page
-                        as legal advice or a privacy policy.
+                        The Terms of Service and Privacy Policy sections are general demo-facing pages. They should be
+                        reviewed before any commercial launch or broader public rollout.
                     </p>
 
                     <h3>Where do I report bugs or ask for features?</h3>
@@ -601,7 +823,17 @@
 
     <script>
         (function () {
-            var ALLOWED = ['overview', 'getting-started', 'gm-hub', 'player', 'items', 'faq'];
+            var ALLOWED = [
+                'overview',
+                'getting-started',
+                'gm-hub',
+                'player',
+                'items',
+                'changelog',
+                'terms',
+                'privacy',
+                'faq'
+            ];
             var layout = document.getElementById('docs-layout');
             var nav = document.getElementById('docs-nav');
             var panels = document.querySelectorAll('.docs-panel');
@@ -767,7 +999,7 @@
                     }
                 } else if (searchHint) {
                     searchHint.hidden = false;
-                    searchHint.textContent = 'No matches for “' + query + '”. Try restock, vault key, or simulation.';
+                    searchHint.textContent = 'No matches for “' + query + '”. Try restock, access key, or simulation.';
                 }
             }
 

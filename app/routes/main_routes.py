@@ -87,7 +87,17 @@ def index():
 
 
 _DOCS_SECTIONS = frozenset(
-    {"overview", "getting-started", "gm-hub", "player", "items", "faq"}
+    {
+        "overview",
+        "getting-started",
+        "gm-hub",
+        "player",
+        "items",
+        "changelog",
+        "terms",
+        "privacy",
+        "faq",
+    }
 )
 
 
@@ -102,7 +112,7 @@ def docs():
 
 @main_bp.route("/changelog")
 def changelog():
-    return render_template("changelog.html")
+    return redirect(url_for("main.docs", section="changelog") + "#changelog")
 
 
 @main_bp.route("/register")
