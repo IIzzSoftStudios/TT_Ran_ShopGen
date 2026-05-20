@@ -16,7 +16,7 @@ os.environ.setdefault("TRSG_TEST_FILESYSTEM_SESSION", "1")
 from flask import Flask
 
 from app import app as flask_app
-from app.services.phase_config import PhaseEntitlements
+from app.services.phase_config import PhaseEntitlements, resolve_phase_entitlements_path
 
 _PHASES_TEST_YAML = """\
 phases:
@@ -36,6 +36,20 @@ phases:
     campaign_limit: 1
     seat_limit: 1
 """
+
+
+@pytest.fixture(autouse=True)
+def _restore_phase_config():
+    """Reset shared app ``phase_config`` before each test.
+
+    ``test_admin_vault_keys`` replaces it with a ``MagicMock``; without this,
+    later routes that call ``get_gm_limits()`` can see a mock ``campaign_limit``
+    and raise ``TypeError`` during billing checks.
+    """
+    flask_app.extensions["phase_config"] = PhaseEntitlements(
+        resolve_phase_entitlements_path()
+    )
+    yield
 
 
 @pytest.fixture

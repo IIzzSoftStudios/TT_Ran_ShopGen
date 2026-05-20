@@ -155,12 +155,22 @@ def test_registration_password_mismatch(client):
 
 def test_create_character_get_renders_form(client):
     """Template name must match on-disk casing (Linux/GCP is case-sensitive)."""
+    from pathlib import Path
+
+    template_path = (
+        Path(flask_app.root_path) / "templates" / "Player_Create_Character.html"
+    )
+    assert template_path.is_file(), f"missing template: {template_path}"
+
     with flask_app.app_context():
         user = _make_user("char-creator", role="Both")
         seed_client_session(client, user)
         resp = client.get("/player/character/create")
-        assert resp.status_code == 200
-        assert b"Create character" in resp.data or b"Character name" in resp.data
+        assert resp.status_code == 200, resp.data[:500]
+        body = resp.data
+        assert b'name="system_type"' in body
+        assert b'id="character_name"' in body
+        assert b"Create character" in body or b"Create Character" in body
 
 
 def test_registration_without_campaign_code_does_not_create_character(client, monkeypatch):

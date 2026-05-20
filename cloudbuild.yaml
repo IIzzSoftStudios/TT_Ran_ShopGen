@@ -83,6 +83,8 @@ steps:
         docker run --rm \
           -e FLASK_ENV=development \
           -e SECRET_KEY=ci_only \
+          -e SQLALCHEMY_DATABASE_URI=sqlite:///:memory: \
+          -e TRSG_TEST_FILESYSTEM_SESSION=1 \
           -e PYTHONDONTWRITEBYTECODE=1 \
           ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$SHORT_SHA \
           python -m pytest -q
