@@ -120,11 +120,42 @@
             </p>
         </div>
 
+        <article class="changelog-card" id="tech-demo-hotfix-1-2-1">
+            <header class="patch-header">
+                <h2 class="patch-version">Tech Demo Hotfix 1.2.1</h2>
+                <span class="patch-date">May 22, 2026</span>
+                <span class="patch-tag">Latest</span>
+            </header>
+            <p style="margin: 0; color: var(--color-muted); line-height: 1.65;">
+                GM dashboard deletion fixes and region management updates.
+            </p>
+
+            <div class="changelog-section">
+                <h3>Bug fixes</h3>
+                <ul>
+                    <li>Fixed a bug reported by Domi where deleting regions or cities could fail because of a non-null foreign key cascade.</li>
+                    <li>Regions and cities can now be deleted successfully, with remaining records moved to safe fallback groups.</li>
+                    <li>Fixed shop and item deletes redirecting to the wrong page after completion.</li>
+                    <li>Deleting shops or items now keeps GMs on the GM dashboard.</li>
+                </ul>
+            </div>
+
+            <div class="changelog-section">
+                <h3>UI and dashboard flow</h3>
+                <ul>
+                    <li>Added delete buttons for regions.</li>
+                    <li>Moved Regions, Cities, and Shops into the GM dashboard so core management actions are in one place.</li>
+                    <li>When a region is deleted, its cities remain available under Unspecified Cities.</li>
+                    <li>When a city is deleted, its shops remain available under Shops Without a City.</li>
+                </ul>
+            </div>
+
+        </article>
+
         <article class="changelog-card" id="tech-demo-patch-1-2">
             <header class="patch-header">
                 <h2 class="patch-version">Tech Demo Patch 1.2</h2>
                 <span class="patch-date">May 20, 2026</span>
-                <span class="patch-tag">Latest</span>
             </header>
             <p style="margin: 0; color: var(--color-muted); line-height: 1.65;">
                 Public docs cleanup and production reliability fixes.
