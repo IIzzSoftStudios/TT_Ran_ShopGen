@@ -5,7 +5,17 @@ from flask_login import current_user
 from sqlalchemy import inspect
 
 from app.extensions import db
-from app.models import City, Item, Shop, Campaign, Region
+from app.models import (
+    City,
+    Item,
+    Shop,
+    Campaign,
+    Region,
+    RegionalMarket,
+    PriceHistory,
+    ShopInventory,
+    shop_cities,
+)
 
 
 def city_for_campaign_or_404(city_id: int, campaign_id: int) -> City:
@@ -18,6 +28,37 @@ def city_for_campaign_or_404(city_id: int, campaign_id: int) -> City:
 def city_for_campaign_optional(city_id: int, campaign_id: int) -> City | None:
     """Same scope as ``city_for_campaign_or_404`` but returns ``None``."""
     return City.query.filter_by(city_id=city_id, campaign_id=campaign_id).first()
+
+
+def purge_shop_dependencies(shop_id: int) -> None:
+    """Remove rows that block shop delete on legacy Postgres (no ON DELETE CASCADE).
+
+    Without this, SQLAlchemy tries to NULL ``price_history.shop_id``, which
+    violates the NOT NULL constraint.
+    """
+    db.session.query(PriceHistory).filter_by(shop_id=shop_id).delete(
+        synchronize_session=False
+    )
+    db.session.query(ShopInventory).filter_by(shop_id=shop_id).delete(
+        synchronize_session=False
+    )
+    db.session.execute(
+        shop_cities.delete().where(shop_cities.c.shop_id == shop_id)
+    )
+
+
+def purge_city_dependencies(city_id: int) -> None:
+    """Remove rows that block city delete on legacy Postgres (no ON DELETE CASCADE).
+
+    Without this, SQLAlchemy tries to NULL ``regional_markets.city_id``, which
+    violates the NOT NULL constraint.
+    """
+    db.session.query(RegionalMarket).filter_by(city_id=city_id).delete(
+        synchronize_session=False
+    )
+    db.session.execute(
+        shop_cities.delete().where(shop_cities.c.city_id == city_id)
+    )
 
 
 def shop_for_campaign_or_404(shop_id: int, campaign_id: int) -> Shop:

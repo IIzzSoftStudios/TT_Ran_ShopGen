@@ -49,6 +49,22 @@
             transform: scale(1.1);
         }
 
+        .delete-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .delete-button:hover {
+            background-color: #c82333;
+            transform: scale(1.1);
+        }
+
         form {
             display: flex;
             flex-direction: column;
@@ -164,7 +180,6 @@
     {% endwith %}
 
     <div class="button-container">
-        <a href="{{ url_for('gm.view_cities') }}" class="button">All Cities</a>
         <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
     </div>
 
@@ -208,6 +223,13 @@
                     formnovalidate
                     title="Adds shops and stock to cities in this region that have no shops yet. Requires cities in the region and an item pool for the campaign.">
                 Generate shops
+            </button>
+            <button type="submit" class="delete-button"
+                    formaction="{{ url_for('gm.delete_region', region_id=region.id) }}"
+                    formmethod="POST"
+                    formnovalidate
+                    onclick="return confirm('Delete this region? Cities in this region will remain but become unassigned.');">
+                Delete Region
             </button>
             {% else %}
             <button type="button" class="button" disabled title="Create the region first; then you can generate cities and shops.">

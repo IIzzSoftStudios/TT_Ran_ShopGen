@@ -16,6 +16,8 @@ from app.routes.handlers.gm_helpers import (
     region_table_exists,
     active_campaign_id,
     require_active_campaign,
+    purge_city_dependencies,
+    purge_shop_dependencies,
 )
 from app.routes.handlers.gm_players_handler import (
     list_players,
@@ -159,8 +161,8 @@ def view_cities():
     camp, redir = _active_campaign_or_redirect()
     if redir:
         return redir
-    cities = City.query.filter_by(campaign_id=camp.id).all()
-    return render_template("GM_view_cities.html", cities=cities)
+    ctx = get_shop_city_panel_context(current_user.gm_profile)
+    return render_template("GM_view_cities.html", **ctx)
 
 @gm_bp.route("/cities/add", methods=["GET", "POST"])
 @login_required
@@ -279,13 +281,14 @@ def delete_city(city_id):
         return redir
     city = city_for_campaign_or_404(city_id, camp.id)
     try:
+        purge_city_dependencies(city.city_id)
         db.session.delete(city)
         db.session.commit()
         flash("City deleted successfully!", "success")
     except Exception as e:
         db.session.rollback()
         flash(f"Error deleting city: {e}", "danger")
-    return redirect(url_for("gm.view_cities"))
+    return redirect(request.referrer or url_for("gm.home"))
 
 
 def _parse_region_axis(raw):
@@ -444,6 +447,34 @@ def edit_region(region_id):
         region=region,
         unassigned_cities=unassigned_cities,
     )
+
+
+@gm_bp.route("/regions/delete/<int:region_id>", methods=["POST"])
+@login_required
+def delete_region(region_id):
+    if not region_table_exists():
+        flash("Region data is not available in this database.", "warning")
+        return redirect(url_for("gm.home"))
+
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+
+    region = region_for_campaign_or_404(region_id, camp.id)
+    region_name = region.name
+    try:
+        City.query.filter_by(campaign_id=camp.id, region_id=region.id).update(
+            {"region_id": None, "region": None},
+            synchronize_session=False,
+        )
+        db.session.delete(region)
+        db.session.commit()
+        flash(f"Region '{region_name}' deleted. Its cities are now unassigned.", "success")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Error deleting region: {exc}", "danger")
+
+    return redirect(url_for("gm.home"))
 
 
 @gm_bp.route("/regions/<int:region_id>/generate_cities", methods=["POST"])
@@ -673,13 +704,14 @@ def delete_shop(shop_id):
         return redir
     shop = shop_for_campaign_or_404(shop_id, camp.id)
     try:
+        purge_shop_dependencies(shop.shop_id)
         db.session.delete(shop)
         db.session.commit()
         flash("Shop deleted successfully!", "success")
     except Exception as e:
         db.session.rollback()
         flash(f"Error deleting shop: {e}", "danger")
-    return redirect(url_for("gm.view_shops"))
+    return redirect(request.referrer or url_for("gm.home"))
 
 @gm_bp.route("/shops/city/<int:city_id>/shops")
 @login_required

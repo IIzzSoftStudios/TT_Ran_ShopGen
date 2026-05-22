@@ -80,6 +80,28 @@
   color: #212529;
 }
 
+.gm-shops-city-panel .region-selection-warning {
+  flex-basis: 100%;
+  padding: 8px 10px;
+  color: #721c24;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+@keyframes gm-region-selection-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.gm-shops-city-panel.region-selection-shake {
+  animation: gm-region-selection-shake 0.35s ease-in-out;
+}
+
 .gm-shops-city-panel .m2m-banner {
   background: #e7f1ff;
   border: 1px solid #b8d4f0;
@@ -95,6 +117,116 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.gm-shops-city-panel .region-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gm-shops-city-panel .region-block {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #d7c4e8;
+  background: #fff;
+}
+
+.gm-shops-city-panel .region-block > summary {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px;
+  background: #f6efff;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.gm-shops-city-panel .region-block > summary::-webkit-details-marker {
+  display: none;
+}
+
+.gm-shops-city-panel .region-block > summary::before {
+  content: "\25B6";
+  font-size: 0.65rem;
+  color: #6c3f8f;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.gm-shops-city-panel .region-block[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.gm-shops-city-panel .region-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+.gm-shops-city-panel .region-summary-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-left: auto;
+}
+
+.gm-shops-city-panel .city-count-badge {
+  display: inline-block;
+  min-width: 5.5rem;
+  text-align: right;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #000;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.gm-shops-city-panel .region-summary-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gm-shops-city-panel .region-summary-actions .button,
+.gm-shops-city-panel .region-summary-actions .delete-button {
+  padding: 8px 14px;
+  font-size: 13px;
+  transform: none;
+}
+
+.gm-shops-city-panel .region-panel {
+  padding: 12px;
+  background: #fff;
+  border-top: 1px solid #d7c4e8;
+}
+
+.gm-shops-city-panel .orphan-shops-panel {
+  margin-top: 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.gm-shops-city-panel .orphan-shops-panel:first-child {
+  margin-top: 0;
+}
+
+.gm-shops-city-panel .orphan-shops-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 12px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
 }
 
 .gm-shops-city-panel .city-block {

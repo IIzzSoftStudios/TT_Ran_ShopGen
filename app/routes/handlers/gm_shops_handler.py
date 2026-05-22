@@ -71,6 +71,27 @@ def _normalize_shop_name(raw):
     return str(raw).strip()
 
 
+def _shop_type_rows_for_shops(shops) -> list:
+    """Group shops by normalized type for nested type-block UI."""
+    by_type = {}
+    for shop in sorted(shops, key=lambda s: (s.name or "").lower()):
+        type_key = _normalize_shop_type(shop.type) or "Unspecified"
+        by_type.setdefault(type_key, []).append(shop)
+    rows = [
+        {
+            "type": type_key,
+            "count": len(type_shops),
+            "shops": sorted(type_shops, key=lambda s: (s.name or "").lower()),
+        }
+        for type_key, type_shops in by_type.items()
+    ]
+    rows.sort(key=lambda r: (-r["count"], r["type"].lower()))
+    return rows
+
+
+_ORPHAN_SHOPS_REGION_LABEL = "Unspecified"
+
+
 def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False):
     """Build city_data, region_labels, and type_suggestions for the shops-by-city UI.
 
@@ -81,6 +102,7 @@ def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False
     if not campaign_id:
         base = {
             "city_data": [],
+            "region_groups": [],
             "region_labels": [],
             "campaign_regions": [],
             "type_suggestions": sorted(SHOP_TYPE_DEFAULTS),
@@ -111,19 +133,7 @@ def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False
 
     city_data = []
     for city in cities:
-        by_type = {}
-        for shop in sorted(city.shops, key=lambda s: (s.name or "").lower()):
-            type_key = _normalize_shop_type(shop.type) or "Unspecified"
-            by_type.setdefault(type_key, []).append(shop)
-        shop_type_rows = [
-            {
-                "type": type_key,
-                "count": len(shops),
-                "shops": sorted(shops, key=lambda s: (s.name or "").lower()),
-            }
-            for type_key, shops in by_type.items()
-        ]
-        shop_type_rows.sort(key=lambda r: (-r["count"], r["type"].lower()))
+        shop_type_rows = _shop_type_rows_for_shops(city.shops)
         region_label = _city_region_label(city)
         city_data.append(
             {
@@ -133,6 +143,66 @@ def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False
                 "shop_type_rows": shop_type_rows,
             }
         )
+
+    region_groups_by_key = {}
+    if _region_table_exists() and campaign_id is not None:
+        for reg in Region.query.filter_by(campaign_id=campaign_id).order_by(Region.name).all():
+            key = f"fk:{reg.id}"
+            region_groups_by_key[key] = {
+                "label": reg.name,
+                "region_id": reg.id,
+                "cities": [],
+            }
+
+    for row in city_data:
+        city = row["city"]
+        if getattr(city, "region_id", None):
+            key = f"fk:{city.region_id}"
+        else:
+            key = f"label:{row['region_label']}"
+        group = region_groups_by_key.setdefault(
+            key,
+            {
+                "label": row["region_label"],
+                "region_id": getattr(city, "region_id", None),
+                "cities": [],
+            },
+        )
+        group["cities"].append(row)
+
+    region_groups = sorted(
+        region_groups_by_key.values(),
+        key=lambda g: ((g["label"] or "").lower(), g["region_id"] or 0),
+    )
+    orphan_shops = (
+        Shop.query.filter_by(campaign_id=campaign_id)
+        .filter(~Shop.cities.any())
+        .order_by(Shop.name)
+        .all()
+    )
+    orphan_shop_type_rows = _shop_type_rows_for_shops(orphan_shops)
+    if orphan_shop_type_rows:
+        orphan_group = region_groups_by_key.setdefault(
+            f"label:{_ORPHAN_SHOPS_REGION_LABEL}",
+            {
+                "label": _ORPHAN_SHOPS_REGION_LABEL,
+                "region_id": None,
+                "cities": [],
+            },
+        )
+        orphan_group["orphan_shop_type_rows"] = orphan_shop_type_rows
+        region_groups = sorted(
+            region_groups_by_key.values(),
+            key=lambda g: ((g["label"] or "").lower(), g["region_id"] or 0),
+        )
+
+    for group in region_groups:
+        group["city_count"] = len(group["cities"])
+        group["shop_count"] = sum(row["shop_count"] for row in group["cities"])
+        group["shop_count"] += sum(
+            row["count"] for row in group.get("orphan_shop_type_rows", [])
+        )
+        group.setdefault("orphan_shop_type_rows", [])
 
     region_labels = sorted(
         {row["region_label"] for row in city_data},
@@ -149,6 +219,7 @@ def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False
 
     out = {
         "city_data": city_data,
+        "region_groups": region_groups,
         "region_labels": region_labels,
         "campaign_regions": campaign_regions,
         "type_suggestions": type_suggestions,

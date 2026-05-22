@@ -53,44 +53,36 @@
         }
     }
 
-    function applyCityRegionFilter() {
-        var sel = document.getElementById('gm-shops-region-filter');
-        if (!sel) return;
-        var v = sel.value;
-        var useFk = sel.getAttribute('data-filter-mode') === 'fk';
-        document.querySelectorAll('.gm-shops-city-panel .city-block[data-region]').forEach(function (el) {
-            var match;
-            if (v === '') {
-                match = true;
-            } else if (useFk) {
-                var rid = el.getAttribute('data-region-id') || '';
-                match = rid === String(v);
-            } else {
-                match = el.getAttribute('data-region') === v;
-            }
-            el.style.display = match ? '' : 'none';
-        });
+    function showRegionDeleteConfirmation(regionId, regionName) {
+        const modal = document.getElementById('regionDeleteModal');
+        const modalText = document.getElementById('regionDeleteModalText');
+        modalText.textContent = 'Delete region "' + regionName + '"? Cities in this region will remain but become unassigned.';
+        modal.classList.add('is-open');
+        window.regionIdToDelete = regionId;
     }
 
-    function navigateToEditRegion() {
-        var sel = document.getElementById('gm-shops-region-filter');
-        var tplEl = document.getElementById('gm-region-edit-url-template');
-        if (!sel || !tplEl) return;
-        var v = sel.value;
-        if (!v) {
-            alert('Please select a region');
-            return;
+    function closeRegionDeleteModal() {
+        document.getElementById('regionDeleteModal').classList.remove('is-open');
+    }
+
+    function confirmRegionDelete() {
+        if (window.regionIdToDelete) {
+            const tplEl = document.getElementById('gm-region-delete-url-template');
+            if (!tplEl) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = (tplEl.getAttribute('data-url') || '').replace('900000001', String(window.regionIdToDelete));
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
         }
-        var template = tplEl.getAttribute('data-url') || '';
-        window.location.href = template.replace('900000001', String(v));
     }
 
     window.addEventListener('DOMContentLoaded', function () {
-        var regionFilter = document.getElementById('gm-shops-region-filter');
-        if (regionFilter) {
-            regionFilter.addEventListener('change', applyCityRegionFilter);
-        }
-
         document.body.addEventListener('click', function (e) {
             const shopBtn = e.target.closest('.delete-button[data-shop-id]');
             if (shopBtn) {
@@ -104,6 +96,13 @@
                 var cid = parseInt(cityBtn.getAttribute('data-city-id'), 10);
                 var cname = cityBtn.getAttribute('data-city-name') || '';
                 showCityDeleteConfirmation(cid, cname);
+                return;
+            }
+            const regionBtn = e.target.closest('.delete-button[data-region-id]');
+            if (regionBtn) {
+                var rid = parseInt(regionBtn.getAttribute('data-region-id'), 10);
+                var rname = regionBtn.getAttribute('data-region-name') || '';
+                showRegionDeleteConfirmation(rid, rname);
             }
         }, true);
     });
@@ -116,6 +115,10 @@
         const cityModal = document.getElementById('cityDeleteModal');
         if (cityModal && event.target === cityModal) {
             closeCityDeleteModal();
+        }
+        const regionModal = document.getElementById('regionDeleteModal');
+        if (regionModal && event.target === regionModal) {
+            closeRegionDeleteModal();
         }
     });
 </script>

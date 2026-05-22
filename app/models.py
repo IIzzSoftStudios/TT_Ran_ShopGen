@@ -175,7 +175,11 @@ class PriceHistory(db.Model):
     __tablename__ = "price_history"
     # Existing PostgreSQL deployments use PK column name `id`; map Python attr history_id to that column.
     history_id = db.Column("id", db.Integer, primary_key=True, autoincrement=True)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shops.shop_id"), nullable=False)
+    shop_id = db.Column(
+        db.Integer,
+        db.ForeignKey("shops.shop_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
     price = db.Column(db.Float, nullable=False)
     recorded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -198,7 +202,11 @@ class RegionalMarket(db.Model):
     __tablename__ = "regional_markets"
     
     market_id = db.Column(db.Integer, primary_key=True)
-    city_id = db.Column(db.Integer, db.ForeignKey("cities.city_id"), nullable=False)
+    city_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cities.city_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=False)
     total_supply = db.Column(db.Integer, default=0)
     total_demand = db.Column(db.Integer, default=0)

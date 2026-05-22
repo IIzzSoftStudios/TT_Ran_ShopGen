@@ -1,33 +1,6 @@
 ﻿<div class="gm-shops-city-panel">
     <div class="content-container">
-        <div class="m2m-banner">
-            <strong>Note:</strong> Shops linked to multiple cities appear in each city&rsquo;s list. Renaming a shop updates it everywhere.
-        </div>
-
-        <h2>Shops by city</h2>
-
-        {% if city_data and (campaign_regions|default([]) or region_labels|default([])) %}
-        <div class="region-filter-bar">
-            <label for="gm-shops-region-filter" class="region-filter-label">Region</label>
-            {% if campaign_regions|default([]) %}
-            <select id="gm-shops-region-filter" class="region-filter-select" data-filter-mode="fk" aria-label="Filter cities by region">
-                <option value="">All regions</option>
-                {% for reg in campaign_regions %}
-                <option value="{{ reg.id }}">{{ reg.name }}</option>
-                {% endfor %}
-            </select>
-            <span id="gm-region-edit-url-template" data-url="{{ url_for('gm.edit_region', region_id=900000001) }}" hidden aria-hidden="true"></span>
-            <button type="button" class="button region-filter-edit-btn" onclick="navigateToEditRegion()">Edit</button>
-            {% else %}
-            <select id="gm-shops-region-filter" class="region-filter-select" aria-label="Filter cities by region">
-                <option value="">All regions</option>
-                {% for r in region_labels %}
-                <option value={{ r|tojson }}>{{ r }}</option>
-                {% endfor %}
-            </select>
-            {% endif %}
-        </div>
-        {% endif %}
+        <span id="gm-region-delete-url-template" data-url="{{ url_for('gm.delete_region', region_id=900000001) }}" hidden aria-hidden="true"></span>
 
         <datalist id="shop-type-list">
             {% for t in type_suggestions %}
@@ -35,14 +8,32 @@
             {% endfor %}
         </datalist>
 
-        {% if city_data %}
-        <div class="city-list">
-            {% for item in city_data %}
-            <details class="city-block" data-region={{ item.region_label|tojson }} data-region-id="{{ item.city.region_id or '' }}">
+        {% if region_groups|default([]) %}
+        <div class="region-list">
+            {% for group in region_groups %}
+            <details class="region-block" data-region={{ group.label|tojson }} data-region-id="{{ group.region_id or '' }}" open>
+                <summary>
+                    <span class="region-name">{{ group.label }}</span>
+                    <span class="region-summary-right">
+                        <span class="city-count-badge">{{ group.city_count }} cit{% if group.city_count == 1 %}y{% else %}ies{% endif %}</span>
+                        <span class="shop-count-badge">{{ group.shop_count }} shop{% if group.shop_count != 1 %}s{% endif %}</span>
+                        {% if group.region_id %}
+                        <span class="region-summary-actions" onclick="event.stopPropagation()">
+                            <button type="button" class="delete-button" data-region-id="{{ group.region_id }}" data-region-name="{{ group.label|e }}">Delete</button>
+                            <a href="{{ url_for('gm.edit_region', region_id=group.region_id) }}" class="button">Edit</a>
+                        </span>
+                        {% endif %}
+                    </span>
+                </summary>
+                <div class="region-panel">
+                    {% if group.cities %}
+                    <div class="city-list">
+                        {% for item in group.cities %}
+                        <details class="city-block" data-region={{ item.region_label|tojson }} data-region-id="{{ item.city.region_id or '' }}">
                 <summary>
                     <span class="city-name">{{ item.city.name }}</span>
                     <span class="city-meta">
-                        {{ item.region_label }}{% if item.city.size %} | {{ item.city.size }}{% endif %}
+                        {% if item.city.size %}{{ item.city.size }}{% else %}Unspecified size{% endif %}
                     </span>
                     <span class="city-summary-right">
                         <span class="shop-count-badge">{{ item.shop_count }} shop{% if item.shop_count != 1 %}s{% endif %}</span>
@@ -87,6 +78,54 @@
                     {% endfor %}
                     {% endif %}
                 </div>
+                        </details>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if group.orphan_shop_type_rows|default([]) %}
+                    <div class="orphan-shops-panel">
+                        <div class="orphan-shops-summary">
+                            <span class="city-name">Shops without a city</span>
+                            <span class="city-summary-right">
+                                <span class="shop-count-badge">
+                                    {{ group.orphan_shop_type_rows|sum(attribute='count') }} shop{% if group.orphan_shop_type_rows|sum(attribute='count') != 1 %}s{% endif %}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="type-table-head" aria-hidden="true">
+                            <span>Type</span>
+                            <span>Count</span>
+                        </div>
+                        {% for row in group.orphan_shop_type_rows %}
+                        <details class="type-block orphan-type-block">
+                            <summary>
+                                <span class="type-name">{{ row.type }}</span>
+                                <span class="type-count">{{ row.count }}</span>
+                            </summary>
+                            <div class="shop-panel">
+                                {% for shop in row.shops %}
+                                <div class="shop-row">
+                                    <form class="inline-update-form" method="POST" action="{{ url_for('gm.update_shop_basic', shop_id=shop.shop_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <input type="text" name="name" value="{{ shop.name }}" placeholder="Shop name" required autocomplete="off"/>
+                                        <input type="text" name="type" list="shop-type-list" value="{{ shop.type }}" placeholder="Type" required autocomplete="off"/>
+                                        <button type="submit" class="btn-save-sm">Save</button>
+                                    </form>
+                                    <div class="shop-actions">
+                                        <a href="{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}" class="button">Edit</a>
+                                        <a href="{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
+                                        <button type="button" class="delete-button" data-shop-id="{{ shop.shop_id }}" data-shop-name="{{ shop.name|e }}">Delete</button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </details>
+                        {% endfor %}
+                    </div>
+                    {% elif not group.cities %}
+                    <p class="empty-city">No cities in this region yet.</p>
+                    {% endif %}
+                </div>
             </details>
             {% endfor %}
         </div>
@@ -115,6 +154,17 @@
             <div class="modal-buttons">
                 <button type="button" class="button" onclick="closeCityDeleteModal()">Cancel</button>
                 <button type="button" class="delete-button" onclick="confirmCityDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="regionDeleteModal" class="modal">
+        <div class="modal-content">
+            <h2>Confirm Deletion</h2>
+            <p id="regionDeleteModalText"></p>
+            <div class="modal-buttons">
+                <button type="button" class="button" onclick="closeRegionDeleteModal()">Cancel</button>
+                <button type="button" class="delete-button" onclick="confirmRegionDelete()">Delete region</button>
             </div>
         </div>
     </div>
