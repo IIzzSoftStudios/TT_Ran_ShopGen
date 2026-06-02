@@ -96,6 +96,8 @@ uploads/
 media/
 static/uploads/
 static/media/
+!app/static/media/
+!app/static/media/banner.mp4
 
 # Jupyter Notebook
 .ipynb_checkpoints
