@@ -25,6 +25,7 @@ from app.extensions import db
 from app.models import (
     AccessRequest,
     DeletedCampaignSimSnapshot,
+    ExpansionInterest,
     GMProfile,
     RegistrationKey,
     User,
@@ -323,6 +324,7 @@ def handle_admin_keys():
         .order_by(RegistrationKey.created_at.desc())
         .all()
     )
+    _attach_expansion_interest_metadata(keys)
     admin_keys = (
         RegistrationKey.query.filter_by(is_admin_test_key=True)
         .order_by(RegistrationKey.created_at.desc())
@@ -376,6 +378,39 @@ def handle_admin_keys():
         feedback_items=_load_submissions_by_kind("feedback"),
         suggestions=_load_submissions_by_kind("suggestion"),
     )
+
+
+def _attach_expansion_interest_metadata(keys):
+    user_ids = sorted({k.user_id for k in keys if getattr(k, "user_id", None)})
+    if not user_ids:
+        for key in keys:
+            key._expansion_interest = None
+        return
+
+    latest_rows = (
+        ExpansionInterest.query.filter(ExpansionInterest.user_id.in_(user_ids))
+        .order_by(
+            ExpansionInterest.user_id.asc(),
+            ExpansionInterest.created_at.desc(),
+            ExpansionInterest.id.desc(),
+        )
+        .all()
+    )
+    latest_by_user = {}
+    for row in latest_rows:
+        latest_by_user.setdefault(row.user_id, row)
+
+    for key in keys:
+        user_id = getattr(key, "user_id", None)
+        latest = latest_by_user.get(user_id)
+        key._expansion_interest = (
+            {
+                "selection": "no" if latest.intent == "not_interested" else "yes",
+                "latest": latest,
+            }
+            if latest is not None
+            else None
+        )
 
 
 def handle_submission_action(submission_id: int, action: str):

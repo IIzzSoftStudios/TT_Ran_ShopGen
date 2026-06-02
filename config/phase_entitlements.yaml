@@ -10,23 +10,23 @@ phases:
   tech_demo:
     label: "Tech Demo"
     prefix: "TECH"
-    campaign_limit: 20
-    seat_limit: 200
+    campaign_limit: 1
+    seat_limit: 3
   alpha:
     label: "Alpha Access"
     prefix: "ALPHA"
-    campaign_limit: 100
-    seat_limit: 1000
+    campaign_limit: 1
+    seat_limit: 3
   beta:
     label: "Beta Access"
     prefix: "BETA"
-    campaign_limit: 5
-    seat_limit: 50
+    campaign_limit: 1
+    seat_limit: 3
   early_access:
     label: "Early Access"
     prefix: "EARLY"
-    campaign_limit: 5
-    seat_limit: 15
+    campaign_limit: 1
+    seat_limit: 3
   forge_master:
     label: "Forge Master"
     prefix: "FORGE"

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <title>Add Campaign</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     {% include 'partials/theme_head.html' %}
     <style>
         body {
@@ -100,10 +101,19 @@
                 {% else %}
                     <a href="{{ url_for('auth.logout') }}" class="button">Cancel</a>
                 {% endif %}
-                <button type="submit" class="button">Create Campaign</button>
+                <button
+                    type="{% if campaign_limit_reached %}button{% else %}submit{% endif %}"
+                    class="button"
+                    {% if campaign_limit_reached %}
+                    data-expansion-interest-trigger
+                    data-expansion-interest-source="legacy_add_campaign"
+                    aria-haspopup="dialog"
+                    {% endif %}
+                >Create Campaign</button>
             </div>
         </form>
     </div>
+    {% include 'partials/expansion_interest_modal.html' %}
 </body>
 </html>
 

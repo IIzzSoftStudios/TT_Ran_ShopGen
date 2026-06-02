@@ -460,16 +460,30 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary" id="generate-btn">
+                <button
+                    type="{% if campaign_limit_reached %}button{% else %}submit{% endif %}"
+                    class="btn btn-primary"
+                    id="generate-btn"
+                    {% if campaign_limit_reached %}
+                    data-expansion-interest-trigger
+                    data-expansion-interest-source="generate_world_submit"
+                    aria-haspopup="dialog"
+                    {% endif %}
+                >
                     Generate World
                     <span class="spinner" id="generate-spinner" aria-hidden="true"></span>
                 </button>
                 <button
-                    type="submit"
+                    type="{% if campaign_limit_reached %}button{% else %}submit{% endif %}"
                     class="btn btn-tertiary"
                     id="skip-generation-btn"
                     formaction="{{ url_for('gm.skip_world_generation_submit') }}"
                     formmethod="post"
+                    {% if campaign_limit_reached %}
+                    data-expansion-interest-trigger
+                    data-expansion-interest-source="skip_world_generation"
+                    aria-haspopup="dialog"
+                    {% endif %}
                 >
                     Skip Generation
                 </button>
@@ -614,6 +628,7 @@
             <div class="progress-text" id="progress-text" aria-live="polite"></div>
         </form>
     </div>
+    {% include 'partials/expansion_interest_modal.html' %}
 
     <script>
     (function () {

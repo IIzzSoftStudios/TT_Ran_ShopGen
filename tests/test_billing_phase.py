@@ -24,8 +24,8 @@ def test_get_gm_limits_default_without_key(app_with_phases):
 def test_get_gm_limits_respects_key_phase(app_with_phases):
     with app_with_phases.app_context():
         c, s, lbl = get_gm_limits(_User(_Key("alpha")))
-        assert c == 3
-        assert s == 6
+        assert c == 1
+        assert s == 3
         assert lbl == "Alpha"
 
 

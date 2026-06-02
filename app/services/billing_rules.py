@@ -38,7 +38,10 @@ def get_gm_limits(user):
 def can_create_campaign(gm_profile) -> Tuple[bool, str]:
     user = gm_profile.user
     cap, _seats, label = get_gm_limits(user)
-    existing_count = Campaign.query.filter_by(gm_profile_id=gm_profile.id).count()
+    existing_count = Campaign.query.filter_by(
+        gm_profile_id=gm_profile.id,
+        is_active=True,
+    ).count()
     if existing_count >= cap:
         return (
             False,

@@ -342,6 +342,7 @@
                             <th>Key Code</th>
                             <th>Phase</th>
                             <th>Status</th>
+                            <th style="width: 7rem;">Pro?</th>
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -360,6 +361,18 @@
                                     <span class="badge bg-secondary">Used by {{ key.user.username if key.user else '—' }}</span>
                                 {% else %}
                                     <span class="badge bg-success">Available</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if key._expansion_interest %}
+                                    {% set interest = key._expansion_interest %}
+                                    {% if interest.selection == 'no' %}
+                                        <span class="badge bg-danger">No</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Yes</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">—</span>
                                 {% endif %}
                             </td>
                             <td>{{ key.created_at.strftime('%Y-%m-%d %H:%M') if key.created_at else '—' }}</td>

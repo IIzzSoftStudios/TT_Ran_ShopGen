@@ -55,6 +55,7 @@ from app.routes.handlers.gm_campaigns_handler import (
     skip_world_generation_submit as skip_world_generation_submit_handler,
     reveal_campaign_join_code as reveal_campaign_join_code_handler,
     post_redeem_player_code as post_redeem_player_code_handler,
+    log_expansion_interest as log_expansion_interest_handler,
 )
 from app.services.world_generator.defaults import RANGE_SETTINGS, SCHEMA_VERSION
 from app.services.world_generator.generator import (
@@ -957,6 +958,13 @@ def reveal_campaign_join_code(campaign_id):
 @limiter.limit("3 per hour")
 def redeem_player_code_route(campaign_id):
     return post_redeem_player_code_handler(campaign_id)
+
+
+@gm_bp.route("/expansion-interest", methods=["POST"])
+@login_required
+@limiter.limit("10 per hour")
+def log_expansion_interest():
+    return log_expansion_interest_handler()
 
 
 @gm_bp.route("/players/<int:player_id>/remove-from-campaign", methods=["POST"])

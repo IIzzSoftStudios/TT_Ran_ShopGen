@@ -280,7 +280,8 @@ def handle_register():
             return redirect(url_for("auth.register"))
 
     vault_key = request.args.get("vault_key")
-    return render_template("register.html", vault_key=vault_key)
+    email = (request.args.get("email") or "").strip().lower()
+    return render_template("register.html", vault_key=vault_key, email=email)
 
 
 def handle_forgot_password():

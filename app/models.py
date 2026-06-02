@@ -490,6 +490,41 @@ class Campaign(db.Model):
         }
 
 
+class ExpansionInterest(db.Model):
+    """Append-only interest log for future paid-tier demand signals."""
+
+    __tablename__ = "expansion_interest"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    gm_profile_id = db.Column(
+        db.Integer,
+        db.ForeignKey("gm_profile.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    intent = db.Column(db.String(64), nullable=False, default="campaign_limit_upgrade")
+    source = db.Column(db.String(80), nullable=True)
+    created_at = db.Column(db.DateTime, server_default=func.now(), nullable=False, index=True)
+
+    user = db.relationship(
+        "User",
+        backref=db.backref("expansion_interests", lazy="dynamic"),
+    )
+    gm_profile = db.relationship(
+        "GMProfile",
+        backref=db.backref("expansion_interests", lazy="dynamic"),
+    )
+
+    def __repr__(self):
+        return f"<ExpansionInterest user_id={self.user_id} intent={self.intent}>"
+
+
 class UserSubmission(db.Model):
     """Account-menu feedback, bug reports, and suggestions."""
 

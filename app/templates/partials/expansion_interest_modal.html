@@ -1,0 +1,274 @@
+<div
+    id="expansion-interest-modal"
+    class="expansion-interest-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="expansion-interest-title"
+    aria-describedby="expansion-interest-copy"
+    aria-hidden="true"
+    data-endpoint="{{ expansion_interest_url|default(url_for('gm.log_expansion_interest')) }}"
+    data-success-message="{{ expansion_interest_success_message|default('Thanks for your interest! We&#39;ve added you to our priority waitlist.') }}"
+>
+    <div class="expansion-interest-card">
+        <button type="button" class="expansion-interest-close" data-expansion-interest-close aria-label="Close expansion interest dialog">&times;</button>
+        <p class="expansion-interest-kicker">Base tier milestone</p>
+        <h2 id="expansion-interest-title">Ready to expand your realm?</h2>
+        <p id="expansion-interest-copy">
+            You've hit the base limit for active campaigns!
+            {% if campaign_limit and active_campaign_count is not none %}
+                Your current tier supports {{ campaign_limit }} active campaign{% if campaign_limit != 1 %}s{% endif %}.
+            {% endif %}
+        </p>
+        <div class="expansion-interest-actions">
+            <button
+                type="button"
+                class="expansion-interest-cta expansion-interest-yes"
+                data-expansion-interest-submit
+                data-expansion-interest-intent="campaign_limit_upgrade"
+            >
+                Yes, express interest
+            </button>
+            <button
+                type="button"
+                class="expansion-interest-cta expansion-interest-no"
+                data-expansion-interest-submit
+                data-expansion-interest-intent="not_interested"
+            >
+                No, stay base tier
+            </button>
+        </div>
+        <p class="expansion-interest-status" data-expansion-interest-status role="status" aria-live="polite"></p>
+    </div>
+</div>
+
+<style>
+    .expansion-interest-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(15, 23, 42, 0.82);
+        box-sizing: border-box;
+    }
+
+    .expansion-interest-modal.is-open {
+        display: flex;
+    }
+
+    .expansion-interest-card {
+        position: relative;
+        width: min(100%, 520px);
+        padding: 30px;
+        border-radius: 14px;
+        border: 1px solid var(--color-border, #d1d5db);
+        background: var(--color-surface, #fff);
+        color: var(--color-text, #111827);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+        text-align: left;
+    }
+
+    .expansion-interest-close {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        border: 0;
+        background: transparent;
+        color: var(--color-muted, #6b7280);
+        font-size: 28px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .expansion-interest-kicker {
+        margin: 0 0 8px;
+        color: var(--color-accent, #7c3aed);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .expansion-interest-card h2 {
+        margin: 0 0 12px;
+        color: var(--color-text, #111827);
+        font-size: 1.6rem;
+    }
+
+    .expansion-interest-card p {
+        line-height: 1.55;
+    }
+
+    .expansion-interest-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .expansion-interest-cta {
+        width: 100%;
+        padding: 13px 18px;
+        border: 0;
+        border-radius: 8px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.15s, background-color 0.15s;
+    }
+
+    .expansion-interest-yes {
+        background: var(--color-accent, #7c3aed);
+        color: var(--color-accent-contrast, #fff);
+    }
+
+    .expansion-interest-yes:hover {
+        background: var(--color-accent-hover, #6d28d9);
+        transform: translateY(-1px);
+    }
+
+    .expansion-interest-no {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    .expansion-interest-no:hover {
+        background: #bb2d3b;
+        transform: translateY(-1px);
+    }
+
+    .expansion-interest-cta:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+        transform: none;
+    }
+
+    .expansion-interest-status {
+        min-height: 1.4em;
+        margin: 14px 0 0;
+        color: var(--color-accent, #7c3aed);
+        font-weight: 700;
+    }
+</style>
+
+<script>
+    (function () {
+        "use strict";
+        if (window.__expansionInterestModalBound) return;
+        window.__expansionInterestModalBound = true;
+
+        var modal = document.getElementById("expansion-interest-modal");
+        if (!modal) return;
+        var submitButtons = modal.querySelectorAll("[data-expansion-interest-submit]");
+        var status = modal.querySelector("[data-expansion-interest-status]");
+        var lastTrigger = null;
+
+        function csrfToken() {
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta && meta.getAttribute("content")) return meta.getAttribute("content");
+            var input = document.querySelector('input[name="csrf_token"]');
+            return input ? input.value : "";
+        }
+
+        function openModal(trigger) {
+            lastTrigger = trigger || null;
+            if (status) status.textContent = "";
+            setButtonsDisabled(false);
+            modal.classList.add("is-open");
+            modal.setAttribute("aria-hidden", "false");
+            if (submitButtons.length) submitButtons[0].focus();
+        }
+
+        function closeModal() {
+            modal.classList.remove("is-open");
+            modal.setAttribute("aria-hidden", "true");
+            if (lastTrigger && typeof lastTrigger.focus === "function") {
+                lastTrigger.focus();
+            }
+        }
+
+        document.addEventListener("click", function (event) {
+            var trigger = event.target.closest("[data-expansion-interest-trigger]");
+            if (trigger) {
+                event.preventDefault();
+                openModal(trigger);
+                return;
+            }
+            if (event.target.matches("[data-expansion-interest-close]") || event.target === modal) {
+                event.preventDefault();
+                closeModal();
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && modal.classList.contains("is-open")) {
+                closeModal();
+            }
+        });
+
+        function setButtonsDisabled(disabled) {
+            for (var i = 0; i < submitButtons.length; i++) {
+                submitButtons[i].disabled = disabled;
+            }
+        }
+
+        function setSavingButton(button, saving) {
+            if (!button) return;
+            if (saving) {
+                button.setAttribute("data-original-label", button.textContent);
+                button.textContent = "Saving...";
+            } else {
+                button.textContent = button.getAttribute("data-original-label") || button.textContent;
+                button.removeAttribute("data-original-label");
+            }
+        }
+
+        for (var i = 0; i < submitButtons.length; i++) {
+            submitButtons[i].addEventListener("click", function () {
+                var endpoint = modal.getAttribute("data-endpoint");
+                var source = lastTrigger ? (lastTrigger.getAttribute("data-expansion-interest-source") || "campaign_limit_modal") : "campaign_limit_modal";
+                var clicked = this;
+                var intent = clicked.getAttribute("data-expansion-interest-intent") || "campaign_limit_upgrade";
+                setButtonsDisabled(true);
+                setSavingButton(clicked, true);
+                if (status) status.textContent = "";
+                fetch(endpoint, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken()
+                    },
+                    body: JSON.stringify({
+                        intent: intent,
+                        source: source
+                    })
+                })
+                    .then(function (response) {
+                        return response.json().catch(function () { return {}; }).then(function (payload) {
+                            if (!response.ok) {
+                                throw new Error(payload.error || "Could not save your interest. Please try again.");
+                            }
+                            return payload;
+                        });
+                    })
+                    .then(function (payload) {
+                        var message = payload.message || modal.getAttribute("data-success-message");
+                        if (status) status.textContent = message;
+                        setSavingButton(clicked, false);
+                        setButtonsDisabled(false);
+                        if (!payload.already_selected) {
+                            setTimeout(closeModal, 1200);
+                        }
+                    })
+                    .catch(function (error) {
+                        setSavingButton(clicked, false);
+                        setButtonsDisabled(false);
+                        if (status) status.textContent = error.message || "Could not save your interest. Please try again.";
+                    });
+            });
+        }
+    })();
+</script>

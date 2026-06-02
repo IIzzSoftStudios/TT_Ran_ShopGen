@@ -32,6 +32,7 @@ from app.services.user_capabilities import (
     has_player_capability,
     can_redeem_campaign_code,
 )
+from app.services.billing_rules import get_gm_limits
 
 
 def _redeem_failures_in_window():
@@ -89,6 +90,37 @@ def _build_solo_characters_for_user(user):
             }
         )
     return rows
+
+
+def _campaign_limit_context_for_user(user):
+    if user is None or not has_gm_capability(user) or user.gm_profile is None:
+        return {
+            "campaign_limit_reached": False,
+            "campaign_limit": None,
+            "seat_limit": None,
+            "limit_label": None,
+            "active_campaign_count": 0,
+            "expansion_interest_url": url_for("gm.log_expansion_interest"),
+            "expansion_interest_success_message": (
+                "Thanks for your interest! We've added you to our priority waitlist."
+            ),
+        }
+    campaign_limit, seat_limit, label = get_gm_limits(user)
+    active_campaign_count = Campaign.query.filter_by(
+        gm_profile_id=user.gm_profile.id,
+        is_active=True,
+    ).count()
+    return {
+        "campaign_limit_reached": active_campaign_count >= campaign_limit,
+        "campaign_limit": campaign_limit,
+        "seat_limit": seat_limit,
+        "limit_label": label,
+        "active_campaign_count": active_campaign_count,
+        "expansion_interest_url": url_for("gm.log_expansion_interest"),
+        "expansion_interest_success_message": (
+            "Thanks for your interest! We've added you to our priority waitlist."
+        ),
+    }
 
 
 def select_campaign():
@@ -154,6 +186,7 @@ def select_campaign():
             campaigns=campaigns,
             solo_characters=solo_characters,
             show_redeem_only=show_redeem_only,
+            **_campaign_limit_context_for_user(current_user),
         )
     except Exception as e:
         print(f"[ERROR] Error in select_campaign: {str(e)}")

@@ -1,5 +1,7 @@
 """Vault keys dashboard: GM simulation usage tab is vault_keeper-only."""
 
+from datetime import datetime
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from app import app
@@ -137,6 +139,62 @@ def test_admin_keys_full_template_shows_gm_tab_for_vault_keeper_render():
         )
     assert 'id="gm-simulation-tab"' in html
     assert "other_gm_leak_test@example.com" in html
+
+
+def test_keys_template_shows_compact_expansion_interest_badges_for_used_keys():
+    from flask import render_template
+
+    yes_latest = SimpleNamespace(
+        created_at=datetime(2026, 6, 2, 19, 30),
+        source="gm_campaigns_add",
+        intent="campaign_limit_upgrade",
+    )
+    no_latest = SimpleNamespace(
+        created_at=datetime(2026, 6, 2, 19, 31),
+        source="campaign_selection_create",
+        intent="not_interested",
+    )
+    yes_key = SimpleNamespace(
+        id=1,
+        key_code="FORGE-ABCD-EFGH",
+        key_phase="default",
+        is_used=True,
+        user=SimpleNamespace(username="capped_gm"),
+        created_at=datetime(2026, 6, 2, 19, 22),
+        _expansion_interest={"selection": "yes", "latest": yes_latest},
+    )
+    no_key = SimpleNamespace(
+        id=2,
+        key_code="FORGE-WXYZ-1234",
+        key_phase="default",
+        is_used=True,
+        user=SimpleNamespace(username="base_gm"),
+        created_at=datetime(2026, 6, 2, 19, 23),
+        _expansion_interest={"selection": "no", "latest": no_latest},
+    )
+    ctx_kwargs = dict(
+        keys=[yes_key, no_key],
+        admin_keys=[],
+        stats={"total": 2, "used": 2, "available": 0},
+        admin_stats={"total": 0, "used": 0, "available": 0},
+        access_requests=[],
+        vault_phase_slugs=["default"],
+        all_phase_slugs=["default"],
+        gm_simulation_rows=[],
+    )
+    with app.test_request_context("/"):
+        html = render_template(
+            "admin/keys.html",
+            show_gm_usage_tab=False,
+            **ctx_kwargs,
+        )
+
+    assert '<th style="width: 7rem;">Pro?</th>' in html
+    assert '<span class="badge bg-success">Yes</span>' in html
+    assert '<span class="badge bg-danger">No</span>' in html
+    assert "gm_campaigns_add" not in html
+    assert "capped_gm" in html
+    assert "base_gm" in html
 
 
 def test_gm_simulation_usage_api_vault_keeper():

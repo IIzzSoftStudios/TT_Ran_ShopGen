@@ -28,8 +28,8 @@ phases:
   alpha:
     label: "Alpha"
     prefix: "AL"
-    campaign_limit: 3
-    seat_limit: 6
+    campaign_limit: 1
+    seat_limit: 3
   test:
     label: "Test"
     prefix: "T"

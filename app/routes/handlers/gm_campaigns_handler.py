@@ -6,6 +6,7 @@ import logging
 import sys
 import time
 import traceback
+from datetime import datetime
 
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import login_required, current_user
@@ -28,6 +29,7 @@ from app.models import (
     PlayerCharacterSheet,
     PlayerInventory,
     DeletedCampaignSimSnapshot,
+    ExpansionInterest,
     GMWorldState,
     PriceHistory,
     RegionalMarket,
@@ -64,6 +66,57 @@ from app.services.join_codes import (
 )
 
 log = logging.getLogger(__name__)
+
+EXPANSION_INTEREST_SUCCESS = (
+    "Thanks for your interest! We've added you to our priority waitlist."
+)
+EXPANSION_INTEREST_NO_MESSAGE = "No problem. We'll keep you on the base tier."
+EXPANSION_INTEREST_UPDATED_MESSAGE = "Updated your expansion preference."
+
+
+class CampaignLimitReached(Exception):
+    """Raised after checking campaign capacity inside the GM profile lock."""
+
+    def __init__(self, message: str, context: dict):
+        super().__init__(message)
+        self.message = message
+        self.context = context
+
+
+def _campaign_limit_context(gm_profile: GMProfile) -> dict:
+    campaign_cap, seat_cap, label = get_gm_limits(gm_profile.user)
+    active_campaign_count = Campaign.query.filter_by(
+        gm_profile_id=gm_profile.id,
+        is_active=True,
+    ).count()
+    return {
+        "campaign_limit": campaign_cap,
+        "seat_limit": seat_cap,
+        "limit_label": label,
+        "active_campaign_count": active_campaign_count,
+        "campaign_limit_reached": active_campaign_count >= campaign_cap,
+        "expansion_interest_url": url_for("gm.log_expansion_interest"),
+        "expansion_interest_success_message": EXPANSION_INTEREST_SUCCESS,
+    }
+
+
+def _build_campaign_form_context(gm_profile: GMProfile, extra: dict | None = None) -> dict:
+    ctx = _campaign_limit_context(gm_profile)
+    if extra:
+        ctx.update(extra)
+    return ctx
+
+
+def _lock_gm_profile_for_campaign_create(gm_profile: GMProfile) -> GMProfile:
+    locked = GMProfile.query.filter_by(id=gm_profile.id).with_for_update().one()
+    allowed, message = can_create_campaign(locked)
+    if not allowed:
+        raise CampaignLimitReached(message, _campaign_limit_context(locked))
+    return locked
+
+
+def _expansion_interest_selection(intent: str) -> str:
+    return "no" if intent == "not_interested" else "yes"
 
 
 @login_required
@@ -106,6 +159,7 @@ def list_campaigns():
         "GM_view_campaigns.html",
         campaigns_info=campaigns_with_info,
         active_campaign_id=active_campaign_id,
+        **_campaign_limit_context(gm_profile),
     )
 
 
@@ -123,21 +177,36 @@ def create_campaign():
 
         if not name:
             flash("Campaign name is required.", "error")
-            return render_template("GM_add_campaign.html")
+            return render_template(
+                "GM_add_campaign.html",
+                **_build_campaign_form_context(gm_profile),
+            )
 
-        allowed, message = can_create_campaign(gm_profile)
-        if not allowed:
-            flash(message, "system")
-            return render_template("GM_add_campaign.html")
-
-        campaign = Campaign(
-            gm_profile_id=gm_profile.id,
-            name=name,
-            system_type=system_type,
-            is_active=True,
-        )
-        db.session.add(campaign)
-        db.session.commit()
+        try:
+            locked_gm_profile = _lock_gm_profile_for_campaign_create(gm_profile)
+            campaign = Campaign(
+                gm_profile_id=locked_gm_profile.id,
+                name=name,
+                system_type=system_type,
+                is_active=True,
+            )
+            db.session.add(campaign)
+            db.session.commit()
+        except CampaignLimitReached as exc:
+            db.session.rollback()
+            flash(exc.message, "system")
+            return render_template("GM_add_campaign.html", **exc.context), 402
+        except Exception:
+            db.session.rollback()
+            log.exception("campaign_create_unexpected_error gm=%s", gm_profile.id)
+            flash("Could not create campaign. Please try again.", "error")
+            return (
+                render_template(
+                    "GM_add_campaign.html",
+                    **_build_campaign_form_context(gm_profile),
+                ),
+                500,
+            )
 
         if world_setup == "preseeded":
             try:
@@ -174,7 +243,10 @@ def create_campaign():
 
         return redirect(url_for("main.campaigns"))
 
-    return render_template("GM_add_campaign.html")
+    return render_template(
+        "GM_add_campaign.html",
+        **_build_campaign_form_context(gm_profile),
+    )
 
 
 def _snapshot_campaign_for_analytics(campaign: Campaign) -> DeletedCampaignSimSnapshot:
@@ -423,7 +495,7 @@ def _build_defaults_payload(form_override=None):
     from app.services.shop_roll.catalog import get_catalog
 
     catalog = get_catalog()
-    return {
+    ctx = {
         "ranges": ranges,
         "labels": _RANGE_LABELS,
         "setting_hints": _SETTING_HINTS,
@@ -438,6 +510,10 @@ def _build_defaults_payload(form_override=None):
             "inventory_mode": override.get("inventory_mode", "axis"),
         },
     }
+    gm_profile = override.get("_gm_profile")
+    if gm_profile is not None:
+        ctx.update(_campaign_limit_context(gm_profile))
+    return ctx
 
 
 @login_required
@@ -456,16 +532,19 @@ def generate_world_form():
         flash("GM profile not found.", "error")
         return redirect(url_for("main.campaigns"))
 
-    ctx = _build_defaults_payload()
+    ctx = _build_defaults_payload({"_gm_profile": gm_profile})
     return render_template("GM_generate_world.html", **ctx)
 
 
 # ---------------------------------------------------------------------------
 # World generation submit (POST)
 # ---------------------------------------------------------------------------
-def _flash_and_reshow(form, category, message):
+def _flash_and_reshow(form, category, message, gm_profile=None):
     flash(message, category)
-    ctx = _build_defaults_payload(form)
+    form_ctx = dict(form or {})
+    if gm_profile is not None:
+        form_ctx["_gm_profile"] = gm_profile
+    ctx = _build_defaults_payload(form_ctx)
     return render_template("GM_generate_world.html", **ctx)
 
 
@@ -509,32 +588,23 @@ def generate_world_submit():
     try:
         settings = wg_validator.validate(form)
     except ValidationError as exc:
-        return _flash_and_reshow(form, "error", f"{exc.field}: {exc.message}"), 400
-
-    # -- Step 2: Billing ---------------------------------------------------
-    allowed, message = can_create_campaign(gm_profile)
-    if not allowed:
-        log.info(
-            "world_generation_billing_denied gm_profile_id=%s reason=%s",
-            gm_profile.id,
-            message[:200] if message else "",
+        return (
+            _flash_and_reshow(
+                form, "error", f"{exc.field}: {exc.message}", gm_profile
+            ),
+            400,
         )
-        print(
-            "[TT Shop Gen] world_generation blocked (HTTP 402): " + (message or "billing"),
-            file=sys.stderr,
-            flush=True,
-        )
-        return _flash_and_reshow(form, "system", message), 402
 
-    # -- Step 3: Transactional world build --------------------------------
+    # -- Step 2: Transactional world build --------------------------------
     campaign_name = settings["campaign_name"]
     system_type = settings["system_type"]
     started_at = time.monotonic()
 
     try:
         with db.session.no_autoflush:
+            locked_gm_profile = _lock_gm_profile_for_campaign_create(gm_profile)
             campaign = Campaign(
-                gm_profile_id=gm_profile.id,
+                gm_profile_id=locked_gm_profile.id,
                 name=campaign_name,
                 system_type=system_type,
                 is_active=True,
@@ -564,9 +634,30 @@ def generate_world_submit():
 
         db.session.commit()
 
+    except CampaignLimitReached as exc:
+        db.session.rollback()
+        log.info(
+            "world_generation_billing_denied gm_profile_id=%s reason=%s",
+            gm_profile.id,
+            exc.message[:200] if exc.message else "",
+        )
+        print(
+            "[TT Shop Gen] world_generation blocked (HTTP 402): "
+            + (exc.message or "billing"),
+            file=sys.stderr,
+            flush=True,
+        )
+        flash(exc.message, "system")
+        ctx = _build_defaults_payload({**form, "_gm_profile": gm_profile})
+        return render_template("GM_generate_world.html", **ctx), 402
     except ValidationError as exc:
         db.session.rollback()
-        return _flash_and_reshow(form, "error", f"{exc.field}: {exc.message}"), 400
+        return (
+            _flash_and_reshow(
+                form, "error", f"{exc.field}: {exc.message}", gm_profile
+            ),
+            400,
+        )
     except GenerationTimeoutError as exc:
         db.session.rollback()
         log.warning("world_generation_timeout gm=%s err=%s", gm_profile.id, exc)
@@ -574,6 +665,7 @@ def generate_world_submit():
             form,
             "error",
             "Generation timed out. Try a smaller world (reduce cities, shops, or items).",
+            gm_profile,
         ), 503
     except IntegrityError as exc:
         db.session.rollback()
@@ -593,20 +685,23 @@ def generate_world_submit():
             exc,
         )
         return _flash_and_reshow(
-            form, "error", "Name conflict detected, please retry with a different seed or name."
+            form,
+            "error",
+            "Name conflict detected, please retry with a different seed or name.",
+            gm_profile,
         ), 409
     except OperationalError as exc:
         db.session.rollback()
         log.error("world_generation_operational_error gm=%s err=%s", gm_profile.id, exc)
         return _flash_and_reshow(
-            form, "error", "Database temporarily unavailable. Please try again."
+            form, "error", "Database temporarily unavailable. Please try again.", gm_profile
         ), 503
     except Exception as exc:  # noqa: BLE001
         db.session.rollback()
         log.exception("world_generation_unexpected_error gm=%s", gm_profile.id)
         _ = traceback.format_exc()
         return _flash_and_reshow(
-            form, "error", f"Unexpected error during world generation: {exc}"
+            form, "error", f"Unexpected error during world generation: {exc}", gm_profile
         ), 500
 
     elapsed = time.monotonic() - started_at
@@ -663,21 +758,29 @@ def skip_world_generation_submit():
     system_type = (form.get("system_type") or "dnd5e").strip()
 
     if not campaign_name:
-        return _flash_and_reshow(form, "error", "campaign_name: is required"), 400
+        return (
+            _flash_and_reshow(
+                form, "error", "campaign_name: is required", gm_profile
+            ),
+            400,
+        )
     if len(campaign_name) > 120:
         return _flash_and_reshow(
-            form, "error", "campaign_name: must be 120 characters or fewer"
+            form,
+            "error",
+            "campaign_name: must be 120 characters or fewer",
+            gm_profile,
         ), 400
     if system_type not in wg_defaults.SYSTEM_TYPES:
-        return _flash_and_reshow(form, "error", "system_type: is invalid"), 400
-
-    allowed, message = can_create_campaign(gm_profile)
-    if not allowed:
-        return _flash_and_reshow(form, "system", message), 402
+        return (
+            _flash_and_reshow(form, "error", "system_type: is invalid", gm_profile),
+            400,
+        )
 
     try:
+        locked_gm_profile = _lock_gm_profile_for_campaign_create(gm_profile)
         campaign = Campaign(
-            gm_profile_id=gm_profile.id,
+            gm_profile_id=locked_gm_profile.id,
             name=campaign_name,
             system_type=system_type,
             is_active=True,
@@ -699,16 +802,24 @@ def skip_world_generation_submit():
         db.session.add(config)
 
         db.session.commit()
+    except CampaignLimitReached as exc:
+        db.session.rollback()
+        flash(exc.message, "system")
+        ctx = _build_defaults_payload({**form, "_gm_profile": gm_profile})
+        return render_template("GM_generate_world.html", **ctx), 402
     except IntegrityError:
         db.session.rollback()
         return _flash_and_reshow(
-            form, "error", "Name conflict detected, please choose a different campaign name."
+            form,
+            "error",
+            "Name conflict detected, please choose a different campaign name.",
+            gm_profile,
         ), 409
     except Exception as exc:  # noqa: BLE001
         db.session.rollback()
         log.exception("skip_world_generation_unexpected_error gm=%s", gm_profile.id)
         return _flash_and_reshow(
-            form, "error", f"Unexpected error while skipping generation: {exc}"
+            form, "error", f"Unexpected error while skipping generation: {exc}", gm_profile
         ), 500
 
     flash(
@@ -723,6 +834,86 @@ def skip_world_generation_submit():
     session.modified = True
 
     return redirect(url_for("gm.home"), code=303)
+
+
+@login_required
+def log_expansion_interest():
+    """JSON: capture a GM's interest in higher campaign/seat limits."""
+    if not has_gm_capability(current_user):
+        return jsonify(error="forbidden"), 403
+    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
+    if not gm_profile:
+        return jsonify(error="forbidden"), 403
+
+    data = request.get_json(silent=True) or {}
+    intent = str(data.get("intent") or "campaign_limit_upgrade").strip().lower()
+    source = str(data.get("source") or "campaign_limit_modal").strip()[:80] or None
+    if intent not in {
+        "campaign_limit_upgrade",
+        "seat_limit_upgrade",
+        "pro_interest",
+        "not_interested",
+    }:
+        intent = "campaign_limit_upgrade"
+    selection = _expansion_interest_selection(intent)
+
+    row = (
+        ExpansionInterest.query.filter_by(user_id=current_user.id)
+        .order_by(ExpansionInterest.created_at.desc(), ExpansionInterest.id.desc())
+        .first()
+    )
+    status_code = 201
+    if row is not None:
+        current_selection = _expansion_interest_selection(row.intent)
+        if current_selection == selection:
+            message = (
+                "You've already selected Yes."
+                if selection == "yes"
+                else "You've already selected No."
+            )
+            return (
+                jsonify(
+                    success=True,
+                    already_selected=True,
+                    selection=selection,
+                    message=message,
+                ),
+                200,
+            )
+        row.intent = intent
+        row.source = source
+        row.gm_profile_id = gm_profile.id
+        row.created_at = datetime.utcnow()
+        message = EXPANSION_INTEREST_UPDATED_MESSAGE
+        status_code = 200
+    else:
+        row = ExpansionInterest(
+            user_id=current_user.id,
+            gm_profile_id=gm_profile.id,
+            intent=intent,
+            source=source,
+        )
+        db.session.add(row)
+        message = (
+            EXPANSION_INTEREST_NO_MESSAGE
+            if selection == "no"
+            else EXPANSION_INTEREST_SUCCESS
+        )
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        log.exception("expansion_interest_commit_failed user_id=%s", current_user.id)
+        return jsonify(error="Could not save expansion interest."), 500
+
+    log.info(
+        "expansion_interest_logged user_id=%s gm_profile_id=%s intent=%s source=%s",
+        current_user.id,
+        gm_profile.id,
+        intent,
+        source or "-",
+    )
+    return jsonify(success=True, selection=selection, message=message), status_code
 
 
 @login_required

@@ -154,7 +154,7 @@ def ensure_user_password_history_table() -> bool:
     """
     if _regclass_exists("user_password_history"):
         return False
-    if not _regclass_exists("user"):
+    if not _regclass_exists("user") or not _regclass_exists("gm_profile"):
         return False
     db.session.execute(
         text(
@@ -193,7 +193,7 @@ def ensure_user_avatar_column() -> bool:
     """Add account-menu avatar timestamp column when missing."""
     if db.engine.dialect.name != "postgresql":
         return False
-    if not _regclass_exists("user"):
+    if not _regclass_exists("user") or not _regclass_exists("gm_profile"):
         return False
     if _column_exists("user", "avatar_updated_at"):
         return False
@@ -267,6 +267,53 @@ def warn_if_user_submissions_table_applied(patched_any: bool) -> None:
         log.warning(
             "user_submissions table created via compat bootstrap. "
             "Run sql/migrations/004_user_submissions.sql in controlled deploys."
+        )
+
+
+def ensure_expansion_interest_table() -> bool:
+    """Create expansion_interest when missing (paid-tier demand telemetry)."""
+    if db.engine.dialect.name != "postgresql":
+        return False
+    if not _regclass_exists("user") or not _regclass_exists("gm_profile"):
+        return False
+    if _regclass_exists("expansion_interest"):
+        return False
+    db.session.execute(
+        text(
+            """
+            CREATE TABLE expansion_interest (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                gm_profile_id INTEGER REFERENCES gm_profile(id) ON DELETE SET NULL,
+                intent VARCHAR(64) NOT NULL DEFAULT 'campaign_limit_upgrade',
+                source VARCHAR(80),
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                    DEFAULT (NOW() AT TIME ZONE 'utc')
+            )
+            """
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_expansion_interest_user_created "
+            "ON expansion_interest(user_id, created_at DESC)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_expansion_interest_gm_created "
+            "ON expansion_interest(gm_profile_id, created_at DESC)"
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def warn_if_expansion_interest_table_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "expansion_interest table created via compat bootstrap. "
+            "Run sql/expansion_interest_create.sql in controlled deploys."
         )
 
 

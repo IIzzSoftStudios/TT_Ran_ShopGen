@@ -1,13 +1,14 @@
 import logging
+from datetime import datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import login_required, current_user
 from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db, limiter
-from app.models import AccessRequest
+from app.models import AccessRequest, RegistrationKey
 from app.routes.handlers.campaign_selection_handler import (
     delete_campaign_character,
     select_campaign,
@@ -16,10 +17,12 @@ from app.routes.handlers.campaign_selection_handler import (
     redeem_campaign_post,
 )
 from app.services.distributed_lock import get_redis_client
+from app.services.key_generator import generate_secure_code
 
 main_bp = Blueprint("main", __name__)
 
 _ready_logger = logging.getLogger(__name__)
+AUTO_ACCESS_PHASE = "default"
 
 
 @main_bp.route("/healthz")
@@ -118,7 +121,8 @@ def changelog():
 @main_bp.route("/register")
 def register_alias():
     vault_key = request.args.get("vault_key")
-    return redirect(url_for("auth.register", vault_key=vault_key))
+    email = request.args.get("email")
+    return redirect(url_for("auth.register", vault_key=vault_key, email=email))
 
 
 @main_bp.route("/access-request", methods=["GET", "POST"])
@@ -157,6 +161,7 @@ def access_request():
             flash("If you select GM or Both, player count is required.", "warning")
             return redirect(url_for("main.access_request"))
 
+        vault_key = _generate_unique_access_key(AUTO_ACCESS_PHASE)
         ar = AccessRequest(
             contact_name=contact_name,
             email=email,
@@ -167,14 +172,38 @@ def access_request():
             primary_ruleset=primary_ruleset,
             discovery_source=discovery_source,
             notes=notes,
-            status="pending",
+            status="approved",
+            processed_at=datetime.utcnow(),
+            vault_key=vault_key,
+            vault_key_used=False,
         )
         db.session.add(ar)
+        db.session.add(
+            RegistrationKey(
+                key_code=vault_key,
+                email=email,
+                is_used=False,
+                key_phase=AUTO_ACCESS_PHASE,
+                is_admin_test_key=False,
+            )
+        )
         db.session.commit()
 
-        return redirect(url_for("main.thank_you", ruleset=primary_ruleset))
+        return redirect(url_for("main.register_alias", vault_key=vault_key, email=email))
 
     return render_template("access_request.html")
+
+
+def _generate_unique_access_key(phase_slug: str) -> str:
+    pc = current_app.extensions["phase_config"]
+    row = pc.get_phase(phase_slug)
+    prefix = row["prefix"]
+    while True:
+        code = generate_secure_code(prefix=prefix, segments=2, segment_len=4)
+        exists = RegistrationKey.query.filter_by(key_code=code).first()
+        exists = exists or AccessRequest.query.filter_by(vault_key=code).first()
+        if not exists:
+            return code
 
 
 @main_bp.route("/thank-you")

@@ -22,6 +22,7 @@ from app.services.schema_compat import (
     ensure_gm_world_state_campaign_id,
     ensure_global_market_baseline_stock_column,
     ensure_join_codes_columns,
+    ensure_expansion_interest_table,
     ensure_phase_entitlement_columns,
     ensure_player_campaign_id,
     ensure_player_npc_columns,
@@ -45,6 +46,7 @@ from app.services.schema_compat import (
     warn_if_gm_world_state_campaign_applied,
     warn_if_global_market_baseline_stock_applied,
     warn_if_join_codes_compat_applied,
+    warn_if_expansion_interest_table_applied,
     warn_if_password_history_compat_applied,
     warn_if_user_avatar_column_applied,
     warn_if_user_submissions_table_applied,
@@ -392,6 +394,11 @@ def create_app():
                 "user_submissions table compatibility bootstrap",
                 ensure_user_submissions_table,
                 warn_if_user_submissions_table_applied,
+            )
+            _safe_bootstrap(
+                "expansion_interest table compatibility bootstrap",
+                ensure_expansion_interest_table,
+                warn_if_expansion_interest_table_applied,
             )
             _safe_bootstrap(
                 "player NPC compatibility bootstrap",
