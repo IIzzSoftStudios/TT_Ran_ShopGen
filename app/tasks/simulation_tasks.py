@@ -68,6 +68,17 @@ logger = logging.getLogger(__name__)
 TICKS_MAP: Dict[str, int] = {"day": 1, "week": 7, "month": 30, "year": 365}
 
 
+def simulation_pause_key(campaign_id: int) -> str:
+    return f"sim_pause:{int(campaign_id)}"
+
+
+def _pause_requested(redis_client, campaign_id: int) -> bool:
+    value = redis_client.get(simulation_pause_key(campaign_id))
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="ignore")
+    return str(value).lower() in {"1", "true", "yes", "pause"}
+
+
 # Job status contract (single source of truth for the polling UI).
 # See deploy/README.md for the UX implications of each terminal state.
 class SimJobStatus:
@@ -77,6 +88,7 @@ class SimJobStatus:
     BUSY = "busy"              # another batch is already running for this campaign
     ERROR = "error"            # batch rolled back; world is unchanged from start
     LOCK_LOST = "lock_lost"    # the campaign lock was stolen mid-batch; batch rolled back
+    PAUSED = "paused"          # GM requested a stop; completed ticks were committed
 
 
 @celery.task(bind=True)
@@ -188,8 +200,14 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
             engine = SimulationEngine()
             units_sold_total = 0
             shops_restocked_total = 0
+            ticks_done = 0
+            pause_requested = False
             try:
                 for i in range(1, ticks_total + 1):
+                    if _pause_requested(redis_client, int(campaign_id)):
+                        pause_requested = True
+                        break
+
                     # Refresh the lock between ticks so a multi-hour batch
                     # cannot expire the key while we still own it.
                     now = time.monotonic()
@@ -206,6 +224,7 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
                     units_sold_total += int(stats.get("units_sold") or 0)
                     shops_restocked_total += int(stats.get("shops_restocked") or 0)
                     final_game_day = stats.get("current_game_day")
+                    ticks_done = i
 
                     if not _safe_hset(
                         {
@@ -219,17 +238,42 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
                             "Redis unavailable while writing simulation progress"
                         )
 
-                # All ticks computed and flushed; commit the whole batch.
-                db.session.commit()
-                # Expire ORM cache so subsequent reads on the same context
-                # see the committed state.
-                db.session.expire_all()
+                if pause_requested and ticks_done == 0:
+                    db.session.rollback()
+                else:
+                    # All completed ticks are flushed; commit them together.
+                    db.session.commit()
+                    # Expire ORM cache so subsequent reads on the same context
+                    # see the committed state.
+                    db.session.expire_all()
             except Exception:
                 # Single rollback unwinds every tick + every PriceHistory row.
                 # The campaign is restored to its pre-batch state and the GM
                 # can rerun without an off-by-N midpoint.
                 db.session.rollback()
                 raise
+
+            if pause_requested and ticks_done == 0:
+                _safe_hset(
+                    {
+                        "status": SimJobStatus.PAUSED,
+                        "ticks_done": 0,
+                        "ticks_total": ticks_total,
+                        "current_game_day": game_day_start,
+                        "units_sold_total": 0,
+                        "shops_restocked_total": 0,
+                        "world_changed": "false",
+                    }
+                )
+                terminal_status = SimJobStatus.PAUSED
+                return {
+                    "status": SimJobStatus.PAUSED,
+                    "current_game_day": game_day_start,
+                    "ticks_done": 0,
+                    "ticks_total": ticks_total,
+                    "units_sold_total": 0,
+                    "shops_restocked_total": 0,
+                }
 
             game_day_end = final_game_day
             if game_day_end is None and campaign_row is not None:
@@ -266,7 +310,7 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
                 _safe_hset(
                     {
                         "status": SimJobStatus.ERROR,
-                        "ticks_done": ticks_total,
+                        "ticks_done": ticks_done,
                         "ticks_total": ticks_total,
                         "current_game_day": final_game_day,
                         "error": snap_msg,
@@ -280,20 +324,24 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
                     "current_game_day": final_game_day,
                 }
 
+            final_status = SimJobStatus.PAUSED if pause_requested else SimJobStatus.SUCCESS
             _safe_hset(
                 {
-                    "status": SimJobStatus.SUCCESS,
-                    "ticks_done": ticks_total,
+                    "status": final_status,
+                    "ticks_done": ticks_done,
                     "ticks_total": ticks_total,
                     "current_game_day": final_game_day,
                     "units_sold_total": units_sold_total,
                     "shops_restocked_total": shops_restocked_total,
+                    "world_changed": "true",
                 }
             )
-            terminal_status = SimJobStatus.SUCCESS
+            terminal_status = final_status
             return {
-                "status": SimJobStatus.SUCCESS,
+                "status": final_status,
                 "current_game_day": final_game_day,
+                "ticks_done": ticks_done,
+                "ticks_total": ticks_total,
                 "units_sold_total": units_sold_total,
                 "shops_restocked_total": shops_restocked_total,
             }
@@ -326,6 +374,10 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
         terminal_status = SimJobStatus.ERROR
         return {"status": SimJobStatus.ERROR, "error": safe}
     finally:
+        try:
+            redis_client.delete(simulation_pause_key(campaign_id))
+        except Exception:
+            pass
         try:
             lock.release()
         except Exception:

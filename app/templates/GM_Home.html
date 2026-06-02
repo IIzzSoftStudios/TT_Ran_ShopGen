@@ -320,7 +320,16 @@
             }
         }
 
-        #simulation-controls.busy { opacity: 0.6; pointer-events: none; }
+        #simulation-controls.busy .sim-action-btn:not(.sim-pause-btn) {
+            opacity: 0.6;
+            pointer-events: none;
+            cursor: wait;
+        }
+        #simulation-controls.busy .sim-pause-btn {
+            opacity: 1;
+            pointer-events: auto;
+            cursor: pointer;
+        }
         .sim-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 12px; }
         .sim-action-btn {
             background-color: #4CAF50;
@@ -492,6 +501,7 @@
         };
 
         var statusPollTimer = null;
+        var pauseBusy = false;
         var lastKnownSpeed = 'pause';
         var STATUS_INTERVAL_PAUSED_MS = 45000;
         var STATUS_INTERVAL_ACTIVE_MS = 5000;
@@ -596,6 +606,14 @@
         }
 
         function buildSimFinishedMessage(jobResult) {
+            if (jobResult && jobResult.status === 'paused') {
+                var done = Number(jobResult.ticks_done || 0);
+                var total = Number(jobResult.ticks_total || 0);
+                if (done > 0 && total > 0) {
+                    return 'Simulation paused after ' + done + ' of ' + total + ' days.';
+                }
+                return 'Simulation paused.';
+            }
             var msg = 'Simulation finished.';
             if (!jobResult) return msg;
             var sold = jobResult.units_sold_total;
@@ -651,7 +669,7 @@
             var maxUnknownStreak = 8;
 
             function isTerminalSuccess(st) {
-                return st === 'success' || st === 'done' || st === 'complete' || st === 'finished';
+                return st === 'success' || st === 'done' || st === 'complete' || st === 'finished' || st === 'paused';
             }
 
             function isProgress(st) {
@@ -746,7 +764,9 @@
         };
 
         window.pauseSimulation = async function () {
-            if (simBusy) return;
+            if (pauseBusy) return;
+            pauseBusy = true;
+            showFeedback(simBusy ? 'Pausing simulation…' : 'Pausing simulation.', false);
             try {
                 var response = await fetch(urls.simSpeed, {
                     method: 'POST',
@@ -759,10 +779,12 @@
                 });
                 var j = await response.json().catch(function () { return {}; });
                 if (!response.ok) throw new Error(j.error || 'Pause failed');
-                showFeedback('Simulation paused.', false);
+                showFeedback(simBusy ? 'Pause requested. Waiting for the current tick to finish…' : 'Simulation paused.', false);
                 updateSimulationStatus();
             } catch (e) {
                 showFeedback(e.message || 'Pause failed', true);
+            } finally {
+                pauseBusy = false;
             }
         };
 

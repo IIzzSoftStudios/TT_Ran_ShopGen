@@ -2,6 +2,7 @@
 GM Simulation Handler
 Handles all simulation-related business logic for GM routes
 """
+import os
 from datetime import datetime
 from functools import wraps
 
@@ -16,7 +17,7 @@ from app.routes.handlers.gm_helpers import get_current_gm_profile, require_activ
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
 from app.services.distributed_lock import get_redis_client
 from app.services.market_overview import capture_start_metrics_for_job
-from app.tasks.simulation_tasks import SimJobStatus, run_period_task
+from app.tasks.simulation_tasks import SimJobStatus, run_period_task, simulation_pause_key
 from app.utils.safe_errors import public_error_message, redact_sim_job_error_for_client
 
 
@@ -209,6 +210,12 @@ def update_simulation_speed():
             state.speed = "pause"
         db.session.flush()
         _record_sim_dashboard_click(campaign_id, "pause")
+        redis_client = get_redis_client()
+        redis_client.set(
+            simulation_pause_key(campaign_id),
+            "1",
+            ex=int(os.getenv("SIM_JOB_TTL_SECONDS", "86400")),
+        )
         db.session.commit()
 
         campaign = Campaign.query.get(campaign_id)
@@ -220,6 +227,10 @@ def update_simulation_speed():
                 "current_game_day": campaign.current_game_day if campaign else None,
             }
         )
+    except (RedisConnectionError, RedisTimeoutError) as exc:
+        db.session.rollback()
+        gm_logger.warning("Redis unavailable while pausing simulation: %s", exc)
+        return jsonify({"error": REDIS_OFFLINE_ERROR, "status": "offline"}), 503
     except Exception as e:
         db.session.rollback()
         gm_logger.error(f"Error during simulation: {str(e)}", exc_info=True)
@@ -255,6 +266,7 @@ def run_period_stream():
             jsonify({"error": "Simulation already running", "status": SimJobStatus.BUSY}),
             409,
         )
+    redis_client.delete(simulation_pause_key(campaign_id))
 
     campaign = Campaign.query.get(campaign_id)
     start_metrics_json = capture_start_metrics_for_job(int(campaign_id))
@@ -290,6 +302,7 @@ def run_period_stream():
 # refresh failure too.
 _REENTRANT_TERMINAL_STATUSES = {
     SimJobStatus.SUCCESS,
+    SimJobStatus.PAUSED,
     SimJobStatus.ERROR,
     SimJobStatus.LOCK_LOST,
     SimJobStatus.BUSY,
