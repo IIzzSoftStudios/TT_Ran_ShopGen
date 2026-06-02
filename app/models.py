@@ -1,9 +1,14 @@
+import logging
+
 from sqlalchemy.orm import relationship
 from sqlalchemy import UniqueConstraint, func, Index, event
 from sqlalchemy.dialects.postgresql import JSONB
 from app.extensions import db, SQLAlchemy, bcrypt, UserMixin
 from app.utils.validators import PASSWORD_REUSE_FORBIDDEN_DAYS
 from datetime import datetime, timedelta
+
+
+log = logging.getLogger(__name__)
 
 
 def _json_with_jsonb():
@@ -326,7 +331,11 @@ class User(db.Model, UserMixin):
         self.password = bcrypt.generate_password_hash(password).decode("utf-8") 
 
     def check_password(self, password):
-        return bcrypt.check_password_hash(self.password, password)
+        try:
+            return bcrypt.check_password_hash(self.password, password)
+        except ValueError:
+            log.warning("Invalid password hash for user_id=%s", self.id)
+            return False
 
     def set_reset_otp(self, plaintext_code):
         self.reset_otp_hash = bcrypt.generate_password_hash(plaintext_code).decode("utf-8")
