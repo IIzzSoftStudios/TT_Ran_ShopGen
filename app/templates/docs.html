@@ -640,14 +640,33 @@
                     <div class="changelog-layout">
                         <aside class="changelog-index" aria-label="Patch notes">
                             <p class="changelog-index-title">Patch Notes</p>
+                            <a href="#patch-1-2-2">Tech Demo Hotfix 1.2.2</a>
                             <a href="#patch-1-2-1">Tech Demo Hotfix 1.2.1</a>
                             <a href="#patch-1-2">Tech Demo Patch 1.2</a>
                             <a href="#patch-1-1">Tech Demo Patch 1.1</a>
                         </aside>
 
                         <div class="changelog-patches">
+                            <section class="changelog-patch" id="patch-1-2-2" aria-labelledby="heading-patch-1-2-2">
+                                <h3 id="heading-patch-1-2-2">Tech Demo Hotfix 1.2.2 <span class="docs-badge">Latest</span></h3>
+                                <p>
+                                    <strong>June 2, 2026.</strong> Simulation pause reliability and worker deployment alignment.
+                                </p>
+                                <h3>Simulation controls</h3>
+                                <ul>
+                                    <li>Pause now stays clickable while a day, week, month, or year simulation run is in progress.</li>
+                                    <li>Pause requests now reach the Celery worker, which stops the run after the current tick finishes instead of ignoring the click.</li>
+                                    <li>The dashboard now recognizes paused simulation jobs as complete, unlocks the run controls, and reports how many days completed before the pause.</li>
+                                </ul>
+                                <h3>Operations</h3>
+                                <ul>
+                                    <li>Added regression coverage for paused job polling and worker-side pause behavior.</li>
+                                    <li>Confirmed the Celery worker redeploy flow: web and worker must run the same digest-pinned image for new simulation controls to take effect.</li>
+                                </ul>
+                            </section>
+
                             <section class="changelog-patch" id="patch-1-2-1" aria-labelledby="heading-patch-1-2-1">
-                                <h3 id="heading-patch-1-2-1">Tech Demo Hotfix 1.2.1 <span class="docs-badge">Latest</span></h3>
+                                <h3 id="heading-patch-1-2-1">Tech Demo Hotfix 1.2.1</h3>
                                 <p>
                                     <strong>May 22, 2026.</strong> GM dashboard deletion fixes and region management updates.
                                 </p>
