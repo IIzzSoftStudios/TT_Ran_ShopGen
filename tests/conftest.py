@@ -29,7 +29,7 @@ phases:
     label: "Tech Demo"
     prefix: "TECH"
     campaign_limit: 99
-    seat_limit: 3
+    seat_limit: 50
   alpha:
     label: "Alpha"
     prefix: "AL"
