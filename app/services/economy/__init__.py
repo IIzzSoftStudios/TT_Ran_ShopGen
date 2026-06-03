@@ -6,7 +6,7 @@ from typing import Optional
 from app.extensions import db
 from app.models import Shop
 
-from app.services.economy.demand import calculate_demand
+from app.services.economy.demand import DemandContext, calculate_demand
 from app.services.world_generator.pricing import rarity_for_simulation
 
 _PRICE_FLOOR_MULTIPLIER = 0.20
@@ -22,6 +22,8 @@ def calculate_dynamic_price(
     campaign_id: int,
     item_id=None,
     rng: Optional[random.Random] = None,
+    preloaded_modifiers=None,
+    demand_context=None,
 ):
     rng = rng or random
     demand_m = calculate_demand(
@@ -32,6 +34,8 @@ def calculate_dynamic_price(
         shop_id=shop_id,
         item_id=item_id,
         rng=rng,
+        preloaded_modifiers=preloaded_modifiers,
+        demand_context=demand_context,
     )
     stock_modifier = max(0.1, (stock_level / 100) * 0.1)
     event_modifier = rng.choice([-0.1, 0, 0.2])

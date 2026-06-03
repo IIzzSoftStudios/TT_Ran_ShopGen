@@ -348,17 +348,14 @@
         {% endwith %}
 
         {% if campaigns %}
-            <h2 class="section-header">Campaigns</h2>
+            {% if gm_campaigns %}
+            <h2 class="section-header">GM Campaigns</h2>
             <div class="campaigns-grid">
-                {% for campaign in campaigns %}
+                {% for campaign in gm_campaigns %}
                     <a href="{{ url_for('main.load_campaign_route', campaign_id=campaign.id, as=campaign.type|lower) }}" class="campaign-card">
                         <h3>{{ campaign.name }}</h3>
                         <div class="campaign-info">
-                            {% if campaign.type == 'GM' %}
                             <p><strong>GM:</strong> {{ campaign.gm_username }}</p>
-                            {% else %}
-                            <p><strong>Player:</strong> {{ campaign.character_label }}</p>
-                            {% endif %}
                             <p><strong>Players:</strong> {{ campaign.player_count }}</p>
                             {% if campaign.system_type %}
                                 <p><strong>System:</strong> {{ campaign.system_type }}</p>
@@ -368,6 +365,26 @@
                     </a>
                 {% endfor %}
             </div>
+            {% endif %}
+
+            {% if player_campaigns %}
+            <h2 class="section-header">Player Campaigns</h2>
+            <div class="campaigns-grid">
+                {% for campaign in player_campaigns %}
+                    <a href="{{ url_for('main.load_campaign_route', campaign_id=campaign.id, as=campaign.type|lower) }}" class="campaign-card">
+                        <h3>{{ campaign.name }}</h3>
+                        <div class="campaign-info">
+                            <p><strong>Player:</strong> {{ campaign.character_label }}</p>
+                            <p><strong>Players:</strong> {{ campaign.player_count }}</p>
+                            {% if campaign.system_type %}
+                                <p><strong>System:</strong> {{ campaign.system_type }}</p>
+                            {% endif %}
+                            <span class="campaign-type {{ campaign.type|lower }}">{{ campaign.type }}</span>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+            {% endif %}
         {% elif not solo_characters %}
             <div class="no-campaigns">
                 {% if show_redeem_only|default(false) %}

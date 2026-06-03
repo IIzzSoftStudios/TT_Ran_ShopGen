@@ -543,16 +543,17 @@ def handle_approve_access_request(request_id):
         subject = "Econo-Forge Access Approved"
         discord_link = "https://discord.gg/dkNVnBXMMB"
         body = (
-            f"Request Received. We're currently prioritizing by Ruleset for our Early Acces. "
-            f"Join the Discord {discord_link} for real-time updates.\n\nYour vault key:\n{vault_key}\n\n"
-            f"Register For Access link:\n{reg_link}\n"
+            f"Your Econo-Forge registration key was issued by an admin review.\n\n"
+            f"Registration key:\n{vault_key}\n\n"
+            f"Complete registration:\n{reg_link}\n\n"
+            f"Optional community updates: {discord_link}\n"
         )
         msg = EmailMessage(subject, body, sender, [ar.email])
         msg.send()
     except Exception as e:
         audit_logger.warning("Approval email failed | AccessRequest ID: %s | Error: %s", ar.id, e)
 
-    flash("Access request approved. Vault key issued.", "success")
+    flash("Access request approved. Registration key issued.", "success")
     return redirect(url_for("admin.keys_overview"))
 
 

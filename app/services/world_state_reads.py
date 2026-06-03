@@ -1,4 +1,31 @@
-"""Resolve shop prices/stock from GMWorldState.state_json when READ_PRICES_FROM_WORLD_STATE is enabled."""
+"""Resolve shop prices/stock from GMWorldState.state_json when READ_PRICES_FROM_WORLD_STATE is enabled.
+
+State authority (Phase 3)
+-------------------------
+Row tables remain **authoritative for player-facing reads** while
+``READ_PRICES_FROM_WORLD_STATE`` is false (the default):
+
+- ``ShopInventory.dynamic_price`` and ``ShopInventory.stock``
+- ``PriceHistory`` (append-only tick audit)
+- ``Campaign.current_game_day`` and ``SimulationState.current_tick``
+
+``GMWorldState`` is a **dual-write snapshot cache** when ``WORLD_STATE_ENABLED`` is
+true (also the default). The canonical tick path in ``SimulationEngine.run_tick``
+writes inventory prices/stock to rows first, then mirrors them into
+``GMWorldState.state_json`` in the same transaction. The blob is not safe to read
+for purchase or display decisions until row/blob reconciliation is proven and
+``READ_PRICES_FROM_WORLD_STATE`` is deliberately enabled with a reconciliation
+strategy for buy/sell paths.
+
+Flag split (intentional, unchanged in Phase 3):
+
+- ``WORLD_STATE_ENABLED`` — controls tick **writes** to ``GMWorldState``.
+- ``READ_PRICES_FROM_WORLD_STATE`` — controls route **reads** from the blob; off by
+  default so callers fall back to row values via the ``fallback`` arguments below.
+
+When reads are disabled, missing blob rows, malformed ``state_json``, or invalid
+entry shapes all resolve to the caller-supplied row fallback — never raise.
+"""
 
 from __future__ import annotations
 
@@ -22,7 +49,7 @@ def get_effective_price(
     inventory_id: int,
     fallback: float,
 ) -> float:
-    """Return dynamic_price from world state JSON (key=str inventory_id) or fallback."""
+    """Return dynamic_price from world state JSON (key=str inventory_id) or row fallback."""
     m = _state_map(campaign_id)
     if not m:
         return fallback
@@ -40,6 +67,7 @@ def get_effective_stock(
     inventory_id: int,
     fallback: int,
 ) -> int:
+    """Return stock from world state JSON (key=str inventory_id) or row fallback."""
     m = _state_map(campaign_id)
     if not m:
         return fallback

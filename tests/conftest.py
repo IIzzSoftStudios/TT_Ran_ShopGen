@@ -25,11 +25,16 @@ phases:
     prefix: "DEF"
     campaign_limit: 1
     seat_limit: 2
+  tech_demo:
+    label: "Tech Demo"
+    prefix: "TECH"
+    campaign_limit: 99
+    seat_limit: 3
   alpha:
     label: "Alpha"
     prefix: "AL"
-    campaign_limit: 1
-    seat_limit: 3
+    campaign_limit: 10
+    seat_limit: 30
   test:
     label: "Test"
     prefix: "T"

@@ -10,13 +10,13 @@ phases:
   tech_demo:
     label: "Tech Demo"
     prefix: "TECH"
-    campaign_limit: 1
+    campaign_limit: 99
     seat_limit: 3
   alpha:
     label: "Alpha Access"
     prefix: "ALPHA"
-    campaign_limit: 1
-    seat_limit: 3
+    campaign_limit: 10
+    seat_limit: 30
   beta:
     label: "Beta Access"
     prefix: "BETA"

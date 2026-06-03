@@ -38,6 +38,17 @@ Redis-dependent code path.
 it via the build trigger UI or in `substitutions:` before merging to the
 `deploy` branch.
 
+## Continuous Integration Gates
+
+All pull requests run pytest via GitHub Actions (`.github/workflows/pytest.yml`) using
+in-memory SQLite (`SQLALCHEMY_DATABASE_URI=sqlite:///:memory:`), filesystem sessions
+(`TRSG_TEST_FILESYSTEM_SESSION=1`), and Redis session fallback
+(`SESSION_REDIS_FALLBACK=true`) so tests do not require live Redis or Cloud SQL.
+
+Pushes to protected deploy branches (`main`, `master`, `deploy`, `GCP`) also trigger
+Cloud Build, which runs `pytest -q` inside the built container image before that
+image is promoted — validating the exact artifact about to be deployed.
+
 ## Cloud Run runtime service account (migrate job + web)
 
 Cloud Build runs `gcloud run jobs create/update` and `gcloud run deploy` **without**
@@ -142,10 +153,36 @@ sudo systemctl daemon-reload
 sudo systemctl restart trsg-worker
 ```
 
-CI never updates the worker for you; align worker rollouts with web
-deploys explicitly so a long-running Year batch is never killed by an
-automatic image swap. Schema migrations run as part of the Cloud Build
-pipeline (`migrate` step) before the new web revision serves traffic.
+### Mandatory post-deployment release verification
+
+After every Cloud Build deploy that promotes a new web revision:
+
+1. Read the immutable digest from the build artifact (`image_digest.txt` in the
+   Cloud Build workspace or `gs://$PROJECT-cloudbuild-artifacts/trsg-web/$SHORT_SHA/image_digest.txt`).
+2. On the GCE worker VM, set `TRSG_IMAGE` in
+   `/etc/systemd/system/trsg-worker.service.d/override.conf` to that **digest**
+   reference (`region-docker.pkg.dev/PROJECT/REPO/SERVICE@sha256:...`).
+3. Reload and restart the worker: `sudo systemctl daemon-reload &&
+   sudo systemctl restart trsg-worker`.
+4. From an authenticated workstation (repo root), verify parity:
+
+```bash
+export PROJECT_ID=econo-forge REGION=us-central1 SERVICE=trsg-web
+export WORKER_DIGEST="$(grep TRSG_IMAGE /etc/systemd/system/trsg-worker.service.d/override.conf | cut -d= -f2- | tr -d ' \"')"
+bash scripts/verify_worker_digest.sh "$WORKER_DIGEST"
+```
+
+The script is **read-only** — it compares the worker pin against the live Cloud
+Run image and exits non-zero on mismatch. CI never updates the worker for you;
+align worker rollouts with web deploys explicitly so a long-running Year batch
+is never killed by an automatic image swap. Schema migrations run as part of the
+Cloud Build pipeline (`migrate` step) before the new web revision serves traffic.
+
+Optional one-liner (same as step 4, run on a machine that can SSH-read the worker override):
+
+```bash
+bash scripts/verify_worker_digest.sh "$(grep TRSG_IMAGE /etc/systemd/system/trsg-worker.service.d/override.conf | cut -d= -f2- | tr -d ' \"')"
+```
 
 ## Redis hot-path topology
 
@@ -225,4 +262,21 @@ Until those numbers exist, prefer the ACID rollback story (a failed batch
 does no harm) plus operator-side feature flags over a brittle synthetic
 threshold. Revisit when `/admin/vault/metrics/simulation` shows stable
 distributions across at least one Year run.
+
+## Local prodlike smoke (optional pre-push)
+
+Before pushing to a deploy branch, you can run a production-shaped stack locally
+(gunicorn overlay + real Postgres and Redis) to catch bootstrap and `/ready`
+wiring issues that SQLite-only pytest misses:
+
+```bash
+cd TT_Ran_ShopGen
+bash scripts/prodlike_smoke.sh
+```
+
+Pass `--teardown` to stop containers after a successful run. Requires Docker,
+`curl`, and Bash. This does **not** simulate Cloud SQL Unix sockets or VPC
+connectors — see [`DOCKER.md`](../DOCKER.md) for compose details.
+
+**Deferred:** Running this script inside Cloud Build (Docker-in-Docker).
 

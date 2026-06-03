@@ -29,6 +29,69 @@
         }
 
         /* Primary actions: match simulation panel width */
+        .gm-onboarding {
+            width: 80%;
+            max-width: 800px;
+            margin: 0 auto 20px;
+        }
+        .gm-onboarding-card,
+        .gm-onboarding-complete {
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: var(--shadow-panel);
+        }
+        .gm-onboarding-complete {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: var(--color-text);
+        }
+        .gm-onboarding-title {
+            margin: 0 0 8px;
+            font-size: 1.35rem;
+            color: var(--color-text);
+        }
+        .gm-onboarding-lead {
+            margin: 0 0 14px;
+            color: var(--color-muted);
+            line-height: 1.5;
+        }
+        .gm-onboarding-steps {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .gm-onboarding-step {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg);
+        }
+        .gm-onboarding-step.is-done .gm-onboarding-step-label {
+            text-decoration: line-through;
+            color: var(--color-muted);
+        }
+        .gm-onboarding-step-status {
+            font-weight: 700;
+            color: var(--color-accent);
+        }
+        .gm-onboarding-step-hint {
+            flex: 1 1 100%;
+            color: var(--color-muted);
+            font-size: 0.9rem;
+        }
+        .gm-onboarding-cta {
+            margin-left: auto;
+        }
         .gm-primary-actions {
             display: flex;
             justify-content: center;
@@ -158,19 +221,47 @@
 
         /* Simulation Control Panel */
         .simulation-panel {
-            background-color: white;
+            background: var(--color-surface);
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-panel);
             margin-bottom: 30px;
             width: 80%;
             max-width: 800px;
         }
 
+        .simulation-panel--first-run {
+            border-color: rgba(124, 58, 237, 0.35);
+        }
+
         .simulation-panel h2 {
-            color: #333;
+            color: var(--color-text);
             margin-bottom: 20px;
             text-align: center;
+        }
+
+        .gm-first-run-prompt {
+            margin: 0 0 16px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            background: rgba(124, 58, 237, 0.12);
+            color: var(--color-text);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .gm-first-run-prompt strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 1.05rem;
+        }
+
+        .gm-dashboard--first-run .gm-primary-actions,
+        .gm-dashboard--first-run .gm-world-quick-nav--dashboard,
+        .gm-dashboard--first-run .gm-shops-city-panel {
+            opacity: 0.88;
         }
 
         .gm-panel-tabs {
@@ -332,34 +423,40 @@
         }
         .sim-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 12px; }
         .sim-action-btn {
-            background-color: #4CAF50;
-            color: white;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
             border: none;
             padding: 8px 16px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 650;
         }
-        .sim-action-btn:hover { background-color: #45a049; }
-        .sim-action-btn.sim-pause-btn { background-color: #607d8b; }
-        .sim-action-btn.sim-pause-btn:hover { background-color: #546e7a; }
-        #sim-feedback { min-height: 1.2em; text-align: center; margin: 8px 0; font-size: 14px; }
+        .sim-action-btn:hover { background-color: var(--color-accent-hover); }
+        .sim-action-btn.sim-primary-cta {
+            padding: 12px 20px;
+            font-size: 1rem;
+        }
+        .sim-action-btn.sim-pause-btn { background-color: var(--color-muted); color: var(--color-text); }
+        .sim-action-btn.sim-pause-btn:hover { filter: brightness(0.95); }
+        #sim-feedback { min-height: 1.2em; text-align: center; margin: 8px 0; font-size: 14px; color: var(--color-muted); }
         .simulation-status {
             display: flex;
             flex-wrap: wrap;
             justify-content: space-between;
             gap: 12px;
             padding: 12px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
             margin-top: 12px;
         }
         .status-item { display: flex; flex-direction: column; align-items: center; min-width: 100px; }
-        .status-label { font-size: 0.85em; color: #666; }
-        .status-value { font-size: 1.05em; font-weight: bold; color: #333; }
+        .status-label { font-size: 0.85em; color: var(--color-muted); }
+        .status-value { font-size: 1.05em; font-weight: bold; color: var(--color-text); }
     </style>
 </head>
-<body class="gm-dashboard">
+<body class="gm-dashboard{% if onboarding_checklist and onboarding_checklist.show_first_sim_prompt %} gm-dashboard--first-run{% endif %}">
     <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -376,6 +473,8 @@
     {% endwith %}
 
     <h1>Welcome {{ current_user.username }} the Game Master Interface</h1>
+
+    {% include 'partials/gm_onboarding_checklist.html' %}
 
     <div class="gm-primary-actions">
         <a href="{{ url_for('gm.view_campaigns') }}" class="button">GM Campaign Overview</a>
@@ -404,16 +503,23 @@
 
     <!-- Simulation Control Panel (Celery job polling — workspace behavior) -->
     {% set cal = campaign.calendar_state if campaign else {'year': 1, 'month_of_year': 1, 'day': 1} %}
-    <div class="simulation-panel">
+    {% set first_run_sim = onboarding_checklist and onboarding_checklist.show_first_sim_prompt %}
+    <div class="simulation-panel{% if first_run_sim %} simulation-panel--first-run{% endif %}">
         <div class="gm-panel-tabs" role="tablist" aria-label="GM dashboard panel">
             <button type="button" class="gm-panel-tab active" data-target="sim-pane-content" role="tab" aria-selected="true">Simulation</button>
             <button type="button" class="gm-panel-tab" data-target="market-pane-content" id="market-tab-btn" role="tab" aria-selected="false">Market Overview</button>
         </div>
         <div id="sim-pane-content" class="tab-panel-content active" role="tabpanel">
         <h2>Simulation</h2>
+        {% if first_run_sim %}
+        <div class="gm-first-run-prompt" id="gm-first-run-prompt">
+            <strong>Start the market clock</strong>
+            Run any period when you are ready. A single day is the safest first check; longer runs are available now.
+        </div>
+        {% endif %}
         <div id="simulation-controls">
             <div class="sim-row">
-                <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('day', this)">Run day</button>
+                <button type="button" class="sim-action-btn" id="gm-run-first-day-btn" onclick="runSimulationPeriod('day', this)">Run day</button>
                 <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('week', this)">Run week</button>
                 <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('month', this)">Run month</button>
                 <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('year', this)">Run year</button>
@@ -851,6 +957,21 @@
         document.addEventListener('DOMContentLoaded', function () {
             setupPanelTabs();
             updateSimulationStatus().finally(scheduleStatusPoll);
+            var firstSimCta = document.getElementById('gm-first-sim-cta');
+            if (firstSimCta) {
+                firstSimCta.addEventListener('click', function () {
+                    var panel = document.querySelector('.simulation-panel');
+                    if (panel) {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    var simPaneBtn = document.querySelector('.gm-panel-tab[data-target="sim-pane-content"]');
+                    if (simPaneBtn) simPaneBtn.click();
+                    var runBtn = document.getElementById('gm-run-first-day-btn');
+                    if (runBtn) {
+                        runBtn.focus();
+                    }
+                });
+            }
         });
     })();
     </script>

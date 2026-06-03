@@ -60,10 +60,11 @@ def test_access_request_records_info_and_auto_issues_registration_key(client):
     assert access_request.vault_key_used is False
 
     assert reg_key.email == access_request.email
-    assert reg_key.key_phase == "default"
+    assert reg_key.key_phase == "alpha"
     assert reg_key.is_used is False
     assert reg_key.is_admin_test_key is False
     assert reg_key.key_code in (resp.location or "")
+    assert reg_key.key_code.startswith("ALPHA-")
 
     register_resp = client.get(resp.location, follow_redirects=True)
     assert register_resp.status_code == 200

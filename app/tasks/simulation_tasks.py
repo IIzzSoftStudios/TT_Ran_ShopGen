@@ -52,6 +52,7 @@ from app.services.sim_metrics import (
     record_job_finished,
     record_job_rejected,
     record_job_started,
+    record_tick_duration,
 )
 from app.models import Campaign
 from app.services.market_overview import (
@@ -221,6 +222,9 @@ def run_period_task(self, campaign_id: int, period: str) -> dict:
                     stats = engine.run_tick(
                         campaign_id=int(campaign_id), flush_only=True
                     )
+                    tick_duration = stats.get("tick_duration")
+                    if isinstance(tick_duration, (int, float)):
+                        record_tick_duration(float(tick_duration))
                     units_sold_total += int(stats.get("units_sold") or 0)
                     shops_restocked_total += int(stats.get("shops_restocked") or 0)
                     final_game_day = stats.get("current_game_day")

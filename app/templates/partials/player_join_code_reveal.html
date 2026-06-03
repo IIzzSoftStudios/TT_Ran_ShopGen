@@ -10,7 +10,7 @@
       <button type="button" class="pj-reveal-btn pj-btn">Reveal</button>
     </div>
   </div>
-  <p class="pj-fetch-err" style="display:none;margin:8px 0 0 0;color:#c62828;font-size:13px;"></p>
+  <p class="pj-fetch-err" style="display:none;margin:8px 0 0 0;color:var(--color-danger, #c62828);font-size:13px;"></p>
 </div>
 <style>
 .player-join-code-block {
@@ -22,7 +22,7 @@
   margin: 0 0 6px 0;
   text-align: center;
   font-size: 14px;
-  color: #333;
+  color: var(--color-text);
 }
 .player-join-code-block .pj-title strong {
   font-weight: 700;
@@ -31,11 +31,11 @@
   margin: 0 0 12px 0;
   text-align: center;
   font-size: 13px;
-  color: #555;
+  color: var(--color-muted);
 }
 .player-join-code-block .pj-hint code {
-  color: #5a189a;
-  background: #f3e8ff;
+  color: var(--color-accent);
+  background: var(--color-surface);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.92em;
@@ -57,7 +57,7 @@
   flex: 0 0 56px;
   font-size: 13px;
   font-weight: 700;
-  color: #2d1b4e;
+  color: var(--color-text);
   text-align: center;
   line-height: 1.2;
 }
@@ -73,16 +73,16 @@
   font-family: ui-monospace, monospace;
   font-size: 13px;
   line-height: 1.35;
-  border: 1px solid #6a1b9a;
+  border: 1px solid var(--color-accent);
   border-radius: 4px;
-  background-color: #faf5ff;
-  color: #2d1b4e;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 .player-join-code-block .pj-row--primary input.code-display[type="password"],
 .player-join-code-block .pj-row--primary input.code-display[type="text"] {
-  border-color: #6a1b9a;
-  background-color: #faf5ff;
-  color: #2d1b4e;
+  border-color: var(--color-accent);
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 .player-join-code-block .pj-actions {
   display: flex;
@@ -90,8 +90,8 @@
   flex: 0 0 auto;
 }
 .player-join-code-block .pj-btn {
-  background: #6a1b9a;
-  color: #fff;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast, #fff);
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
@@ -101,7 +101,7 @@
 .player-join-code-block .pj-row--primary .pj-reveal-btn {
   font-weight: 600;
 }
-.player-join-code-block .pj-btn:hover { background: #5a189a; }
+.player-join-code-block .pj-btn:hover { filter: brightness(1.08); }
 .player-join-code-block .pj-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

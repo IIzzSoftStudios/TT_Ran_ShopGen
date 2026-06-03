@@ -69,11 +69,23 @@ The Dockerfile uses **gunicorn** as default `CMD` for production-shaped images. 
 
 ## Prodlike overlay
 
-If [`docker-compose.prodlike.yml`](docker-compose.prodlike.yml) exists, it can run gunicorn and production-shaped env for local verification:
+[`docker-compose.prodlike.yml`](docker-compose.prodlike.yml) runs gunicorn and production-shaped env for local verification:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prodlike.yml up -d
 ```
+
+### Automated smoke script
+
+From this directory, run the optional smoke check (polls `/healthz`, then `/ready`):
+
+```bash
+bash scripts/prodlike_smoke.sh
+```
+
+Add `--teardown` to tear down containers after success. On failure the script
+prints recent compose logs and exits non-zero. See [`deploy/README.md`](deploy/README.md)
+for when to run this before a deploy-branch push.
 
 ## Refreshing `TTRSG_TableCreation.sql` (when models change)
 

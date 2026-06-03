@@ -11,7 +11,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutErr
 from app.services.logging_config import gm_logger
 from app.scripts.seeder import seed_gm_data
 from app.extensions import db
-from app.models import Campaign, SimulationState
+from app.models import Campaign, City, Player, Shop, SimulationState
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
 from app.routes.handlers.gm_helpers import get_current_gm_profile, require_active_campaign
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
@@ -124,6 +124,46 @@ def _active_campaign_id_for_simulation(gm_profile):
     return campaign_id, None
 
 
+def build_gm_onboarding_context(gm_profile, campaign):
+    """Read-only checklist state for GM Home (no writes)."""
+    if campaign is None or gm_profile is None:
+        return None
+    if campaign.gm_profile_id != gm_profile.id:
+        return None
+
+    cid = int(campaign.id)
+    city_count = City.query.filter_by(campaign_id=cid).count()
+    shop_count = Shop.query.filter_by(campaign_id=cid).count()
+    has_world = city_count > 0 and shop_count > 0
+    player_count = Player.query.filter_by(
+        campaign_id=cid, is_npc=False
+    ).count()
+    current_day = int(campaign.current_game_day or 1)
+    first_sim_done = current_day > 1
+
+    steps = {
+        "world": has_world,
+        "players": player_count > 0,
+        "simulation": first_sim_done,
+    }
+    all_complete = all(steps.values())
+
+    return {
+        "show": not all_complete,
+        "all_complete": all_complete,
+        "has_generated_world": has_world,
+        "player_count": player_count,
+        "join_code_ready": bool(campaign.join_code),
+        "first_sim_completed": first_sim_done,
+        "show_first_sim_prompt": not first_sim_done,
+        "current_game_day": current_day,
+        "steps": steps,
+        "generate_world_url": url_for("gm.generate_world_form"),
+        "players_view_url": url_for("gm.gm_view_players"),
+        "campaign_players_url": url_for("gm.view_campaigns", onboarding="players"),
+    }
+
+
 def home():
     """Render the GM dashboard with simulation controls and status."""
     gm_profile, redirect_response = get_current_gm_profile()
@@ -131,15 +171,17 @@ def home():
         return redirect_response
     _debug_request("GET", "/gm/")
 
-    _campaign, redirect_response = require_active_campaign(gm_profile)
+    campaign, redirect_response = require_active_campaign(gm_profile)
     if redirect_response is not None:
         return redirect_response
 
     shops_panel = get_shop_city_panel_context(gm_profile, include_nav_toggles=True)
+    onboarding_checklist = build_gm_onboarding_context(gm_profile, campaign)
     return render_template(
         "GM_Home.html",
         gm_profile=gm_profile,
         current_speed="pause",
+        onboarding_checklist=onboarding_checklist,
         **shops_panel,
     )
 

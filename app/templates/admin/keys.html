@@ -227,8 +227,12 @@
 
         <div class="access-requests-wrap">
             <div class="card mb-4">
-                <div class="card-header">Access Requests (Triage)</div>
+                <div class="card-header">Access Requests (Manual Triage)</div>
                 <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Public <strong>Register For Access</strong> submissions are auto-approved and receive a registration key immediately.
+                        This queue is for backlog review only—approve to issue a key and email the registration link.
+                    </p>
                     {% if access_requests and access_requests|length > 0 %}
                         {% for ar in access_requests %}
                         <details class="access-request-block" id="access-block-{{ ar.id }}">

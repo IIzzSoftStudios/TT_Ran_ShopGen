@@ -186,6 +186,20 @@
         .gm-ply-redeem-form button.button:hover {
             background-color: var(--color-accent-hover);
         }
+        .onboarding-pulse {
+            animation: onboardingPulse 1.2s ease-in-out 2;
+            box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.35);
+            outline: 2px solid #facc15;
+            outline-offset: 3px;
+        }
+        @keyframes onboardingPulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.08);
+            }
+        }
     </style>
 </head>
 <body class="gm-list-page">
@@ -264,6 +278,32 @@
     </div>
     {% include 'partials/expansion_interest_modal.html' %}
     {% include 'partials/confirm_delete_script.html' %}
+    <script>
+    (function () {
+        function pulse(el) {
+            if (!el) return;
+            el.classList.add('onboarding-pulse');
+            try {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.focus({ preventScroll: true });
+            } catch (e) { /* highlight still works if focus/scroll is unavailable */ }
+            setTimeout(function () {
+                el.classList.remove('onboarding-pulse');
+            }, 2800);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('onboarding') !== 'players') return;
+            var revealBtn = document.querySelector('.invite-reveal-btn');
+            var addBtn = document.querySelector('.gm-ply-redeem-form button[type="submit"]');
+            pulse(revealBtn);
+            setTimeout(function () {
+                pulse(addBtn);
+            }, 3000);
+        });
+    })();
+    </script>
 </body>
 </html>
 

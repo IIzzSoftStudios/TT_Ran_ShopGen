@@ -2,7 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Econo-Forge</title>
+    <meta name="description" content="Econo-Forge models reactive shop economies for tabletop campaigns. Run prices, stock, and market days from one GM hub.">
+    <link rel="canonical" href="{{ url_for('main.index', _external=True) }}">
+    <meta name="theme-color" content="#0f172a">
+    <meta property="og:title" content="Econo-Forge">
+    <meta property="og:description" content="Reactive shop economies for Pathfinder, D&amp;D 5E, and long-running campaigns. Run prices, stock, and market days from one GM hub.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url_for('main.index', _external=True) }}">
+    <meta property="og:image" content="{{ url_for('static', filename='media/banner-poster.svg', _external=True) }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Econo-Forge">
+    <meta name="twitter:description" content="Reactive shop economies for tabletop GMs and players. Run prices, stock, and market days from one GM hub.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='media/banner-poster.svg', _external=True) }}">
     {% include 'partials/theme_head.html' %}
     <style>
         /* Landing page layout */
@@ -14,13 +27,16 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(15, 23, 42, 0.65);
+            background: rgba(255, 255, 255, 0.92);
             backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            border-bottom: 1px solid var(--color-border);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
         }
 
         html.dark-mode .topbar {
             background: rgba(15, 23, 42, 0.65);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: none;
         }
 
         .topbar-inner {
@@ -73,9 +89,13 @@
 
         .nav-links a {
             text-decoration: none;
-            color: var(--color-muted);
+            color: var(--color-text);
             font-weight: 600;
             font-size: 0.95rem;
+        }
+
+        html.dark-mode .nav-links a {
+            color: var(--color-muted);
         }
 
         .nav-links a:hover {
@@ -355,8 +375,9 @@
             </div>
 
             <div class="hero-media">
-                <video autoplay muted loop playsinline aria-label="Econo-Forge marketing banner">
+                <video autoplay muted loop playsinline poster="{{ url_for('static', filename='media/banner-poster.svg') }}" aria-label="Econo-Forge marketing banner">
                     <source src="{{ url_for('static', filename='media/banner.mp4') }}" type="video/mp4">
+                    <p>Your browser does not support embedded video. Econo-Forge models reactive shop economies for tabletop campaigns—prices, stock, and market days from one GM hub.</p>
                 </video>
             </div>
         </section>
@@ -433,7 +454,7 @@
                     <div style="font-weight:800;">Product</div>
                     <a href="{{ url_for('main.docs') }}">Overview</a>
                     <a href="{{ url_for('main.docs', section='changelog') }}#changelog">Changelog</a>
-                    <a href="{{ url_for('main.docs', section='faq') }}#faq">Roadmap</a>
+                    <a href="{{ url_for('main.docs', section='roadmap') }}#roadmap">Roadmap</a>
                 </div>
                 <div class="footer-col">
                     <div style="font-weight:800;">Resources</div>

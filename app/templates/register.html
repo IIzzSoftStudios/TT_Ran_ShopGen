@@ -1,154 +1,9 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Register</title>
+    <title>Register - Econo-Forge</title>
     {% include 'partials/theme_head.html' %}
-
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-        }
-
-        h2 {
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        label {
-            font-size: 1rem;
-            margin-top: 10px;
-            display: block;
-            text-align: center;
-        }
-
-        input:not(.password-field input), select {
-            padding: 8px;
-            margin-top: 7px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .form-group {
-            width: 100%;
-            margin-bottom: 10px;
-        }
-
-        .password-field {
-            position: relative;
-            width: 100%;
-            margin-top: 7px;
-        }
-
-        .password-field input {
-            width: 100%;
-            padding: 8px 40px 8px 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-            display: block;
-            margin: 0;
-        }
-
-        .password-toggle {
-            position: absolute;
-            right: 6px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-            line-height: 1;
-            color: #666;
-            padding: 4px 6px;
-            z-index: 1;
-        }
-
-        .password-toggle:hover {
-            color: purple;
-        }
-
-        .password-mismatch {
-            color: #c0392b;
-            font-size: 0.9rem;
-            margin-top: 6px;
-            display: none;
-        }
-
-        button[type="submit"] {
-            background-color: purple;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 15px;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        button[type="submit"]:hover {
-            background-color: #2980b9;
-            transform: scale(1.1);
-        }
-
-        p {
-            margin-top: 15px;
-        }
-
-        .password-info {
-            display: inline-block;
-            margin-left: 4px;
-            font-weight: bold;
-            color: purple;
-            cursor: help;
-            position: relative;
-        }
-
-        .password-info::after {
-            content: "Must be at least 8 characters, include one uppercase, one lowercase, and one special character.";
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 120%;
-            background-color: rgba(15, 23, 42, 0.95);
-            color: #ffffff;
-            padding: 8px 10px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            width: 220px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease-in-out;
-            z-index: 100;
-            white-space: normal;
-        }
-
-        .password-info:hover::after,
-        .password-info:focus::after {
-            opacity: 1;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth_pages.css') }}">
     <script>
         function togglePasswordVisibility(inputId, btn) {
             const input = document.getElementById(inputId);
@@ -157,7 +12,7 @@
             input.type = show ? 'text' : 'password';
             btn.setAttribute('aria-pressed', show ? 'true' : 'false');
             btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-            btn.textContent = show ? '🙈' : '👁';
+            btn.textContent = show ? 'Hide' : 'Show';
         }
 
         function validateRegisterForm(e) {
@@ -175,57 +30,74 @@
         }
     </script>
 </head>
-<body>
-    <h2>Register</h2>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div style="width: 100%; max-width: 520px; margin-bottom: 14px;">
-                {% for category, message in messages %}
-                    <div style="padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(30, 41, 59, 0.15);">
-                        <strong>{{ category|capitalize }}:</strong> {{ message }}
-                    </div>
-                {% endfor %}
+<body class="auth-page">
+    {% include 'partials/auth_topbar.html' %}
+    <div class="auth-page-wrap">
+        <h1 class="auth-title">Register</h1>
+        <p class="auth-subtitle">Create your account with the registration key from the access form.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="auth-flash-wrap">
+                    {% for category, message in messages %}
+                        <div class="auth-flash">
+                            <strong>{{ category|capitalize }}:</strong> {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form class="auth-card" method="POST" onsubmit="return validateRegisterForm(event)">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if vault_key %}
+            <div class="info-box">
+                Your registration key is ready. Finish this form to activate your account and enter Econo-Forge.
             </div>
+            {% else %}
+            <div class="info-box">
+                You need a registration key to create an account.
+                <a href="{{ url_for('main.access_request') }}">Register For Access</a> to receive one immediately.
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label for="registration_key">Registration Key</label>
+                <input type="text" id="registration_key" name="registration_key" required placeholder="FORGE-XXXX or TEST-XXXX" value="{{ vault_key or '' }}">
+            </div>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="email">Email (required if your key is tied to an access request)</label>
+                <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" value="{{ email or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password <span class="password-info" tabindex="0" aria-label="Password requirements">!</span></label>
+                <div class="password-field">
+                    <input type="password" id="password" name="password" required autocomplete="new-password"
+                           title="Normal keys: 8+ chars with upper, lower, and special. TEST admin keys: any length.">
+                    <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password"
+                            onclick="togglePasswordVisibility('password', this)">Show</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm password</label>
+                <div class="password-field">
+                    <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password"
+                           title="Re-enter your password">
+                    <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password"
+                            onclick="togglePasswordVisibility('confirm_password', this)">Show</button>
+                </div>
+                <p id="password-mismatch" class="password-mismatch">Passwords do not match.</p>
+            </div>
+
+            <button type="submit">Register</button>
+        </form>
+        <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
+        {% if not vault_key %}
+        <p class="auth-alt-link">Need a key? <a href="{{ url_for('main.access_request') }}">Register For Access</a></p>
         {% endif %}
-    {% endwith %}
-    <form method="POST" onsubmit="return validateRegisterForm(event)">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <div class="form-group">
-            <label for="registration_key">Registration Key:</label>
-            <input type="text" id="registration_key" name="registration_key" required placeholder="FORGE-XXXX or TEST-XXXX" value="{{ vault_key or '' }}">
-        </div>
-        <div class="form-group">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-        </div>
-        <div class="form-group">
-            <label for="email">Email (required if your key is tied to an access request):</label>
-            <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" value="{{ email or '' }}">
-        </div>
-
-        <div class="form-group">
-            <label for="password">Password <span class="password-info" tabindex="0" aria-label="Password requirements">!</span>:</label>
-            <div class="password-field">
-                <input type="password" id="password" name="password" required
-                       title="Normal keys: 8+ chars with upper, lower, and special. TEST admin keys: any length.">
-                <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password"
-                        onclick="togglePasswordVisibility('password', this)">👁</button>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="confirm_password">Confirm password:</label>
-            <div class="password-field">
-                <input type="password" id="confirm_password" name="confirm_password" required
-                       title="Re-enter your password">
-                <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password"
-                        onclick="togglePasswordVisibility('confirm_password', this)">👁</button>
-            </div>
-            <p id="password-mismatch" class="password-mismatch">Passwords do not match.</p>
-        </div>
-
-        <button type="submit">Register</button>
-    </form>
-    <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
+    </div>
 </body>
 </html>

@@ -22,7 +22,7 @@ from app.services.key_generator import generate_secure_code
 main_bp = Blueprint("main", __name__)
 
 _ready_logger = logging.getLogger(__name__)
-AUTO_ACCESS_PHASE = "default"
+AUTO_ACCESS_PHASE = "alpha"
 
 
 @main_bp.route("/healthz")
@@ -96,6 +96,7 @@ _DOCS_SECTIONS = frozenset(
         "gm-hub",
         "player",
         "items",
+        "roadmap",
         "changelog",
         "terms",
         "privacy",
@@ -208,8 +209,7 @@ def _generate_unique_access_key(phase_slug: str) -> str:
 
 @main_bp.route("/thank-you")
 def thank_you():
-    ruleset = (request.args.get("ruleset") or "").strip()
-    return render_template("thank_you.html", ruleset=ruleset)
+    return redirect(url_for("main.access_request"))
 
 
 @main_bp.route("/campaigns")

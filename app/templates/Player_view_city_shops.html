@@ -18,14 +18,14 @@
             min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            background-color: var(--color-bg);
             padding-bottom: 40px;
         }
 
         /* Styling for the heading */
         h1 {
             font-size: 2.5rem;
-            color: black;
+            color: var(--color-text);
             margin-top: 20px;
             margin-bottom: 20px;
         }
@@ -40,8 +40,8 @@
 
         /* Button Styling */
         .button {
-            background-color: purple;
-            color: white;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
             border: none;
             padding: 10px 20px;
             border-radius: 5px;
@@ -52,7 +52,7 @@
         }
 
         .button:hover {
-            background-color: #2980b9;
+            background-color: var(--color-accent-hover);
             transform: scale(1.1);
         }
 
@@ -61,7 +61,7 @@
             text-align: center;
             padding: 20px;
             font-size: 1.5rem;
-            color: purple;
+            color: var(--color-accent);
             margin-bottom: 20px;
         }
 
@@ -72,7 +72,7 @@
 
         /* Shop Info */
         .shop-info {
-            background-color: white;
+            background-color: var(--color-surface);
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -84,12 +84,12 @@
         .shop-name {
             font-size: 1.5rem;
             font-weight: bold;
-            color: purple;
+            color: var(--color-accent);
             margin-bottom: 10px;
         }
 
         .shop-type {
-            color: #666;
+            color: var(--color-muted);
             font-size: 1.1rem;
         }
 
@@ -97,7 +97,7 @@
         .items-table {
             width: 80%;
             max-width: 1000px;
-            background-color: white;
+            background-color: var(--color-surface);
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             overflow: hidden;
@@ -111,20 +111,20 @@
         th, td {
             padding: 15px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--color-border);
         }
 
         th {
-            background-color: purple;
-            color: white;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
         }
 
         tr:nth-child(even) {
-            background-color: #f4f4f4;
+            background-color: var(--color-bg);
         }
 
         tr:nth-child(odd) {
-            background-color: white;
+            background-color: var(--color-surface);
         }
 
         tr:hover {
@@ -388,9 +388,8 @@
     </div>
 
     <div class="button-container">
-        <a href="{{ url_for('player.view_city', city_id=city.city_id) }}" class="button">Back to City</a>
-        <a href="{{ url_for('player.view_cities') }}" class="button">All Cities</a>
-        <a href="{{ url_for('player.player_home') }}" class="button">Back to Home</a>
+        <a href="{{ url_for('player.player_home') }}#player-shops-browse" class="button">Browse Shops</a>
+        <a href="{{ url_for('player.player_home') }}" class="button">Back to Dashboard</a>
     </div>
 
     <div class="shop-info">

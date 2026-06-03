@@ -17,7 +17,7 @@
 
         .market-panel {
             flex: 0 0 350px;
-            background: white;
+            background: var(--color-surface);
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             padding: 20px;
@@ -36,7 +36,7 @@
 
         .section {
             flex: 1;
-            background: white;
+            background: var(--color-surface);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -137,7 +137,7 @@
         }
 
         .stat-card {
-            background: #f8f9fa;
+            background: var(--color-bg);
             border-radius: 6px;
             padding: 10px 6px;
             text-align: center;
@@ -146,7 +146,7 @@
 
         .stat-key {
             font-weight: bold;
-            color: purple;
+            color: var(--color-accent);
             margin-bottom: 4px;
             overflow-wrap: break-word;
             word-break: break-word;
@@ -287,14 +287,14 @@
         }
 
         .slot-outline {
-            fill: #eee;
-            stroke: #ccc;
+            fill: var(--color-table-stripe);
+            stroke: var(--color-border);
             stroke-width: 2;
         }
 
         .slot-equipped {
-            fill: #c5a3ff;
-            stroke: purple;
+            fill: var(--color-accent);
+            stroke: var(--color-accent-hover);
             stroke-width: 2;
         }
 
@@ -305,14 +305,14 @@
         .body-svg [data-slot].slot-equipped,
         .body-svg [data-slot] .slot-equipped,
         .body-svg .visual-layer .slot-equipped {
-            fill: #b286ff;
-            stroke: #5a189a;
+            fill: var(--color-accent);
+            stroke: var(--color-accent-hover);
             stroke-width: 3;
-            filter: drop-shadow(0 0 3px rgba(138, 43, 226, 0.55));
+            filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-accent) 55%, transparent));
         }
 
         .currency-container {
-            background: #f8f9fa;
+            background: var(--color-bg);
             padding: 15px;
             border-radius: 5px;
             margin-bottom: 20px;
@@ -371,25 +371,25 @@
         .inventory-table td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--color-border);
         }
 
         .inventory-table th {
-            background-color: purple;
-            color: white;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
         }
 
         .inventory-table tr:nth-child(even) {
-            background-color: #f8f9fa;
+            background-color: var(--color-bg);
         }
 
         .inventory-table tr:hover {
-            background-color: #f0f0f0;
+            background-color: var(--color-table-hover, var(--color-bg));
         }
 
         .item-quantity {
             font-weight: bold;
-            color: purple;
+            color: var(--color-accent);
         }
 
         .item-name {
@@ -397,7 +397,7 @@
         }
 
         .item-type {
-            color: #666;
+            color: var(--color-muted);
             font-size: 0.9em;
         }
 
@@ -408,7 +408,7 @@
             font-weight: bold;
         }
 
-        .rarity-common { background-color: #e0e0e0; }
+        .rarity-common { background-color: var(--color-border); color: var(--color-text); }
         .rarity-uncommon { background-color: #90EE90; }
         .rarity-rare { background-color: #87CEEB; }
         .rarity-very-rare { background-color: #DDA0DD; }
@@ -418,7 +418,7 @@
         .empty-state {
             text-align: center;
             padding: 40px;
-            color: #666;
+            color: var(--color-muted);
         }
 
         .empty-state p {
@@ -427,7 +427,7 @@
 
         .small-text {
             font-size: 0.9em;
-            color: #999;
+            color: var(--color-muted);
         }
 
         .city-list {
@@ -437,7 +437,7 @@
 
         .city-list li {
             padding: 15px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--color-border);
             margin-bottom: 10px;
             border-radius: 5px;
             cursor: pointer;
@@ -445,17 +445,17 @@
         }
 
         .city-list li:hover {
-            background-color: #f8f9fa;
+            background-color: var(--color-bg);
             transform: translateX(5px);
         }
 
         .city-name {
             font-weight: bold;
-            color: purple;
+            color: var(--color-accent);
         }
 
         .city-details {
-            color: #666;
+            color: var(--color-muted);
             font-size: 0.9em;
             margin-top: 5px;
         }
@@ -465,8 +465,8 @@
         }
 
         .button {
-            background-color: purple;
-            color: white;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
             border: none;
             padding: 8px 16px;
             border-radius: 4px;
@@ -477,7 +477,7 @@
         }
 
         .button:hover {
-            background-color: #6a1b9a;
+            background-color: var(--color-accent-hover);
         }
 
         .nav-buttons {
@@ -489,8 +489,8 @@
         }
 
         .nav-button {
-            background-color: #666;
-            color: white;
+            background-color: var(--color-muted);
+            color: var(--color-accent-contrast);
             border: none;
             padding: 8px 16px;
             border-radius: 4px;
@@ -498,7 +498,7 @@
         }
 
         .nav-button:hover {
-            background-color: #555;
+            background-color: var(--color-muted);
         }
 
         details.nav-code-panel {
@@ -519,8 +519,8 @@
             min-width: 300px;
             max-width: 420px;
             padding: 14px;
-            background: #fff;
-            color: #333;
+            background: var(--color-surface);
+            color: var(--color-text);
             border-radius: 8px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.25);
             text-align: left;
@@ -545,13 +545,13 @@
             padding: 10px 12px;
             border-radius: 8px;
             margin-bottom: 8px;
-            background: #fff8e1;
-            color: #3d2c00;
-            border: 1px solid #f0d98c;
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
         }
 
         .search-section {
-            background: white;
+            background: var(--color-surface);
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -578,20 +578,20 @@
         .filter-label {
             display: block;
             margin-bottom: 5px;
-            color: #666;
+            color: var(--color-muted);
         }
 
         .filter-select {
             width: 100%;
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--color-border);
             border-radius: 4px;
             font-size: 14px;
         }
 
         .search-button {
-            background-color: purple;
-            color: white;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
             border: none;
             padding: 8px 20px;
             border-radius: 4px;
@@ -602,11 +602,11 @@
         }
 
         .search-button:hover {
-            background-color: #6a1b9a;
+            background-color: var(--color-accent-hover);
         }
 
         .results-section {
-            background: white;
+            background: var(--color-surface);
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -623,20 +623,20 @@
         .results-table td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--color-border);
         }
 
         .results-table th {
-            background-color: purple;
-            color: white;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
         }
 
         .results-table tr:nth-child(even) {
-            background-color: #f8f9fa;
+            background-color: var(--color-bg);
         }
 
         .results-table tr:hover {
-            background-color: #f0f0f0;
+            background-color: var(--color-table-hover, var(--color-bg));
         }
 
         .stock-status {
@@ -644,15 +644,15 @@
         }
 
         .in-stock {
-            color: green;
+            color: var(--color-success);
         }
 
         .low-stock {
-            color: orange;
+            color: var(--color-warning);
         }
 
         .out-of-stock {
-            color: red;
+            color: var(--color-danger);
         }
 
         /* Add styles for sell button and quantity input */
@@ -663,8 +663,8 @@
         }
 
         .sell-button {
-            background-color: #dc3545;
-            color: white;
+            background-color: var(--color-danger);
+            color: var(--color-accent-contrast);
             border: none;
             padding: 4px 8px;
             border-radius: 4px;
@@ -673,37 +673,37 @@
         }
 
         .sell-button:hover {
-            background-color: #c82333;
+            background-color: var(--color-danger-hover);
         }
 
         .sell-button:disabled {
-            background-color: #6c757d;
+            background-color: var(--color-muted);
             cursor: not-allowed;
         }
 
         .quantity-input {
             width: 60px;
             padding: 4px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--color-border);
             border-radius: 4px;
             font-size: 0.9em;
         }
 
         .sell-price {
-            color: #28a745;
+            color: var(--color-success);
             font-weight: bold;
         }
 
         .sell-error {
-            color: #dc3545;
+            color: var(--color-danger);
             font-size: 0.9em;
             margin-top: 4px;
         }
 
         /* Market Visualization Styles */
         .market-header {
-            background: linear-gradient(135deg, #6a1b9a, #8e24aa);
-            color: white;
+            background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
+            color: var(--color-accent-contrast);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -720,27 +720,27 @@
             display: flex;
             align-items: center;
             padding: 12px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--color-border);
             border-radius: 6px;
             margin-bottom: 10px;
-            background: #fafafa;
+            background: var(--color-surface);
             transition: all 0.3s ease;
         }
 
         .market-item:hover {
-            background: #f0f0f0;
+            background: var(--color-table-hover);
             transform: translateX(2px);
         }
 
         .item-icon {
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, #6a1b9a, #8e24aa);
+            background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: var(--color-accent-contrast);
             font-weight: bold;
             font-size: 0.9em;
             margin-right: 12px;
@@ -754,13 +754,13 @@
 
         .item-name {
             font-weight: bold;
-            color: #333;
+            color: var(--color-text);
             margin-bottom: 4px;
             font-size: 0.9em;
         }
 
         .item-price {
-            color: #6a1b9a;
+            color: var(--color-accent);
             font-weight: bold;
             font-size: 1.1em;
         }
@@ -780,31 +780,31 @@
         }
 
         .change-positive {
-            background: #d4edda;
-            color: #155724;
+            background: var(--color-table-stripe);
+            color: var(--color-success);
         }
 
         .change-negative {
-            background: #f8d7da;
-            color: #721c24;
+            background: var(--color-table-stripe);
+            color: var(--color-danger);
         }
 
         .change-neutral {
-            background: #e2e3e5;
-            color: #383d41;
+            background: var(--color-table-stripe);
+            color: var(--color-muted);
         }
 
         .price-bar {
             flex: 1;
             height: 4px;
-            background: #e0e0e0;
+            background: var(--color-border);
             border-radius: 2px;
             overflow: hidden;
         }
 
         .price-bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, #6a1b9a, #8e24aa);
+            background: linear-gradient(90deg, var(--color-accent), var(--color-accent-hover));
             border-radius: 2px;
             transition: width 0.3s ease;
         }
@@ -812,8 +812,8 @@
         .mini-chart {
             width: 60px;
             height: 30px;
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
             border-radius: 3px;
             margin-left: 8px;
             position: relative;
@@ -826,7 +826,7 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, #6a1b9a, #8e24aa);
+            background: linear-gradient(90deg, var(--color-accent), var(--color-accent-hover));
         }
 
         .chart-dots {
@@ -842,14 +842,14 @@
             position: absolute;
             width: 3px;
             height: 3px;
-            background: #6a1b9a;
+            background: var(--color-accent);
             border-radius: 50%;
             top: 50%;
             transform: translateY(-50%);
         }
 
         .market-stats {
-            background: #f8f9fa;
+            background: var(--color-bg);
             padding: 10px;
             border-radius: 6px;
             margin-top: 15px;
@@ -859,7 +859,7 @@
         .market-stats p {
             margin: 5px 0;
             font-size: 0.9em;
-            color: #666;
+            color: var(--color-muted);
         }
 
         /* Responsive Design */
@@ -921,22 +921,22 @@
            from the GM panel if player-side ergonomics diverge later.
            ------------------------------------------------------------ */
         .player-shops-browse-panel {
-            background: white;
+            background: var(--color-surface);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            color: #212529;
+            color: var(--color-text);
         }
 
         .player-shops-browse-panel h2 {
             margin-top: 0;
-            color: #212529;
+            color: var(--color-text);
         }
 
         .player-shops-browse-panel .browse-note {
-            background: #e7f1ff;
-            border: 1px solid #b8d4f0;
-            color: #1a3a5c;
+            background: var(--color-table-stripe);
+            border: 1px solid var(--color-border);
+            color: var(--color-text);
             padding: 12px 14px;
             border-radius: 6px;
             margin-bottom: 18px;
@@ -951,15 +951,15 @@
             gap: 10px 14px;
             margin-bottom: 16px;
             padding: 10px 12px;
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
             border-radius: 6px;
         }
 
         .player-shops-browse-panel .region-filter-label {
             font-size: 14px;
             font-weight: 600;
-            color: #343a40;
+            color: var(--color-text);
             margin: 0;
         }
 
@@ -968,10 +968,10 @@
             max-width: 100%;
             padding: 8px 10px;
             font-size: 14px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--color-input-border);
             border-radius: 6px;
-            background: #fff;
-            color: #212529;
+            background: var(--color-surface);
+            color: var(--color-text);
         }
 
         .player-shops-browse-panel .city-list {
@@ -995,8 +995,8 @@
             align-items: center;
             gap: 12px 16px;
             padding: 12px;
-            background: #fff;
-            border: 1px solid #ddd;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
             border-radius: 5px;
             cursor: pointer;
             font-weight: normal;
@@ -1009,7 +1009,7 @@
         .player-shops-browse-panel .city-block > summary::before {
             content: "\25B6";
             font-size: 0.65rem;
-            color: #6c757d;
+            color: var(--color-muted);
             transition: transform 0.15s ease;
             flex-shrink: 0;
         }
@@ -1026,12 +1026,12 @@
         .player-shops-browse-panel .city-name {
             font-size: 1.05rem;
             font-weight: 700;
-            color: #000;
+            color: var(--color-text);
         }
 
         .player-shops-browse-panel .city-meta {
             font-size: 0.95rem;
-            color: #333;
+            color: var(--color-text);
             flex: 1 1 auto;
             min-width: 140px;
         }
@@ -1043,29 +1043,29 @@
             padding: 6px 10px;
             font-size: 0.95rem;
             font-weight: 600;
-            color: #000;
-            background: #f9f9f9;
-            border: 1px solid #ddd;
+            color: var(--color-text);
+            background: var(--color-table-stripe);
+            border: 1px solid var(--color-border);
             border-radius: 4px;
             margin-left: auto;
         }
 
         .player-shops-browse-panel .city-panel {
             padding: 0;
-            border: 1px solid #ddd;
+            border: 1px solid var(--color-border);
             border-top: none;
             border-radius: 0 0 5px 5px;
-            background: #fff;
+            background: var(--color-surface);
         }
 
         .player-shops-browse-panel .empty-city {
             padding: 16px;
-            color: #6c757d;
+            color: var(--color-muted);
             font-size: 0.95rem;
         }
 
         .player-shops-browse-panel .shop-block {
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--color-border);
         }
 
         .player-shops-browse-panel .shop-block:last-child {
@@ -1073,11 +1073,11 @@
         }
 
         .player-shops-browse-panel .city-panel > .shop-block:nth-child(2n + 2) > summary {
-            background-color: #fff;
+            background-color: var(--color-surface);
         }
 
         .player-shops-browse-panel .city-panel > .shop-block:nth-child(2n + 3) > summary {
-            background-color: #f9f9f9;
+            background-color: var(--color-table-stripe);
         }
 
         .player-shops-browse-panel .shop-block > summary {
@@ -1089,8 +1089,8 @@
             padding: 12px;
             cursor: pointer;
             font-weight: normal;
-            background: #fff;
-            border-bottom: 1px solid #ddd;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
         }
 
         .player-shops-browse-panel .shop-block > summary::-webkit-details-marker {
@@ -1100,7 +1100,7 @@
         .player-shops-browse-panel .shop-block > summary::before {
             content: "\25B6";
             font-size: 0.6rem;
-            color: #adb5bd;
+            color: var(--color-muted);
             flex-shrink: 0;
             width: 1rem;
             transition: transform 0.15s ease;
@@ -1112,14 +1112,14 @@
 
         .player-shops-browse-panel .shop-name {
             font-weight: 600;
-            color: #000;
+            color: var(--color-text);
             flex: 1 1 auto;
             min-width: 120px;
         }
 
         .player-shops-browse-panel .shop-type {
             font-size: 0.9rem;
-            color: #555;
+            color: var(--color-muted);
         }
 
         .player-shops-browse-panel .item-count {
@@ -1129,17 +1129,17 @@
             padding: 4px 10px;
             font-size: 0.95rem;
             font-weight: 600;
-            color: #000;
-            background: #f9f9f9;
-            border: 1px solid #ddd;
+            color: var(--color-text);
+            background: var(--color-table-stripe);
+            border: 1px solid var(--color-border);
             border-radius: 4px;
             margin-left: auto;
         }
 
         .player-shops-browse-panel .shop-items {
             padding: 0 12px 12px 2.25rem;
-            background: #fff;
-            border-top: 1px solid #ddd;
+            background: var(--color-surface);
+            border-top: 1px solid var(--color-border);
         }
 
         .player-shops-browse-panel .shop-items-table {
@@ -1152,12 +1152,12 @@
         .player-shops-browse-panel .shop-items-table td {
             padding: 8px 10px;
             text-align: left;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--color-border);
         }
 
         .player-shops-browse-panel .shop-items-table th {
-            background-color: purple;
-            color: #fff;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
             font-weight: 600;
         }
 
@@ -1166,8 +1166,8 @@
         }
 
         .player-shops-browse-panel .browse-buy-button {
-            background-color: purple;
-            color: #fff;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
             border: none;
             padding: 6px 12px;
             border-radius: 4px;
@@ -1176,12 +1176,12 @@
         }
 
         .player-shops-browse-panel .browse-buy-button:disabled {
-            background-color: #999;
+            background-color: var(--color-muted);
             cursor: not-allowed;
         }
 
         .player-shops-browse-panel .browse-buy-button:not(:disabled):hover {
-            background-color: #6d1f6d;
+            background-color: var(--color-accent-hover);
         }
 
         .player-shops-browse-panel .stock-status {
@@ -1193,24 +1193,37 @@
         }
 
         .player-shops-browse-panel .stock-status.in-stock {
-            background: #d4edda;
-            color: #155724;
+            background: var(--color-table-stripe);
+            color: var(--color-success);
         }
 
         .player-shops-browse-panel .stock-status.low-stock {
-            background: #fff3cd;
-            color: #856404;
+            background: var(--color-table-stripe);
+            color: var(--color-warning);
         }
 
         .player-shops-browse-panel .stock-status.out-of-stock {
-            background: #f8d7da;
-            color: #721c24;
+            background: var(--color-table-stripe);
+            color: var(--color-danger);
         }
 
         /* Purchase toast: matches the slide-in flash style used on
            GM_Home.html so player-side buy errors surface with the same
            motion/visual language instead of a plain blocking alert(). */
-        .purchase-toast-stack {
+        .equipment-tooltip {
+            display: none;
+            position: absolute;
+            background: color-mix(in srgb, var(--color-surface) 92%, var(--color-text));
+            color: var(--color-text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            max-width: 200px;
+            z-index: 10;
+            box-shadow: var(--shadow-panel, 0 4px 12px rgba(0,0,0,0.3));
+            pointer-events: none;
+            border: 1px solid var(--color-border);
+        }
             position: fixed;
             top: 20px;
             right: 20px;
@@ -1225,14 +1238,14 @@
             max-width: 360px;
             padding: 12px 16px;
             border-radius: 6px;
-            color: white;
+            color: var(--color-accent-contrast);
             font-weight: 600;
             box-shadow: 0 4px 14px rgba(0,0,0,0.18);
             animation: purchase-toast-slide-in 0.3s ease-out;
             pointer-events: auto;
         }
-        .purchase-toast.error { background-color: #f44336; }
-        .purchase-toast.success { background-color: #4CAF50; }
+        .purchase-toast.error { background-color: var(--color-danger); }
+        .purchase-toast.success { background-color: var(--color-success); }
         .purchase-toast.fade-out {
             animation: purchase-toast-fade-out 0.3s ease-in forwards;
         }
@@ -1638,7 +1651,7 @@
                 <div class="section">
                     <div class="body-equipment-row">
                         <div class="body-model-container" style="position: relative;">
-                            <div id="equipmentTooltip" class="equipment-tooltip" style="display: none; position: absolute; background: rgba(30,30,46,0.95); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 200px; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none;"></div>
+                            <div id="equipmentTooltip" class="equipment-tooltip"></div>
                             <svg class="body-svg" viewBox="0 0 120 260" id="characterBodySvg">
                                 <!-- Base outline layers -->
                                 <g id="slot-head" data-slot="head"><circle cx="60" cy="40" r="18" class="slot-outline" /></g>
@@ -1674,7 +1687,7 @@
                             <h3 style="margin: 0 0 8px 0;">Equipment</h3>
                             <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9em;">
                                 {% for slot in character.equipment_slots|default([]) %}
-                                <li style="display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #eee;">
+                                <li style="display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--color-border);">
                                     <span>{{ slot.slot_name|replace('_', ' ')|title }}: {% if slot.item %}{{ slot.item.name }}{% else %}—{% endif %}</span>
                                     {% if slot.item %}
                                     <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST" style="display: inline;">
@@ -1697,7 +1710,7 @@
                 <div class="currency-container">
                     Your Funds: <span id="playerCurrency">{{ player_currency }}</span> Currency
                     {% if player_has_active_campaign %}
-                    <a href="{{ url_for('player.view_market') }}" class="button" style="margin-left: 10px;">Visit Market</a>
+                    <a href="#player-shops-browse" class="button" style="margin-left: 10px;">Browse Shops</a>
                     {% else %}
                     <span class="small-text" style="margin-left: 10px;">Join a campaign to visit the market.</span>
                     {% endif %}
@@ -1773,7 +1786,7 @@
                  filter-based Search Items / Search Results UI). Mirrors the
                  GM Shops-by-city panel so players and GMs share the same
                  mental model when browsing campaign inventory. -->
-            <div class="player-shops-browse-panel">
+            <div class="player-shops-browse-panel" id="player-shops-browse">
                 <h2>Shops by city</h2>
                 <div class="browse-note">
                     <strong>Tip:</strong> Expand a city to see its shops, then expand a shop to browse items. Buy purchases a single unit; visit the shop page for bulk purchases.

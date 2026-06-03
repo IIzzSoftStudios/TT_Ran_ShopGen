@@ -366,70 +366,12 @@ def view_shop(shop_id):
         return redirect(url_for('player.player_home'))
 
 @player_bp.route("/shops")
-@login_required
-def view_shops():
-    try:
-        player = get_active_player(current_user)
-        if not player:
-            flash('Player profile not found.', 'error')
-            return redirect(url_for('player.player_home'))
-        if player.campaign_id is None:
-            return _redirect_solo_vault_to_character()
-
-        shops = (
-            Shop.query.filter_by(campaign_id=player.campaign_id)
-            .options(db.joinedload(Shop.cities))
-            .all()
-        )
-        return render_template('Player_view_shops.html', shops=shops)
-    except Exception as e:
-        print(f"[ERROR] Error viewing shops: {e}")
-        flash('An error occurred while viewing shops.', 'error')
-        return redirect(url_for('player.player_home'))
-
-# City routes
 @player_bp.route("/cities")
-@login_required
-def view_cities():
-    try:
-        player = get_active_player(current_user)
-        if not player:
-            flash('Player profile not found.', 'error')
-            return redirect(url_for('player.player_home'))
-        if player.campaign_id is None:
-            return _redirect_solo_vault_to_character()
-
-        cities = City.query.filter_by(campaign_id=player.campaign_id).all()
-        return render_template('Player_city_view.html', cities=cities)
-    except Exception as e:
-        print(f"[ERROR] Error viewing cities: {e}")
-        flash('An error occurred while viewing cities.', 'error')
-        return redirect(url_for('player.player_home'))
-
 @player_bp.route("/cities/<int:city_id>")
 @login_required
-def view_city(city_id):
-    try:
-        player = get_active_player(current_user)
-        if not player:
-            flash('Player profile not found.', 'error')
-            return redirect(url_for('player.player_home'))
-        if player.campaign_id is None:
-            return _redirect_solo_vault_to_character()
-
-        city = City.query.filter_by(
-            city_id=city_id, campaign_id=player.campaign_id
-        ).first()
-        if not city:
-            flash('You do not have access to this city.', 'error')
-            return redirect(url_for('player.player_home'))
-
-        shops = city.shops
-        return render_template('Player_city_view.html', city=city, shops=shops)
-    except Exception as e:
-        print(f"[ERROR] Error viewing city: {e}")
-        flash('An error occurred while viewing the city.', 'error')
-        return redirect(url_for('player.player_home'))
+def legacy_player_browse_redirect(city_id=None):
+    """Retired list/browse pages — player home includes the shop browse panel."""
+    return redirect(url_for("player.player_home"))
 
 # Home route last (least specific)
 @player_bp.route("/home")
@@ -942,42 +884,8 @@ def _ajax_or_redirect(message, success=False, error=False, extra=None):
 @player_bp.route("/market")
 @login_required
 def view_market():
-    try:
-        player = get_active_player(current_user)
-        if not player:
-            flash('Player profile not found.', 'error')
-            return redirect(url_for('player.player_home'))
-        if player.campaign_id is None:
-            return _redirect_solo_vault_to_character()
-
-        campaign_id = player.campaign_id
-
-        shops = Shop.query.filter_by(campaign_id=campaign_id).all()
-
-        items = (
-            db.session.query(Item)
-            .filter(
-                Item.item_id.in_(
-                    db.session.query(ShopInventory.item_id)
-                    .join(Shop, Shop.shop_id == ShopInventory.shop_id)
-                    .filter(Shop.campaign_id == campaign_id)
-                )
-            )
-            .all()
-        )
-
-        return render_template(
-            'Player_market_view.html',
-            player=player,
-            shops=shops,
-            items=items
-        )
-    except Exception as e:
-        print(f"[ERROR] Error viewing market: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
-        flash('An error occurred while viewing the market.', 'error')
-        return redirect(url_for('player.player_home'))
+    """Retired market stub — browse shops from the player dashboard."""
+    return redirect(url_for("player.player_home"))
 
 @player_bp.route("/api/market-data")
 @login_required

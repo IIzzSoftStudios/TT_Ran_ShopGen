@@ -36,6 +36,7 @@ from app.models import (
     SimulationState,
 )
 from app.services.economy import calculate_dynamic_price
+from app.services.economy.demand import DemandContext, load_active_modifiers_for_campaign
 from app.services.economy.supply_demand import (
     apply_supply_demand_to_inventory_rows,
     backfill_shop_restock_schedules,
@@ -191,6 +192,11 @@ class SimulationEngine:
             price_history_rows: List[Dict] = []
             state_blob: Dict[str, Dict] = {}
 
+            active_modifiers = load_active_modifiers_for_campaign(campaign_id)
+            demand_context = DemandContext.from_modifiers(
+                campaign_id, active_modifiers
+            )
+
             prev_autoflush = db.session.autoflush
             db.session.autoflush = False
             t_compute_start = perf_counter()
@@ -216,6 +222,7 @@ class SimulationEngine:
                                 campaign_id,
                                 item_id=inventory.item_id,
                                 rng=local_rng,
+                                demand_context=demand_context,
                             )
                             prices.append(p)
                         new_price = round(sum(prices) / len(prices), 2)
@@ -229,6 +236,7 @@ class SimulationEngine:
                             campaign_id,
                             item_id=inventory.item_id,
                             rng=local_rng,
+                            demand_context=demand_context,
                         )
 
                     inventory.dynamic_price = new_price

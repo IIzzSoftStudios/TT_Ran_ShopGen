@@ -90,6 +90,30 @@ def test_player_mode_requires_character_403(client):
         assert resp.status_code == 403
 
 
+def test_campaign_selection_splits_gm_and_player_sections(client):
+    with flask_app.app_context():
+        user = _make_user("both-selector", role="Both")
+        gm_campaign = _make_gm_campaign(user, name="Owned Campaign")
+        other_gm = _make_user("other-gm", role="GM")
+        joined_campaign = _make_gm_campaign(other_gm, name="Joined Campaign")
+        db.session.add(
+            Player(user_id=user.id, campaign_id=joined_campaign.id, currency=0, is_npc=False)
+        )
+        db.session.commit()
+
+        seed_client_session(client, user)
+        resp = client.get("/campaigns")
+
+    assert resp.status_code == 200
+    body = resp.data
+    assert b"GM Campaigns" in body
+    assert b"Player Campaigns" in body
+    assert b"Owned Campaign" in body
+    assert b"Joined Campaign" in body
+    assert f"/campaigns/load/{gm_campaign.id}?as=gm".encode("utf-8") in body
+    assert f"/campaigns/load/{joined_campaign.id}?as=player".encode("utf-8") in body
+
+
 def test_session_mode_home_routing_gm(client):
     with flask_app.app_context():
         gm = _make_user("gm-home", role="GM")

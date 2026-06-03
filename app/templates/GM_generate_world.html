@@ -892,7 +892,7 @@
             } catch (err) { /* keep default */ }
 
             if (window.console && console.info) {
-                console.info("[TT Shop Gen] POST " + postPath + " (fetch; watch server stderr for POST started)");
+                console.info("[Econo-Forge] POST " + postPath + " (fetch; watch server stderr for POST started)");
             }
 
             var headers = {};
@@ -947,7 +947,7 @@
                         progressEl.textContent = "Could not reach the server: " + msg;
                     }
                     if (window.console && console.error) {
-                        console.error("[TT Shop Gen] generate_world fetch failed", err);
+                        console.error("[Econo-Forge] generate_world fetch failed", err);
                     }
                 });
         });

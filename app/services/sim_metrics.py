@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Keys (single keyspace prefix so an operator can `KEYS metrics:sim:*`).
 _RUNNING_KEY = "metrics:sim:running"            # INCR / DECR
 _DURATIONS_KEY = "metrics:sim:durations"        # capped LIST of recent seconds
+_TICK_DURATIONS_KEY = "metrics:sim:tick_durations"  # per-tick seconds (isolated from batch)
 _TERMINAL_KEY = "metrics:sim:terminal:{status}" # INCR per terminal status
 _BROKER_QUEUE = "celery"                        # Default Celery list name
 
@@ -100,6 +101,27 @@ def record_job_rejected(period: str, status: str) -> None:
     _bump_terminal(client, status)
 
 
+def record_tick_duration(duration_seconds: float) -> None:
+    """Append a single tick duration sample to Redis (outside DB transactions)."""
+    client = get_redis_client()
+    if client is None:
+        return
+
+    try:
+        cap_val = int(os.getenv("METRICS_DURATIONS_CAP", "256"))
+    except (ValueError, TypeError):
+        cap_val = 256
+
+    duration = max(0.0, float(duration_seconds))
+    try:
+        pipe = client.pipeline(transaction=False)
+        pipe.lpush(_TICK_DURATIONS_KEY, f"{duration:.6f}")
+        pipe.ltrim(_TICK_DURATIONS_KEY, 0, cap_val - 1)
+        pipe.execute()
+    except RedisError as exc:
+        logger.warning("sim_metrics: tick duration push failed: %s", exc)
+
+
 def _bump_terminal(client, status: str) -> None:
     terminal_key = _TERMINAL_KEY.format(status=status)
     _safe(client.incr, terminal_key)
@@ -120,6 +142,7 @@ def snapshot() -> Dict[str, Any]:
     running = _safe(client.get, _RUNNING_KEY)
     queue_depth = _safe(client.llen, _BROKER_QUEUE)
     raw_durations = _safe(client.lrange, _DURATIONS_KEY, 0, -1) or []
+    raw_tick_durations = _safe(client.lrange, _TICK_DURATIONS_KEY, 0, -1) or []
 
     durations: list[float] = []
     by_period: Dict[str, list[float]] = {}
@@ -131,6 +154,16 @@ def snapshot() -> Dict[str, Any]:
             continue
         durations.append(d)
         by_period.setdefault(period, []).append(d)
+
+    tick_durations: list[float] = []
+    for sample in raw_tick_durations:
+        try:
+            decoded = (
+                sample.decode("utf-8") if isinstance(sample, bytes) else sample
+            )
+            tick_durations.append(float(decoded))
+        except (ValueError, TypeError, AttributeError):
+            continue
 
     terminal_counts: Dict[str, int] = {}
     for status in ("success", "error", "lock_lost", "busy"):
@@ -154,6 +187,12 @@ def snapshot() -> Dict[str, Any]:
                 }
                 for period, values in by_period.items()
             },
+        },
+        "tick_durations_seconds": {
+            "samples": len(tick_durations),
+            "p50": _percentile(tick_durations, 0.50),
+            "p90": _percentile(tick_durations, 0.90),
+            "p99": _percentile(tick_durations, 0.99),
         },
         "terminal_counts": terminal_counts,
     }

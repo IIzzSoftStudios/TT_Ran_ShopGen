@@ -180,10 +180,14 @@ def select_campaign():
 
         solo_characters = _build_solo_characters_for_user(current_user)
         show_redeem_only = not campaigns and not solo_characters
+        gm_campaigns = [c for c in campaigns if c.get("type") == "GM"]
+        player_campaigns = [c for c in campaigns if c.get("type") == "Player"]
 
         return render_template(
             "campaign_selection.html",
             campaigns=campaigns,
+            gm_campaigns=gm_campaigns,
+            player_campaigns=player_campaigns,
             solo_characters=solo_characters,
             show_redeem_only=show_redeem_only,
             **_campaign_limit_context_for_user(current_user),

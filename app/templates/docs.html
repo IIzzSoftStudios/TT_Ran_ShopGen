@@ -427,6 +427,7 @@
                         <li><a href="#player" data-section="player">Player Use</a></li>
                         <li><a href="#items" data-section="items">Item &amp; Inventory Concepts</a></li>
                         <li class="docs-nav-heading" aria-hidden="true">Updates</li>
+                        <li><a href="#roadmap" data-section="roadmap">Roadmap</a></li>
                         <li><a href="#changelog" data-section="changelog">Changelog</a></li>
                         <li class="docs-nav-heading" aria-hidden="true">Policies</li>
                         <li><a href="#terms" data-section="terms">Terms of Service</a></li>
@@ -465,6 +466,7 @@
                         <li><strong>GM Management Hub</strong> — campaigns, world generation, simulation, and players</li>
                         <li><strong>Player Use</strong> — joining a campaign, browsing shops, and inventory</li>
                         <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, and game-day ticks</li>
+                        <li><strong>Roadmap</strong> — what we are improving next for GMs and players</li>
                         <li><strong>Changelog</strong> — release notes for the live tech demo</li>
                         <li><strong>Terms &amp; Privacy</strong> — general site rules and privacy notes</li>
                         <li><strong>FAQ</strong> — limitations, rulesets, and infrastructure expectations</li>
@@ -478,20 +480,20 @@
                     aria-labelledby="heading-getting-started" hidden>
                     <h2 id="heading-getting-started">Getting Started</h2>
                     <p>
-                        Econo-Forge is in early access. New accounts typically flow through a request-and-approval
-                        step before you can register and log in.
+                        Econo-Forge is in early access. Submit the access form to receive a registration key and
+                        continue straight to account creation.
                     </p>
-                    <h3>1. Request access</h3>
+                    <h3>1. Get your registration key</h3>
                     <p>
                         From the landing page, choose <strong>Register For Access</strong> and submit the form at
-                        <a href="{{ url_for('main.access_request') }}">Request Access</a>. Tell us whether you are a
-                        GM, player, or both, and which ruleset you run. Your request is recorded and an access key
-                        is issued automatically so you can continue to account creation.
+                        <a href="{{ url_for('main.access_request') }}">Register For Access</a>. Tell us whether you are a
+                        GM, player, or both, and which ruleset you run. Your registration key is issued immediately
+                        and you are redirected straight to account creation—no waiting for approval email.
                     </p>
-                    <h3>2. Register with your access key</h3>
+                    <h3>2. Register with your registration key</h3>
                     <p>
-                        Open the registration link from your approval email—it includes your key. Finish account
-                        setup, then log in.
+                        After you submit the form, you are redirected to registration with your key pre-filled.
+                        Finish account setup, then log in.
                     </p>
                     <h3>3. Log in</h3>
                     <p>
@@ -627,6 +629,36 @@
                     <p>
                         Buys and sells update player currency, player inventory, and shop stock together. If a purchase
                         fails (insufficient funds, out of stock), you should see a clear message and no partial change.
+                    </p>
+                </article>
+
+                <article id="section-roadmap" class="docs-panel" role="region"
+                    aria-labelledby="heading-roadmap" hidden>
+                    <h2 id="heading-roadmap">Product Roadmap</h2>
+                    <p>
+                        Econo-Forge is an evolving tech demo. This page summarizes what the team is prioritizing next.
+                        It is product-facing guidance—not a delivery schedule or contract.
+                    </p>
+                    <h3>Now: first-run clarity</h3>
+                    <ul>
+                        <li>Clearer onboarding from landing page through registration, login, and first campaign setup.</li>
+                        <li>GM guidance for world generation, player join codes, and running the first market day.</li>
+                        <li>Consistent theming across auth, GM, and player surfaces in light and dark mode.</li>
+                    </ul>
+                    <h3>Next: polish and reliability</h3>
+                    <ul>
+                        <li>Branding and copy consistency across older templates and public docs.</li>
+                        <li>Simulation performance and predictable game-day ticks between sessions.</li>
+                        <li>Stronger automated tests for readiness, locks, and regression-prone flows.</li>
+                    </ul>
+                    <h3>Later: scale and depth</h3>
+                    <ul>
+                        <li>Runtime configuration documentation for self-hosted and production deployments.</li>
+                        <li>Deeper economy features once state authority and tick safety are fully documented.</li>
+                    </ul>
+                    <p>
+                        For shipped changes, see the <a href="{{ url_for('main.docs', section='changelog') }}#changelog">changelog</a>.
+                        For setup help, start with <a href="{{ url_for('main.docs', section='getting-started') }}#getting-started">Getting Started</a>.
                     </p>
                 </article>
 
@@ -787,7 +819,7 @@
                     <ul>
                         <li>To authenticate users, route them to GM or player tools, and enforce campaign access.</li>
                         <li>To run campaign economy features including world generation, market views, stock, pricing, and simulation jobs.</li>
-                        <li>To review access requests, diagnose bugs, improve the demo, and respond to feedback.</li>
+                        <li>To process access-form submissions, issue registration keys, diagnose bugs, improve the demo, and respond to feedback.</li>
                     </ul>
                     <h3>Sharing and retention</h3>
                     <p>
@@ -807,9 +839,16 @@
 
                     <h3>Do I need a key to register?</h3>
                     <p>
-                        In most early-access deployments, yes. The access request form now records your details and
+                        In most early-access deployments, yes. The access request form records your details and
                         issues a registration key automatically. If your group runs a private instance with keys
                         disabled, your admin can confirm local policy.
+                    </p>
+
+                    <h3>Is access request approval manual?</h3>
+                    <p>
+                        On the public site, <strong>Register For Access</strong> auto-issues your registration key and
+                        sends you to account creation. Admin triage is a separate backoffice path for held or legacy
+                        pending rows—approving there emails a registration link with the same key model.
                     </p>
 
                     <h3>Which rulesets are supported?</h3>
@@ -852,7 +891,7 @@
             <div>
                 <div style="font-weight: 900; font-size: 1.05rem;">Bring your world’s economy to life.</div>
                 <div style="color: var(--color-muted); margin-top: 6px;">
-                    Register to request early access, then track updates in Discord.
+                    Submit the access form to receive a registration key immediately, then finish account setup.
                 </div>
             </div>
             <div class="btn-row">
@@ -870,6 +909,7 @@
                 'gm-hub',
                 'player',
                 'items',
+                'roadmap',
                 'changelog',
                 'terms',
                 'privacy',

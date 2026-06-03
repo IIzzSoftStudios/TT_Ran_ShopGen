@@ -3,16 +3,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Market{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Econo-Forge{% endblock %}</title>
     {% include 'partials/theme_head.html' %}
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <header>
-        <h1>🛒 TT RPG Market</h1>
+    <header class="app-shell-header">
+        <h1><a href="{{ url_for('main.index') }}">Econo-Forge</a></h1>
     </header>
 
-    <main>
+    <main class="app-shell-main">
         {% block content %}{% endblock %}
     </main>
 </body>

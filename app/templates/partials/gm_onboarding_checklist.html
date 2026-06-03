@@ -1,0 +1,45 @@
+{% if onboarding_checklist is defined and onboarding_checklist %}
+<section class="gm-onboarding" aria-label="Getting started checklist">
+    {% if onboarding_checklist.all_complete %}
+    <div class="gm-onboarding-complete" role="status">
+        <strong>Setup complete</strong>
+        <span>Your campaign has a world, players, and at least one market day simulated.</span>
+    </div>
+    {% elif onboarding_checklist.show %}
+    <div class="gm-onboarding-card">
+        <h2 class="gm-onboarding-title">Getting started</h2>
+        <p class="gm-onboarding-lead">Finish these steps to run your first market day.</p>
+        <ol class="gm-onboarding-steps">
+            <li class="gm-onboarding-step {% if onboarding_checklist.steps.world %}is-done{% endif %}">
+                <span class="gm-onboarding-step-label">Generate your world</span>
+                {% if onboarding_checklist.steps.world %}
+                <span class="gm-onboarding-step-status">Done</span>
+                {% else %}
+                <a class="button gm-onboarding-cta" href="{{ onboarding_checklist.generate_world_url }}">Open world generator</a>
+                {% endif %}
+            </li>
+            <li class="gm-onboarding-step {% if onboarding_checklist.steps.players %}is-done{% endif %}">
+                <span class="gm-onboarding-step-label">Invite players</span>
+                {% if onboarding_checklist.steps.players %}
+                <span class="gm-onboarding-step-status">Done ({{ onboarding_checklist.player_count }} linked)</span>
+                {% elif onboarding_checklist.join_code_ready %}
+                <span class="gm-onboarding-step-hint">Your campaign join code is ready. Open <a href="{{ onboarding_checklist.campaign_players_url }}">Player &amp; NPC Overview</a> to reveal the campaign code or add players by code.</span>
+                {% else %}
+                <span class="gm-onboarding-step-hint">Use <strong>GM Campaign Code</strong> below once your campaign code is available.</span>
+                {% endif %}
+            </li>
+            <li class="gm-onboarding-step {% if onboarding_checklist.steps.simulation %}is-done{% endif %}">
+                <span class="gm-onboarding-step-label">Run your first market day</span>
+                {% if onboarding_checklist.steps.simulation %}
+                <span class="gm-onboarding-step-status">Done (day {{ onboarding_checklist.current_game_day }})</span>
+                {% else %}
+                <button type="button" class="button gm-onboarding-cta gm-onboarding-scroll-sim" id="gm-first-sim-cta">
+                    Run your first market day
+                </button>
+                {% endif %}
+            </li>
+        </ol>
+    </div>
+    {% endif %}
+</section>
+{% endif %}

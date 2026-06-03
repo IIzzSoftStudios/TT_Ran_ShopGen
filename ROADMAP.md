@@ -1,42 +1,65 @@
 # Econo-Forge Roadmap
 
-This roadmap captures the next practical improvements for Econo-Forge based on the current app surface, simulation backend, tests, and deployment workflow. It is ordered to improve the demo and onboarding experience first, then harden production-critical systems.
+This roadmap captures the next practical improvements for Econo-Forge based on the current app surface, tech-demo usage, simulation backend, tests, and deployment workflow. Phase 1 product polish is complete; the remaining work now shifts from activation clarity to branding consistency, simulation safety, reliability coverage, and deployment alignment.
 
 ## Guiding Priorities
 
 - Make the first user journey coherent: landing page, access request, registration, login, campaign setup, and first simulation run should feel like one product.
+- Raise activation from the current demo baseline: 29 registered users, 10 key activations, 7 campaigns created, and 3 users who ran simulations.
 - Protect the simulation path: keep tick work fast, observable, and transactionally safe.
 - Reduce production surprises: document runtime configuration, test Redis-dependent behavior, and verify web/worker deployment parity.
 - Avoid expanding new features on top of unclear state authority, especially where row-based simulation state and `GMWorldState` can diverge.
+- Deploy-branch Cloud Build already runs pytest in the promoted image; the remaining quality gaps are Redis `/ready`, lock semantics, PR/feature-branch feedback, and prodlike smoke coverage.
+
+## Tech Demo Funnel Snapshot
+
+Reported after about one month in tech demo:
+
+- Total registered users: 29
+- Used registration key: 10 of 29, about 34%
+- GMs who created a campaign: 7 of 10 activated users, about 70%
+- Users who ran simulations: 3 of 7 campaign creators, about 43%
+- End-to-end activation to simulation: 3 of 29, about 10%
+
+Product implication: the biggest leak was key activation, followed by the jump from campaign creation to first simulation. Phase 1 addressed the clearest funnel and first-run gaps; future roadmap work should measure whether activation improves before adding broad new feature surface.
 
 ## Phase 1: Product Polish And First-Run Experience
 
+Status: completed.
+
 Goal: make the app easier to understand and more credible for a new GM or player.
 
-Recommended work:
+Completed work:
 
-- Align onboarding copy in `app/templates/docs.html` with the live access flow in `app/routes/main_routes.py`, where access requests are auto-approved and redirect to registration.
-- Restyle `app/templates/register.html`, `app/templates/login.html`, and `app/templates/forgot_password.html` with the same theme tokens used by the landing and access-request pages.
-- Add a GM first-run checklist to `app/templates/GM_Home.html` for empty campaigns, with links to world generation, player setup, join codes, and the first simulation run.
-- Update `app/templates/Player_Home.html` and `app/templates/partials/player_join_code_reveal.html` to remove hardcoded light-mode colors.
-- Add basic SEO and social sharing metadata to `app/templates/landing.html`, plus a video poster fallback for the hero media.
+- [Done] Aligned public docs, access-request, login, and registration copy around the immediate auto-issued registration key flow.
+- [Done] Restyled `app/templates/register.html`, `app/templates/login.html`, `app/templates/forgot_password.html`, and `app/templates/reset_password.html` through shared auth theme tokens and framing.
+- [Done] Refined the GM first-run checklist in `app/templates/GM_Home.html` and `app/templates/partials/gm_onboarding_checklist.html` with world generation, player setup, join-code readiness, and first market day guidance.
+- [Done] Added the "Run your first market day" prompt before advanced simulation controls for campaign creators who have not simulated.
+- [Done] Tokenized player dashboard and join-code surfaces in `app/templates/Player_Home.html` and kept `app/templates/partials/player_join_code_reveal.html` readable against existing theme tokens.
+- [Done] Added landing page viewport, canonical, Open Graph, Twitter, theme-color, hero poster, and video fallback metadata in `app/templates/landing.html`.
+- [Done] Added a public roadmap docs section and pointed the landing footer Roadmap link to it.
+- [Done] Added focused regression coverage for access-request auto-key behavior, docs roadmap routing, landing/link surfaces, and GM onboarding context.
 
 Acceptance checks:
 
 - A new user can follow landing page -> access request -> registration -> login without contradictory copy.
 - Auth and player pages remain readable in light and dark themes.
 - A GM with an empty campaign sees a clear next action instead of simulation controls only.
+- Campaign creators who have not simulated see one obvious first-simulation action.
 
 ## Phase 2: Branding And Content Consistency
 
+Status: completed.
+
 Goal: remove visible drift between older TT Shop Gen surfaces and the current Econo-Forge product.
 
-Recommended work:
+Completed work:
 
-- Decide whether `app/templates/docs.html` is the canonical changelog source, then retire or redirect duplicate content in `app/templates/changelog.html`.
-- Restyle or remove legacy player templates that still inherit old branding from `app/templates/base.html`.
-- Rework the unused `thank_you.html` path or remove it from the access-request story. If kept, use it for Discord/ruleset onboarding before registration.
-- Update root documentation references that still use the old project name where user-facing branding should say Econo-Forge.
+- [Done] Canonical changelog lives in `app/templates/docs.html#changelog`; `/changelog` redirects there. Standalone `changelog.html` was already absent.
+- [Done] Retired legacy player list/market routes (`/player/shops`, `/player/cities`, `/player/market`) and removed their templates; kept active shop detail on `Player_view_city_shops.html` with dashboard-aligned navigation.
+- [Done] Removed orphaned `/thank-you` from the access-request story (redirect only).
+- [Done] Updated `404.html`, `base.html`, README, and dev log prefixes to Econo-Forge branding.
+- [Done] Aligned public registration-key terminology and documented auto-access vs manual admin triage in docs and admin copy.
 
 Acceptance checks:
 
@@ -46,15 +69,18 @@ Acceptance checks:
 
 ## Phase 3: Simulation Performance And State Safety
 
+Status: completed.
+
 Goal: make the tick path more predictable before adding larger economy or state features.
 
-Recommended work:
+Completed work:
 
-- Preload active demand modifiers once per tick in `app/services/economy/demand.py` instead of querying inside every inventory/city pricing calculation.
-- Pass precomputed demand context into `app/services/simulation.py` while preserving the existing single-commit and rollback behavior.
-- Add focused tests that make `tick_duration` visible against the documented 33ms budget.
-- Decide whether row-based state or `GMWorldState.state_json` is the player-facing price authority before enabling `READ_PRICES_FROM_WORLD_STATE`.
-- Add reconciliation tests around `app/services/world_state_reads.py` before any state-read flag is enabled in production.
+- [Done] Keep the current tick instrumentation visible: `app/services/simulation.py` exposes `tick_duration` and phase timings such as load and compute duration.
+- [Done] Preload active demand modifiers once per tick via `DemandContext` in `app/services/economy/demand.py`; indexed buckets replace per-item/per-city modifier queries on the canonical tick path.
+- [Done] Pass precomputed demand context into `app/services/simulation.py` while preserving the existing single-commit and rollback behavior.
+- [Done] Add focused tests for one modifier load per tick, no inner DB loads during pricing, phase timing coherence, and generous bounded-fixture ceilings (33ms remains a P99 measurement target, not a brittle CI gate).
+- [Done] Document state authority in `app/services/world_state_reads.py`: row tables remain read-authoritative while `READ_PRICES_FROM_WORLD_STATE` is false; `GMWorldState` is a dual-write snapshot when `WORLD_STATE_ENABLED` is true.
+- [Done] Add reconciliation and fallback tests around `app/services/world_state_reads.py` and post-tick row/blob alignment; `READ_PRICES_FROM_WORLD_STATE` remains disabled by default.
 
 Acceptance checks:
 
@@ -64,15 +90,20 @@ Acceptance checks:
 
 ## Phase 4: Reliability, Tests, And CI
 
+Status: completed.
+
 Goal: catch production-critical regressions before deployment.
 
-Recommended work:
+Completed work:
 
-- Add `/ready` tests for `app/routes/main_routes.py`, including Redis and database failure cases.
-- Add ownership, refresh, and release tests for `app/services/distributed_lock.py`.
-- Extend smoke coverage in `tests/test_smoke.py` beyond `/healthz`.
-- Add a PR-time test gate through GitHub Actions or a Cloud Build trigger so pytest runs before deploy-branch promotion.
-- Consider coverage and lint gates after Redis/readiness coverage is in place.
+- [Done] Keep the existing deploy-branch Cloud Build pytest step that runs tests inside the built image before promotion.
+- [Done] Preserve the access-request auto-key regression coverage in `tests/test_access_request_auto_key.py`.
+- [Done] Extend `/ready` tests in `tests/test_ready.py` for dual Redis/DB failure, falsy ping, and `/healthz` liveness isolation.
+- [Done] Extend ownership, refresh, and release tests in `tests/test_distributed_lock.py`.
+- [Done] Add simulation lock-failure coverage in `tests/test_simulation_lock_failures.py` (busy lock, Redis acquire error, lock stolen mid-batch).
+- [Done] Extend smoke coverage in `tests/test_smoke.py` for landing, docs, access-request, and register redirect.
+- [Done] PR-time pytest gate via `.github/workflows/pytest.yml` on all pull requests; deploy README documents the GHA + Cloud Build split.
+- [Deferred] Coverage and lint gates — revisit after Redis/readiness and lock regression coverage have been exercised in production CI.
 
 Acceptance checks:
 
@@ -82,14 +113,23 @@ Acceptance checks:
 
 ## Phase 5: Deployment And Runtime Configuration
 
+Status: completed.
+
 Goal: keep local examples, Cloud Run, workers, and deploy docs aligned.
 
-Recommended work:
+Completed work:
 
-- Document runtime knobs in `config.example.env`, including `REQUIRE_REGISTRATION_KEY`, `WORLD_STATE_ENABLED`, `READ_PRICES_FROM_WORLD_STATE`, `METRICS_DURATIONS_CAP`, `METRICS_TERMINAL_TTL_SECONDS`, `SIM_TICK_DEBUG_ASSERTS`, and `TRSG_CLOUD_RUN_MIGRATE`.
-- Add a worker image digest parity check or explicit runbook step tied to `cloudbuild.yaml` and `deploy/README.md`.
-- Wire `docker-compose.prodlike.yml` into a release smoke path when practical.
-- Export or surface simulation timing metrics beyond Redis-only keys, especially for `tick_duration`.
+- [Done] Runtime env matrix in `config.example.env` with Dev/Web/Mig/Wrk role tags for `REQUIRE_REGISTRATION_KEY`, `WORLD_STATE_ENABLED`, `READ_PRICES_FROM_WORLD_STATE`, `METRICS_DURATIONS_CAP`, `METRICS_TERMINAL_TTL_SECONDS`, `SIM_TICK_DEBUG_ASSERTS`, `TRSG_CLOUD_RUN_MIGRATE`, and testing fallbacks.
+- [Done] Mandatory post-deployment digest verification checklist in `deploy/README.md` and hardened `scripts/verify_worker_digest.sh` (read-only parity check).
+- [Done] `scripts/prodlike_smoke.sh` for local gunicorn overlay smoke (`/healthz`, `/ready`); documented in `DOCKER.md` and `deploy/README.md`.
+- [Done] Per-tick `tick_duration` telemetry via `record_tick_duration` in `app/services/sim_metrics.py` (Redis key `metrics:sim:tick_durations`); wired from `run_period_task`; exposed in admin metrics via `snapshot()` `tick_durations_seconds`.
+- [Done] Focused tests in `tests/test_phase5_deployment_metrics.py`.
+
+Deferred:
+
+- Automatic GCE worker image rollout from Cloud Build (operator pins `TRSG_IMAGE` manually).
+- Cloud Build-hosted prodlike smoke (Docker-in-Docker).
+- Separate `METRICS_TICK_DURATIONS_CAP` unless later justified.
 
 Acceptance checks:
 
@@ -99,14 +139,12 @@ Acceptance checks:
 
 ## Suggested Implementation Order
 
-1. Onboarding copy and auth-page theming.
-2. GM first-run checklist.
-3. Player dark-mode and legacy branding cleanup.
-4. Redis readiness and lock tests.
-5. Config documentation and deploy parity checks.
-6. Demand modifier preloading and tick performance tests.
-7. State-authority decision for `GMWorldState` reads.
-8. PR-time CI, coverage, and lint gates.
+1. Add Redis `/ready` and `distributed_lock` tests.
+2. ~~Document runtime env vars in `config.example.env`.~~ (Phase 5 complete)
+3. Preload demand modifiers and add bounded tick performance tests.
+4. Decide and test state authority before enabling `GMWorldState` reads.
+5. Phase 4 (extended `/ready`, lock safety, task lock-failure tests, and core route smoke validation) is complete; coverage caps and lint gates are deferred to a later post-Redis/readiness stage.
+6. Revisit tech-demo funnel metrics after Phase 1 has had usage time, then decide whether activation needs more product work or deeper reliability investment.
 
 ## Deferred Ideas
 

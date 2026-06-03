@@ -578,7 +578,7 @@ def generate_world_submit():
         gm_profile.id,
     )
     print(
-        f"[TT Shop Gen] world_generation POST started user_id={current_user.id} "
+        f"[Econo-Forge] world_generation POST started user_id={current_user.id} "
         f"gm_profile_id={gm_profile.id} (this line means the server is handling your click)",
         file=sys.stderr,
         flush=True,
@@ -642,7 +642,7 @@ def generate_world_submit():
             exc.message[:200] if exc.message else "",
         )
         print(
-            "[TT Shop Gen] world_generation blocked (HTTP 402): "
+            "[Econo-Forge] world_generation blocked (HTTP 402): "
             + (exc.message or "billing"),
             file=sys.stderr,
             flush=True,

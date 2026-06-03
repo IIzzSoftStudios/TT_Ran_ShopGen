@@ -1,6 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Not found{% endblock %}
+{% block title %}Page not found — Econo-Forge{% endblock %}
+{% block extra_head %}
+<style>
+    .error-page {
+        max-width: 520px;
+        margin: 48px auto;
+        padding: 24px;
+        text-align: center;
+    }
+    .error-page h2 {
+        margin: 0 0 12px;
+        color: var(--color-text);
+    }
+    .error-page p {
+        color: var(--color-muted);
+        line-height: 1.6;
+        margin: 0 0 20px;
+    }
+    .error-page .button {
+        display: inline-block;
+        background: var(--color-accent);
+        color: var(--color-accent-contrast);
+        padding: 10px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .error-page .button:hover {
+        background: var(--color-accent-hover);
+    }
+    .app-shell-header h1 a {
+        color: inherit;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
 {% block content %}
-<p>{{ message or "The page you requested was not found." }}</p>
-<p><a href="{{ url_for('main.index') }}">Home</a></p>
+<div class="error-page">
+    <h2>Page not found</h2>
+    <p>{{ message or "The page you requested was not found." }}</p>
+    <a class="button" href="{{ url_for('main.index') }}">Back to home</a>
+</div>
 {% endblock %}
