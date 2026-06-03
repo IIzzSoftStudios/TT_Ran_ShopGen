@@ -467,7 +467,7 @@
                         <li><strong>Player Use</strong> — joining a campaign, browsing shops, and inventory</li>
                         <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, and game-day ticks</li>
                         <li><strong>Roadmap</strong> — what we are improving next for GMs and players</li>
-                        <li><strong>Changelog</strong> — release notes for the live tech demo</li>
+                        <li><strong>Changelog</strong> — release notes for Alpha and earlier demo milestones</li>
                         <li><strong>Terms &amp; Privacy</strong> — general site rules and privacy notes</li>
                         <li><strong>FAQ</strong> — limitations, rulesets, and infrastructure expectations</li>
                     </ul>
@@ -636,7 +636,7 @@
                     aria-labelledby="heading-roadmap" hidden>
                     <h2 id="heading-roadmap">Product Roadmap</h2>
                     <p>
-                        Econo-Forge is an evolving tech demo. This page summarizes what the team is prioritizing next.
+                        Econo-Forge is now in Alpha. This page summarizes what the team is prioritizing next.
                         It is product-facing guidance—not a delivery schedule or contract.
                     </p>
                     <h3>Now: first-run clarity</h3>
@@ -666,12 +666,13 @@
                     aria-labelledby="heading-changelog" hidden>
                     <h2 id="heading-changelog">Changelog</h2>
                     <p>
-                        Release notes for the Econo-Forge tech demo. Patches are listed newest first.
+                        Release notes for Econo-Forge Alpha. Entries are listed newest first.
                     </p>
 
                     <div class="changelog-layout">
                         <aside class="changelog-index" aria-label="Patch notes">
                             <p class="changelog-index-title">Patch Notes</p>
+                            <a href="#patch-1-2-3">Alpha 1.0</a>
                             <a href="#patch-1-2-2">Tech Demo Hotfix 1.2.2</a>
                             <a href="#patch-1-2-1">Tech Demo Hotfix 1.2.1</a>
                             <a href="#patch-1-2">Tech Demo Patch 1.2</a>
@@ -679,8 +680,27 @@
                         </aside>
 
                         <div class="changelog-patches">
+                            <section class="changelog-patch" id="patch-1-2-3" aria-labelledby="heading-patch-1-2-3">
+                                <h3 id="heading-patch-1-2-3">Alpha 1.0 <span class="docs-badge">Latest</span></h3>
+                                <p>
+                                    <strong>June 2, 2026.</strong> Alpha 1.0 carries forward what we learned from the tech demo: clearer first-run guidance, cleaner campaign selection, and room for larger test worlds.
+                                </p>
+                                <h3>Onboarding and campaign flow</h3>
+                                <ul>
+                                    <li>The GM onboarding player step now routes to the campaign player tools and highlights the Reveal and Add controls in sequence.</li>
+                                    <li>Campaign selection now separates GM campaigns from Player campaigns so mixed accounts can choose the right mode faster.</li>
+                                    <li>The landing page topbar is easier to read in light mode while keeping the dark-mode glass styling.</li>
+                                </ul>
+                                <h3>Simulation and access limits</h3>
+                                <ul>
+                                    <li>The GM dashboard keeps day, week, month, year, and pause controls available before the first simulation run.</li>
+                                    <li>Auto-issued access keys now use the Alpha phase, and Alpha keys use the restored legacy limits.</li>
+                                    <li>Alpha 1.0 keys now support up to 99 active campaigns.</li>
+                                </ul>
+                            </section>
+
                             <section class="changelog-patch" id="patch-1-2-2" aria-labelledby="heading-patch-1-2-2">
-                                <h3 id="heading-patch-1-2-2">Tech Demo Hotfix 1.2.2 <span class="docs-badge">Latest</span></h3>
+                                <h3 id="heading-patch-1-2-2">Tech Demo Hotfix 1.2.2</h3>
                                 <p>
                                     <strong>June 2, 2026.</strong> Simulation pause reliability and worker deployment alignment.
                                 </p>
@@ -776,7 +796,7 @@
                     aria-labelledby="heading-terms" hidden>
                     <h2 id="heading-terms">Terms of Service</h2>
                     <p>
-                        These general terms apply to the Econo-Forge tech demo. They are written for clarity and are
+                        These general terms apply to Econo-Forge Alpha. They are written for clarity and are
                         not a substitute for formal legal advice.
                     </p>
                     <h3>Use of the service</h3>
@@ -785,10 +805,11 @@
                         <li>Do not attempt to bypass authentication, access another table's campaign, scrape private data, or disrupt the service.</li>
                         <li>Accounts, access keys, join codes, and campaign content may be limited, revoked, or removed if abuse, security risk, or operational harm is detected.</li>
                     </ul>
-                    <h3>Tech demo status</h3>
+                    <h3>Alpha status</h3>
                     <p>
-                        Econo-Forge is an evolving demo. Features, limits, copy, pricing assumptions, and data shape may
-                        change as the product matures. Avoid relying on demo behavior as a permanent contract.
+                        Econo-Forge is evolving from tech demo findings into Alpha. Features, limits, copy, pricing
+                        assumptions, and data shape may change as the product matures. Avoid relying on Alpha behavior
+                        as a permanent contract.
                     </p>
                     <h3>Your content</h3>
                     <p>
@@ -806,7 +827,7 @@
                     aria-labelledby="heading-privacy" hidden>
                     <h2 id="heading-privacy">Privacy Policy</h2>
                     <p>
-                        This general privacy policy describes the data Econo-Forge may process during the tech demo.
+                        This general privacy policy describes the data Econo-Forge may process during Alpha.
                         It is intentionally plain-language and should be revisited before a commercial launch.
                     </p>
                     <h3>Information you provide</h3>
@@ -819,11 +840,11 @@
                     <ul>
                         <li>To authenticate users, route them to GM or player tools, and enforce campaign access.</li>
                         <li>To run campaign economy features including world generation, market views, stock, pricing, and simulation jobs.</li>
-                        <li>To process access-form submissions, issue registration keys, diagnose bugs, improve the demo, and respond to feedback.</li>
+                        <li>To process access-form submissions, issue registration keys, diagnose bugs, improve Alpha, and respond to feedback.</li>
                     </ul>
                     <h3>Sharing and retention</h3>
                     <p>
-                        Demo data is not presented as a public dataset. Access is limited to the app flows and authorized
+                        Alpha data is not presented as a public dataset. Access is limited to the app flows and authorized
                         admin/support review. Retention and deletion rules may evolve as formal account controls are added.
                     </p>
                     <h3>Your choices</h3>

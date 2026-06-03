@@ -57,6 +57,10 @@ def test_docs_changelog_section_renders(client):
     assert resp.status_code == 200
     assert b'id="section-changelog"' in resp.data
     assert b"Patch Notes" in resp.data
+    assert b"Alpha 1.0" in resp.data
+    assert b"Release notes for Econo-Forge Alpha" in resp.data
+    assert b"Alpha status" in resp.data
+    assert b"Alpha 1.0 keys now support up to 99 active campaigns." in resp.data
 
 
 def test_thank_you_redirects_to_access_request(client):

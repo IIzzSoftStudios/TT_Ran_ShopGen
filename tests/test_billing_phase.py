@@ -29,12 +29,12 @@ def test_get_gm_limits_respects_key_phase(app_with_phases):
         assert lbl == "Alpha"
 
 
-def test_get_gm_limits_tech_demo_allows_99_campaigns(app_with_phases):
+def test_get_gm_limits_alpha_1_allows_99_campaigns(app_with_phases):
     with app_with_phases.app_context():
         c, s, lbl = get_gm_limits(_User(_Key("tech_demo")))
         assert c == 99
-        assert s == 3
-        assert lbl == "Tech Demo"
+        assert s == 50
+        assert lbl == "Alpha 1.0"
 
 
 def test_get_gm_limits_unknown_db_slug_falls_back(app_with_phases):
