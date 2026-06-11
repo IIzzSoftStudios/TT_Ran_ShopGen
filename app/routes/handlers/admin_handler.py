@@ -24,13 +24,18 @@ from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models import (
     AccessRequest,
+    Campaign,
+    CampaignCodeRedemption,
     DeletedCampaignSimSnapshot,
     ExpansionInterest,
     GMProfile,
+    Player,
+    PlayerCharacterSheet,
     RegistrationKey,
     User,
     UserSubmission,
 )
+from app.services.join_codes import mask_join_code
 from app.constants.submission_categories import VALID_STATUSES
 from app.services.key_generator import create_bulk_keys, generate_secure_code
 
@@ -318,6 +323,256 @@ def _load_submissions_by_kind(kind: str):
     return rows
 
 
+_CAMPAIGN_CODE_SOURCE_LABELS = {
+    "registration": "Player registration",
+    "registration_with_key": "Vault key + campaign code",
+    "player_join": "Existing player joined",
+    "campaign_selection": "Campaign selection",
+}
+
+_PROMPTED_FEEDBACK_QUESTIONS = [
+    {
+        "key": "campaign_limit",
+        "label": "Ready to expand your realm?",
+        "prompt": "You've hit the base limit for active campaigns.",
+    },
+    {
+        "key": "monster_import",
+        "label": "Import monsters",
+        "prompt": "Which monster file type should import support prepare for?",
+    },
+    {
+        "key": "sdr_monsters",
+        "label": "SDR-approved monsters",
+        "prompt": "Should SDR-approved monsters be added to the battle compendium?",
+    },
+    {
+        "key": "market_import",
+        "label": "Import market data",
+        "prompt": "Which market file type should import support prepare for?",
+    },
+    {
+        "key": "setup_tutorial",
+        "label": "Setup tutorial",
+        "prompt": "Would a setup tutorial be useful?",
+    },
+]
+
+
+def _campaign_code_redemption_rows(*, limit: int = 200):
+    rows = (
+        CampaignCodeRedemption.query.options(
+            joinedload(CampaignCodeRedemption.campaign)
+            .joinedload(Campaign.gm_profile)
+            .joinedload(GMProfile.user),
+            joinedload(CampaignCodeRedemption.user),
+        )
+        .order_by(CampaignCodeRedemption.redeemed_at.desc())
+        .limit(limit)
+        .all()
+    )
+    serialized = []
+    for row in rows:
+        campaign = row.campaign
+        gm_user = (
+            campaign.gm_profile.user
+            if campaign and campaign.gm_profile
+            else None
+        )
+        serialized.append(
+            {
+                "code_masked": mask_join_code(
+                    campaign.join_code if campaign else None
+                ),
+                "campaign_name": campaign.name if campaign else "—",
+                "gm_username": gm_user.username if gm_user else "—",
+                "player_username": row.user.username if row.user else "—",
+                "source": row.source,
+                "source_label": _CAMPAIGN_CODE_SOURCE_LABELS.get(
+                    row.source, row.source.replace("_", " ").title()
+                ),
+                "redeemed_at": row.redeemed_at,
+            }
+        )
+    return serialized
+
+
+def _prompted_feedback_answer_rows(keys):
+    rows_by_user = {}
+
+    def row_for_user(user, *, key_phase="—"):
+        if not user:
+            return None
+        row = rows_by_user.setdefault(
+            user.id,
+            {
+                "user_id": user.id,
+                "username": user.username,
+                "key_phase": key_phase,
+                "answers": {},
+            },
+        )
+        if row["key_phase"] == "—" and key_phase != "—":
+            row["key_phase"] = key_phase
+        return row
+
+    for key in keys:
+        interest = getattr(key, "_expansion_interest", None)
+        if not interest or not getattr(key, "user", None):
+            continue
+        latest = interest["latest"]
+        row = row_for_user(key.user, key_phase=key.key_phase)
+        if row is None:
+            continue
+        row["answers"]["campaign_limit"] = {
+            "value": "No, stay base tier"
+            if interest["selection"] == "no"
+            else "Yes, express interest",
+            "badge": "danger" if interest["selection"] == "no" else "success",
+            "created_at": latest.created_at,
+            "source": latest.source or "—",
+        }
+
+    prompted_keys = {q["key"] for q in _PROMPTED_FEEDBACK_QUESTIONS}
+    submissions = (
+        UserSubmission.query.options(
+            joinedload(UserSubmission.user).joinedload(User.registration_key_used)
+        )
+        .filter_by(kind="suggestion")
+        .order_by(UserSubmission.created_at.desc(), UserSubmission.id.desc())
+        .all()
+    )
+    for submission in submissions:
+        extra = submission.extra if isinstance(submission.extra, dict) else {}
+        prompted_key = extra.get("prompted_key")
+        if prompted_key not in prompted_keys or prompted_key == "campaign_limit":
+            continue
+        user = submission.user
+        reg_key = user.registration_key_used if user else None
+        row = row_for_user(
+            user,
+            key_phase=reg_key.key_phase if reg_key else "—",
+        )
+        if row is None or prompted_key in row["answers"]:
+            continue
+        value = extra.get("file_type") or submission.body
+        row["answers"][prompted_key] = {
+            "value": value,
+            "badge": "secondary",
+            "created_at": submission.created_at,
+            "source": submission.title or "—",
+        }
+
+    return sorted(
+        rows_by_user.values(),
+        key=lambda row: (row["username"].lower(), row["user_id"]),
+    )
+
+
+def _sheet_character_name(sheet_json) -> str:
+    if not isinstance(sheet_json, dict):
+        return "—"
+    raw = (
+        sheet_json.get("name")
+        or sheet_json.get("character_name")
+        or sheet_json.get("display_name")
+    )
+    clean = str(raw or "").strip()
+    return clean or "—"
+
+
+def _campaign_character_rows():
+    """Read-only roster grouped by user -> campaign -> players for the vault."""
+    campaigns = (
+        Campaign.query.options(
+            joinedload(Campaign.gm_profile).joinedload(GMProfile.user),
+            joinedload(Campaign.players).joinedload(Player.user),
+            joinedload(Campaign.players).joinedload(Player.character_sheets),
+        )
+        .order_by(Campaign.name.asc(), Campaign.id.asc())
+        .all()
+    )
+    user_rows_by_key = {}
+    for campaign in campaigns:
+        gm_user = (
+            campaign.gm_profile.user
+            if campaign.gm_profile and campaign.gm_profile.user
+            else None
+        )
+        user_key = gm_user.id if gm_user else f"missing-gm-{campaign.gm_profile_id}"
+        player_rows = []
+        for player in campaign.players or []:
+            if player.is_npc or player.campaign_id != campaign.id:
+                continue
+            sheet = next(
+                (
+                    row
+                    for row in player.character_sheets or []
+                    if row.campaign_id == campaign.id
+                ),
+                None,
+            )
+            user = player.user
+            player_rows.append(
+                {
+                    "player_id": player.id,
+                    "username": user.username if user else "—",
+                    "email": (user.email if user and user.email else "—"),
+                    "character_name": _sheet_character_name(
+                        sheet.sheet_json if sheet else None
+                    ),
+                    "sheet_updated_at": sheet.updated_at if sheet else None,
+                }
+            )
+        player_rows.sort(
+            key=lambda row: (
+                (row["character_name"] if row["character_name"] != "—" else "").lower(),
+                row["username"].lower(),
+                row["player_id"] or 0,
+            )
+        )
+        user_row = user_rows_by_key.setdefault(
+            user_key,
+            {
+                "user_id": gm_user.id if gm_user else None,
+                "username": gm_user.username if gm_user else "—",
+                "email": gm_user.email if gm_user and gm_user.email else "—",
+                "campaign_count": 0,
+                "player_count": 0,
+                "campaigns": [],
+            },
+        )
+        user_row["campaigns"].append(
+            {
+                "campaign_id": campaign.id,
+                "campaign_name": campaign.name or f"Campaign #{campaign.id}",
+                "system_type": campaign.system_type or "—",
+                "is_active": bool(campaign.is_active),
+                "player_count": len(player_rows),
+                "players": player_rows,
+            }
+        )
+        user_row["campaign_count"] += 1
+        user_row["player_count"] += len(player_rows)
+
+    rows = list(user_rows_by_key.values())
+    for user_row in rows:
+        user_row["campaigns"].sort(
+            key=lambda row: (
+                0 if row["is_active"] else 1,
+                row["campaign_name"].lower(),
+                row["campaign_id"] or 0,
+            )
+        )
+    rows.sort(
+        key=lambda row: (
+            row["username"].lower(),
+            row["user_id"] or 0,
+        )
+    )
+    return rows
+
+
 def handle_admin_keys():
     keys = (
         RegistrationKey.query.filter_by(is_admin_test_key=False)
@@ -340,9 +595,7 @@ def handle_admin_keys():
         "used": sum(1 for k in admin_keys if k.is_used),
         "available": sum(1 for k in admin_keys if not k.is_used),
     }
-    access_requests = (
-        AccessRequest.query.filter(AccessRequest.status.in_(["pending", "hold"])).all()
-    )
+    access_requests = AccessRequest.query.all()
     role_order = {"GM": 0, "Both": 1, "Player": 2}
 
     def sort_key(r):
@@ -355,6 +608,8 @@ def handle_admin_keys():
         )
 
     access_requests.sort(key=sort_key)
+    prompted_feedback_rows = _prompted_feedback_answer_rows(keys)
+    prompted_feedback_questions = _PROMPTED_FEEDBACK_QUESTIONS
     pc = current_app.extensions["phase_config"]
     vault_phase_slugs = pc.list_phases(include_internal=False)
     all_phase_slugs = pc.list_phases(include_internal=True)
@@ -362,6 +617,10 @@ def handle_admin_keys():
     gm_simulation_rows = (
         _gm_simulation_usage_serialized_rows() if show_gm_usage_tab else []
     )
+    campaign_code_redemptions = _campaign_code_redemption_rows()
+    stats["total"] += len(campaign_code_redemptions)
+    stats["used"] += len(campaign_code_redemptions)
+    campaign_character_rows = _campaign_character_rows()
     audit_logger.info("Keys view | Admin ID: %s", current_user.id)
     return render_template(
         "admin/keys.html",
@@ -370,10 +629,14 @@ def handle_admin_keys():
         stats=stats,
         admin_stats=admin_stats,
         access_requests=access_requests,
+        prompted_feedback_rows=prompted_feedback_rows,
+        prompted_feedback_questions=prompted_feedback_questions,
         vault_phase_slugs=vault_phase_slugs,
         all_phase_slugs=all_phase_slugs,
         show_gm_usage_tab=show_gm_usage_tab,
         gm_simulation_rows=gm_simulation_rows,
+        campaign_code_redemptions=campaign_code_redemptions,
+        campaign_character_rows=campaign_character_rows,
         bug_reports=_load_submissions_by_kind("bug_report"),
         feedback_items=_load_submissions_by_kind("feedback"),
         suggestions=_load_submissions_by_kind("suggestion"),

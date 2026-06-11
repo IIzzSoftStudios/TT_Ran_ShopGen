@@ -1,7 +1,8 @@
+import io
 from types import SimpleNamespace
 from typing import Optional
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, send_file
 from sqlalchemy.orm import subqueryload
 
 from app.models import (
@@ -15,6 +16,7 @@ from app.models import (
     PlayerEquipment,
     Campaign,
     Region,
+    MapCanvas,
     shop_cities,
 )
 
@@ -48,6 +50,50 @@ from app.routes.handlers.gm_shops_handler import (
 )
 
 player_bp = Blueprint("player", __name__)
+
+
+@player_bp.route("/battle")
+@login_required
+def battle_panel():
+    """Minimal player encounter panel (D&D 5e campaigns only).
+
+    Finds the newest non-ended battle encounter across the user's D&D 5e
+    campaign characters; the board itself loads through /api/combat which
+    re-checks campaign membership and the D&D 5e gate server-side.
+    """
+    from app.models import BattleEncounter
+    from app.services.rulesets import get_ruleset
+
+    own_players = [
+        p
+        for p in Player.query.filter_by(user_id=current_user.id, is_npc=False).all()
+        if p.campaign_id is not None
+    ]
+    dnd5e_players = [
+        p
+        for p in own_players
+        if p.campaign is not None
+        and get_ruleset(p.campaign.system_type).system_type == "dnd5e"
+    ]
+    if not dnd5e_players:
+        flash("Battles are only available in D&D 5e campaigns.", "info")
+        return redirect(url_for("player.list_characters"))
+
+    campaign_ids = {p.campaign_id for p in dnd5e_players}
+    encounter = (
+        BattleEncounter.query.filter(
+            BattleEncounter.campaign_id.in_(campaign_ids),
+            BattleEncounter.status != "ended",
+            BattleEncounter.visible_to_players.is_(True),
+        )
+        .order_by(BattleEncounter.id.desc())
+        .first()
+    )
+    return render_template(
+        "Player_Battle.html",
+        encounter=encounter,
+        own_player_ids=[p.id for p in dnd5e_players],
+    )
 
 
 def _redirect_solo_vault_to_character():
@@ -99,6 +145,9 @@ def _render_solo_character_dashboard(player):
             "player.reveal_character_join_code", player_id=player.id
         ),
         character_data_url=url_for("player.character_data_id", player_id=player.id),
+        combat_enabled=False,
+        battle_encounter=None,
+        battle_own_player_ids=[],
         cities=[],
         shops=[],
         items=[],
@@ -122,6 +171,8 @@ _PLAYER_ALLOWLIST = frozenset(
 _CHARACTER_VAULT_ENDPOINTS = frozenset(
     {
         "player.create_character",
+        "player.create_character_dnd5e_roll",
+        "player.create_character_dnd5e_finalize",
         "player.list_characters",
         "player.view_character",
         "player.view_character_id",
@@ -190,15 +241,36 @@ def redeem_campaign_code_route():
         flash("Too many invalid code attempts. Try again in up to one hour.", "danger")
         return redirect(request.referrer or url_for("main.campaigns"))
     try:
+        from app.services.join_codes import REDEMPTION_SOURCE_PLAYER_JOIN
+
         campaign = redeem_campaign_code(
-            current_user, code, player_id=scoped_player_id, _commit=True
+            current_user,
+            code,
+            player_id=scoped_player_id,
+            source=REDEMPTION_SOURCE_PLAYER_JOIN,
+            _commit=True,
         )
+        player = None
+        if scoped_player_id is not None:
+            player = get_character_for_user(current_user, scoped_player_id)
+        if player is None:
+            player = Player.query.filter_by(
+                user_id=current_user.id,
+                campaign_id=campaign.id,
+                is_npc=False,
+            ).order_by(Player.id.desc()).first()
         session["campaign_id"] = campaign.id
         session["system_type"] = campaign.system_type
+        if player is not None:
+            session["player_id"] = player.id
         session.permanent = True
         session.modified = True
         csh._clear_redeem_failures()
         flash("You joined the campaign.", "success")
+        if player is not None and (campaign.system_type or "").lower() == "dnd5e":
+            return redirect(
+                url_for("player.create_character", campaign_player_id=player.id)
+            )
         if scoped_player_id is not None:
             return redirect(
                 url_for("player.character_dashboard", player_id=scoped_player_id)
@@ -569,6 +641,32 @@ def player_home():
         equipment_slots=equipment_slot_views,
     )
     display_name = character_ctx.name
+    from app.models import BattleEncounter
+    from app.services.rulesets import get_ruleset
+
+    combat_enabled = get_ruleset(active_campaign.system_type).system_type == "dnd5e"
+    battle_encounter = None
+    visible_battle_encounters = []
+    battle_own_player_ids = []
+    if combat_enabled:
+        battle_own_player_ids = [
+            p.id
+            for p in Player.query.filter_by(
+                user_id=current_user.id,
+                campaign_id=campaign_id,
+                is_npc=False,
+            ).all()
+        ]
+        visible_battle_encounters = (
+            BattleEncounter.query.filter(
+                BattleEncounter.campaign_id == campaign_id,
+                BattleEncounter.status != "ended",
+                BattleEncounter.visible_to_players.is_(True),
+            )
+            .order_by(BattleEncounter.id.desc())
+            .all()
+        )
+        battle_encounter = visible_battle_encounters[0] if visible_battle_encounters else None
 
     return render_template(
         "Player_Home.html",
@@ -579,6 +677,10 @@ def player_home():
         player_has_active_campaign=active_campaign is not None,
         player_join_code_reveal_url=url_for("player.reveal_player_join_code"),
         character_data_url=url_for("player.character_data"),
+        combat_enabled=combat_enabled,
+        battle_encounter=battle_encounter,
+        visible_battle_encounters=visible_battle_encounters,
+        battle_own_player_ids=battle_own_player_ids,
         cities=cities,
         shops=shops,
         items=shop_items,
@@ -963,6 +1065,75 @@ def get_market_data():
         return jsonify({'error': str(e)}), 500
 
 
+def _active_campaign_player_for_json():
+    player = get_active_player(current_user)
+    if not player:
+        return None, (jsonify({"error": "Player not found."}), 404)
+    if player.campaign_id is None:
+        return None, (jsonify({"error": "Join a campaign to view this data."}), 403)
+    return player, None
+
+
+@player_bp.route("/maps/world", methods=["GET"])
+@login_required
+def player_world_map():
+    player, err = _active_campaign_player_for_json()
+    if err:
+        return err
+    from app.services import gm_maps
+
+    payload = gm_maps.build_world_map_payload(player.campaign_id, for_player=True)
+    db.session.commit()  # canvas may be lazily created by the read builder
+    return jsonify(payload)
+
+
+@player_bp.route("/maps/cities/<int:city_id>", methods=["GET"])
+@login_required
+def player_city_map(city_id):
+    player, err = _active_campaign_player_for_json()
+    if err:
+        return err
+    city = City.query.filter_by(city_id=city_id, campaign_id=player.campaign_id).first()
+    if city is None:
+        return jsonify({"error": "City not found in this campaign."}), 404
+    from app.services import gm_maps
+
+    payload = gm_maps.build_city_map_payload(player.campaign_id, city, for_player=True)
+    db.session.commit()
+    return jsonify(payload)
+
+
+@player_bp.route("/maps/image/<int:canvas_id>", methods=["GET"])
+@login_required
+def player_map_image(canvas_id):
+    player, err = _active_campaign_player_for_json()
+    if err:
+        return err
+    canvas = MapCanvas.query.filter_by(
+        id=canvas_id,
+        campaign_id=player.campaign_id,
+    ).first()
+    if canvas is None or not canvas.image_path:
+        return jsonify({"error": "Map image not found."}), 404
+    from app.services import gm_maps
+
+    path = gm_maps.map_image_file(canvas.id)
+    if not path.exists():
+        return jsonify({"error": "Map image not found."}), 404
+    return send_file(io.BytesIO(path.read_bytes()), mimetype="image/webp", max_age=0)
+
+
+@player_bp.route("/api/market-overview", methods=["GET"])
+@login_required
+def player_market_overview():
+    player, err = _active_campaign_player_for_json()
+    if err:
+        return err
+    from app.services.market_overview import build_market_overview_payload
+
+    return jsonify(build_market_overview_payload(player.campaign_id))
+
+
 def _slot_for_item_type(item_type: str) -> str:
     # Map Item.type onto one of the three equipment slots the game supports.
     # Unknown/consumable/utility types fall back to "accessory" so players can
@@ -993,15 +1164,14 @@ def _active_campaign_for_player(player):
 def create_character():
     """Render the character-creation form (GET) or provision a new character (POST).
 
-    Each ``Player`` row is one character with its own currency, inventory, and
-    equipment, so the POST inserts a new ``Player`` plus an initial vault
-    ``PlayerCharacterSheet`` whose ``system_type`` matches the user's choice.
-    Profile cap is enforced both as UI hint (disabled button) and server-side
-    on the POST as defense-in-depth.
+    D&D 5e uses a multi-step wizard finalized via JSON; other rulesets keep the
+    one-screen instant create flow.
     """
-    from app.services.rulesets import get_ruleset, known_system_types
+    import secrets
 
+    from app.services.rulesets import get_ruleset, known_system_types
     from app.services.user_capabilities import has_player_capability
+    from app.services.character_creation.creation_service import wizard_catalog_for_user
 
     if not has_player_capability(current_user):
         return redirect(url_for("main.campaigns"))
@@ -1014,13 +1184,46 @@ def create_character():
     default_system = "dnd5e" if "dnd5e" in valid_systems else valid_systems[0]
 
     if request.method == "GET":
+        campaign_player = None
+        campaign_id = None
+        raw_campaign_player_id = (request.args.get("campaign_player_id") or "").strip()
+        if raw_campaign_player_id:
+            try:
+                campaign_player = get_character_for_user(
+                    current_user, int(raw_campaign_player_id)
+                )
+            except (TypeError, ValueError):
+                campaign_player = None
+            if campaign_player is not None and campaign_player.campaign_id is not None:
+                campaign_id = campaign_player.campaign_id
         ok, msg = can_add_player_profile(current_user)
+        if campaign_id is not None:
+            from app.services.character_creation.campaign_settings import (
+                get_character_options,
+            )
+            from app.services.species_compendium_service import ensure_species_compendium
+
+            wizard_payload = wizard_catalog_for_user(
+                campaign_id=campaign_id,
+                species_compendium=ensure_species_compendium(campaign_id),
+                character_options=get_character_options(campaign_id),
+            )
+            ok = True
+            msg = ""
+            wizard_payload["campaign_player_id"] = campaign_player.id
+        else:
+            wizard_payload = wizard_catalog_for_user()
+        wizard_payload["default_system"] = default_system
+        wizard_payload["can_add"] = ok
+        wizard_payload["back_url"] = url_for("main.campaigns")
+        wizard_payload["draft_token"] = secrets.token_urlsafe(16)
         return render_template(
             "Player_Create_Character.html",
             systems=system_options,
             default_system=default_system,
             can_add=ok,
             cap_message=msg or "",
+            wizard_config=wizard_payload,
         )
 
     ok, msg = can_add_player_profile(current_user)
@@ -1062,6 +1265,160 @@ def create_character():
     return redirect(
         url_for("player.character_dashboard", player_id=new_player.id)
     )
+
+
+@player_bp.route("/character/create/dnd5e/roll", methods=["POST"])
+@login_required
+@limiter.limit("120 per hour")
+def create_character_dnd5e_roll():
+    from app.services.character_creation.creation_service import (
+        CreationValidationError,
+        get_roll_draft,
+        issue_random_roll,
+        wizard_catalog_for_user,
+    )
+
+    payload = request.get_json(silent=True) or {}
+    ability_key = payload.get("ability_key")
+    reroll = bool(payload.get("reroll"))
+    try:
+        campaign_scope = None
+        raw_campaign_player_id = payload.get("campaign_player_id")
+        if raw_campaign_player_id:
+            player = get_character_for_user(current_user, int(raw_campaign_player_id))
+            if player is None or player.campaign_id is None:
+                raise CreationValidationError("Campaign character not found.")
+            campaign_scope = player.campaign_id
+            from app.services.character_creation.campaign_settings import (
+                get_creation_settings,
+            )
+
+            ctx = {"settings": get_creation_settings(campaign_scope)}
+        else:
+            ctx = wizard_catalog_for_user()
+        result = issue_random_roll(
+            session,
+            user_id=current_user.id,
+            settings=ctx["settings"],
+            campaign_scope=campaign_scope,
+            ability_key=str(ability_key or ""),
+            reroll=reroll,
+        )
+        return jsonify({"ok": True, "roll": result, "draft": get_roll_draft(session, current_user.id)})
+    except CreationValidationError as exc:
+        return jsonify({"ok": False, "errors": [str(exc)]}), 400
+
+
+@player_bp.route("/character/create/dnd5e/finalize", methods=["POST"])
+@login_required
+@limiter.limit("30 per hour")
+def create_character_dnd5e_finalize():
+    from app.services.character_creation.creation_service import (
+        CreationValidationError,
+        clear_roll_draft,
+        finalize_vault_character,
+        get_finalize_result,
+        get_roll_draft,
+        store_finalize_result,
+    )
+
+    payload = request.get_json(silent=True) or {}
+    draft_token = str(payload.get("draft_token") or "").strip()
+    existing = get_finalize_result(session, current_user.id)
+    raw_campaign_player_id = payload.get("campaign_player_id")
+    campaign_player = None
+    campaign_id = None
+    if raw_campaign_player_id:
+        try:
+            campaign_player = get_character_for_user(
+                current_user, int(raw_campaign_player_id)
+            )
+        except (TypeError, ValueError):
+            campaign_player = None
+        if campaign_player is None or campaign_player.campaign_id is None:
+            return jsonify({"ok": False, "errors": ["Campaign character not found."]}), 404
+        campaign_id = campaign_player.campaign_id
+
+    ok_cap, cap_msg = can_add_player_profile(current_user)
+    if campaign_player is None and not ok_cap and not (
+        existing and existing.get("draft_token") == draft_token and draft_token
+    ):
+        return jsonify({"ok": False, "errors": [cap_msg or "Character profile limit reached."]}), 403
+
+    try:
+        if campaign_player is not None:
+            from app.models import PlayerCharacterSheet
+            from app.services.character_creation.campaign_settings import (
+                get_character_options,
+                get_creation_settings,
+            )
+            from app.services.character_creation.creation_service import (
+                build_final_sheet_json,
+                wizard_catalog_for_user,
+            )
+            from app.services.species_compendium_service import ensure_species_compendium
+
+            ctx = wizard_catalog_for_user(
+                campaign_id=campaign_id,
+                species_compendium=ensure_species_compendium(campaign_id),
+                character_options=get_character_options(campaign_id),
+            )
+            sheet_json = build_final_sheet_json(
+                payload,
+                catalog=ctx["catalog"],
+                settings=get_creation_settings(campaign_id),
+                roll_draft=get_roll_draft(session, current_user.id),
+            )
+            row = PlayerCharacterSheet.query.filter_by(
+                player_id=campaign_player.id,
+                campaign_id=campaign_id,
+            ).first()
+            if row is None:
+                row = PlayerCharacterSheet(
+                    player_id=campaign_player.id,
+                    campaign_id=campaign_id,
+                    sheet_json=sheet_json,
+                )
+                db.session.add(row)
+            else:
+                row.sheet_json = sheet_json
+            db.session.commit()
+            player = campaign_player
+            clear_roll_draft(session)
+        else:
+            player, sheet_json = finalize_vault_character(
+                current_user.id,
+                payload,
+                campaign_id=None,
+                roll_draft=get_roll_draft(session, current_user.id),
+                draft_token=draft_token or None,
+                existing_finalize=existing,
+            )
+            if not (existing and existing.get("draft_token") == draft_token and draft_token):
+                db.session.commit()
+                store_finalize_result(
+                    session,
+                    user_id=current_user.id,
+                    player_id=player.id,
+                    draft_token=draft_token,
+                )
+                clear_roll_draft(session)
+        return jsonify(
+            {
+                "ok": True,
+                "player_id": player.id,
+                "redirect_url": url_for(
+                    "player.character_dashboard", player_id=player.id
+                ),
+                "sheet": sheet_json,
+            }
+        )
+    except CreationValidationError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "errors": [str(exc)]}), 400
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "errors": [f"Could not create character: {exc}"]}), 500
 
 
 @player_bp.route("/characters")

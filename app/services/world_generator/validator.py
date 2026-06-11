@@ -13,6 +13,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional
 
 from app.services.shop_roll.catalog import get_catalog
 from app.services.world_generator.defaults import (
+    DEFAULT_SPECIES_DISTRIBUTION,
     RANGE_SETTINGS,
     SCHEMA_VERSION,
     SEED_MAX,
@@ -23,6 +24,22 @@ from app.services.world_generator.defaults import (
 )
 
 INVENTORY_MODE = "axis"  # procedural random names, stats, rarity (only mode)
+
+
+def _species_field_key(name: str) -> str:
+    return "species_percent_" + name.replace(" ", "_").replace("-", "_")
+
+
+def _getlist(form: Mapping[str, Any], key: str) -> list[Any]:
+    getter = getattr(form, "getlist", None)
+    if callable(getter):
+        return list(getter(key))
+    raw = form.get(key)
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return raw
+    return [raw]
 
 
 class ValidationError(Exception):
@@ -120,6 +137,52 @@ def _parse_name(form: Mapping[str, Any]) -> str:
     if len(name) > 120:
         raise ValidationError("campaign_name", "must be 120 characters or fewer")
     return name
+
+
+def _coerce_percent(raw: Any, field: str) -> float:
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        raise ValidationError(field, "must be a percentage number")
+    if value < 0 or value > 100:
+        raise ValidationError(field, "must be between 0 and 100")
+    return round(value, 3)
+
+
+def _parse_species_distribution(form: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Parse world-level species population percentages.
+
+    Stores names and percentages only. Mechanical traits are intentionally not
+    copied here; they can be attached later from SRD-safe or GM-authored rules.
+    """
+    rows: list[dict[str, Any]] = []
+    for name, default_percent in DEFAULT_SPECIES_DISTRIBUTION:
+        field = _species_field_key(name)
+        raw = form.get(field)
+        percent = _coerce_percent(
+            default_percent if raw in (None, "") else raw,
+            field,
+        )
+        rows.append({"name": name, "percent": percent, "source": "default"})
+
+    custom_names = _getlist(form, "custom_species_name")
+    custom_percents = _getlist(form, "custom_species_percent")
+    for idx, raw_name in enumerate(custom_names):
+        name = str(raw_name or "").strip()
+        raw_percent = custom_percents[idx] if idx < len(custom_percents) else 0
+        percent = _coerce_percent(raw_percent or 0, f"custom_species_percent_{idx}")
+        if not name and percent == 0:
+            continue
+        if not name:
+            raise ValidationError(f"custom_species_name_{idx}", "is required")
+        if len(name) > 60:
+            raise ValidationError(f"custom_species_name_{idx}", "must be 60 characters or fewer")
+        rows.append({"name": name, "percent": percent, "source": "custom"})
+
+    total = round(sum(row["percent"] for row in rows), 3)
+    if abs(total - 100.0) > 0.01:
+        raise ValidationError("species_distribution", "percentages must total 100")
+    return rows
 
 
 # -----------------------------------------------------------------------------
@@ -236,6 +299,7 @@ def validate(form: Mapping[str, Any]) -> Dict[str, Any]:
         "system_type": system_type,
         "world_seed": world_seed,
         "ranges": ranges,
+        "species_distribution": _parse_species_distribution(form),
         "inventory_mode": INVENTORY_MODE,
         "supply_demand_enabled": supply_demand_enabled_flag,
     }

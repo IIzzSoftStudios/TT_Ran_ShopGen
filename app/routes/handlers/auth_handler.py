@@ -27,6 +27,8 @@ from app.models import (
     GMProfile,
     RegistrationKey,
     AccessRequest,
+    Player,
+    UserSubmission,
 )
 from app.services.schema_compat import ensure_user_password_history_table
 from app.utils.validators import (
@@ -42,6 +44,7 @@ from app.services.join_codes import (
 )
 from app.services.player_resolution import user_has_player_profile
 from app.services.user_capabilities import ensure_gm_profile
+from app.services import character_sheet_service
 from app.services.submission_ingest import (
     SubmissionValidationError,
     build_submission,
@@ -108,14 +111,100 @@ def _setup_new_unified_user(new_user, campaign_code: str) -> None:
     """Create GM profile and optionally join a campaign for role=Both."""
     ensure_gm_profile(new_user)
     if campaign_code:
-        redeem_campaign_code(new_user, campaign_code, _commit=False)
+        from app.services.join_codes import REDEMPTION_SOURCE_REGISTRATION_WITH_KEY
+
+        redeem_campaign_code(
+            new_user,
+            campaign_code,
+            _commit=False,
+            source=REDEMPTION_SOURCE_REGISTRATION_WITH_KEY,
+        )
 
 
 def _register_redirect_fail(registration_key=""):
     key = (registration_key or "").strip()
+    if request.args.get("campaign_code") == "1":
+        return redirect(url_for("auth.register", campaign_code="1"))
     if key:
         return redirect(url_for("auth.register", vault_key=key))
     return redirect(url_for("auth.register"))
+
+
+def _handle_campaign_code_register(username: str, password: str, confirm_password: str,
+                                   email: str | None, campaign_code: str):
+    """Create a player-only account from a GM's CAMP code."""
+    if not campaign_code:
+        flash("Campaign code is required.", "warning")
+        return redirect(url_for("auth.register", campaign_code="1"))
+
+    if not username or not password or not confirm_password:
+        flash("All fields are required!", "warning")
+        return redirect(url_for("auth.register", campaign_code="1"))
+
+    if password != confirm_password:
+        flash("Passwords do not match.", "danger")
+        return redirect(url_for("auth.register", campaign_code="1"))
+
+    is_strong, msg = is_password_strong(password)
+    if not is_strong:
+        flash(msg, "danger")
+        return redirect(url_for("auth.register", campaign_code="1"))
+
+    if User.query.filter_by(username=username).first():
+        flash("Username already exists!", "warning")
+        return redirect(url_for("auth.register", campaign_code="1"))
+
+    if email and User.query.filter_by(email=email).first():
+        flash("That email is already registered.", "warning")
+        return redirect(url_for("auth.register", campaign_code="1"))
+
+    try:
+        new_user = User(username=username, role="Player", email=email)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.flush()
+        from app.services.join_codes import REDEMPTION_SOURCE_REGISTRATION
+
+        campaign = redeem_campaign_code(
+            new_user,
+            campaign_code,
+            _commit=False,
+            source=REDEMPTION_SOURCE_REGISTRATION,
+        )
+        player = Player.query.filter_by(
+            user_id=new_user.id,
+            campaign_id=campaign.id,
+            is_npc=False,
+        ).first()
+        if player is None:
+            raise ValueError("Campaign join did not create a player character.")
+        character_sheet_service.ensure_initial_campaign_sheet(player, campaign)
+        db.session.commit()
+        login_user(new_user, remember=True)
+        session["session_mode"] = "player"
+        session["campaign_id"] = campaign.id
+        session["player_id"] = player.id
+        session["system_type"] = campaign.system_type
+        session.permanent = True
+        session.modified = True
+        flash(
+            "Player account created. Finish setting up your campaign character next.",
+            "success",
+        )
+        return redirect(url_for("player.character_dashboard", player_id=player.id))
+    except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
+        db.session.rollback()
+        flash(
+            getattr(e, "args", [None])[0]
+            or "Could not join with that campaign code.",
+            "danger",
+        )
+        return redirect(url_for("auth.register", campaign_code="1"))
+    except (IntegrityError, OperationalError, ValueError) as e:
+        db.session.rollback()
+        log.exception("Campaign-code registration failed: %s", e)
+        flash("Something went wrong creating your account. Please try again.", "danger")
+        return redirect(url_for("auth.register", campaign_code="1"))
 
 
 def handle_register():
@@ -130,9 +219,22 @@ def handle_register():
         password = request.form.get("password")
         confirm_password = request.form.get("confirm_password")
         campaign_code = (request.form.get("campaign_code") or "").strip()
+        campaign_code_mode = request.args.get("campaign_code") == "1"
         registration_key = (
             request.form.get("registration_key", "").strip().replace("_", "-").upper()
         )
+        username = (username_raw or "").strip()
+        email = (request.form.get("email") or "").strip().lower() or None
+
+        if campaign_code_mode:
+            return _handle_campaign_code_register(
+                username,
+                password,
+                confirm_password,
+                email,
+                campaign_code,
+            )
+
         if not registration_key:
             registration_key = (
                 (request.args.get("vault_key") or "").strip().replace("_", "-").upper()
@@ -155,7 +257,6 @@ def handle_register():
                 return _register_redirect_fail(registration_key)
             registration_relaxed = bool(key_row.is_admin_test_key)
 
-        username = (username_raw or "").strip()
         if not username or not password or not confirm_password:
             if keyed:
                 db.session.rollback()
@@ -187,7 +288,6 @@ def handle_register():
             flash("Username already exists!", "warning")
             return _register_redirect_fail(registration_key)
 
-        email = (request.form.get("email") or "").strip().lower() or None
         if registration_relaxed:
             email = None
         elif email and User.query.filter_by(email=email).first():
@@ -281,7 +381,13 @@ def handle_register():
 
     vault_key = request.args.get("vault_key")
     email = (request.args.get("email") or "").strip().lower()
-    return render_template("register.html", vault_key=vault_key, email=email)
+    campaign_code_mode = request.args.get("campaign_code") == "1"
+    return render_template(
+        "register.html",
+        vault_key=vault_key,
+        email=email,
+        campaign_code_mode=campaign_code_mode,
+    )
 
 
 def handle_forgot_password():
@@ -405,13 +511,46 @@ def handle_post_submission():
     result = build_submission(data, current_user, session)
     if isinstance(result, SubmissionValidationError):
         return jsonify({"error": result.message}), result.status_code
-    db.session.add(result)
+    prompted_key = (result.extra or {}).get("prompted_key")
+    existing = None
+    if prompted_key:
+        candidates = UserSubmission.query.filter_by(
+            user_id=current_user.id,
+            kind=result.kind,
+            title=result.title,
+        ).all()
+        existing = next(
+            (
+                row
+                for row in candidates
+                if isinstance(row.extra, dict)
+                and row.extra.get("prompted_key") == prompted_key
+            ),
+            None,
+        )
+    if existing is not None:
+        existing.category = result.category
+        existing.body = result.body
+        existing.extra = result.extra
+        existing.page_url = result.page_url
+        existing.campaign_id = result.campaign_id
+        existing.submitted_session_mode = result.submitted_session_mode
+        existing.account_role = result.account_role
+        existing.username_snapshot = result.username_snapshot
+        existing.status = "pending"
+        existing.created_at = datetime.utcnow()
+    else:
+        db.session.add(result)
     try:
         db.session.commit()
     except Exception:
         db.session.rollback()
         log.exception("user_submission commit failed")
         return jsonify({"error": "Could not save submission."}), 500
+    if existing is not None:
+        return jsonify(
+            {"success": True, "message": "Submission updated successfully."}
+        ), 200
     return jsonify(
         {"success": True, "message": "Submission received successfully."}
     ), 201

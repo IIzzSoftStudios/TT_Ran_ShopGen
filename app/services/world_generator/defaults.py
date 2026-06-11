@@ -24,12 +24,29 @@ SCHEMA_VERSION: int = 2
 RANGE_SETTINGS: Dict[str, Tuple[int, int, int, int]] = {
     "num_cities":             (1,   40,  3,  8),
     "num_regions":            (1,   10,  2,  4),
+    "population_scale":       (1,   20,  8, 12),
+    "map_landmass_scale":     (1,   10,  5,  7),
+    "map_waterways":          (0,   10,  3,  5),
+    "map_terrain_roughness":  (0,   10,  4,  6),
     "global_item_pool_size":  (25, 500, 50, 120),
     "city_size_variation":    (1,   20,  3,  8),
     "items_per_shop":         (1,   30,  5, 15),
     # Fused axis: 0 = God Magic, 5 = Medieval, 10 = Post-Apoc Tech.
     "tech_magic_balance":     (0,   10,  4,  6),
 }
+
+
+DEFAULT_SPECIES_DISTRIBUTION = (
+    ("Human", 45.0),
+    ("Elf", 12.0),
+    ("Half-Orc", 6.0),
+    ("Half-Elf", 8.0),
+    ("Dwarf", 10.0),
+    ("Halfling", 7.0),
+    ("Gnome", 5.0),
+    ("Tiefling", 4.0),
+    ("Dragonborn", 3.0),
+)
 
 
 # -----------------------------------------------------------------------------

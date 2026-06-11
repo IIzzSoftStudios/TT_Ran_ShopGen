@@ -457,19 +457,20 @@
                     </p>
                     <p>
                         This documentation explains how to get access, what GMs and players can do today, and
-                        how items, inventory, and simulation ticks fit together. Sections are updated as features
-                        ship; see the <a href="{{ url_for('main.docs', section='changelog') }}#changelog">changelog</a> for release notes.
+                        how items, inventory, population, species, character creation, encounter prep, and simulation ticks
+                        fit together. Sections are updated as features ship; see the
+                        <a href="{{ url_for('main.docs', section='changelog') }}#changelog">changelog</a> for release notes.
                     </p>
                     <h3>What you will find here</h3>
                     <ul>
                         <li><strong>Getting Started</strong> — access request, registration, and first login paths</li>
-                        <li><strong>GM Management Hub</strong> — campaigns, world generation, simulation, and players</li>
-                        <li><strong>Player Use</strong> — joining a campaign, browsing shops, and inventory</li>
-                        <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, and game-day ticks</li>
+                        <li><strong>GM Management Hub</strong> — campaigns, world generation, population, species, monsters, maps, encounters, simulation, and players</li>
+                        <li><strong>Player Use</strong> — joining a campaign, creating D&amp;D 5e characters, using dashboard tabs, viewing shared maps, browsing shops, and inventory</li>
+                        <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, compendiums, and game-day ticks</li>
                         <li><strong>Roadmap</strong> — what we are improving next for GMs and players</li>
                         <li><strong>Changelog</strong> — release notes for Alpha and earlier demo milestones</li>
                         <li><strong>Terms &amp; Privacy</strong> — general site rules and privacy notes</li>
-                        <li><strong>FAQ</strong> — limitations, rulesets, and infrastructure expectations</li>
+                        <li><strong>FAQ</strong> — limitations, map visibility, rulesets, and infrastructure expectations</li>
                     </ul>
                     <p>
                         Use the sidebar to jump between sections, or search above to jump to the best match.
@@ -503,15 +504,16 @@
                     <h3>4. GM path: campaign and world</h3>
                     <ol>
                         <li>Create or select a campaign from your campaigns list.</li>
-                        <li>Optional: run the world generation wizard to seed regions, cities, shops, and starter inventory.</li>
-                        <li>You can also skip generation and build regions, cities, and shops manually over time.</li>
-                        <li>Land on the <strong>Game Master Dashboard</strong> to manage the economy and advance simulation between sessions.</li>
+                        <li>Optional: run the world generation wizard to seed regions, cities, shops, starter inventory, and species population assumptions.</li>
+                        <li>You can also skip generation and build regions, cities, shops, species entries, monsters, and map details manually over time.</li>
+                        <li>Land on the <strong>Game Master Dashboard</strong> to manage the economy, map, encounters, player access, and simulation between sessions.</li>
                     </ol>
                     <h3>5. Player path: join a campaign</h3>
                     <p>
                         Ask your GM for a <strong>campaign join code</strong>. The GM reveals it from dashboard join
-                        tools. Redeem the code on the player side to attach your character to that campaign, then browse
-                        cities and shops from your player home screen.
+                        tools. Redeem the code on the player side to attach your character to that campaign. In D&amp;D 5e
+                        campaigns, new players can use the character creation wizard before browsing shared maps, cities,
+                        shops, and visible encounters from the player home screen.
                     </p>
                     <p>
                         Without an active campaign, you can still use a solo <strong>character vault</strong> to manage
@@ -543,10 +545,29 @@
                     </p>
                     <h3>World setup</h3>
                     <ul>
-                        <li><strong>World generation</strong> — the world generation wizard creates campaign structure, regions, cities, shops, and inventory from your chosen settings and seed.</li>
-                        <li><strong>Regions and cities</strong> — edit regions, add cities, and generate shops for a region when cities already exist.</li>
+                        <li><strong>World generation</strong> — the world generation wizard creates campaign structure, regions, cities, shops, inventory, and species population assumptions from your chosen settings and seed.</li>
+                        <li><strong>Regions and cities</strong> — edit regions, add cities, set settlement population, and record population by species when cities already exist.</li>
                         <li><strong>Shops and markets</strong> — view grouped shops, adjust shop details, and use market overview tools to see how stock and prices are distributed.</li>
                     </ul>
+                    <h3>Species and monster compendiums</h3>
+                    <ul>
+                        <li><strong>Species Compendium</strong> — D&amp;D 5e GMs can review base species, add custom species, and maintain population percentages, traits, stat modifiers, and notes.</li>
+                        <li><strong>Monster Compendium</strong> — D&amp;D 5e GMs can maintain campaign-scoped monster templates for encounter prep.</li>
+                        <li><strong>Population by species</strong> — city summaries and player map popouts can show settlement population context when the GM has configured it.</li>
+                    </ul>
+                    <h3>Maps and player visibility</h3>
+                    <ul>
+                        <li><strong>World and city maps</strong> — place cities, shops, points of interest, and existing encounters on the correct canvas.</li>
+                        <li><strong>Show to players</strong> controls whether a point of interest or encounter appears on the player map and player encounter tools.</li>
+                        <li><strong>Encounter placement</strong> drops an existing encounter marker where you click without opening the battle tab or creating a duplicate encounter.</li>
+                    </ul>
+                    <h3>D&amp;D 5e encounter tools</h3>
+                    <p>
+                        D&amp;D 5e campaigns include a battle board for GM-managed encounters. GMs can use the Monster
+                        Compendium while preparing combat, share selected encounters with players, allow player token
+                        placement, and use the radial action menu for turn actions. The encounter list also supports
+                        permanent removal with a confirmation step.
+                    </p>
                     <h3>Catalog and items</h3>
                     <p>
                         Maintain the shared <strong>item catalog</strong> (name, type, rarity, base price) and per-shop
@@ -570,15 +591,36 @@
                     </p>
                     <h3>Join a campaign</h3>
                     <p>
-                        Redeem the join code your GM provides. Once linked, your player home screen lists cities and
-                        shops in that campaign.
+                        Redeem the join code your GM provides. For D&amp;D 5e campaigns, the character creation wizard can
+                        walk you through identity, species, class, background, abilities, and review before the character
+                        joins the campaign. Once linked, your player home screen opens a tabbed dashboard for your
+                        character, inventory, campaign map, market overview, and any visible D&amp;D 5e encounters.
                     </p>
-                    <h3>Browse and buy</h3>
+                    <h3>Dashboard tabs</h3>
+                    <ul>
+                        <li><strong>Character</strong> keeps character sheet details close to the campaign tools.</li>
+                        <li><strong>Inventory</strong> lists owned items and equipment.</li>
+                        <li><strong>Map</strong> shows the GM-provided world or city map in a read-only view.</li>
+                        <li><strong>Market Overview</strong> summarizes campaign-wide shop prices and stock.</li>
+                        <li><strong>Encounters</strong> appears in D&amp;D 5e campaigns when the GM has shared at least one encounter.</li>
+                    </ul>
+                    <h3>Browse, buy, and review the market</h3>
                     <ul>
                         <li>Navigate by city and shop to see what is on the shelf.</li>
                         <li>Prices and stock reflect the campaign’s current world state after simulation has run.</li>
                         <li>Purchases spend your character’s <strong>currency</strong> and add items to your inventory when stock allows.</li>
                     </ul>
+                    <h3>Shared maps and encounters</h3>
+                    <p>
+                        Player maps use the same background and marker layout as the GM map, but remain read-only. Cities
+                        and shops open summary popouts, including population and species breakdowns when the GM has set
+                        them. Points of interest and encounters appear only when the GM marks them
+                        <strong>Show to players</strong>. Visible encounter popouts can take you to the Encounters tab.
+                    </p>
+                    <p>
+                        On a shared battle board, your own character is highlighted. You can place your token on an empty
+                        tile when allowed and use available turn actions such as Move, Attack, or Wait.
+                    </p>
                     <h3>Inventory and equipment</h3>
                     <p>
                         Your personal inventory lists owned items; equipment slots (weapon, armor, accessory) track what
@@ -592,8 +634,9 @@
                     </p>
                     <h3>What is still evolving</h3>
                     <p>
-                        Core browsing and buying are available, but the player experience continues to improve—filters,
-                        polish, and table-side workflows may change between releases. Check the changelog for player-facing updates.
+                        Core browsing, buying, map review, and shared encounter play are available, but the player
+                        experience continues to improve—filters, polish, and table-side workflows may change between
+                        releases. Check the changelog for player-facing updates.
                     </p>
                 </article>
 
@@ -608,6 +651,12 @@
                     <p>
                         Each <strong>item</strong> in the catalog has a name, category/type, rarity, description, and
                         <strong>base price</strong>. GMs can add or edit items; shops reference the same catalog entries.
+                    </p>
+                    <h3>Compendiums</h3>
+                    <p>
+                        D&amp;D 5e campaigns can also use campaign-scoped compendiums for species and monsters. Species
+                        entries help drive character creation choices and population context; monster templates support
+                        encounter prep without changing shop inventory or item pricing.
                     </p>
                     <h3>Shop inventory</h3>
                     <p>
@@ -630,6 +679,13 @@
                         Buys and sells update player currency, player inventory, and shop stock together. If a purchase
                         fails (insufficient funds, out of stock), you should see a clear message and no partial change.
                     </p>
+                    <h3>Maps and encounters are separate state</h3>
+                    <p>
+                        Map markers, points of interest, population details, species compendium entries, monster templates,
+                        encounter visibility, and combat board state do not change shop inventory by themselves. They are
+                        campaign tools layered beside the economy so the GM can reveal locations and encounters without
+                        altering stock or prices.
+                    </p>
                 </article>
 
                 <article id="section-roadmap" class="docs-panel" role="region"
@@ -639,22 +695,24 @@
                         Econo-Forge is now in Alpha. This page summarizes what the team is prioritizing next.
                         It is product-facing guidance—not a delivery schedule or contract.
                     </p>
-                    <h3>Now: first-run clarity</h3>
+                    <h3>Now: player map, population, and encounter parity</h3>
                     <ul>
-                        <li>Clearer onboarding from landing page through registration, login, and first campaign setup.</li>
-                        <li>GM guidance for world generation, player join codes, and running the first market day.</li>
-                        <li>Consistent theming across auth, GM, and player surfaces in light and dark mode.</li>
+                        <li>Player dashboard tabs now bring character, inventory, map, market overview, and shared encounters into one home screen.</li>
+                        <li>GM-facing species and monster compendiums now support D&amp;D 5e worldbuilding, character creation, and encounter prep.</li>
+                        <li>Population by species now flows from GM setup into city summaries and player map context.</li>
+                        <li>GM map tools now control which points of interest and encounters are visible to players.</li>
+                        <li>D&amp;D 5e encounter work is focused on table-side reliability: token placement, action menus, and GM cleanup controls.</li>
                     </ul>
                     <h3>Next: polish and reliability</h3>
                     <ul>
-                        <li>Branding and copy consistency across older templates and public docs.</li>
+                        <li>Branding and copy consistency across older templates, public docs, and new map/encounter surfaces.</li>
                         <li>Simulation performance and predictable game-day ticks between sessions.</li>
-                        <li>Stronger automated tests for readiness, locks, and regression-prone flows.</li>
+                        <li>Stronger automated tests for readiness, locks, visibility filtering, combat routes, and regression-prone flows.</li>
                     </ul>
                     <h3>Later: scale and depth</h3>
                     <ul>
                         <li>Runtime configuration documentation for self-hosted and production deployments.</li>
-                        <li>Deeper economy features once state authority and tick safety are fully documented.</li>
+                        <li>Deeper economy and encounter features once state authority and tick safety are fully documented.</li>
                     </ul>
                     <p>
                         For shipped changes, see the <a href="{{ url_for('main.docs', section='changelog') }}#changelog">changelog</a>.
@@ -672,6 +730,7 @@
                     <div class="changelog-layout">
                         <aside class="changelog-index" aria-label="Patch notes">
                             <p class="changelog-index-title">Patch Notes</p>
+                            <a href="#patch-1-2-4">Alpha 1.0 Map and Encounter Update</a>
                             <a href="#patch-1-2-3">Alpha 1.0</a>
                             <a href="#patch-1-2-2">Tech Demo Hotfix 1.2.2</a>
                             <a href="#patch-1-2-1">Tech Demo Hotfix 1.2.1</a>
@@ -680,8 +739,53 @@
                         </aside>
 
                         <div class="changelog-patches">
+                            <section class="changelog-patch" id="patch-1-2-4" aria-labelledby="heading-patch-1-2-4">
+                                <h3 id="heading-patch-1-2-4">Alpha 1.0 Map and Encounter Update <span class="docs-badge">Latest</span></h3>
+                                <p>
+                                    <strong>June 10, 2026.</strong> Player dashboard tabs, campaign map parity with the GM map, population and species visibility, D&amp;D 5e encounter visibility, GM species and monster compendium tools, the character creation wizard, and GM map tools for placing and managing encounters and points of interest.
+                                </p>
+                                <h3>Player dashboard</h3>
+                                <ul>
+                                    <li>The player home screen now uses tabs for Character, Inventory, Map, Market Overview, and (in D&amp;D 5e campaigns) Encounters.</li>
+                                    <li>Market Overview shows campaign-wide item prices and stock; Shops by city browsing remains on the same page.</li>
+                                    <li>The Encounters tab loads the live battle board when the GM has shared an encounter with players.</li>
+                                </ul>
+                                <h3>Player map</h3>
+                                <ul>
+                                    <li>Campaign maps use the same backgrounds, markers, and popouts as the GM map, in a read-only view.</li>
+                                    <li>City and shop markers open summary popouts; city popouts include population details and species breakdowns when the GM has configured them.</li>
+                                    <li>Encounters and points of interest marked <strong>Show to players</strong> appear on the player map with the same marker styles as on the GM side.</li>
+                                    <li>Visible encounter markers open a compact popout with a shortcut to the Encounters tab.</li>
+                                </ul>
+                                <h3>Worldbuilding and character tools</h3>
+                                <ul>
+                                    <li>GMs can manage a campaign-scoped <strong>Species Compendium</strong>, including custom species, population percentages, traits, stat modifiers, and notes.</li>
+                                    <li>World generation and city editing now support population by species so campaign maps can surface richer settlement context.</li>
+                                    <li>The <strong>Monster Compendium</strong> gives D&amp;D 5e GMs campaign-scoped monster templates for encounter prep.</li>
+                                    <li>The D&amp;D 5e character creation wizard walks players through identity, species, class, background, abilities, and review before creating the character.</li>
+                                </ul>
+                                <h3>D&amp;D 5e encounters</h3>
+                                <ul>
+                                    <li>GMs control whether players can see an encounter with <strong>Show to players</strong> in battle settings (saved with other encounter settings).</li>
+                                    <li>Players only see encounters the GM has shared; hidden encounters stay off the player map and Encounters tab.</li>
+                                    <li>On the battle board, a player&apos;s own character is highlighted in yellow; players can place their token once on an empty tile and use Move, Attack, or Wait on their turn.</li>
+                                    <li>Fixed the action radial menu on GM and player battle boards so Close dismisses it and actions reset cleanly after use.</li>
+                                </ul>
+                                <h3>GM map and encounters</h3>
+                                <ul>
+                                    <li>Place existing encounters on the world or city map from the encounter dropdown—click the map to drop the marker without opening the battle tab or creating a duplicate encounter.</li>
+                                    <li>Multiple encounter markers can appear on the same canvas; the encounter list includes <strong>Remove</strong> with a confirmation before permanent deletion.</li>
+                                    <li>Points of interest now have a <strong>Show to players</strong> checkbox when adding or editing; unchecked POIs stay GM-only.</li>
+                                    <li>Encounter picker refreshes when switching to the Map tab so newly created encounters appear in the dropdown.</li>
+                                </ul>
+                                <h3>Reliability</h3>
+                                <ul>
+                                    <li>Added regression tests for player map and market APIs, encounter placement and deletion, POI and encounter visibility filtering, and dashboard markup.</li>
+                                </ul>
+                            </section>
+
                             <section class="changelog-patch" id="patch-1-2-3" aria-labelledby="heading-patch-1-2-3">
-                                <h3 id="heading-patch-1-2-3">Alpha 1.0 <span class="docs-badge">Latest</span></h3>
+                                <h3 id="heading-patch-1-2-3">Alpha 1.0</h3>
                                 <p>
                                     <strong>June 2, 2026.</strong> Alpha 1.0 carries forward what we learned from the tech demo: clearer first-run guidance, cleaner campaign selection, and room for larger test worlds.
                                 </p>
@@ -695,7 +799,6 @@
                                 <ul>
                                     <li>The GM dashboard keeps day, week, month, year, and pause controls available before the first simulation run.</li>
                                     <li>Auto-issued access keys now use the Alpha phase, and Alpha keys use the restored legacy limits.</li>
-                                    <li>Alpha 1.0 keys now support up to 99 active campaigns.</li>
                                 </ul>
                             </section>
 
@@ -833,13 +936,13 @@
                     <h3>Information you provide</h3>
                     <ul>
                         <li>Account details such as username, email, role, password hash, and registration key status.</li>
-                        <li>Campaign and gameplay data such as campaigns, worlds, shops, items, inventory, character sheets, join codes, and simulation activity.</li>
+                        <li>Campaign and gameplay data such as campaigns, worlds, maps, points of interest, encounters, species, monsters, settlement populations, shops, items, inventory, character sheets, join codes, and simulation activity.</li>
                         <li>Support and feedback data such as bug reports, suggestions, severity, reproduction steps, page context, and uploaded avatar images.</li>
                     </ul>
                     <h3>How data is used</h3>
                     <ul>
                         <li>To authenticate users, route them to GM or player tools, and enforce campaign access.</li>
-                        <li>To run campaign economy features including world generation, market views, stock, pricing, and simulation jobs.</li>
+                        <li>To run campaign tools including world generation, population summaries, species and monster compendiums, maps, encounters, market views, stock, pricing, character creation, and simulation jobs.</li>
                         <li>To process access-form submissions, issue registration keys, diagnose bugs, improve Alpha, and respond to feedback.</li>
                     </ul>
                     <h3>Sharing and retention</h3>
@@ -877,6 +980,40 @@
                         World generation defaults to <strong>D&amp;D 5E</strong> item assumptions. Pathfinder-style tables
                         are a common fit for the economy model, but Econo-Forge is not a licensed rules product—treat
                         stats and pricing as table aids you can adjust.
+                    </p>
+
+                    <h3>What are the Species and Monster Compendiums?</h3>
+                    <p>
+                        In D&amp;D 5e campaigns, GMs can use the Species Compendium to manage base and custom species,
+                        population percentages, traits, stat modifiers, and notes. The Monster Compendium stores
+                        campaign-scoped monster templates for encounter prep.
+                    </p>
+
+                    <h3>Where does city population by species appear?</h3>
+                    <p>
+                        GMs can set population and species breakdowns during world setup or city editing. When configured,
+                        those details appear in city summaries and player map popouts so players can understand settlement
+                        context without seeing GM-only notes.
+                    </p>
+
+                    <h3>How does D&amp;D 5e character creation work?</h3>
+                    <p>
+                        The character creation wizard walks players through identity, species, class, background, abilities,
+                        and review. Other rulesets can still use simpler character creation while D&amp;D 5e gets the guided flow.
+                    </p>
+
+                    <h3>Why can't players see a map point or encounter?</h3>
+                    <p>
+                        Player maps only show campaign content the GM has revealed. For points of interest and D&amp;D 5e
+                        encounters, the GM must turn on <strong>Show to players</strong>; hidden content remains GM-only
+                        even if it has already been placed on the GM map.
+                    </p>
+
+                    <h3>Can players use the battle board?</h3>
+                    <p>
+                        In D&amp;D 5e campaigns, players can open shared encounters from the Encounters tab. They can place
+                        their own character token when allowed, see their character highlighted, and use the available radial
+                        actions on their turn. GM-only encounter setup controls remain hidden from the player view.
                     </p>
 
                     <h3>Why did simulation say the service is offline?</h3>

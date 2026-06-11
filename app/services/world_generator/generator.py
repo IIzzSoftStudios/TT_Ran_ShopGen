@@ -45,6 +45,7 @@ from app.services.shop_roll.city_size import pick_city_size_and_population
 from app.services.shop_roll.shop_type_map import get_biased_shop_pool
 from app.services.world_generator.settings_resolve import (
     city_size_variation_range,
+    population_scale_range,
     shops_count_for_city,
 )
 
@@ -119,6 +120,17 @@ def _derive_subrng(root: random.Random, tag: str) -> random.Random:
     return random.Random(child_seed)
 
 
+def _scaled_population(
+    rng: random.Random, population: int, scale_range: Dict[str, int]
+) -> int:
+    lo = max(1, min(20, int(scale_range.get("min", 10))))
+    hi = max(1, min(20, int(scale_range.get("max", 10))))
+    if lo > hi:
+        lo, hi = hi, lo
+    scale = rng.randint(lo, hi) / 10.0
+    return max(1, int(round(population * scale)))
+
+
 # -----------------------------------------------------------------------------
 # Helpers for rolling items
 # -----------------------------------------------------------------------------
@@ -185,6 +197,7 @@ def generate(
     catalog = get_catalog()
     use_city_variation = "city_size_variation" in ranges
     variation_range = city_size_variation_range(settings)
+    population_scale = population_scale_range(settings)
     campaign_row = Campaign.query.filter_by(id=campaign_id).first()
     game_day = int(campaign_row.current_game_day or 1) if campaign_row else 1
 
@@ -329,6 +342,7 @@ def generate(
                     if population < 12_000
                     else "Large"
                 )
+            population = _scaled_population(rng_cities, population, population_scale)
             city = City(
                 name=name,
                 government_type=city_gov,
@@ -591,6 +605,7 @@ def generate_cities_for_empty_region(
     catalog = get_catalog()
     use_city_variation = "city_size_variation" in ranges
     variation_range = city_size_variation_range(settings)
+    population_scale = population_scale_range(settings)
     root_rng = random.Random(effective_seed)
     rng_cities = _derive_subrng(root_rng, f"empty_region_{region_id}_cities")
 
@@ -655,6 +670,7 @@ def generate_cities_for_empty_region(
                     if population < 12_000
                     else "Large"
                 )
+            population = _scaled_population(rng_cities, population, population_scale)
             new_cities.append(
                 City(
                     name=name,

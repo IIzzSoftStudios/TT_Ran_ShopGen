@@ -46,6 +46,8 @@ from app.services.billing_rules import (
     can_create_campaign,
     get_gm_limits,
 )
+from app.services import gm_maps as gm_maps_service
+from app.services import species_compendium_service
 from app.services.world_generator import (
     defaults as wg_defaults,
     generator as wg_generator,
@@ -421,6 +423,10 @@ def delete_campaign(campaign_id: int):
 _RANGE_LABELS = {
     "num_cities": "Number of Cities",
     "num_regions": "Number of Regions",
+    "population_scale": "Population Scale",
+    "map_landmass_scale": "Landmass Scale",
+    "map_waterways": "Waterways",
+    "map_terrain_roughness": "Terrain Roughness",
     "global_item_pool_size": "Global Item Pool Size",
     "city_size_variation": "City Size Variation",
     "items_per_shop": "Items per Shop",
@@ -436,6 +442,23 @@ _SETTING_HINTS = {
     "num_cities": (
         "Towns and cities placed across those regions. More cities add travel "
         "hubs and shop locations but increase generation time and database size."
+    ),
+    "population_scale": (
+        "Scales settlement populations after city size is rolled. Lower values "
+        "create sparse worlds; higher values create denser cities without changing "
+        "the number of city records."
+    ),
+    "map_landmass_scale": (
+        "Controls how much of the generated world map is land. Lower values make "
+        "smaller continents and more coast; higher values create broader landmasses."
+    ),
+    "map_waterways": (
+        "Controls rivers and waterways on generated world maps and canals on city "
+        "maps. Higher values make water features more common."
+    ),
+    "map_terrain_roughness": (
+        "Controls mountains, forests, islands, and map irregularity. Higher values "
+        "make the world look more rugged and broken up."
     ),
     "global_item_pool_size": (
         "Size of the master item catalog built once for the campaign. Every shop "
@@ -503,6 +526,7 @@ def _build_defaults_payload(form_override=None):
         "shop_inventory_cap": wg_defaults.SHOP_INVENTORY_CAP,
         "max_shops_per_city": catalog.max_shops_per_city(),
         "defaults_json": defaults_json,
+        "default_species_distribution": wg_defaults.DEFAULT_SPECIES_DISTRIBUTION,
         "form_values": {
             "campaign_name": override.get("campaign_name", ""),
             "system_type": override.get("system_type", "dnd5e"),
@@ -541,7 +565,8 @@ def generate_world_form():
 # ---------------------------------------------------------------------------
 def _flash_and_reshow(form, category, message, gm_profile=None):
     flash(message, category)
-    form_ctx = dict(form or {})
+    to_dict = getattr(form, "to_dict", None)
+    form_ctx = to_dict(flat=True) if callable(to_dict) else dict(form or {})
     if gm_profile is not None:
         form_ctx["_gm_profile"] = gm_profile
     ctx = _build_defaults_payload(form_ctx)
@@ -571,7 +596,7 @@ def generate_world_submit():
         flash("GM profile not found.", "error")
         return redirect(url_for("main.campaigns")), 403
 
-    form = request.form.to_dict(flat=True)
+    form = request.form
     log.info(
         "world_generation_post_received user_id=%s gm_profile_id=%s",
         current_user.id,
@@ -632,6 +657,12 @@ def generate_world_submit():
             settings["world_seed"] = result.effective_seed
             config.settings_json = settings
 
+            # Map metadata is generated with the campaign; uploads can replace
+            # it later from the dashboard Map tab.
+            gm_maps_service.get_or_create_world_canvas(
+                campaign.id, seed=result.effective_seed, settings=settings
+            )
+
         db.session.commit()
 
     except CampaignLimitReached as exc:
@@ -648,7 +679,7 @@ def generate_world_submit():
             flush=True,
         )
         flash(exc.message, "system")
-        ctx = _build_defaults_payload({**form, "_gm_profile": gm_profile})
+        ctx = _build_defaults_payload({**form.to_dict(flat=True), "_gm_profile": gm_profile})
         return render_template("GM_generate_world.html", **ctx), 402
     except ValidationError as exc:
         db.session.rollback()
@@ -738,6 +769,8 @@ def generate_world_submit():
     session.permanent = True
     session.modified = True
 
+    if species_compendium_service.settings_has_custom_species(settings):
+        return redirect(url_for("gm.species_builder"), code=303)
     return redirect(url_for("gm.home"), code=303)
 
 
@@ -795,11 +828,24 @@ def skip_world_generation_submit():
                 "generation_skipped": True,
                 "campaign_name": campaign_name,
                 "system_type": system_type,
+                "schema_version": wg_defaults.SCHEMA_VERSION,
+                "ranges": {
+                    key: {"min": d_min, "max": d_max}
+                    for key, (_floor, _ceiling, d_min, d_max) in wg_defaults.RANGE_SETTINGS.items()
+                },
+                "species_distribution": [
+                    {"name": name, "percent": percent, "source": "default"}
+                    for name, percent in wg_defaults.DEFAULT_SPECIES_DISTRIBUTION
+                ],
             },
-            schema_version=1,
+            schema_version=wg_defaults.SCHEMA_VERSION,
             world_seed=None,
         )
         db.session.add(config)
+
+        # A skipped world still gets a world canvas so the GM can upload or
+        # edit a map from the dashboard right away.
+        gm_maps_service.get_or_create_world_canvas(campaign.id)
 
         db.session.commit()
     except CampaignLimitReached as exc:

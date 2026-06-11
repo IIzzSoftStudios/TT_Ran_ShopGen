@@ -37,11 +37,8 @@ def _player_for_campaign(character_id: int, campaign_id: int):
     return Player.query.filter_by(id=character_id, campaign_id=campaign_id).first()
 
 
-def list_players():
-    gm_profile, campaign, redir = get_campaign_for_gm_session()
-    if redir:
-        return redir
-
+def build_player_entries(campaign):
+    """Return player/NPC rows for GM views."""
     players = (
         Player.query.filter_by(campaign_id=campaign.id)
         .order_by(Player.id.asc())
@@ -59,6 +56,15 @@ def list_players():
             )
         ]
         player_entries.append({"player": player, "characters": characters})
+    return player_entries
+
+
+def list_players():
+    gm_profile, campaign, redir = get_campaign_for_gm_session()
+    if redir:
+        return redir
+
+    player_entries = build_player_entries(campaign)
 
     return render_template(
         "GM_view_players.html",

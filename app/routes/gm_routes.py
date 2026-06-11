@@ -7,6 +7,8 @@ from flask_login import login_required, current_user
 
 from app.extensions import db, limiter
 from app.models import City, Shop, Item, ShopInventory, Region, CampaignWorldConfig
+from app.services import species_compendium_service
+from app.services.species_compendium_service import SpeciesValidationError
 from app.routes.handlers.gm_helpers import (
     city_for_campaign_or_404,
     city_for_campaign_optional,
@@ -31,6 +33,24 @@ from app.routes.handlers.gm_players_handler import (
     delete_npc_player as delete_npc_player_handler,
 )
 from app.routes.handlers.gm_market_handler import get_market_overview_data
+from app.routes.handlers.gm_maps_handler import (
+    get_world_map as get_world_map_handler,
+    get_city_map as get_city_map_handler,
+    post_marker as post_marker_handler,
+    remove_marker as remove_marker_handler,
+    post_poi as post_poi_handler,
+    remove_poi as remove_poi_handler,
+    post_world_background as post_world_background_handler,
+    post_city_background as post_city_background_handler,
+    get_map_image as get_map_image_handler,
+)
+from app.routes.handlers.gm_species_handler import (
+    create_species_compendium as create_species_compendium_handler,
+    get_species_compendium as get_species_compendium_handler,
+    save_species_builder as save_species_builder_handler,
+    species_builder as species_builder_handler,
+    update_species_compendium as update_species_compendium_handler,
+)
 from app.routes.handlers.gm_simulation_handler import (
     home as gm_dashboard_home,
     seed_world,
@@ -154,6 +174,59 @@ def toggle_campaign_debt():
 def gm_seed_world():
     return seed_world()
 
+
+@gm_bp.route("/species/build", methods=["GET"])
+@login_required
+def species_builder():
+    return species_builder_handler()
+
+
+@gm_bp.route("/species/build", methods=["POST"])
+@login_required
+def save_species_builder():
+    return save_species_builder_handler()
+
+
+@gm_bp.route("/species/compendium", methods=["GET"])
+@login_required
+def get_species_compendium():
+    return get_species_compendium_handler()
+
+
+@gm_bp.route("/species/compendium", methods=["POST"])
+@login_required
+def create_species_compendium():
+    return create_species_compendium_handler()
+
+
+@gm_bp.route("/species/compendium/<string:key>", methods=["POST"])
+@login_required
+def update_species_compendium(key):
+    return update_species_compendium_handler(key)
+
+
+@gm_bp.route("/character-creation/settings", methods=["GET"])
+@login_required
+@limiter.limit("60 per hour")
+def get_gm_character_creation_settings():
+    from app.routes.handlers.gm_character_creation_handler import (
+        get_character_creation_settings,
+    )
+
+    return get_character_creation_settings()
+
+
+@gm_bp.route("/character-creation/settings", methods=["POST"])
+@login_required
+@limiter.limit("30 per hour")
+def post_gm_character_creation_settings():
+    from app.routes.handlers.gm_character_creation_handler import (
+        post_character_creation_settings,
+    )
+
+    return post_character_creation_settings()
+
+
 #cities routes
 
 @gm_bp.route("/cities/")
@@ -218,6 +291,9 @@ def edit_city(city_id):
         return redir
     city = city_for_campaign_or_404(city_id, camp.id)
     campaign_regions = _campaign_regions_for_city_forms()
+    species_population_rows = species_compendium_service.city_species_population(
+        camp.id, city.city_id, int(city.population or 0)
+    )
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
@@ -230,6 +306,7 @@ def edit_city(city_id):
                 "GM_edit_city.html",
                 city=city,
                 campaign_regions=campaign_regions,
+                species_population_rows=species_population_rows,
             )
         try:
             population = int(pop_raw)
@@ -239,7 +316,33 @@ def edit_city(city_id):
                 "GM_edit_city.html",
                 city=city,
                 campaign_regions=campaign_regions,
+                species_population_rows=species_population_rows,
             )
+
+        species_rows = []
+        for key in request.form.getlist("species_key"):
+            species_rows.append(
+                {
+                    "key": key,
+                    "name": request.form.get(f"species_{key}_name"),
+                    "population": request.form.get(f"species_{key}_population"),
+                }
+            )
+        if species_rows:
+            try:
+                species_population_rows, population = (
+                    species_compendium_service.update_city_species_population(
+                        camp.id, city.city_id, species_rows
+                    )
+                )
+            except SpeciesValidationError as exc:
+                flash(str(exc), "danger")
+                return render_template(
+                    "GM_edit_city.html",
+                    city=city,
+                    campaign_regions=campaign_regions,
+                    species_population_rows=species_population_rows,
+                )
 
         fk_id = _validated_region_fk_from_form()
         if fk_id:
@@ -254,6 +357,7 @@ def edit_city(city_id):
                     "GM_edit_city.html",
                     city=city,
                     campaign_regions=campaign_regions,
+                    species_population_rows=species_population_rows,
                 )
 
         city.name = name
@@ -272,6 +376,7 @@ def edit_city(city_id):
         "GM_edit_city.html",
         city=city,
         campaign_regions=campaign_regions,
+        species_population_rows=species_population_rows,
     )
 
 @gm_bp.route("/cities/delete/<int:city_id>", methods=["POST"])
@@ -1004,6 +1109,64 @@ def skip_world_generation_submit():
 def gm_market_overview():
     """Campaign-wide item price/stock overview for the GM dashboard."""
     return get_market_overview_data()
+
+
+# GM interactive maps -- presentation/editor state only, never simulation
+# state. Campaign authority always derives from the GM session.
+@gm_bp.route("/maps/world", methods=["GET"])
+@login_required
+def gm_map_world():
+    return get_world_map_handler()
+
+
+@gm_bp.route("/maps/cities/<int:city_id>", methods=["GET"])
+@login_required
+def gm_map_city(city_id):
+    return get_city_map_handler(city_id)
+
+
+@gm_bp.route("/maps/markers", methods=["POST"])
+@login_required
+def gm_map_marker_upsert():
+    return post_marker_handler()
+
+
+@gm_bp.route("/maps/markers/remove", methods=["POST"])
+@login_required
+def gm_map_marker_remove():
+    return remove_marker_handler()
+
+
+@gm_bp.route("/maps/pois", methods=["POST"])
+@login_required
+def gm_map_poi_upsert():
+    return post_poi_handler()
+
+
+@gm_bp.route("/maps/pois/remove", methods=["POST"])
+@login_required
+def gm_map_poi_remove():
+    return remove_poi_handler()
+
+
+@gm_bp.route("/maps/world/background", methods=["POST"])
+@login_required
+@limiter.limit("10 per minute")
+def gm_map_world_background():
+    return post_world_background_handler()
+
+
+@gm_bp.route("/maps/cities/<int:city_id>/background", methods=["POST"])
+@login_required
+@limiter.limit("10 per minute")
+def gm_map_city_background(city_id):
+    return post_city_background_handler(city_id)
+
+
+@gm_bp.route("/maps/image/<int:canvas_id>", methods=["GET"])
+@login_required
+def gm_map_image(canvas_id):
+    return get_map_image_handler(canvas_id)
 
 
 # Simulation routes — Day/Week/Month/Year all flow through `run_period_stream`

@@ -34,7 +34,10 @@
             <button type="submit">Login</button>
             <button type="button" class="secondary-button auth-secondary-btn" onclick="window.location.href='{{ url_for('main.index') }}'">Back to Home</button>
         </form>
-        <p>Don't have an account? <a href="{{ url_for('main.access_request') }}">Register For Access</a></p>
+        <div class="auth-alt-actions">
+            <p>Don't have an account? <a href="{{ url_for('main.access_request') }}">Register for access as a GM</a></p>
+            <p>Have a GM campaign code? <a href="{{ url_for('auth.register', campaign_code='1') }}">Register for access with a GM Code</a></p>
+        </div>
         <p><a href="{{ url_for('auth.forgot_password') }}">Forgot Password?</a></p>
     </div>
 </body>

@@ -51,7 +51,9 @@ KINDS = frozenset(VALID_CATEGORIES_BY_KIND.keys())
 EXTRA_KEYS_BY_KIND = {
     "bug_report": frozenset({"steps_to_reproduce", "expected_behavior", "severity"}),
     "feedback": frozenset({"rating", "worked_well", "frustrating"}),
-    "suggestion": frozenset({"frequency", "beta_test"}),
+    "suggestion": frozenset(
+        {"frequency", "beta_test", "prompted_key", "file_type"}
+    ),
 }
 
 

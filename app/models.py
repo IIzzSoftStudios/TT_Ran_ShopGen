@@ -534,6 +534,48 @@ class ExpansionInterest(db.Model):
         return f"<ExpansionInterest user_id={self.user_id} intent={self.intent}>"
 
 
+class CampaignCodeRedemption(db.Model):
+    """Append-only log when a user joins a campaign via a CAMP- join code."""
+
+    __tablename__ = "campaign_code_redemption"
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    player_id = db.Column(
+        db.Integer,
+        db.ForeignKey("player.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source = db.Column(db.String(40), nullable=False, default="unknown")
+    redeemed_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+        index=True,
+    )
+
+    campaign = db.relationship("Campaign")
+    user = db.relationship("User")
+    player = db.relationship("Player")
+
+    def __repr__(self):
+        return (
+            f"<CampaignCodeRedemption campaign_id={self.campaign_id} "
+            f"user_id={self.user_id} source={self.source}>"
+        )
+
+
 class UserSubmission(db.Model):
     """Account-menu feedback, bug reports, and suggestions."""
 
@@ -898,6 +940,443 @@ class CampaignWorldConfig(db.Model):
 
     def __repr__(self):
         return f"<CampaignWorldConfig campaign_id={self.campaign_id} seed={self.world_seed}>"
+
+
+class MapCanvas(db.Model):
+    """Campaign-scoped map background: either the world map or one city map.
+
+    GM presentation/editor state only -- never read or written by the
+    simulation tick path. `scope` is ``world`` (city_id NULL) or ``city``
+    (city_id set). `source_type` is ``generated`` (procedural metadata in
+    `generation_json`) or ``uploaded`` (web-safe image at `image_path`).
+    """
+
+    __tablename__ = "map_canvas"
+    __table_args__ = (
+        # One world canvas per campaign (partial index: world rows only).
+        Index(
+            "uq_map_canvas_world",
+            "campaign_id",
+            unique=True,
+            postgresql_where=db.text("scope = 'world'"),
+            sqlite_where=db.text("scope = 'world'"),
+        ),
+        # One canvas per city. NULL city_id (world rows) are distinct, so
+        # this never collides with world canvases.
+        UniqueConstraint("campaign_id", "city_id", name="uq_map_canvas_city"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    city_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cities.city_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    scope = db.Column(db.String(10), nullable=False, default="world")
+    source_type = db.Column(db.String(20), nullable=False, default="generated")
+    image_path = db.Column(db.String(255), nullable=True)
+    generation_json = db.Column(_json_with_jsonb(), nullable=True)
+    width = db.Column(db.Integer, nullable=False, default=1024)
+    height = db.Column(db.Integer, nullable=False, default=1024)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref(
+            "map_canvases", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+    city = db.relationship(
+        "City",
+        backref=db.backref(
+            "map_canvases", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+
+    def __repr__(self):
+        return f"<MapCanvas campaign={self.campaign_id} scope={self.scope} city={self.city_id}>"
+
+
+class MapMarker(db.Model):
+    """Normalized marker position (0.0..1.0) for one city or shop on a canvas.
+
+    World canvases hold ``city`` markers; city canvases hold ``shop``
+    markers. Coordinates are normalized so responsive rendering never
+    invalidates stored positions.
+    """
+
+    __tablename__ = "map_marker"
+    __table_args__ = (
+        UniqueConstraint("canvas_id", "city_id", name="uq_map_marker_canvas_city"),
+        UniqueConstraint("canvas_id", "shop_id", name="uq_map_marker_canvas_shop"),
+        db.CheckConstraint("x >= 0.0 AND x <= 1.0", name="chk_map_marker_x_bounds"),
+        db.CheckConstraint("y >= 0.0 AND y <= 1.0", name="chk_map_marker_y_bounds"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    canvas_id = db.Column(
+        db.Integer,
+        db.ForeignKey("map_canvas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    entity_type = db.Column(db.String(10), nullable=False)
+    city_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cities.city_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    shop_id = db.Column(
+        db.Integer,
+        db.ForeignKey("shops.shop_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    x = db.Column(db.Float, nullable=False)
+    y = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    canvas = db.relationship(
+        "MapCanvas",
+        backref=db.backref(
+            "markers", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+    city = db.relationship(
+        "City",
+        backref=db.backref(
+            "map_markers", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+    shop = db.relationship(
+        "Shop",
+        backref=db.backref(
+            "map_markers", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<MapMarker canvas={self.canvas_id} {self.entity_type} "
+            f"city={self.city_id} shop={self.shop_id} x={self.x} y={self.y}>"
+        )
+
+
+class MapPointOfInterest(db.Model):
+    """GM-authored point of interest on a world map canvas."""
+
+    __tablename__ = "map_point_of_interest"
+    __table_args__ = (
+        db.CheckConstraint("x >= 0.0 AND x <= 1.0", name="chk_map_poi_x_bounds"),
+        db.CheckConstraint("y >= 0.0 AND y <= 1.0", name="chk_map_poi_y_bounds"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    canvas_id = db.Column(
+        db.Integer,
+        db.ForeignKey("map_canvas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    label = db.Column(db.String(120), nullable=False)
+    note = db.Column(db.Text, nullable=True)
+    x = db.Column(db.Float, nullable=False)
+    y = db.Column(db.Float, nullable=False)
+    visible_to_players = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    canvas = db.relationship(
+        "MapCanvas",
+        backref=db.backref(
+            "points_of_interest", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<MapPointOfInterest canvas={self.canvas_id} label={self.label!r} "
+            f"x={self.x} y={self.y}>"
+        )
+
+
+class BattleSettings(db.Model):
+    """Per-campaign D&D 5e tactical combat toggles (one row per campaign).
+
+    Shape of ``settings_json`` is validated in Python by
+    app/services/combat/settings_service.py so new toggles never require a
+    schema migration. Never read by the economy simulation tick path.
+    """
+
+    __tablename__ = "battle_settings"
+    __table_args__ = (
+        UniqueConstraint("campaign_id", name="uq_battle_settings_campaign"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    settings_json = db.Column(_json_with_jsonb(), nullable=False, default=dict)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref(
+            "battle_settings", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+
+    def __repr__(self):
+        return f"<BattleSettings campaign={self.campaign_id}>"
+
+
+class MonsterCompendiumEntry(db.Model):
+    """GM-authored or procedurally generated monster template (D&D 5e).
+
+    Mechanical stat block only -- no bundled WotC monster database and no
+    Product Identity names/lore. ``stat_json`` holds hp/ac/speed/abilities/
+    attacks; ``generation_seed`` is set for generator output so the same
+    seed reproduces the same template.
+    """
+
+    __tablename__ = "monster_compendium_entry"
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name = db.Column(db.String(120), nullable=False)
+    source = db.Column(db.String(16), nullable=False, default="custom")
+    generation_seed = db.Column(db.String(64), nullable=True)
+    challenge_rating = db.Column(db.Float, nullable=True)
+    stat_json = db.Column(_json_with_jsonb(), nullable=False, default=dict)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref(
+            "monster_compendium_entries",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<MonsterCompendiumEntry campaign={self.campaign_id} "
+            f"name={self.name!r} source={self.source}>"
+        )
+
+
+class BattleEncounter(db.Model):
+    """One tactical D&D 5e encounter: grid header, round/turn cursor, settings snapshot.
+
+    ``turn_version`` increments on every state mutation and is the optimistic
+    concurrency token -- mutating routes must compare it under a row lock
+    (``with_for_update``) and reject stale clients with 409. Combat state is
+    fully separate from the economy simulation tables.
+    """
+
+    __tablename__ = "battle_encounter"
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Reserved for future battle-map/canvas integration (plan: optional field).
+    map_canvas_id = db.Column(
+        db.Integer,
+        db.ForeignKey("map_canvas.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    map_x = db.Column(db.Float, nullable=True)
+    map_y = db.Column(db.Float, nullable=True)
+    name = db.Column(db.String(120), nullable=False, default="Encounter")
+    status = db.Column(db.String(16), nullable=False, default="setup")
+    visible_to_players = db.Column(db.Boolean, nullable=False, default=False)
+    grid_width = db.Column(db.Integer, nullable=False, default=20)
+    grid_height = db.Column(db.Integer, nullable=False, default=20)
+    round_number = db.Column(db.Integer, nullable=False, default=0)
+    turn_index = db.Column(db.Integer, nullable=False, default=0)
+    turn_version = db.Column(db.Integer, nullable=False, default=0)
+    settings_json = db.Column(_json_with_jsonb(), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    campaign = db.relationship(
+        "Campaign",
+        backref=db.backref(
+            "battle_encounters", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<BattleEncounter campaign={self.campaign_id} id={self.id} "
+            f"status={self.status} round={self.round_number}>"
+        )
+
+
+class BattleCombatant(db.Model):
+    """One token on an encounter grid: PC, NPC, or compendium monster instance.
+
+    Snapshot columns (HP/AC/abilities/actions) are copied at add time so an
+    encounter never mutates the source character sheet or compendium entry.
+    """
+
+    __tablename__ = "battle_combatant"
+
+    id = db.Column(db.Integer, primary_key=True)
+    encounter_id = db.Column(
+        db.Integer,
+        db.ForeignKey("battle_encounter.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    player_id = db.Column(
+        db.Integer,
+        db.ForeignKey("player.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    compendium_entry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("monster_compendium_entry.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    name = db.Column(db.String(120), nullable=False)
+    side = db.Column(db.String(10), nullable=False, default="foe")
+    status = db.Column(db.String(16), nullable=False, default="active")
+    x = db.Column(db.Integer, nullable=False, default=0)
+    y = db.Column(db.Integer, nullable=False, default=0)
+    hp_max = db.Column(db.Integer, nullable=False, default=1)
+    hp_current = db.Column(db.Integer, nullable=False, default=1)
+    temp_hp = db.Column(db.Integer, nullable=False, default=0)
+    ac = db.Column(db.Integer, nullable=False, default=10)
+    speed_ft = db.Column(db.Integer, nullable=False, default=30)
+    initiative = db.Column(db.Integer, nullable=True)
+    initiative_order = db.Column(db.Integer, nullable=True)
+    dex_mod = db.Column(db.Integer, nullable=False, default=0)
+    movement_used_ft = db.Column(db.Integer, nullable=False, default=0)
+    has_waited = db.Column(db.Boolean, nullable=False, default=False)
+    ability_json = db.Column(_json_with_jsonb(), nullable=True)
+    action_data_json = db.Column(_json_with_jsonb(), nullable=True)
+    resources_json = db.Column(_json_with_jsonb(), nullable=True)
+    spell_slots_json = db.Column(_json_with_jsonb(), nullable=True)
+    conditions_json = db.Column(_json_with_jsonb(), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    encounter = db.relationship(
+        "BattleEncounter",
+        backref=db.backref(
+            "combatants", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+    player = db.relationship("Player")
+    compendium_entry = db.relationship("MonsterCompendiumEntry")
+
+    def __repr__(self):
+        return (
+            f"<BattleCombatant encounter={self.encounter_id} name={self.name!r} "
+            f"side={self.side} hp={self.hp_current}/{self.hp_max}>"
+        )
+
+
+class BattleActionLog(db.Model):
+    """Append-only log of resolved combat actions for one encounter."""
+
+    __tablename__ = "battle_action_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    encounter_id = db.Column(
+        db.Integer,
+        db.ForeignKey("battle_encounter.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    combatant_id = db.Column(
+        db.Integer,
+        db.ForeignKey("battle_combatant.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    round_number = db.Column(db.Integer, nullable=False, default=0)
+    action_type = db.Column(db.String(30), nullable=False)
+    payload_json = db.Column(_json_with_jsonb(), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    encounter = db.relationship(
+        "BattleEncounter",
+        backref=db.backref(
+            "action_logs", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<BattleActionLog encounter={self.encounter_id} "
+            f"round={self.round_number} type={self.action_type}>"
+        )
 
 
 class DeletedCampaignSimSnapshot(db.Model):

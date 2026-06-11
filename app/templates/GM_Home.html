@@ -5,6 +5,9 @@
     {% include 'partials/theme_head.html' %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_shops_city_list.css') }}">
+    {% if combat_enabled %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/battle.css') }}">
+    {% endif %}
 
     <style>
         /* Center everything */
@@ -227,8 +230,8 @@
             border: 1px solid var(--color-border);
             box-shadow: var(--shadow-panel);
             margin-bottom: 30px;
-            width: 80%;
-            max-width: 800px;
+            width: 92%;
+            max-width: 1320px;
         }
 
         .simulation-panel--first-run {
@@ -264,36 +267,216 @@
             opacity: 0.88;
         }
 
+        .gm-dashboard-shell {
+            display: grid;
+            grid-template-columns: 240px minmax(0, 1fr);
+            gap: 1.25rem;
+            align-items: start;
+        }
+        .gm-dashboard-content {
+            min-width: 0;
+        }
+        .gm-section-menu-btn {
+            display: none;
+            margin: 0 0 1rem;
+            align-items: center;
+            gap: 0.45rem;
+            background: var(--color-accent, #6b21a8);
+            color: var(--color-accent-contrast, #fff);
+            border: 0;
+            border-radius: 999px;
+            padding: 0.65rem 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: var(--shadow-panel);
+        }
+        .gm-dashboard-backdrop {
+            display: none;
+        }
         .gm-panel-tabs {
+            position: sticky;
+            top: 1rem;
             display: flex;
-            border-bottom: 2px solid var(--color-border, #ddd);
-            margin-bottom: 1.25rem;
-            gap: 0.5rem;
-            justify-content: center;
+            flex-direction: column;
+            gap: 0.35rem;
+            padding: 1rem;
+            border: 1px solid var(--color-border, #ddd);
+            border-radius: 16px;
+            background:
+                linear-gradient(180deg, rgba(124, 58, 237, 0.08), transparent 44%),
+                var(--color-bg, #f8fafc);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .gm-panel-tabs-header {
+            padding: 0 0.35rem 0.65rem;
+            border-bottom: 1px solid var(--color-border, #ddd);
+            margin-bottom: 0.35rem;
+        }
+        .gm-panel-tabs-title {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--color-muted, #64748b);
+        }
+        .gm-panel-tabs-subtitle {
+            display: block;
+            margin-top: 0.2rem;
+            font-size: 0.78rem;
+            color: var(--color-muted, #64748b);
+        }
+        .gm-panel-tab-group {
+            display: grid;
+            gap: 0.35rem;
+        }
+        .gm-panel-tab-group + .gm-panel-tab-group {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--color-border, #ddd);
+        }
+        .gm-panel-tab-group-label {
+            padding: 0 0.35rem;
+            font-size: 0.72rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--color-muted, #64748b);
         }
         .gm-panel-tab {
+            width: 100%;
             background: transparent;
-            border: none;
+            border: 1px solid transparent;
+            border-radius: 10px;
             color: var(--color-text-muted, #666);
-            padding: 0.75rem 1.25rem;
+            padding: 0.72rem 0.8rem;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 750;
             font-size: 0.95rem;
-            border-bottom: 3px solid transparent;
-            transition: color 0.2s ease, border-color 0.2s ease;
+            text-align: left;
+            white-space: nowrap;
+            text-decoration: none;
+            transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
         }
         .gm-panel-tab:hover {
             color: var(--color-text, #333);
+            background: rgba(124, 58, 237, 0.08);
+            border-color: rgba(124, 58, 237, 0.18);
+            transform: translateX(2px);
         }
         .gm-panel-tab.active {
             color: var(--color-accent, #6b21a8);
-            border-bottom-color: var(--color-accent, #6b21a8);
+            background: rgba(124, 58, 237, 0.14);
+            border-color: rgba(124, 58, 237, 0.35);
+            box-shadow: inset 3px 0 0 var(--color-accent, #6b21a8);
+        }
+        .gm-panel-tab-link {
+            appearance: none;
+            font-family: inherit;
+        }
+        body.gm-dashboard-drawer-open {
+            overflow: hidden;
+        }
+        @media (max-width: 900px) {
+            .gm-dashboard-shell {
+                display: block;
+            }
+            .gm-section-menu-btn {
+                display: inline-flex;
+            }
+            .gm-dashboard-backdrop {
+                position: fixed;
+                inset: 0;
+                z-index: 1190;
+                background: rgba(15, 23, 42, 0.48);
+                backdrop-filter: blur(2px);
+            }
+            .gm-dashboard-backdrop:not([hidden]) {
+                display: block;
+            }
+            .gm-panel-tabs {
+                position: fixed;
+                z-index: 1200;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: min(82vw, 300px);
+                max-height: 100vh;
+                overflow-y: auto;
+                border-radius: 0 18px 18px 0;
+                border-left: 0;
+                transform: translateX(-104%);
+                transition: transform 0.22s ease;
+                box-shadow: 16px 0 40px rgba(0, 0, 0, 0.25);
+            }
+            .gm-panel-tabs.is-open {
+                transform: translateX(0);
+            }
         }
         .tab-panel-content {
             display: none;
         }
         .tab-panel-content.active {
             display: block;
+        }
+        .species-compendium-tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin: 12px 0;
+        }
+        .species-compendium-actions {
+            display: inline-flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .species-compendium-table-wrapper {
+            overflow-x: auto;
+        }
+        .species-compendium-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .species-compendium-table th,
+        .species-compendium-table td {
+            border-bottom: 1px solid var(--color-border);
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .species-editor {
+            margin-top: 16px;
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            padding: 14px;
+            background: var(--color-surface);
+        }
+        .species-editor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .species-editor label {
+            display: grid;
+            gap: 4px;
+            font-weight: 700;
+        }
+        .species-editor input,
+        .species-editor textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .species-editor textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .species-editor-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
         }
         .market-meta-summary {
             margin-bottom: 1rem;
@@ -332,6 +515,334 @@
         .metric-flat { color: var(--color-text-muted, #888); }
         .market-type-muted { font-size: 0.8rem; color: var(--color-text-muted, #888); }
 
+        /* GM interactive map */
+        .map-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
+            margin-bottom: 0.5rem;
+        }
+        .map-toolbar-heading {
+            min-width: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1 1 auto;
+        }
+        .map-toolbar-title {
+            margin: 0;
+            font-size: 1.35rem;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .map-toolbar-actions {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 0 0 auto;
+            flex-wrap: nowrap;
+        }
+        .map-upload-label { margin: 0; }
+        .map-upload-note {
+            align-self: center;
+            font-size: 0.78rem;
+            color: var(--color-text-muted, #666);
+            white-space: nowrap;
+        }
+        .map-world-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 0 0 0.5rem;
+            align-items: center;
+        }
+        .map-add-city-controls {
+            display: inline-flex;
+            gap: 0.35rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .map-add-city-controls[hidden] {
+            display: none !important;
+        }
+        .map-add-city-controls select {
+            min-width: 180px;
+            padding: 8px 10px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-surface);
+            color: var(--color-text);
+        }
+        .battle-rename-popout {
+            position: fixed;
+            z-index: 1200;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: min(320px, calc(100% - 2rem));
+            padding: 0.8rem;
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-surface);
+            box-shadow: var(--shadow-panel, 0 8px 24px rgba(0,0,0,0.2));
+        }
+        .battle-rename-popout label {
+            display: grid;
+            gap: 0.35rem;
+            font-weight: 700;
+        }
+        .battle-rename-popout input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .battle-rename-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .map-hint {
+            font-size: 0.85rem;
+            color: var(--color-text-muted, #666);
+            margin: 0.25rem 0 0.5rem;
+        }
+        .map-feedback {
+            min-height: 1.2rem;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+        .map-feedback.error { color: #c00; }
+        .map-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            max-height: 560px;
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 6px;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            background: #ece3cd;
+        }
+        .map-stage.pending-placement {
+            cursor: crosshair;
+            box-shadow: 0 0 0 3px rgba(107, 33, 168, 0.25);
+        }
+        .map-stage.map-palette-parchment { background: #ece3cd; }
+        .map-stage.map-palette-verdant { background: #d8e6d0; }
+        .map-stage.map-palette-ashen { background: #d9d9d9; }
+        .map-stage.map-palette-slate { background: #ccd4dd; }
+        .map-stage.map-palette-sandstone { background: #e8dcc4; }
+        .map-stage.map-palette-timber { background: #e0d3c0; }
+        .map-bg-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+        .map-gen-bg {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .map-gen-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .map-marker-layer {
+            position: absolute;
+            inset: 0;
+        }
+        .map-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            background: #b91c1c;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            cursor: grab;
+            padding: 0;
+        }
+        .map-marker.suggested { background: #f59e0b; }
+        .map-marker.poi {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px 5px 5px 0;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            background: #7c3aed;
+        }
+        .map-marker.poi::after {
+            content: "";
+            position: absolute;
+            inset: 5px;
+            border-radius: 50%;
+            background: #fff;
+        }
+        .map-marker.selected,
+        .map-marker:focus-visible {
+            outline: 3px solid var(--color-accent, #6b21a8);
+            outline-offset: 1px;
+        }
+        .map-marker-label {
+            position: absolute;
+            transform: translate(-50%, 10px);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #1f2937;
+            background: rgba(255,255,255,0.75);
+            border-radius: 3px;
+            padding: 0 3px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .map-poi-popout,
+        .map-entity-popout {
+            position: absolute;
+            z-index: 4;
+            min-width: 220px;
+            max-width: min(320px, 90%);
+            transform: translate(12px, -12px);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.24);
+            padding: 0.75rem;
+        }
+        .map-poi-popout h3,
+        .map-entity-popout h3 {
+            margin: 0 0 0.4rem;
+            font-size: 1rem;
+        }
+        .map-poi-popout p,
+        .map-entity-popout p {
+            margin: 0 0 0.6rem;
+            white-space: pre-wrap;
+        }
+        .map-poi-popout-actions,
+        .map-entity-popout-actions {
+            display: flex;
+            gap: 0.4rem;
+            justify-content: flex-end;
+        }
+        .map-city-summary-card {
+            display: grid;
+            grid-template-columns: 96px minmax(0, 1fr);
+            gap: 0.65rem;
+            margin: 0.5rem 0 0.7rem;
+            font-size: 0.85rem;
+        }
+        .map-shop-summary-card {
+            display: block;
+        }
+        .map-city-pop-pie {
+            width: 86px;
+            height: 86px;
+            border-radius: 50%;
+            border: 1px solid var(--color-border, #ccc);
+            box-shadow: inset 0 0 0 12px rgba(255,255,255,0.18);
+        }
+        .map-city-summary-meta strong {
+            display: block;
+            font-size: 1.05rem;
+        }
+        .map-city-species-list,
+        .map-city-goods-list {
+            margin: 0.35rem 0 0;
+            padding-left: 1rem;
+        }
+        .map-city-summary-section {
+            grid-column: 1 / -1;
+        }
+        .map-city-summary-section h4 {
+            margin: 0.45rem 0 0.2rem;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--color-text-muted, #6b7280);
+        }
+        .map-city-goods-list li {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.6rem;
+            border-bottom: 1px dotted rgba(0,0,0,0.12);
+            padding: 0.08rem 0;
+        }
+        .map-encounter-popout {
+            position: absolute;
+            z-index: 35;
+            min-width: 220px;
+            max-width: 280px;
+            transform: translate(14px, -14px);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            padding: 0.75rem;
+            box-shadow: var(--shadow-panel, 0 6px 20px rgba(0,0,0,0.2));
+        }
+        .map-encounter-popout h3 {
+            margin: 0 0 0.35rem;
+            font-size: 1rem;
+        }
+        .map-encounter-popout-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .map-poi-dialog[hidden] { display: none; }
+        .map-poi-dialog {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            display: grid;
+            place-items: center;
+            background: rgba(0,0,0,0.32);
+        }
+        .map-poi-dialog form {
+            width: min(420px, calc(100vw - 2rem));
+            background: var(--color-surface, #fff);
+            color: var(--color-text, #111);
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.28);
+        }
+        .map-poi-dialog label {
+            display: block;
+            font-weight: 600;
+            margin: 0.6rem 0 0.2rem;
+        }
+        .map-poi-dialog input,
+        .map-poi-dialog textarea {
+            width: 100%;
+        }
+        .map-poi-dialog textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+        .map-poi-dialog-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 0.8rem;
+        }
+        .map-list-control {
+            font-size: 0.78rem;
+            padding: 5px 8px;
+        }
+        body.gm-map-tab-active .city-block.map-filter-hidden,
+        body.gm-map-tab-active .region-block.map-filter-hidden {
+            display: none;
+        }
+
         .simulation-controls {
             display: flex;
             justify-content: center;
@@ -369,6 +880,54 @@
         }
         .gm-world-quick-nav--dashboard .gm-world-quick-nav .nav-buttons {
             justify-content: center;
+        }
+        .import-type-popout {
+            margin: 12px auto 0;
+            max-width: 420px;
+            padding: 14px;
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-surface);
+            box-shadow: var(--shadow-panel);
+            text-align: left;
+        }
+        .import-type-popout h3 {
+            margin: 0 0 6px;
+            color: var(--color-accent);
+        }
+        .import-type-popout p {
+            margin: 0 0 12px;
+            color: var(--color-muted);
+            font-size: 0.9rem;
+        }
+        .import-type-popout label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 700;
+        }
+        .import-type-popout select,
+        .import-type-popout input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 5px;
+            padding: 8px 10px;
+            border: 1px solid var(--color-input-border);
+            border-radius: 6px;
+            background: var(--color-input-bg);
+            color: var(--color-text);
+        }
+        .import-type-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .import-type-status {
+            min-height: 1.25rem;
+            margin: 10px 0 0;
+            color: var(--color-accent);
+            font-weight: 700;
+            font-size: 0.9rem;
         }
 
         /* Flash message styling */
@@ -454,6 +1013,102 @@
         .status-item { display: flex; flex-direction: column; align-items: center; min-width: 100px; }
         .status-label { font-size: 0.85em; color: var(--color-muted); }
         .status-value { font-size: 1.05em; font-weight: bold; color: var(--color-text); }
+        .players-npcs-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+        .char-creation-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+            margin-bottom: 1rem;
+            padding: 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-table-stripe);
+        }
+        .char-creation-controls label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .char-creation-controls select,
+        .char-creation-controls input {
+            min-width: 120px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--color-input-border);
+            background: var(--color-input-bg);
+            color: var(--color-text);
+        }
+        .char-options-species-list {
+            display: grid;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .char-options-species-row {
+            padding: 10px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-surface);
+        }
+        .players-npcs-table-wrapper {
+            overflow-x: auto;
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-surface);
+        }
+        .players-npcs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .players-npcs-table th,
+        .players-npcs-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--color-border);
+            text-align: left;
+            vertical-align: top;
+        }
+        .players-npcs-table th {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+        }
+        .players-npcs-character-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .players-npcs-character-link {
+            display: inline-flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            text-decoration: none;
+            color: var(--color-accent);
+            font-weight: 600;
+        }
+        .players-npcs-character-link:hover { text-decoration: underline; }
+        .players-npcs-tag {
+            display: inline-block;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            background: var(--color-border);
+            color: var(--color-text);
+        }
+        .players-npcs-tag-npc {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+        }
+        .players-npcs-muted {
+            color: var(--color-muted);
+        }
     </style>
 </head>
 <body class="gm-dashboard{% if onboarding_checklist and onboarding_checklist.show_first_sim_prompt %} gm-dashboard--first-run{% endif %}">
@@ -478,7 +1133,6 @@
 
     <div class="gm-primary-actions">
         <a href="{{ url_for('gm.view_campaigns') }}" class="button">GM Campaign Overview</a>
-        <a href="{{ url_for('gm.gm_view_players') }}" class="button">Player &amp; NPC Overview</a>
         <details class="gm-join-tools">
             <summary class="button">GM Campaign Code</summary>
             <div class="gm-join-popover">
@@ -498,18 +1152,46 @@
                 {% endif %}
             </div>
         </details>
-        <a href="{{ url_for('main.campaigns') }}" class="button">Select Campaign</a>
+        <a href="{{ url_for('main.campaigns') }}" class="button">Back to GM/Player Campaigns</a>
     </div>
 
     <!-- Simulation Control Panel (Celery job polling — workspace behavior) -->
     {% set cal = campaign.calendar_state if campaign else {'year': 1, 'month_of_year': 1, 'day': 1} %}
     {% set first_run_sim = onboarding_checklist and onboarding_checklist.show_first_sim_prompt %}
     <div class="simulation-panel{% if first_run_sim %} simulation-panel--first-run{% endif %}">
-        <div class="gm-panel-tabs" role="tablist" aria-label="GM dashboard panel">
-            <button type="button" class="gm-panel-tab active" data-target="sim-pane-content" role="tab" aria-selected="true">Simulation</button>
-            <button type="button" class="gm-panel-tab" data-target="market-pane-content" id="market-tab-btn" role="tab" aria-selected="false">Market Overview</button>
-        </div>
-        <div id="sim-pane-content" class="tab-panel-content active" role="tabpanel">
+        <button type="button" class="gm-section-menu-btn" id="gm-section-menu-btn" aria-controls="gm-dashboard-sidebar" aria-expanded="false">
+            Sections
+        </button>
+        <div class="gm-dashboard-shell">
+            <div class="gm-dashboard-backdrop" id="gm-dashboard-backdrop" hidden></div>
+            <nav class="gm-panel-tabs gm-dashboard-sidebar" id="gm-dashboard-sidebar" role="tablist" aria-label="GM dashboard panel">
+                <div class="gm-panel-tabs-header" role="presentation">
+                    <span class="gm-panel-tabs-title">GM Workspace</span>
+                    <span class="gm-panel-tabs-subtitle">Campaign sections</span>
+                </div>
+                <div class="gm-panel-tab-group" role="presentation">
+                    <span class="gm-panel-tab-group-label">World</span>
+                    <button type="button" class="gm-panel-tab active" data-target="map-pane-content" id="map-tab-btn" role="tab" aria-selected="true">Map</button>
+                    <button type="button" class="gm-panel-tab" data-target="market-pane-content" id="market-tab-btn" role="tab" aria-selected="false">Market Overview</button>
+                    <button type="button" class="gm-panel-tab" data-target="sim-pane-content" role="tab" aria-selected="false">Simulation</button>
+                </div>
+                <div class="gm-panel-tab-group" role="presentation">
+                    <span class="gm-panel-tab-group-label">Characters</span>
+                    <button type="button" class="gm-panel-tab" data-target="players-npcs-pane-content" id="players-npcs-tab-btn" role="tab" aria-selected="false">Players &amp; NPCs</button>
+                    {% if combat_enabled %}
+                    <button type="button" class="gm-panel-tab" data-target="species-pane-content" id="species-tab-btn" role="tab" aria-selected="false">Species Compendium</button>
+                    {% endif %}
+                </div>
+                {% if combat_enabled %}
+                <div class="gm-panel-tab-group" role="presentation">
+                    <span class="gm-panel-tab-group-label">Combat</span>
+                    <button type="button" class="gm-panel-tab" data-target="battle-pane-content" id="battle-tab-btn" role="tab" aria-selected="false">Encounters</button>
+                    <button type="button" class="gm-panel-tab" data-target="monsters-pane-content" id="monsters-tab-btn" role="tab" aria-selected="false">Monster Compendium</button>
+                </div>
+                {% endif %}
+            </nav>
+            <div class="gm-dashboard-content">
+        <div id="sim-pane-content" class="tab-panel-content" role="tabpanel" hidden>
         <h2>Simulation</h2>
         {% if first_run_sim %}
         <div class="gm-first-run-prompt" id="gm-first-run-prompt">
@@ -563,6 +1245,107 @@
         </div>
         </div>
 
+        <div id="players-npcs-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="players-npcs-toolbar">
+                <span>
+                    <h2>Players &amp; NPCs</h2>
+                    <p class="players-npcs-muted">Campaign: {{ campaign.name }} ({{ campaign.system_type }})</p>
+                </span>
+                <span>
+                    <a href="{{ url_for('gm.gm_create_npc') }}" class="button">Add NPC</a>
+                    <a href="{{ url_for('gm.gm_view_players') }}" class="button">Open full manager</a>
+                </span>
+            </div>
+            {% if combat_enabled and character_creation_settings %}
+            <div class="char-creation-controls" id="char-creation-controls">
+                <label>Stat generation
+                    <select id="char-creation-method">
+                        <option value="point_buy" {% if character_creation_settings.ability_method == 'point_buy' %}selected{% endif %}>Point buy</option>
+                        <option value="random_roll" {% if character_creation_settings.ability_method == 'random_roll' %}selected{% endif %}>Random roll</option>
+                        <option value="player_set" {% if character_creation_settings.ability_method == 'player_set' %}selected{% endif %}>Player set</option>
+                    </select>
+                </label>
+                <label id="char-creation-budget-wrap">Point-buy budget
+                    <input type="number" id="char-creation-budget" min="0" max="54"
+                           value="{{ character_creation_settings.point_buy_budget }}">
+                </label>
+                <label id="char-creation-rerolls-wrap">Rerolls per ability
+                    <input type="number" id="char-creation-rerolls" min="0" max="5"
+                           value="{{ character_creation_settings.random_rerolls_per_ability }}">
+                </label>
+                <button type="button" class="button" id="char-creation-save-btn">Save creation rules</button>
+                <span class="players-npcs-muted" id="char-creation-save-status"></span>
+            </div>
+            {% endif %}
+            {% if player_entries %}
+            <div class="players-npcs-table-wrapper">
+                <table class="players-npcs-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Currency</th>
+                            <th title="Each line opens that character's GM sheet">Characters</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in player_entries %}
+                        {% set player = entry.player %}
+                        {% set characters = entry.characters %}
+                        <tr>
+                            <td>
+                                {% if player.is_npc %}<span class="players-npcs-tag players-npcs-tag-npc">NPC</span>{% endif %}
+                                {{ player.user.username if player.user else ('NPC' if player.is_npc else 'Unknown') }}
+                            </td>
+                            <td>{{ player.currency }}</td>
+                            <td>
+                                {% if characters %}
+                                <div class="players-npcs-character-list">
+                                    {% for character in characters %}
+                                    <a href="{{ url_for('gm.gm_view_character', character_id=character.id) }}" class="players-npcs-character-link">
+                                        <span>
+                                            {{ character.name }}
+                                            {% if character.class_name %}
+                                            <span class="players-npcs-tag">{{ character.class_name }}</span>
+                                            {% endif %}
+                                            {% if character.level %}
+                                            <span class="players-npcs-tag">Lv {{ character.level }}</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="players-npcs-muted">View sheet</span>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="players-npcs-muted">No character yet for this campaign.</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if player.is_npc %}
+                                <form method="POST" action="{{ url_for('gm.delete_npc_player', player_id=player.id) }}" onsubmit="return confirm('Permanently delete this NPC? This removes their inventory and characters from every campaign.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="button">Delete</button>
+                                </form>
+                                {% else %}
+                                <form method="POST" action="{{ url_for('gm.remove_player_from_campaign', player_id=player.id) }}" onsubmit="return confirm('Remove {{ player.user.username }} from this campaign? Their character and inventory under this GM are kept.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="button">Remove</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No players or NPCs are currently assigned to this campaign.</p>
+                <a href="{{ url_for('gm.gm_create_npc') }}" class="button">Add NPC</a>
+            </div>
+            {% endif %}
+        </div>
+
         <div id="market-pane-content" class="tab-panel-content" role="tabpanel" hidden>
             <h2>Market Overview</h2>
             <div class="market-meta-summary" id="market-meta-summary" hidden></div>
@@ -578,16 +1361,402 @@
                     <tbody id="market-table-body"></tbody>
                 </table>
             </div>
+            <div class="gm-world-quick-nav--dashboard">
+                {% with show_back_to_dashboard=false, show_add_city=true, show_market_import=true, show_supply_demand_toggle=true, show_debt_toggle=true, supply_demand_enabled=supply_demand_enabled %}
+                {% include 'partials/gm_world_quick_nav.html' %}
+                {% endwith %}
+                <div id="market-import-popout" class="import-type-popout" hidden>
+                    <h3>Import market data</h3>
+                    <p>Choose the file type you want to prepare for. Import processing is not active yet.</p>
+                    <label for="market-import-file-type">File type</label>
+                    <select id="market-import-file-type" data-import-type-select>
+                        <option value="excel">Excel workbook</option>
+                        <option value="csv">CSV</option>
+                        <option value="md">Markdown</option>
+                        <option value="json">JSON</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <label for="market-import-file-type-other" class="import-type-other-label" hidden>Other file type</label>
+                    <input type="text" id="market-import-file-type-other" class="import-type-other-input"
+                           placeholder="Enter file type" maxlength="40" hidden>
+                    <div class="import-type-actions">
+                        <button type="button" class="button" data-import-submit data-import-title="Market data import request" data-import-prompted-key="market_import">Submit request</button>
+                        <button type="button" class="button" data-import-close>Close</button>
+                    </div>
+                    <p class="import-type-status" data-import-status role="status" aria-live="polite"></p>
+                </div>
+            </div>
+
+            {% include 'partials/gm_shops_city_list_panel.html' %}
+        </div>
+
+        {% if combat_enabled %}
+        <div id="monsters-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-compendium">
+                <h2>Monsters Compendium</h2>
+                <p class="battle-compendium-hint">
+                    GM-authored and generated stat blocks only. The same seed and
+                    challenge rating always produce the same monster.
+                </p>
+                <div class="battle-compendium-tools">
+                    <span class="battle-compendium-generate">
+                        <input type="text" id="battle-generate-seed" placeholder="Seed (optional)" maxlength="64">
+                        <input type="number" id="battle-generate-cr" value="1" min="0.25" max="10" step="0.25"
+                               aria-label="Challenge rating">
+                        <button type="button" class="button" id="battle-generate-btn">Generate monster</button>
+                    </span>
+                    <span class="battle-compendium-import">
+                        <button type="button" class="button" id="battle-monster-import-btn">Import monsters</button>
+                    </span>
+                    <span class="battle-compendium-sdr">
+                        <button type="button" class="button" id="battle-sdr-monsters-btn">Add SDR-approved monsters</button>
+                    </span>
+                    <span class="battle-compendium-create">
+                        <input type="text" id="battle-monster-name" placeholder="Name" maxlength="120">
+                        <input type="number" id="battle-monster-hp" placeholder="HP" value="10" min="1" max="2000">
+                        <input type="number" id="battle-monster-ac" placeholder="AC" value="12" min="1" max="30">
+                        <input type="number" id="battle-monster-mod" placeholder="Atk mod" value="3" min="-10" max="30">
+                        <input type="text" id="battle-monster-damage" placeholder="Damage (1d6+2)" value="1d6+2">
+                        <button type="button" class="button" id="battle-monster-create-btn">Create monster</button>
+                    </span>
+                </div>
+                <div id="battle-monster-import-popout" class="import-type-popout" hidden>
+                    <h3>Import monsters</h3>
+                    <p>Choose the monster file type you want to prepare for. Import processing is not active yet.</p>
+                    <label for="battle-monster-import-file-type">File type</label>
+                    <select id="battle-monster-import-file-type" data-import-type-select>
+                        <option value="excel">Excel workbook</option>
+                        <option value="csv">CSV</option>
+                        <option value="md">Markdown</option>
+                        <option value="json">JSON</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <label for="battle-monster-import-file-type-other" class="import-type-other-label" hidden>Other file type</label>
+                    <input type="text" id="battle-monster-import-file-type-other" class="import-type-other-input"
+                           placeholder="Enter file type" maxlength="40" hidden>
+                    <div class="import-type-actions">
+                        <button type="button" class="button" data-import-submit data-import-title="Monster import request" data-import-prompted-key="monster_import">Submit request</button>
+                        <button type="button" class="button" data-import-close>Close</button>
+                    </div>
+                    <p class="import-type-status" data-import-status role="status" aria-live="polite"></p>
+                </div>
+                <div id="battle-sdr-monsters-popout" class="import-type-popout" hidden>
+                    <h3>Add SDR-approved monsters</h3>
+                    <p>Request a curated SDR-approved monster set for this battle compendium.</p>
+                    <div class="import-type-actions">
+                        <button type="button" class="button" data-import-submit data-import-title="SDR-approved monsters request" data-import-prompted-key="sdr_monsters" data-import-file-type="SDR-approved monsters" data-import-description="Please add SDR-approved monsters to the battle compendium.">Submit request</button>
+                        <button type="button" class="button" data-import-close>Close</button>
+                    </div>
+                    <p class="import-type-status" data-import-status role="status" aria-live="polite"></p>
+                </div>
+                <div class="battle-compendium-table-wrapper">
+                    <table class="battle-monsters-table">
+                        <thead>
+                            <tr><th>Name</th><th>CR</th><th>Stats</th><th>Count</th><th></th></tr>
+                        </thead>
+                        <tbody id="battle-monsters-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="battle-monster-edit-popout" class="battle-monster-edit-popout" hidden>
+                <h3>Edit monster</h3>
+                <form id="battle-monster-edit-form" class="battle-monster-edit-form">
+                    <input type="hidden" id="battle-monster-edit-id">
+                    <label for="battle-monster-edit-name">Name</label>
+                    <input type="text" id="battle-monster-edit-name" maxlength="120" required>
+
+                    <label for="battle-monster-edit-cr">Challenge rating</label>
+                    <input type="number" id="battle-monster-edit-cr" min="0" max="30" step="0.25">
+
+                    <div class="battle-monster-edit-grid">
+                        <label for="battle-monster-edit-hp">HP</label>
+                        <input type="number" id="battle-monster-edit-hp" min="1" max="2000" required>
+                        <label for="battle-monster-edit-ac">AC</label>
+                        <input type="number" id="battle-monster-edit-ac" min="1" max="30" required>
+                        <label for="battle-monster-edit-speed">Speed (ft)</label>
+                        <input type="number" id="battle-monster-edit-speed" min="0" max="120" value="30">
+                    </div>
+
+                    <fieldset class="battle-monster-edit-abilities">
+                        <legend>Abilities</legend>
+                        <div class="battle-monster-edit-grid battle-monster-edit-ability-grid">
+                            <label>STR <input type="number" id="battle-monster-edit-str" min="1" max="30" value="10"></label>
+                            <label>DEX <input type="number" id="battle-monster-edit-dex" min="1" max="30" value="10"></label>
+                            <label>CON <input type="number" id="battle-monster-edit-con" min="1" max="30" value="10"></label>
+                            <label>INT <input type="number" id="battle-monster-edit-int" min="1" max="30" value="10"></label>
+                            <label>WIS <input type="number" id="battle-monster-edit-wis" min="1" max="30" value="10"></label>
+                            <label>CHA <input type="number" id="battle-monster-edit-cha" min="1" max="30" value="10"></label>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="battle-monster-edit-attacks">
+                        <legend>Attacks</legend>
+                        <div id="battle-monster-edit-attacks"></div>
+                        <button type="button" class="button" id="battle-monster-edit-add-attack">Add attack</button>
+                    </fieldset>
+
+                    <fieldset class="battle-monster-edit-legendary">
+                        <legend>Legendary actions</legend>
+                        <p class="battle-monster-edit-help">
+                            Optional. Add only mechanical summaries you created; avoid copied book text.
+                        </p>
+                        <div id="battle-monster-edit-legendary-actions"></div>
+                        <button type="button" class="button" id="battle-monster-edit-add-legendary">Add legendary action</button>
+                    </fieldset>
+
+                    <div class="battle-monster-edit-actions">
+                        <button type="button" class="button" id="battle-monster-edit-cancel">Cancel</button>
+                        <button type="submit" class="button">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="species-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-compendium">
+                <h2>Species Compendium</h2>
+                <p class="battle-compendium-hint">
+                    Campaign species are editable mechanical shells for player, NPC, monster, and generator use.
+                    Add your own trait wording; no book text is bundled here.
+                </p>
+                <div class="species-compendium-tools">
+                    <span id="species-compendium-status" role="status" aria-live="polite"></span>
+                    <span class="species-compendium-actions">
+                        <button type="button" class="button" id="species-add-btn">Add species</button>
+                        <button type="button" class="button" id="species-refresh-btn">Refresh species</button>
+                    </span>
+                </div>
+                <div class="species-compendium-table-wrapper">
+                    <table class="species-compendium-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Source</th>
+                                <th>Population</th>
+                                <th>Ability mods</th>
+                                <th>Traits</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="species-compendium-body"></tbody>
+                    </table>
+                </div>
+                <form id="species-editor" class="species-editor" hidden>
+                    <input type="hidden" id="species-edit-key">
+                    <h3 id="species-editor-title">Edit species</h3>
+                    <div class="species-editor-grid">
+                        <label>Name <input type="text" id="species-edit-name" maxlength="60" required></label>
+                        <label>Population % <input type="number" id="species-edit-population" min="0" max="100" step="0.1"></label>
+                        {% for ability in ['str', 'dex', 'con', 'int', 'wis', 'cha'] %}
+                        <label>{{ ability|upper }} mod <input type="number" id="species-edit-{{ ability }}" min="-10" max="10"></label>
+                        {% endfor %}
+                    </div>
+                    <label>Traits
+                        <textarea id="species-edit-traits" placeholder="One trait per line. Use your own wording."></textarea>
+                    </label>
+                    <label>Stat or rules modifiers
+                        <textarea id="species-edit-stat-modifiers" placeholder="Speed, senses, proficiencies, resistances, size, or other mechanical notes."></textarea>
+                    </label>
+                    <label>GM notes
+                        <textarea id="species-edit-notes" placeholder="Generation guidance, restrictions, or cultural notes."></textarea>
+                    </label>
+                    <div class="species-editor-actions">
+                        <button type="button" class="button" id="species-edit-cancel">Cancel</button>
+                        <button type="submit" class="button">Save species</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <div id="map-pane-content" class="tab-panel-content active" role="tabpanel">
+            <div class="map-toolbar">
+                <span class="map-toolbar-heading">
+                    <h2 id="map-scope-label" class="map-toolbar-title">World Map</h2>
+                    <button type="button" class="button" id="map-back-btn" hidden>World map</button>
+                </span>
+                <span class="map-toolbar-actions">
+                    <label class="button map-upload-label">
+                        Upload image
+                        <input type="file" id="map-upload-input"
+                               accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                    </label>
+                    <span class="map-upload-note">Max 4 MB. PNG, JPEG, WebP, or GIF.</span>
+                    <button type="button" class="button" id="map-regenerate-btn">Regenerate</button>
+                </span>
+            </div>
+            <p class="map-hint">
+                Use the city/shop list below to add items to this map, then click
+                the map to drop the marker. Existing markers can be dragged, and
+                selected shop markers can be nudged with the arrow keys.
+            </p>
+            <div class="map-world-actions" id="map-world-actions">
+                <button type="button" class="button" id="map-add-poi-btn">Add point of interest</button>
+                <span id="map-add-city-controls" class="map-add-city-controls" hidden>
+                    <select id="map-city-select" aria-label="Available cities"></select>
+                    <button type="button" class="button" id="map-add-city-btn">Add City</button>
+                </span>
+                {% if combat_enabled %}
+                <span id="map-add-encounter-controls" class="map-add-city-controls" hidden>
+                    <select id="map-encounter-select" aria-label="Available encounters"></select>
+                    <button type="button" class="button" id="map-encounter-btn">Add Encounter</button>
+                </span>
+                {% endif %}
+            </div>
+            <div id="map-feedback" class="map-feedback" role="status" aria-live="polite"></div>
+            <div id="map-stage" class="map-stage">
+                <img id="map-bg-image" class="map-bg-image" alt="Map background" hidden>
+                <div id="map-gen-bg" class="map-gen-bg" aria-hidden="true"></div>
+                <div id="map-marker-layer" class="map-marker-layer"></div>
+            </div>
+            <div id="map-poi-dialog" class="map-poi-dialog" hidden>
+                <form id="map-poi-form">
+                    <h3 id="map-poi-form-title">Point of interest</h3>
+                    <label for="map-poi-label">Label</label>
+                    <input type="text" id="map-poi-label" name="label" maxlength="120" required>
+                    <label for="map-poi-note">Notes</label>
+                    <textarea id="map-poi-note" name="note" maxlength="2000"></textarea>
+                    <label class="map-poi-visible-setting" for="map-poi-visible-to-players">
+                        <input type="checkbox" id="map-poi-visible-to-players" name="visible_to_players">
+                        Show to players
+                    </label>
+                    <div class="map-poi-dialog-actions">
+                        <button type="submit" class="button">Save</button>
+                        <button type="button" class="button" id="map-poi-cancel-btn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if combat_enabled %}
+        <div id="battle-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-toolbar">
+                <span class="battle-toolbar-left">
+                    <details id="battle-encounter-menu" class="battle-encounter-menu">
+                        <summary>
+                            <span class="battle-title" id="battle-encounter-title">Encounters</span>
+                            <span id="battle-round-label" class="battle-round-label"></span>
+                        </summary>
+                        <div class="battle-encounter-menu-body">
+                            <div id="battle-encounter-list" class="battle-encounter-list"></div>
+                        </div>
+                    </details>
+                </span>
+                <span class="battle-toolbar-actions">
+                    <span class="battle-encounter-menu-actions">
+                        <button type="button" class="button" id="battle-rename-btn">Rename</button>
+                        <button type="button" class="button" id="battle-create-btn">New encounter</button>
+                        <button type="button" class="button" id="battle-place-map-btn">Place on map</button>
+                        <button type="button" class="button" id="battle-initiative-btn">Roll initiative</button>
+                        <button type="button" class="button" id="battle-end-turn-btn">End turn</button>
+                        <button type="button" class="button" id="battle-end-encounter-btn">End encounter</button>
+                    </span>
+                </span>
+                <div id="battle-rename-popout" class="battle-rename-popout" hidden>
+                    <form id="battle-rename-form">
+                        <label for="battle-rename-input">
+                            Encounter name
+                            <input type="text" id="battle-rename-input" maxlength="120" required>
+                        </label>
+                        <div class="battle-rename-actions">
+                            <button type="submit" class="button">Save name</button>
+                            <button type="button" class="button" id="battle-rename-cancel">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="battle-delete-popout" class="battle-delete-popout" hidden>
+                    <p><strong>Remove encounter?</strong></p>
+                    <p id="battle-delete-message">
+                        This permanently deletes the encounter, its combatants, and its battle log.
+                    </p>
+                    <div class="battle-delete-actions">
+                        <button type="button" class="button" id="battle-delete-cancel">Cancel</button>
+                        <button type="button" class="button battle-delete-confirm" id="battle-delete-confirm">
+                            Delete encounter
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
+
+            <div id="battle-settings-popout" class="battle-settings-popout" hidden>
+                <h3>Battle settings</h3>
+                <div id="battle-settings-body" class="battle-settings-body"></div>
+                <div class="battle-settings-actions">
+                    <button type="button" class="button" id="battle-settings-close">Cancel</button>
+                    <button type="button" class="button" id="battle-settings-save">Save</button>
+                </div>
+            </div>
+
+            <div class="battle-layout">
+                <div id="battle-stage" class="battle-stage">
+                    <div id="battle-grid" class="battle-grid"></div>
+                    <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
+                        <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"
+                              marker-end="url(#battle-arrowhead)"></line>
+                        <defs>
+                            <marker id="battle-arrowhead" markerWidth="8" markerHeight="8"
+                                    refX="6" refY="4" orient="auto">
+                                <path d="M0,0 L8,4 L0,8 z" fill="context-stroke"></path>
+                            </marker>
+                        </defs>
+                    </svg>
+                    <div id="battle-radial" class="battle-radial" hidden>
+                        <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
+                        <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
+                        <button type="button" class="battle-radial-btn" id="battle-radial-wait">Wait</button>
+                        <button type="button" class="battle-radial-btn" id="battle-radial-death-save" hidden>Death save</button>
+                        <button type="button" class="battle-radial-btn battle-radial-close-btn" id="battle-radial-close" aria-label="Close">&times;</button>
+                    </div>
+                    <div id="battle-attack-popout" class="battle-attack-popout" hidden></div>
+                </div>
+                <aside class="battle-sidebar">
+                    <div class="battle-sidebar-heading">
+                        <h3>Turn Tracker</h3>
+                        <button type="button" class="button battle-gear-btn battle-sidebar-gear-btn" id="battle-settings-btn"
+                                aria-label="Battle settings" title="Battle settings">&#9881;</button>
+                    </div>
+                    <ol id="battle-turn-tracker" class="battle-turn-tracker"></ol>
+                    <div class="battle-add-character">
+                        <label for="battle-character-select">Add character or NPC</label>
+                        <div class="battle-add-character-row">
+                            <select id="battle-character-select">
+                                {% if campaign %}
+                                {% for p in campaign.players %}
+                                <option value="{{ p.id }}">
+                                    {% if p.is_npc %}NPC #{{ p.id }}{% else %}{{ p.user.username if p.user else 'Character ' ~ p.id }}{% endif %}
+                                </option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                            <button type="button" class="button" id="battle-add-character-btn">Place on map</button>
+                        </div>
+                        <p class="battle-placement-hint" id="battle-placement-hint" hidden></p>
+                    </div>
+                    <div class="battle-add-monster">
+                        <h3>Add monster</h3>
+                        <div class="battle-cr-filter">
+                            <span class="battle-cr-filter-label">CR filter</span>
+                            <label for="battle-monster-cr-min">Min <span id="battle-monster-cr-min-label">0</span></label>
+                            <input type="range" id="battle-monster-cr-min" min="0" max="30" step="0.25" value="0">
+                            <label for="battle-monster-cr-max">Max <span id="battle-monster-cr-max-label">30</span></label>
+                            <input type="range" id="battle-monster-cr-max" min="0" max="30" step="0.25" value="30">
+                        </div>
+                        <div class="battle-add-monster-row">
+                            <select id="battle-monster-select" aria-label="Monster"></select>
+                            <input type="number" id="battle-monster-place-count" min="1" max="10" value="1" aria-label="Monster count">
+                            <button type="button" class="button" id="battle-add-monster-btn">Place on map</button>
+                        </div>
+                    </div>
+                    <h3>Battle Log</h3>
+                    <ul id="battle-log" class="battle-log"></ul>
+                </aside>
+            </div>
+        </div>
+        {% endif %}
+            </div>
         </div>
     </div>
-
-    <div class="gm-world-quick-nav--dashboard">
-        {% with show_back_to_dashboard=false, show_add_city=true, show_supply_demand_toggle=true, show_debt_toggle=true, supply_demand_enabled=supply_demand_enabled %}
-        {% include 'partials/gm_world_quick_nav.html' %}
-        {% endwith %}
-    </div>
-
-    {% include 'partials/gm_shops_city_list_panel.html' %}
 
     {% include 'partials/gm_shops_city_list_scripts.html' %}
 
@@ -603,7 +1772,20 @@
             jobStatus: "{{ url_for('gm.gm_simulation_job_status', job_id='__JOB_ID__') }}",
             simSpeed: "{{ url_for('gm.gm_update_simulation_speed') }}",
             apiStatus: "{{ url_for('simulation.get_simulation_status') }}",
-            marketOverview: "{{ url_for('gm.gm_market_overview') }}"
+            marketOverview: "{{ url_for('gm.gm_market_overview') }}",
+            mapWorld: "{{ url_for('gm.gm_map_world') }}",
+            mapCity: "{{ url_for('gm.gm_map_city', city_id=999999999) }}",
+            mapMarkers: "{{ url_for('gm.gm_map_marker_upsert') }}",
+            mapMarkerRemove: "{{ url_for('gm.gm_map_marker_remove') }}",
+            mapPois: "{{ url_for('gm.gm_map_poi_upsert') }}",
+            mapPoiRemove: "{{ url_for('gm.gm_map_poi_remove') }}",
+            mapWorldBackground: "{{ url_for('gm.gm_map_world_background') }}",
+            mapCityBackground: "{{ url_for('gm.gm_map_city_background', city_id=999999999) }}",
+            mapImage: "{{ url_for('gm.gm_map_image', canvas_id=999999999) }}",
+            speciesCompendium: "{{ url_for('gm.get_species_compendium') }}",
+            speciesCreate: "{{ url_for('gm.create_species_compendium') }}",
+            speciesUpdateBase: "/gm/species/compendium/",
+            shopItems: "{{ url_for('gm.view_shop_items', shop_id=999999999) }}"
         };
 
         var statusPollTimer = null;
@@ -611,6 +1793,7 @@
         var lastKnownSpeed = 'pause';
         var STATUS_INTERVAL_PAUSED_MS = 45000;
         var STATUS_INTERVAL_ACTIVE_MS = 5000;
+        var MAP_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 
         function isMarketPaneActive() {
             var pane = document.getElementById('market-pane-content');
@@ -672,11 +1855,298 @@
             }
         }
 
+        var speciesState = { loaded: false, entries: [] };
+
+        function speciesStatus(message, isError) {
+            var el = document.getElementById('species-compendium-status');
+            if (!el) return;
+            el.textContent = message || '';
+            el.style.color = isError ? '#c00' : '';
+        }
+
+        function abilitySummary(mods) {
+            mods = mods || {};
+            return ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(function (ability) {
+                var val = Number(mods[ability] || 0);
+                return ability.toUpperCase() + ' ' + (val >= 0 ? '+' : '') + val;
+            }).join(', ');
+        }
+
+        function traitText(entry) {
+            return (entry.traits || []).map(function (trait) {
+                return (trait.name || 'Trait') + (trait.description ? ': ' + trait.description : '');
+            }).join('\n');
+        }
+
+        function traitsFromText(text) {
+            return String(text || '').split(/\r?\n/).map(function (line, index) {
+                var trimmed = line.trim();
+                if (!trimmed) return null;
+                var sep = trimmed.indexOf(':');
+                if (sep > 0) {
+                    return {
+                        name: trimmed.slice(0, sep).trim().slice(0, 80),
+                        description: trimmed.slice(sep + 1).trim().slice(0, 500)
+                    };
+                }
+                return { name: 'Trait ' + (index + 1), description: trimmed.slice(0, 500) };
+            }).filter(Boolean);
+        }
+
+        function renderSpeciesCompendium() {
+            var tbody = document.getElementById('species-compendium-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (!speciesState.entries.length) {
+                tbody.innerHTML = '<tr><td colspan="6">No species configured yet.</td></tr>';
+                return;
+            }
+            speciesState.entries.forEach(function (entry) {
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
+                    '<td>' + escapeHtml(entry.source || 'base') + '</td>' +
+                    '<td>' + Number(entry.population_percent || 0).toFixed(1) + '%</td>' +
+                    '<td>' + escapeHtml(abilitySummary(entry.ability_modifiers)) + '</td>' +
+                    '<td>' + escapeHtml(String((entry.traits || []).length)) + '</td>' +
+                    '<td><button type="button" class="button" data-species-edit="' + escapeHtml(entry.key) + '">Edit</button></td>';
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('[data-species-edit]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var key = btn.getAttribute('data-species-edit');
+                    var entry = speciesState.entries.find(function (row) { return row.key === key; });
+                    if (entry) openSpeciesEditor(entry);
+                });
+            });
+        }
+
+        async function loadSpeciesCompendium(force) {
+            if (speciesState.loaded && !force) return;
+            var body = document.getElementById('species-compendium-body');
+            if (!body) return;
+            speciesStatus('Loading species...', false);
+            try {
+                var resp = await fetch(urls.speciesCompendium, {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                var data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Could not load species.');
+                speciesState.entries = data.species || [];
+                speciesState.loaded = true;
+                renderSpeciesCompendium();
+                speciesStatus('', false);
+            } catch (err) {
+                speciesStatus(err.message || 'Could not load species.', true);
+            }
+        }
+
+        function openSpeciesEditor(entry) {
+            var form = document.getElementById('species-editor');
+            if (!form) return;
+            document.getElementById('species-edit-key').value = entry.key;
+            document.getElementById('species-editor-title').textContent = 'Edit ' + entry.name;
+            document.getElementById('species-edit-name').value = entry.name || '';
+            document.getElementById('species-edit-population').value = entry.population_percent || 0;
+            ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(function (ability) {
+                var el = document.getElementById('species-edit-' + ability);
+                if (el) el.value = (entry.ability_modifiers || {})[ability] || 0;
+            });
+            document.getElementById('species-edit-traits').value = traitText(entry);
+            document.getElementById('species-edit-stat-modifiers').value = entry.stat_modifiers || '';
+            document.getElementById('species-edit-notes').value = entry.notes || '';
+            form.hidden = false;
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function openSpeciesCreator() {
+            var form = document.getElementById('species-editor');
+            if (!form) return;
+            document.getElementById('species-edit-key').value = '';
+            document.getElementById('species-editor-title').textContent = 'Add species';
+            document.getElementById('species-edit-name').value = '';
+            document.getElementById('species-edit-population').value = 0;
+            ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(function (ability) {
+                var el = document.getElementById('species-edit-' + ability);
+                if (el) el.value = 0;
+            });
+            document.getElementById('species-edit-traits').value = '';
+            document.getElementById('species-edit-stat-modifiers').value = '';
+            document.getElementById('species-edit-notes').value = '';
+            form.hidden = false;
+            document.getElementById('species-edit-name').focus();
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function speciesPayloadFromEditor() {
+            var payload = {
+                name: document.getElementById('species-edit-name').value,
+                population_percent: document.getElementById('species-edit-population').value,
+                ability_modifiers: {},
+                traits: traitsFromText(document.getElementById('species-edit-traits').value),
+                stat_modifiers: document.getElementById('species-edit-stat-modifiers').value,
+                notes: document.getElementById('species-edit-notes').value
+            };
+            ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(function (ability) {
+                payload.ability_modifiers[ability] = document.getElementById('species-edit-' + ability).value;
+            });
+            return payload;
+        }
+
+        function setupSpeciesCompendium() {
+            var add = document.getElementById('species-add-btn');
+            var refresh = document.getElementById('species-refresh-btn');
+            var form = document.getElementById('species-editor');
+            var cancel = document.getElementById('species-edit-cancel');
+            if (add) {
+                add.addEventListener('click', openSpeciesCreator);
+            }
+            if (refresh) {
+                refresh.addEventListener('click', function () { loadSpeciesCompendium(true); });
+            }
+            if (cancel && form) {
+                cancel.addEventListener('click', function () { form.hidden = true; });
+            }
+            if (form) {
+                form.addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    var key = document.getElementById('species-edit-key').value;
+                    var isCreate = !key;
+                    speciesStatus('Saving species...', false);
+                    try {
+                        var resp = await fetch(isCreate ? urls.speciesCreate : urls.speciesUpdateBase + encodeURIComponent(key), {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify(speciesPayloadFromEditor())
+                        });
+                        var data = await resp.json();
+                        if (!resp.ok) throw new Error(data.error || 'Could not save species.');
+                        speciesState.loaded = false;
+                        await loadSpeciesCompendium(true);
+                        form.hidden = true;
+                        speciesStatus(isCreate ? 'Species added.' : 'Species saved.', false);
+                    } catch (err) {
+                        speciesStatus(err.message || 'Could not save species.', true);
+                    }
+                });
+            }
+            window.gmSpecies = { ensureLoaded: function () { return loadSpeciesCompendium(false); } };
+        }
+
+        function setupImportPopout(buttonId, popoutId) {
+            var button = document.getElementById(buttonId);
+            var popout = document.getElementById(popoutId);
+            if (!button || !popout) return;
+            var select = popout.querySelector('[data-import-type-select]');
+            var otherInput = popout.querySelector('.import-type-other-input');
+            var otherLabel = popout.querySelector('.import-type-other-label');
+            var submitBtn = popout.querySelector('[data-import-submit]');
+            var status = popout.querySelector('[data-import-status]');
+            function syncOtherField() {
+                var showOther = select && select.value === 'other';
+                if (otherInput) {
+                    otherInput.hidden = !showOther;
+                    if (!showOther) otherInput.value = '';
+                }
+                if (otherLabel) otherLabel.hidden = !showOther;
+            }
+            button.addEventListener('click', function () {
+                popout.hidden = !popout.hidden;
+                if (!popout.hidden) {
+                    syncOtherField();
+                    if (select) select.focus();
+                }
+            });
+            if (select) select.addEventListener('change', syncOtherField);
+            if (submitBtn) {
+                submitBtn.addEventListener('click', async function () {
+                    var selected = select ? select.options[select.selectedIndex].text : '';
+                    var other = otherInput && !otherInput.hidden ? otherInput.value.trim() : '';
+                    var fixedFileType = submitBtn.getAttribute('data-import-file-type') || '';
+                    var fileType = other || selected || fixedFileType || 'Unspecified';
+                    var description = submitBtn.getAttribute('data-import-description') ||
+                        ('Please add import support for: ' + fileType);
+                    var promptedKey = submitBtn.getAttribute('data-import-prompted-key') || '';
+                    if (status) status.textContent = 'Submitting request...';
+                    submitBtn.disabled = true;
+                    try {
+                        var resp = await fetch('/auth/account/submissions', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify({
+                                kind: 'suggestion',
+                                category: 'Reports & exports',
+                                title: submitBtn.getAttribute('data-import-title') || 'Import request',
+                                description: description,
+                                frequency: 'Once',
+                                beta_test: true,
+                                prompted_key: promptedKey,
+                                file_type: fileType,
+                                page_url: window.location.pathname + window.location.search
+                            })
+                        });
+                        var data = await resp.json().catch(function () { return {}; });
+                        if (!resp.ok) throw new Error(data.error || 'Could not submit request.');
+                        if (status) status.textContent = resp.status === 200
+                            ? 'Request updated in Prompted Feedback.'
+                            : 'Request sent to Prompted Feedback.';
+                    } catch (err) {
+                        if (status) status.textContent = err.message || 'Could not submit request.';
+                    } finally {
+                        submitBtn.disabled = false;
+                    }
+                });
+            }
+            popout.querySelectorAll('[data-import-close]').forEach(function (closeBtn) {
+                closeBtn.addEventListener('click', function () {
+                    popout.hidden = true;
+                });
+            });
+        }
+
         function setupPanelTabs() {
             var tabButtons = document.querySelectorAll('.gm-panel-tab');
             var tabPanels = document.querySelectorAll('.tab-panel-content');
+            var menuBtn = document.getElementById('gm-section-menu-btn');
+            var sidebar = document.getElementById('gm-dashboard-sidebar');
+            var backdrop = document.getElementById('gm-dashboard-backdrop');
+            function setDrawer(open) {
+                if (!sidebar || !menuBtn || !backdrop) return;
+                sidebar.classList.toggle('is-open', !!open);
+                menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                backdrop.hidden = !open;
+                document.body.classList.toggle('gm-dashboard-drawer-open', !!open);
+            }
+            if (menuBtn) {
+                menuBtn.addEventListener('click', function () {
+                    var open = menuBtn.getAttribute('aria-expanded') === 'true';
+                    setDrawer(!open);
+                });
+            }
+            if (backdrop) {
+                backdrop.addEventListener('click', function () {
+                    setDrawer(false);
+                });
+            }
+            document.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Escape') setDrawer(false);
+            });
             tabButtons.forEach(function (btn) {
                 btn.addEventListener('click', function () {
+                    var targetId = btn.getAttribute('data-target');
+                    if (!targetId) {
+                        return;
+                    }
                     tabButtons.forEach(function (b) {
                         b.classList.remove('active');
                         b.setAttribute('aria-selected', 'false');
@@ -687,7 +2157,7 @@
                     });
                     btn.classList.add('active');
                     btn.setAttribute('aria-selected', 'true');
-                    var targetId = btn.getAttribute('data-target');
+                    document.body.classList.toggle('gm-map-tab-active', targetId === 'map-pane-content');
                     var panel = document.getElementById(targetId);
                     if (panel) {
                         panel.classList.add('active');
@@ -695,10 +2165,1419 @@
                     }
                     if (targetId === 'market-pane-content') {
                         fetchMarketOverview();
+                        gmMap.ensureLoaded();
                     }
+                    if (targetId === 'map-pane-content') {
+                        gmMap.ensureLoaded();
+                        gmMap.refreshEncounters();
+                    }
+                    if (window.gmBattle) {
+                        if (targetId === 'battle-pane-content') {
+                            window.gmBattle.ensureLoaded();
+                        } else if (targetId === 'monsters-pane-content') {
+                            window.gmBattle.ensureMonstersLoaded();
+                        } else {
+                            window.gmBattle.stopPolling();
+                        }
+                    }
+                    if (window.gmSpecies && targetId === 'species-pane-content') {
+                        window.gmSpecies.ensureLoaded();
+                    }
+                    gmMap.refreshControls();
+                    setDrawer(false);
                 });
             });
+            var activeBtn = document.querySelector('.gm-panel-tab.active');
+            var activeTargetId = activeBtn ? activeBtn.getAttribute('data-target') : null;
+            document.body.classList.toggle('gm-map-tab-active', activeTargetId === 'map-pane-content');
+            if (activeTargetId === 'map-pane-content') {
+                gmMap.ensureLoaded();
+            }
+            gmMap.refreshControls();
         }
+
+        /* ------------------------------------------------------------------
+         * GM interactive map (world canvas with city markers; city canvases
+         * with shop markers). Coordinates are normalized 0..1 and the server
+         * derives campaign ownership from the GM session.
+         * ------------------------------------------------------------------ */
+        var gmMap = (function () {
+            var state = {
+                loadedOnce: false,
+                mode: 'world',       // 'world' | 'city'
+                cityId: null,
+                cityName: null,
+                canvas: null,
+                entities: [],
+                encounters: [],
+                selectedId: null,
+                pendingEntity: null,
+                pendingEncounter: null,
+                mapEncounters: [],
+                pointsOfInterest: [],
+                pendingPoi: null,
+                editingPoi: null
+            };
+            var stage = document.getElementById('map-stage');
+            var markerLayer = document.getElementById('map-marker-layer');
+            var genBg = document.getElementById('map-gen-bg');
+            var bgImage = document.getElementById('map-bg-image');
+            var scopeLabel = document.getElementById('map-scope-label');
+            var backBtn = document.getElementById('map-back-btn');
+            var uploadInput = document.getElementById('map-upload-input');
+            var regenBtn = document.getElementById('map-regenerate-btn');
+            var feedbackEl = document.getElementById('map-feedback');
+            var worldActions = document.getElementById('map-world-actions');
+            var addPoiBtn = document.getElementById('map-add-poi-btn');
+            var mapAddCityControls = document.getElementById('map-add-city-controls');
+            var mapCitySelect = document.getElementById('map-city-select');
+            var mapAddCityBtn = document.getElementById('map-add-city-btn');
+            var mapAddEncounterControls = document.getElementById('map-add-encounter-controls');
+            var mapEncounterSelect = document.getElementById('map-encounter-select');
+            var mapEncounterBtn = document.getElementById('map-encounter-btn');
+            var poiDialog = document.getElementById('map-poi-dialog');
+            var poiForm = document.getElementById('map-poi-form');
+            var poiFormTitle = document.getElementById('map-poi-form-title');
+            var poiLabelInput = document.getElementById('map-poi-label');
+            var poiNoteInput = document.getElementById('map-poi-note');
+            var poiVisibleInput = document.getElementById('map-poi-visible-to-players');
+            var poiCancelBtn = document.getElementById('map-poi-cancel-btn');
+            var saveTimers = {};
+
+            function mapFeedback(msg, isError) {
+                if (!feedbackEl) return;
+                feedbackEl.textContent = msg || '';
+                feedbackEl.classList.toggle('error', !!isError);
+            }
+
+            function cityUrl(template, cityId) {
+                return template.replace('999999999', encodeURIComponent(cityId));
+            }
+
+            function entityById(id) {
+                for (var i = 0; i < state.entities.length; i++) {
+                    if (Number(state.entities[i].id) === Number(id)) return state.entities[i];
+                }
+                return null;
+            }
+
+            function entityOnMap(id) {
+                var entity = entityById(id);
+                return !!(entity && entity.is_on_map);
+            }
+
+            function encounterById(id) {
+                for (var i = 0; i < state.encounters.length; i++) {
+                    if (Number(state.encounters[i].id) === Number(id)) return state.encounters[i];
+                }
+                return null;
+            }
+
+            function updatePendingPlacementClass() {
+                stage.classList.toggle(
+                    'pending-placement',
+                    !!state.pendingEntity || !!state.pendingPoi || !!state.pendingEncounter
+                );
+            }
+
+            function setPending(entity) {
+                state.pendingEntity = entity || null;
+                updatePendingPlacementClass();
+                if (state.pendingEntity) {
+                    state.pendingPoi = null;
+                    state.pendingEncounter = null;
+                    setSelected(null);
+                    mapFeedback('Click the map to place ' + state.pendingEntity.name + '.', false);
+                }
+            }
+
+            function poiById(id) {
+                for (var i = 0; i < state.pointsOfInterest.length; i++) {
+                    if (Number(state.pointsOfInterest[i].id) === Number(id)) {
+                        return state.pointsOfInterest[i];
+                    }
+                }
+                return null;
+            }
+
+            function setPendingPoi(poi) {
+                state.pendingEntity = null;
+                state.pendingEncounter = null;
+                state.pendingPoi = poi || null;
+                updatePendingPlacementClass();
+                if (state.pendingPoi) {
+                    closePoiPopout();
+                    mapFeedback('Click the map to place ' + state.pendingPoi.label + '.', false);
+                }
+            }
+
+            function setPendingEncounter(encounter) {
+                state.pendingEntity = null;
+                state.pendingPoi = null;
+                state.pendingEncounter = encounter || null;
+                updatePendingPlacementClass();
+                if (state.pendingEncounter) {
+                    closePoiPopout();
+                    closeEncounterPopout();
+                    mapFeedback('Click the map to place ' + state.pendingEncounter.name + '.', false);
+                }
+            }
+
+            function openPoiDialog(poi) {
+                if (!poiDialog || !poiForm) return;
+                state.editingPoi = poi || null;
+                if (poiFormTitle) {
+                    poiFormTitle.textContent = poi && poi.id ? 'Edit point of interest' : 'Add point of interest';
+                }
+                if (poiLabelInput) poiLabelInput.value = poi ? (poi.label || '') : '';
+                if (poiNoteInput) poiNoteInput.value = poi ? (poi.note || '') : '';
+                if (poiVisibleInput) poiVisibleInput.checked = !!(poi && poi.visible_to_players);
+                poiDialog.hidden = false;
+                if (poiLabelInput) poiLabelInput.focus();
+            }
+
+            function closePoiDialog() {
+                if (poiDialog) poiDialog.hidden = true;
+                state.editingPoi = null;
+            }
+
+            function closePoiPopout() {
+                var current = markerLayer.querySelector('.map-poi-popout');
+                if (current) current.remove();
+            }
+
+            function closeEntityPopout() {
+                var current = markerLayer.querySelector('.map-entity-popout');
+                if (current) current.remove();
+            }
+
+            function closeEncounterPopout() {
+                var current = markerLayer.querySelector('.map-encounter-popout');
+                if (current) current.remove();
+            }
+
+            function availableWorldCities() {
+                return (state.entities || []).filter(function (entity) {
+                    return entity.entity_type === 'city' && !entityOnMap(entity.id);
+                });
+            }
+
+            function availableCityShops() {
+                return (state.entities || []).filter(function (entity) {
+                    return entity.entity_type === 'shop' && !entityOnMap(entity.id);
+                });
+            }
+
+            function renderCityPicker() {
+                if (!mapAddCityControls || !mapCitySelect || !mapAddCityBtn) return;
+                var show = !!state.canvas && (state.mode === 'world' || state.mode === 'city');
+                if (!show) {
+                    mapAddCityControls.hidden = true;
+                    return;
+                }
+                var placingCities = state.mode === 'world';
+                var entities = placingCities ? availableWorldCities() : availableCityShops();
+                mapCitySelect.innerHTML = '';
+                if (!entities.length) {
+                    mapAddCityControls.hidden = false;
+                    mapCitySelect.setAttribute('aria-label', placingCities ? 'Available cities' : 'Available shops');
+                    var emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.textContent = placingCities ? 'No cities available' : 'No shops available';
+                    mapCitySelect.appendChild(emptyOpt);
+                    mapAddCityBtn.textContent = placingCities ? 'Add City' : 'Add Shop';
+                    mapAddCityBtn.disabled = true;
+                    return;
+                }
+                mapAddCityControls.hidden = false;
+                mapCitySelect.setAttribute('aria-label', placingCities ? 'Available cities' : 'Available shops');
+                mapAddCityBtn.textContent = placingCities ? 'Add City' : 'Add Shop';
+                entities.forEach(function (entity) {
+                    var opt = document.createElement('option');
+                    opt.value = entity.id;
+                    opt.textContent = entity.name;
+                    mapCitySelect.appendChild(opt);
+                });
+                mapAddCityBtn.disabled = false;
+            }
+
+            function isEncounterPlacedOnCanvas(encounter, canvasId) {
+                if (!encounter || !canvasId) return false;
+                return Number(encounter.map_canvas_id) === Number(canvasId) &&
+                    encounter.map_x != null &&
+                    encounter.map_y != null;
+            }
+
+            function encountersPlacedOnCanvas(canvasId) {
+                if (!canvasId) return [];
+                return (state.encounters || []).filter(function (encounter) {
+                    return encounter.status !== 'ended' &&
+                        isEncounterPlacedOnCanvas(encounter, canvasId);
+                });
+            }
+
+            function availableMapEncounters() {
+                if (!state.canvas || !state.canvas.id) return [];
+                return (state.encounters || []).filter(function (encounter) {
+                    return encounter.status !== 'ended' &&
+                        !isEncounterPlacedOnCanvas(encounter, state.canvas.id);
+                });
+            }
+
+            function upsertEncounterSummary(encounter) {
+                if (!encounter || !encounter.id) return;
+                var found = false;
+                for (var i = 0; i < state.encounters.length; i++) {
+                    if (Number(state.encounters[i].id) === Number(encounter.id)) {
+                        state.encounters[i] = encounter;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) state.encounters.unshift(encounter);
+            }
+
+            function syncCanvasEncounters() {
+                if (!state.canvas || !state.canvas.id) {
+                    state.mapEncounters = [];
+                } else {
+                    state.mapEncounters = encountersPlacedOnCanvas(state.canvas.id);
+                }
+                renderEncounterMarkers();
+                renderEncounterPicker();
+            }
+
+            function renderEncounterPicker() {
+                if (!mapAddEncounterControls || !mapEncounterSelect || !mapEncounterBtn) return;
+                var encounters = availableMapEncounters();
+                mapEncounterSelect.innerHTML = '';
+                if (!state.canvas || !state.canvas.id) {
+                    mapAddEncounterControls.hidden = true;
+                    return;
+                }
+                mapAddEncounterControls.hidden = false;
+                if (!encounters.length) {
+                    var emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.textContent = 'No encounters available';
+                    mapEncounterSelect.appendChild(emptyOpt);
+                    mapEncounterBtn.textContent = 'Add Encounter';
+                    mapEncounterBtn.disabled = true;
+                    return;
+                }
+                encounters.forEach(function (encounter) {
+                    var opt = document.createElement('option');
+                    opt.value = encounter.id;
+                    opt.textContent = encounter.name || ('Encounter #' + encounter.id);
+                    mapEncounterSelect.appendChild(opt);
+                });
+                mapEncounterBtn.textContent = 'Add Encounter';
+                mapEncounterBtn.disabled = false;
+            }
+
+            function renderBackground() {
+                var canvas = state.canvas || {};
+                var palettes = ['parchment', 'verdant', 'ashen', 'slate', 'sandstone', 'timber'];
+                palettes.forEach(function (p) { stage.classList.remove('map-palette-' + p); });
+                genBg.innerHTML = '';
+                if (canvas.has_image) {
+                    bgImage.src = cityUrl(urls.mapImage, canvas.id) + '?v=' + Date.now();
+                    bgImage.hidden = false;
+                    return;
+                }
+                bgImage.hidden = true;
+                bgImage.removeAttribute('src');
+                var gen = canvas.generation || {};
+                if (gen.palette) stage.classList.add('map-palette-' + gen.palette);
+                var ns = 'http://www.w3.org/2000/svg';
+                var svg = document.createElementNS(ns, 'svg');
+                svg.setAttribute('class', 'map-gen-svg');
+                svg.setAttribute('viewBox', '0 0 1000 750');
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+                function scaledPoint(p) {
+                    return [Number(p[0]) * 1000, Number(p[1]) * 750];
+                }
+                function pointsAttr(points) {
+                    return (points || []).map(function (p) {
+                        var sp = scaledPoint(p);
+                        return sp[0].toFixed(1) + ',' + sp[1].toFixed(1);
+                    }).join(' ');
+                }
+                function poly(points, fill, stroke, opacity, width) {
+                    var el = document.createElementNS(ns, 'polygon');
+                    el.setAttribute('points', pointsAttr(points));
+                    el.setAttribute('fill', fill);
+                    el.setAttribute('stroke', stroke || 'none');
+                    el.setAttribute('stroke-width', width || '2');
+                    el.setAttribute('opacity', opacity == null ? '1' : String(opacity));
+                    svg.appendChild(el);
+                    return el;
+                }
+                function line(points, stroke, width, dash, opacity) {
+                    var el = document.createElementNS(ns, 'polyline');
+                    el.setAttribute('points', pointsAttr(points));
+                    el.setAttribute('fill', 'none');
+                    el.setAttribute('stroke', stroke);
+                    el.setAttribute('stroke-width', String(width || 4));
+                    el.setAttribute('stroke-linecap', 'round');
+                    el.setAttribute('stroke-linejoin', 'round');
+                    if (dash) el.setAttribute('stroke-dasharray', dash);
+                    el.setAttribute('opacity', opacity == null ? '1' : String(opacity));
+                    svg.appendChild(el);
+                    return el;
+                }
+                function circle(x, y, size, fill, stroke, opacity) {
+                    var el = document.createElementNS(ns, 'circle');
+                    el.setAttribute('cx', String(Number(x) * 1000));
+                    el.setAttribute('cy', String(Number(y) * 750));
+                    el.setAttribute('r', String(Number(size || 0.05) * 500));
+                    el.setAttribute('fill', fill);
+                    el.setAttribute('stroke', stroke || 'none');
+                    el.setAttribute('stroke-width', '3');
+                    el.setAttribute('opacity', opacity == null ? '1' : String(opacity));
+                    svg.appendChild(el);
+                    return el;
+                }
+                function mountains(points) {
+                    (points || []).forEach(function (p) {
+                        var sp = scaledPoint(p);
+                        var tri = [
+                            [sp[0] - 16, sp[1] + 18],
+                            [sp[0], sp[1] - 18],
+                            [sp[0] + 16, sp[1] + 18]
+                        ].map(function (v) { return (v[0].toFixed(1) + ',' + v[1].toFixed(1)); }).join(' ');
+                        var el = document.createElementNS(ns, 'polygon');
+                        el.setAttribute('points', tri);
+                        el.setAttribute('fill', '#6b6256');
+                        el.setAttribute('stroke', '#403a33');
+                        el.setAttribute('stroke-width', '2');
+                        el.setAttribute('opacity', '0.82');
+                        svg.appendChild(el);
+                    });
+                }
+
+                // Water/parchment base.
+                var base = document.createElementNS(ns, 'rect');
+                base.setAttribute('width', '1000');
+                base.setAttribute('height', '750');
+                base.setAttribute('fill', gen.scope === 'world' ? '#9fc9c5' : '#d8d1c3');
+                base.setAttribute('opacity', gen.scope === 'world' ? '0.5' : '0.35');
+                svg.appendChild(base);
+
+                (gen.features || []).forEach(function (f) {
+                    if (f.type === 'landmass') poly(f.points, '#d8c690', '#8e7a4e', 0.96, 5);
+                    else if (f.type === 'island') poly(f.points, '#d7c88f', '#8e7a4e', 0.9, 3);
+                    else if (f.type === 'region_tint') poly(f.points, '#c084fc', 'none', 0.12, 0);
+                    else if (f.type === 'forest') poly(f.points, '#477c45', '#315833', 0.48, 2);
+                    else if (f.type === 'river') line(f.points, '#317aa3', 7, null, 0.75);
+                    else if (f.type === 'trade_route') line(f.points, '#7c4a23', 4, '10 10', 0.7);
+                    else if (f.type === 'mountain_range') mountains(f.points);
+                    else if (f.type === 'city_wall') poly(f.points, 'none', '#5b4b3c', 1, 8);
+                    else if (f.type === 'district') poly(f.points, '#b68a5f', '#7a5a3c', 0.42, 2);
+                    else if (f.type === 'road') line(f.points, '#8b6f4e', 8, null, 0.82);
+                    else if (f.type === 'canal') line(f.points, '#4f9ab8', 10, null, 0.68);
+                    else if (f.type === 'plaza') circle(f.x, f.y, f.size, '#c7b38a', '#80643c', 0.8);
+                    else if (f.type === 'park') poly(f.points, '#5f8c52', '#3f6838', 0.45, 2);
+                });
+                genBg.appendChild(svg);
+            }
+
+            function setSelected(id) {
+                state.selectedId = id;
+                markerLayer.querySelectorAll('.map-marker').forEach(function (m) {
+                    m.classList.toggle('selected', Number(m.dataset.entityId) === id);
+                });
+            }
+
+            function setControlHidden(selector, shouldHide) {
+                document.querySelectorAll(selector).forEach(function (btn) {
+                    btn.hidden = shouldHide;
+                });
+            }
+
+            function updateMapListControls() {
+                var mapActive = document.body.classList.contains('gm-map-tab-active');
+                var marketActive = isMarketPaneActive();
+                setControlHidden('.map-list-control', true);
+                document.querySelectorAll('.city-block, .region-block').forEach(function (el) {
+                    el.classList.remove('map-filter-hidden');
+                });
+                if ((!mapActive && !marketActive) || !state.canvas) return;
+
+                if (state.mode === 'world') {
+                    document.querySelectorAll('.map-city-add').forEach(function (btn) {
+                        btn.hidden = entityOnMap(btn.dataset.mapCityId);
+                    });
+                    document.querySelectorAll('.map-city-remove').forEach(function (btn) {
+                        btn.hidden = !mapActive || !entityOnMap(btn.dataset.mapCityId);
+                    });
+                    if (marketActive && !mapActive) {
+                        document.querySelectorAll('.map-shop-add').forEach(function (btn) {
+                            btn.hidden = false;
+                        });
+                    }
+                    return;
+                }
+
+                if (state.mode === 'city') {
+                    if (mapActive) {
+                        document.querySelectorAll('.city-block').forEach(function (block) {
+                            block.classList.toggle(
+                                'map-filter-hidden',
+                                Number(block.dataset.mapCityId) !== Number(state.cityId)
+                            );
+                        });
+                        document.querySelectorAll('.region-block').forEach(function (region) {
+                            var visibleCity = region.querySelector('.city-block:not(.map-filter-hidden)');
+                            region.classList.toggle('map-filter-hidden', !visibleCity);
+                        });
+                    }
+                    document.querySelectorAll('.map-shop-add').forEach(function (btn) {
+                        var inCity = Number(btn.dataset.mapCityId) === Number(state.cityId);
+                        btn.hidden = mapActive
+                            ? (!inCity || entityOnMap(btn.dataset.mapShopId))
+                            : false;
+                    });
+                    document.querySelectorAll('.map-shop-remove').forEach(function (btn) {
+                        var inCity = Number(btn.dataset.mapCityId) === Number(state.cityId);
+                        btn.hidden = !mapActive || !inCity || !entityOnMap(btn.dataset.mapShopId);
+                    });
+                }
+            }
+
+            function clampNorm(v) {
+                return Math.max(0, Math.min(1, v));
+            }
+
+            function scheduleSave(entity) {
+                var key = entity.entity_type + ':' + entity.id;
+                if (saveTimers[key]) clearTimeout(saveTimers[key]);
+                saveTimers[key] = setTimeout(function () {
+                    delete saveTimers[key];
+                    saveMarker(entity);
+                }, 250);
+            }
+
+            async function saveMarker(entity) {
+                try {
+                    var resp = await fetch(urls.mapMarkers, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            canvas_id: state.canvas.id,
+                            entity_type: entity.entity_type,
+                            entity_id: entity.id,
+                            x: entity.x,
+                            y: entity.y
+                        })
+                    });
+                    var j = await resp.json().catch(function () { return {}; });
+                    if (!resp.ok) throw new Error(j.error || 'Could not save marker.');
+                    entity.is_on_map = true;
+                    entity.is_suggested = false;
+                    var dot = markerLayer.querySelector('.map-marker[data-entity-id="' + entity.id + '"]');
+                    if (dot) dot.classList.remove('suggested');
+                    mapFeedback('Saved ' + entity.name + '.', false);
+                    updateMapListControls();
+                    renderCityPicker();
+                } catch (err) {
+                    console.error(err);
+                    mapFeedback(err.message || 'Could not save marker.', true);
+                }
+            }
+
+            async function removeMarker(entity) {
+                try {
+                    var resp = await fetch(urls.mapMarkerRemove, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            canvas_id: state.canvas.id,
+                            entity_type: entity.entity_type,
+                            entity_id: entity.id
+                        })
+                    });
+                    var j = await resp.json().catch(function () { return {}; });
+                    if (!resp.ok) throw new Error(j.error || 'Could not remove marker.');
+                    entity.is_on_map = false;
+                    entity.x = null;
+                    entity.y = null;
+                    if (Number(state.selectedId) === Number(entity.id)) setSelected(null);
+                    renderMarkers();
+                    updateMapListControls();
+                    renderCityPicker();
+                    mapFeedback('Removed ' + entity.name + ' from the map.', false);
+                } catch (err) {
+                    console.error(err);
+                    mapFeedback(err.message || 'Could not remove marker.', true);
+                }
+            }
+
+            async function savePoi(poi) {
+                try {
+                    var body = {
+                        canvas_id: state.canvas.id,
+                        label: poi.label,
+                        note: poi.note || '',
+                        x: poi.x,
+                        y: poi.y,
+                        visible_to_players: !!poi.visible_to_players
+                    };
+                    if (poi.id) body.poi_id = poi.id;
+                    var resp = await fetch(urls.mapPois, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(body)
+                    });
+                    var j = await resp.json().catch(function () { return {}; });
+                    if (!resp.ok) throw new Error(j.error || 'Could not save point of interest.');
+                    var saved = j.point_of_interest;
+                    var existing = saved && poiById(saved.id);
+                    if (existing) {
+                        existing.label = saved.label;
+                        existing.note = saved.note;
+                        existing.x = saved.x;
+                        existing.y = saved.y;
+                        existing.visible_to_players = !!saved.visible_to_players;
+                    } else if (saved) {
+                        state.pointsOfInterest.push(saved);
+                    }
+                    renderPois();
+                    mapFeedback('Saved point of interest.', false);
+                    return saved;
+                } catch (err) {
+                    console.error(err);
+                    mapFeedback(err.message || 'Could not save point of interest.', true);
+                    return null;
+                }
+            }
+
+            async function removePoi(poi) {
+                if (!poi || !poi.id) return;
+                try {
+                    var resp = await fetch(urls.mapPoiRemove, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            canvas_id: state.canvas.id,
+                            poi_id: poi.id
+                        })
+                    });
+                    var j = await resp.json().catch(function () { return {}; });
+                    if (!resp.ok) throw new Error(j.error || 'Could not remove point of interest.');
+                    state.pointsOfInterest = state.pointsOfInterest.filter(function (item) {
+                        return Number(item.id) !== Number(poi.id);
+                    });
+                    closePoiPopout();
+                    renderPois();
+                    mapFeedback('Removed point of interest.', false);
+                } catch (err) {
+                    console.error(err);
+                    mapFeedback(err.message || 'Could not remove point of interest.', true);
+                }
+            }
+
+            function positionMarker(wrap, entity) {
+                wrap.style.left = (entity.x * 100) + '%';
+                wrap.style.top = (entity.y * 100) + '%';
+            }
+
+            function clampPopoutInsideStage(popout, wrap) {
+                if (!popout || !wrap || !stage) return;
+                popout.style.transform = 'none';
+                var margin = 8;
+                var desiredLeft = wrap.offsetLeft + 12;
+                var desiredTop = wrap.offsetTop - 12;
+                var width = popout.offsetWidth || 220;
+                var height = popout.offsetHeight || 120;
+                if (desiredLeft + width + margin > stage.clientWidth) {
+                    desiredLeft = wrap.offsetLeft - width - 12;
+                }
+                var maxLeft = Math.max(margin, stage.clientWidth - width - margin);
+                var maxTop = Math.max(margin, stage.clientHeight - height - margin);
+                var left = Math.min(Math.max(desiredLeft, margin), maxLeft);
+                var top = Math.min(Math.max(desiredTop, margin), maxTop);
+                popout.style.left = left + 'px';
+                popout.style.top = top + 'px';
+            }
+
+            function renderMarkers() {
+                markerLayer.querySelectorAll('.map-entity-wrap, .map-entity-popout').forEach(function (el) {
+                    el.remove();
+                });
+                state.entities.forEach(function (entity) {
+                    if (!entity.is_on_map) return;
+                    var wrap = document.createElement('div');
+                    wrap.className = 'map-entity-wrap';
+                    wrap.style.position = 'absolute';
+                    wrap.style.transform = 'translate(0, 0)';
+                    positionMarker(wrap, entity);
+
+                    var dot = document.createElement('button');
+                    dot.type = 'button';
+                    dot.className = 'map-marker' + (entity.is_suggested ? ' suggested' : '');
+                    dot.dataset.entityId = entity.id;
+                    dot.title = entity.name;
+                    dot.setAttribute('aria-label',
+                        (entity.entity_type === 'city' ? 'City marker: ' : 'Shop marker: ') + entity.name);
+
+                    var label = document.createElement('span');
+                    label.className = 'map-marker-label';
+                    label.textContent = entity.name;
+
+                    dot.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        setSelected(entity.id);
+                        showEntityPopout(entity, wrap);
+                    });
+
+                    dot.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter' && state.mode === 'world' && entity.entity_type === 'city') {
+                            openCityMap(entity.id);
+                        }
+                    });
+
+                    dot.addEventListener('dblclick', function () {
+                        if (state.mode === 'world') openCityMap(entity.id);
+                    });
+
+                    wrap.appendChild(dot);
+                    wrap.appendChild(label);
+                    markerLayer.appendChild(wrap);
+                });
+            }
+
+            function formatNumber(value) {
+                var n = Number(value || 0);
+                return isFinite(n) ? n.toLocaleString() : '0';
+            }
+
+            function cityPopulationPie(speciesRows) {
+                var colors = ['#7c3aed', '#2563eb', '#059669', '#f59e0b', '#dc2626', '#0891b2', '#9333ea', '#65a30d', '#be123c'];
+                var cursor = 0;
+                var stops = [];
+                (speciesRows || []).forEach(function (row, index) {
+                    var pct = Math.max(0, Number(row.percent || 0));
+                    if (!pct) return;
+                    var next = Math.min(100, cursor + pct);
+                    stops.push(colors[index % colors.length] + ' ' + cursor + '% ' + next + '%');
+                    cursor = next;
+                });
+                if (!stops.length) return '#e5e7eb';
+                if (cursor < 100) stops.push('#e5e7eb ' + cursor + '% 100%');
+                return 'conic-gradient(' + stops.join(', ') + ')';
+            }
+
+            function appendGoodsList(parent, titleText, goods, valueKey, suffix) {
+                var section = document.createElement('div');
+                section.className = 'map-city-summary-section';
+                var title = document.createElement('h4');
+                title.textContent = titleText;
+                section.appendChild(title);
+                var list = document.createElement('ol');
+                list.className = 'map-city-goods-list';
+                (goods || []).slice(0, 5).forEach(function (good) {
+                    var li = document.createElement('li');
+                    var name = document.createElement('span');
+                    name.textContent = good.name || 'Unknown item';
+                    var value = document.createElement('span');
+                    var raw = Number(good[valueKey] || 0);
+                    value.textContent = (isFinite(raw) ? raw.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0') + (suffix || '');
+                    li.appendChild(name);
+                    li.appendChild(value);
+                    list.appendChild(li);
+                });
+                if (!list.children.length) {
+                    var empty = document.createElement('li');
+                    empty.textContent = 'No goods data yet.';
+                    list.appendChild(empty);
+                }
+                section.appendChild(list);
+                parent.appendChild(section);
+            }
+
+            function buildCitySummaryCard(entity) {
+                var summary = entity.summary || {};
+                var speciesRows = summary.species_population || [];
+                var card = document.createElement('div');
+                card.className = 'map-city-summary-card';
+
+                var pie = document.createElement('div');
+                pie.className = 'map-city-pop-pie';
+                pie.style.background = cityPopulationPie(speciesRows);
+                pie.setAttribute('aria-label', 'Population by species');
+                card.appendChild(pie);
+
+                var meta = document.createElement('div');
+                meta.className = 'map-city-summary-meta';
+                var popLabel = document.createElement('strong');
+                popLabel.textContent = formatNumber(summary.population) + ' people';
+                meta.appendChild(popLabel);
+                var speciesList = document.createElement('ul');
+                speciesList.className = 'map-city-species-list';
+                speciesRows.slice(0, 5).forEach(function (row) {
+                    var item = document.createElement('li');
+                    item.textContent = row.name + ' ' + Number(row.percent || 0).toFixed(1) + '%';
+                    speciesList.appendChild(item);
+                });
+                if (!speciesList.children.length) {
+                    var unknown = document.createElement('li');
+                    unknown.textContent = 'No species mix set.';
+                    speciesList.appendChild(unknown);
+                }
+                meta.appendChild(speciesList);
+                card.appendChild(meta);
+
+                appendGoodsList(card, 'Top 5 goods by price', summary.top_goods_by_price, 'average_price', ' gp');
+                appendGoodsList(card, 'Top 5 goods by avg volume', summary.top_goods_by_average_volume, 'average_volume', '');
+                return card;
+            }
+
+            function buildShopSummaryCard(entity) {
+                var summary = entity.summary || {};
+                var card = document.createElement('div');
+                card.className = 'map-city-summary-card map-shop-summary-card';
+                appendGoodsList(card, 'Top 5 goods by price', summary.top_goods_by_price, 'average_price', ' gp');
+                appendGoodsList(card, 'Top 5 goods by avg volume', summary.top_goods_by_average_volume, 'average_volume', '');
+                return card;
+            }
+
+            function showEntityPopout(entity, wrap) {
+                closeEntityPopout();
+                closePoiPopout();
+                closeEncounterPopout();
+                var popout = document.createElement('div');
+                popout.className = 'map-entity-popout';
+                popout.style.left = wrap.style.left;
+                popout.style.top = wrap.style.top;
+                popout.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                });
+
+                var title = document.createElement('h3');
+                title.textContent = entity.name;
+                var desc = document.createElement('p');
+                desc.textContent = entity.entity_type === 'city'
+                    ? 'City marker on this world map.'
+                    : 'Shop marker on this city map.';
+                var actions = document.createElement('div');
+                actions.className = 'map-entity-popout-actions';
+
+                var openBtn = document.createElement('button');
+                openBtn.type = 'button';
+                openBtn.className = 'button';
+                openBtn.textContent = 'Open';
+                openBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (entity.entity_type === 'city') {
+                        openCityMap(entity.id);
+                    } else {
+                        window.location.href = cityUrl(urls.shopItems, entity.id);
+                    }
+                });
+
+                var moveBtn = document.createElement('button');
+                moveBtn.type = 'button';
+                moveBtn.className = 'button';
+                moveBtn.textContent = 'Move';
+                moveBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeEntityPopout();
+                    setPending(entity);
+                });
+
+                actions.appendChild(openBtn);
+                actions.appendChild(moveBtn);
+                popout.appendChild(title);
+                popout.appendChild(desc);
+                if (entity.entity_type === 'city') {
+                    popout.appendChild(buildCitySummaryCard(entity));
+                } else if (entity.entity_type === 'shop') {
+                    popout.appendChild(buildShopSummaryCard(entity));
+                }
+                popout.appendChild(actions);
+                markerLayer.appendChild(popout);
+                clampPopoutInsideStage(popout, wrap);
+            }
+
+            function showPoiPopout(poi, wrap) {
+                closePoiPopout();
+                var popout = document.createElement('div');
+                popout.className = 'map-poi-popout';
+                popout.style.left = wrap.style.left;
+                popout.style.top = wrap.style.top;
+                popout.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                });
+
+                var title = document.createElement('h3');
+                title.textContent = poi.label;
+                var note = document.createElement('p');
+                note.textContent = poi.note || 'No notes yet.';
+                var actions = document.createElement('div');
+                actions.className = 'map-poi-popout-actions';
+
+                var editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'button';
+                editBtn.textContent = 'Edit';
+                editBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    openPoiDialog(poi);
+                });
+
+                var removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'button';
+                removeBtn.textContent = 'Remove';
+                removeBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    removePoi(poi);
+                });
+
+                actions.appendChild(editBtn);
+                actions.appendChild(removeBtn);
+                popout.appendChild(title);
+                popout.appendChild(note);
+                popout.appendChild(actions);
+                markerLayer.appendChild(popout);
+            }
+
+            function renderPois() {
+                markerLayer.querySelectorAll('.map-poi-wrap, .map-poi-popout').forEach(function (el) {
+                    el.remove();
+                });
+                state.pointsOfInterest.forEach(function (poi) {
+                    var wrap = document.createElement('div');
+                    wrap.className = 'map-poi-wrap';
+                    wrap.style.position = 'absolute';
+                    wrap.style.transform = 'translate(0, 0)';
+                    positionMarker(wrap, poi);
+
+                    var dot = document.createElement('button');
+                    dot.type = 'button';
+                    dot.className = 'map-marker poi';
+                    dot.dataset.poiId = poi.id;
+                    dot.title = poi.label;
+                    dot.setAttribute('aria-label', 'Point of interest: ' + poi.label);
+
+                    var label = document.createElement('span');
+                    label.className = 'map-marker-label';
+                    label.textContent = poi.label;
+
+                    dot.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        showPoiPopout(poi, wrap);
+                    });
+
+                    dot.addEventListener('pointerdown', function (e) {
+                        e.preventDefault();
+                        dot.setPointerCapture(e.pointerId);
+                        var dragged = false;
+                        function onMove(ev) {
+                            dragged = true;
+                            var rect = stage.getBoundingClientRect();
+                            poi.x = clampNorm((ev.clientX - rect.left) / rect.width);
+                            poi.y = clampNorm((ev.clientY - rect.top) / rect.height);
+                            positionMarker(wrap, poi);
+                            closePoiPopout();
+                        }
+                        async function onUp(ev) {
+                            dot.releasePointerCapture(ev.pointerId);
+                            dot.removeEventListener('pointermove', onMove);
+                            dot.removeEventListener('pointerup', onUp);
+                            if (dragged) await savePoi(poi);
+                        }
+                        dot.addEventListener('pointermove', onMove);
+                        dot.addEventListener('pointerup', onUp);
+                    });
+
+                    wrap.appendChild(dot);
+                    wrap.appendChild(label);
+                    markerLayer.appendChild(wrap);
+                });
+            }
+
+            function renderEncounterMarkers() {
+                markerLayer.querySelectorAll('.map-encounter-wrap, .map-encounter-popout').forEach(function (el) {
+                    el.remove();
+                });
+                (state.mapEncounters || []).forEach(function (encounter) {
+                    if (!encounter || encounter.map_x == null || encounter.map_y == null) return;
+                    var wrap = document.createElement('div');
+                    wrap.className = 'map-encounter-wrap';
+                    wrap.style.position = 'absolute';
+                    wrap.style.transform = 'translate(0, 0)';
+                    positionMarker(wrap, {
+                        x: Number(encounter.map_x),
+                        y: Number(encounter.map_y)
+                    });
+
+                    var dot = document.createElement('button');
+                    dot.type = 'button';
+                    dot.className = 'map-marker battle-encounter-marker';
+                    dot.title = encounter.name;
+                    dot.setAttribute('aria-label', 'Encounter: ' + encounter.name);
+                    dot.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showEncounterPopout(encounter, wrap);
+                    });
+
+                    var label = document.createElement('span');
+                    label.className = 'map-marker-label';
+                    label.textContent = encounter.name;
+
+                    wrap.appendChild(dot);
+                    wrap.appendChild(label);
+                    markerLayer.appendChild(wrap);
+                });
+            }
+
+            function showEncounterPopout(encounter, wrap) {
+                closeEncounterPopout();
+                var popout = document.createElement('div');
+                popout.className = 'map-encounter-popout';
+                popout.style.left = wrap.style.left;
+                popout.style.top = wrap.style.top;
+                popout.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                });
+
+                var title = document.createElement('h3');
+                title.textContent = encounter.name;
+                var status = document.createElement('p');
+                status.textContent = 'Encounter on this map.';
+                var actions = document.createElement('div');
+                actions.className = 'map-encounter-popout-actions';
+
+                var openBtn = document.createElement('button');
+                openBtn.type = 'button';
+                openBtn.className = 'button';
+                openBtn.textContent = 'Open';
+                openBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openMapEncounter(encounter);
+                });
+
+                var moveBtn = document.createElement('button');
+                moveBtn.type = 'button';
+                moveBtn.className = 'button';
+                moveBtn.textContent = 'Move';
+                moveBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeEncounterPopout();
+                    setPendingEncounter(encounter);
+                });
+
+                actions.appendChild(openBtn);
+                actions.appendChild(moveBtn);
+                popout.appendChild(title);
+                popout.appendChild(status);
+                popout.appendChild(actions);
+                markerLayer.appendChild(popout);
+            }
+
+            function renderAll() {
+                state.pendingPoi = null;
+                state.pendingEncounter = null;
+                setPending(null);
+                renderBackground();
+                renderMarkers();
+                renderPois();
+                renderCityPicker();
+                setSelected(null);
+                if (scopeLabel) {
+                    scopeLabel.textContent = state.mode === 'world'
+                        ? 'World Map'
+                        : 'City Map: ' + (state.cityName || '');
+                }
+                if (backBtn) backBtn.hidden = state.mode === 'world';
+                if (worldActions) worldActions.hidden = !state.canvas;
+                if (addPoiBtn) addPoiBtn.hidden = !state.canvas;
+                if (mapAddEncounterControls && (!state.canvas || !state.canvas.id)) {
+                    mapAddEncounterControls.hidden = true;
+                }
+                syncCanvasEncounters();
+                updateMapListControls();
+            }
+
+            function applyPayload(payload, mode) {
+                state.mode = mode;
+                state.canvas = payload.canvas;
+                state.entities = payload.entities || [];
+                state.mapEncounters = [];
+                state.pointsOfInterest = payload.points_of_interest || [];
+                if (mode === 'city' && payload.city) {
+                    state.cityId = payload.city.id;
+                    state.cityName = payload.city.name;
+                } else {
+                    state.cityId = null;
+                    state.cityName = null;
+                }
+                renderAll();
+            }
+
+            async function fetchJson(url) {
+                var resp = await fetch(url, {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                var j = await resp.json().catch(function () { return {}; });
+                if (!resp.ok) throw new Error(j.error || 'Could not load map.');
+                return j;
+            }
+
+            async function combatJson(path, method, body) {
+                var opts = {
+                    method: method || 'GET',
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                };
+                if (body !== undefined) {
+                    opts.headers['Content-Type'] = 'application/json';
+                    opts.headers['X-CSRFToken'] = csrfToken;
+                    opts.body = JSON.stringify(body);
+                }
+                var resp = await fetch('/api/combat' + path, opts);
+                var j = await resp.json().catch(function () { return {}; });
+                if (!resp.ok) throw new Error(j.error || 'Encounter request failed.');
+                return j;
+            }
+
+            async function loadMapEncounters() {
+                if (!mapAddEncounterControls) return;
+                try {
+                    var data = await combatJson('/encounters');
+                    state.encounters = data.encounters || [];
+                } catch (err) {
+                    state.encounters = [];
+                }
+                syncCanvasEncounters();
+            }
+
+            function promptEncounterName() {
+                var fallback = state.mode === 'city' && state.cityName
+                    ? state.cityName + ' encounter'
+                    : 'World encounter';
+                var name = window.prompt('Encounter name?', fallback);
+                return name === null ? null : name.trim();
+            }
+
+            function beginEncounterPlacement(encounter) {
+                if (!state.canvas || !state.canvas.id) {
+                    mapFeedback('Load a map first.', true);
+                    return;
+                }
+                if (!encounter) {
+                    var name = promptEncounterName();
+                    if (name === null) return;
+                    encounter = { name: name || 'Encounter' };
+                }
+                setPendingEncounter(encounter);
+            }
+
+            async function saveEncounterPlacement(encounter, x, y) {
+                if (!state.canvas || !state.canvas.id) return null;
+                if (encounter.id) {
+                    var placed = await combatJson('/encounters/' + encounter.id + '/place', 'POST', {
+                        map_canvas_id: state.canvas.id,
+                        x: x,
+                        y: y
+                    });
+                    return placed.encounter;
+                }
+                var created = await combatJson('/encounters', 'POST', {
+                    name: encounter.name,
+                    map_canvas_id: state.canvas.id,
+                    x: x,
+                    y: y
+                });
+                return created.encounter;
+            }
+
+            async function openMapEncounter(encounter) {
+                if (!encounter || !window.gmBattle || !window.gmBattle.openEncounter) return;
+                await window.gmBattle.openEncounter(encounter.id);
+            }
+
+            async function loadWorldMap() {
+                mapFeedback('Loading world map\u2026', false);
+                try {
+                    applyPayload(await fetchJson(urls.mapWorld), 'world');
+                    await loadMapEncounters();
+                    mapFeedback('', false);
+                } catch (err) {
+                    console.error(err);
+                    mapFeedback(err.message || 'Could not load map.', true);
+                }
+            }
+
+            async function openCityMap(cityId) {
+                mapFeedback('Loading city map\u2026', false);
+                try {
+                    applyPayload(await fetchJson(cityUrl(urls.mapCity, cityId)), 'city');
+                    await loadMapEncounters();
+                    mapFeedback('', false);
+                } catch (err) {
+                    console.error(err);
+                    mapFeedback(err.message || 'Could not load city map.', true);
+                }
+            }
+
+            async function postBackground(formData) {
+                var url = state.mode === 'world'
+                    ? urls.mapWorldBackground
+                    : cityUrl(urls.mapCityBackground, state.cityId);
+                var resp = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-CSRFToken': csrfToken },
+                    body: formData
+                });
+                var j = await resp.json().catch(function () { return {}; });
+                if (!resp.ok) throw new Error(j.error || 'Could not update background.');
+                state.canvas = j.canvas;
+                renderBackground();
+            }
+
+            if (backBtn) {
+                backBtn.addEventListener('click', function () { loadWorldMap(); });
+            }
+            if (regenBtn) {
+                regenBtn.addEventListener('click', async function () {
+                    mapFeedback('Generating background\u2026', false);
+                    try {
+                        await postBackground(new FormData());
+                        mapFeedback('Background regenerated.', false);
+                    } catch (err) {
+                        mapFeedback(err.message || 'Could not regenerate.', true);
+                    }
+                });
+            }
+            if (uploadInput) {
+                uploadInput.addEventListener('change', async function () {
+                    if (!uploadInput.files || !uploadInput.files.length) return;
+                    if (uploadInput.files[0].size > MAP_UPLOAD_MAX_BYTES) {
+                        mapFeedback('Map image must be 4 MB or smaller.', true);
+                        uploadInput.value = '';
+                        return;
+                    }
+                    var fd = new FormData();
+                    fd.append('map_image', uploadInput.files[0]);
+                    mapFeedback('Uploading map\u2026', false);
+                    try {
+                        await postBackground(fd);
+                        mapFeedback('Map image uploaded.', false);
+                    } catch (err) {
+                        mapFeedback(err.message || 'Upload failed.', true);
+                    } finally {
+                        uploadInput.value = '';
+                    }
+                });
+            }
+            if (addPoiBtn) {
+                addPoiBtn.addEventListener('click', function () {
+                    if (!state.canvas) {
+                        mapFeedback('Load a map first.', true);
+                        return;
+                    }
+                    openPoiDialog(null);
+                });
+            }
+            if (mapEncounterBtn) {
+                mapEncounterBtn.addEventListener('click', function () {
+                    if (mapEncounterBtn.disabled) return;
+                    if (!state.canvas || !state.canvas.id) {
+                        mapFeedback('Load a map first.', true);
+                        return;
+                    }
+                    var encounter = encounterById(mapEncounterSelect ? mapEncounterSelect.value : null);
+                    if (!encounter) {
+                        mapFeedback('Create an encounter first, then choose it here.', true);
+                        return;
+                    }
+                    beginEncounterPlacement(encounter);
+                });
+            }
+            if (mapAddCityBtn) {
+                mapAddCityBtn.addEventListener('click', async function () {
+                    if (mapAddCityBtn.disabled) return;
+                    var entity = entityById(mapCitySelect ? mapCitySelect.value : null);
+                    if (entity) setPending(entity);
+                });
+            }
+            if (poiCancelBtn) {
+                poiCancelBtn.addEventListener('click', closePoiDialog);
+            }
+            if (poiDialog) {
+                poiDialog.addEventListener('click', function (e) {
+                    if (e.target === poiDialog) closePoiDialog();
+                });
+            }
+            if (poiForm) {
+                poiForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    var label = (poiLabelInput ? poiLabelInput.value : '').trim();
+                    var note = (poiNoteInput ? poiNoteInput.value : '').trim();
+                    var visibleToPlayers = !!(poiVisibleInput && poiVisibleInput.checked);
+                    if (!label) {
+                        mapFeedback('POI label is required.', true);
+                        return;
+                    }
+                    if (state.editingPoi && state.editingPoi.id) {
+                        state.editingPoi.label = label;
+                        state.editingPoi.note = note;
+                        state.editingPoi.visible_to_players = visibleToPlayers;
+                        await savePoi(state.editingPoi);
+                        closePoiDialog();
+                        return;
+                    }
+                    closePoiDialog();
+                    setPendingPoi({
+                        label: label,
+                        note: note,
+                        visible_to_players: visibleToPlayers,
+                        x: null,
+                        y: null
+                    });
+                });
+            }
+            if (stage) {
+                // Only pending Add actions use click-to-place. Selecting an
+                // existing marker never makes it jump to the next map click.
+                stage.addEventListener('click', function (e) {
+                    closePoiPopout();
+                    closeEntityPopout();
+                    closeEncounterPopout();
+                    if (state.pendingEncounter) {
+                        var encounterRect = stage.getBoundingClientRect();
+                        var encounter = state.pendingEncounter;
+                        var x = clampNorm((e.clientX - encounterRect.left) / encounterRect.width);
+                        var y = clampNorm((e.clientY - encounterRect.top) / encounterRect.height);
+                        setPendingEncounter(null);
+                        saveEncounterPlacement(encounter, x, y).then(function (saved) {
+                            if (!saved) return;
+                            upsertEncounterSummary(saved);
+                            syncCanvasEncounters();
+                            mapFeedback('Placed ' + saved.name + '.', false);
+                        }).catch(function (err) {
+                            mapFeedback(err.message || 'Could not place encounter.', true);
+                        });
+                        return;
+                    }
+                    if (state.pendingPoi) {
+                        var poiRect = stage.getBoundingClientRect();
+                        state.pendingPoi.x = clampNorm((e.clientX - poiRect.left) / poiRect.width);
+                        state.pendingPoi.y = clampNorm((e.clientY - poiRect.top) / poiRect.height);
+                        var poi = state.pendingPoi;
+                        setPendingPoi(null);
+                        savePoi(poi);
+                        return;
+                    }
+                    var entity = state.pendingEntity;
+                    if (!entity) return;
+                    var rect = stage.getBoundingClientRect();
+                    entity.x = clampNorm((e.clientX - rect.left) / rect.width);
+                    entity.y = clampNorm((e.clientY - rect.top) / rect.height);
+                    entity.is_on_map = true;
+                    setPending(null);
+                    renderMarkers();
+                    setSelected(entity.id);
+                    scheduleSave(entity);
+                });
+            }
+
+            document.addEventListener('click', async function (e) {
+                var cityAdd = e.target.closest('.map-city-add');
+                var cityRemove = e.target.closest('.map-city-remove');
+                var shopAdd = e.target.closest('.map-shop-add');
+                var shopRemove = e.target.closest('.map-shop-remove');
+                if (!cityAdd && !cityRemove && !shopAdd && !shopRemove) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (cityAdd) {
+                    var mapTab = document.getElementById('map-tab-btn');
+                    if (mapTab) mapTab.click();
+                    if (state.mode !== 'world') await loadWorldMap();
+                    var city = entityById(cityAdd.dataset.mapCityId);
+                    if (city) setPending(city);
+                    return;
+                }
+                if (cityRemove) {
+                    var cityToRemove = entityById(cityRemove.dataset.mapCityId);
+                    if (cityToRemove) removeMarker(cityToRemove);
+                    return;
+                }
+                if (shopAdd) {
+                    var shopMapTab = document.getElementById('map-tab-btn');
+                    if (shopMapTab) shopMapTab.click();
+                    var targetCityId = Number(shopAdd.dataset.mapCityId);
+                    var startShopPlacement = function () {
+                        var shop = entityById(shopAdd.dataset.mapShopId);
+                        if (shop) setPending(shop);
+                    };
+                    if (state.mode !== 'city' || Number(state.cityId) !== targetCityId) {
+                        openCityMap(targetCityId).then(startShopPlacement);
+                    } else {
+                        startShopPlacement();
+                    }
+                    return;
+                }
+                if (shopRemove) {
+                    var shopToRemove = entityById(shopRemove.dataset.mapShopId);
+                    if (shopToRemove) removeMarker(shopToRemove);
+                }
+            }, true);
+
+            return {
+                ensureLoaded: function () {
+                    if (state.loadedOnce) return;
+                    state.loadedOnce = true;
+                    loadWorldMap();
+                },
+                refreshControls: updateMapListControls,
+                refreshEncounters: function () {
+                    if (!mapAddEncounterControls) return Promise.resolve();
+                    if (!state.loadedOnce) return Promise.resolve();
+                    return loadMapEncounters();
+                },
+                placeEncounter: function (encounter) {
+                    if (!encounter) return;
+                    if (!state.loadedOnce) {
+                        state.loadedOnce = true;
+                        loadWorldMap().then(function () {
+                            beginEncounterPlacement(encounter);
+                        });
+                        return;
+                    }
+                    beginEncounterPlacement(encounter);
+                }
+            };
+        })();
+        window.gmMap = gmMap;
 
         function setSimState(busy) {
             simBusy = busy;
@@ -954,8 +3833,52 @@
             }
         });
 
+        function setupCharacterCreationControls() {
+            var methodEl = document.getElementById('char-creation-method');
+            var budgetWrap = document.getElementById('char-creation-budget-wrap');
+            var rerollWrap = document.getElementById('char-creation-rerolls-wrap');
+            var saveBtn = document.getElementById('char-creation-save-btn');
+            if (!methodEl || !saveBtn) return;
+
+            function syncVisibility() {
+                var method = methodEl.value;
+                if (budgetWrap) budgetWrap.hidden = method !== 'point_buy';
+                if (rerollWrap) rerollWrap.hidden = method !== 'random_roll';
+            }
+            methodEl.addEventListener('change', syncVisibility);
+            syncVisibility();
+
+            saveBtn.addEventListener('click', function () {
+                var status = document.getElementById('char-creation-save-status');
+                var payload = {
+                    ability_method: methodEl.value,
+                    point_buy_budget: parseInt(document.getElementById('char-creation-budget')?.value || '27', 10),
+                    random_rerolls_per_ability: parseInt(document.getElementById('char-creation-rerolls')?.value || '0', 10)
+                };
+                fetch('/gm/character-creation/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                }).then(function (resp) { return resp.json(); }).then(function (data) {
+                    if (status) {
+                        status.textContent = data.ok ? 'Saved.' : ((data.errors || ['Save failed.']).join(' '));
+                    }
+                }).catch(function () {
+                    if (status) status.textContent = 'Save failed.';
+                });
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
+            setupSpeciesCompendium();
             setupPanelTabs();
+            setupCharacterCreationControls();
+            setupImportPopout('market-import-btn', 'market-import-popout');
+            setupImportPopout('battle-monster-import-btn', 'battle-monster-import-popout');
+            setupImportPopout('battle-sdr-monsters-btn', 'battle-sdr-monsters-popout');
             updateSimulationStatus().finally(scheduleStatusPoll);
             var firstSimCta = document.getElementById('gm-first-sim-cta');
             if (firstSimCta) {
@@ -975,5 +3898,18 @@
         });
     })();
     </script>
+    {% if combat_enabled %}
+    <script>
+        window.BATTLE_CONFIG = {
+            role: 'gm',
+            ownPlayerIds: [],
+            apiBase: '/api/combat',
+            csrfToken: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            initialEncounterId: null,
+            autoStart: false
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/gm_battle.js') }}"></script>
+    {% endif %}
 </body>
 </html>

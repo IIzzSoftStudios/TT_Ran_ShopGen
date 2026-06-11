@@ -8,7 +8,7 @@ from app import app as flask_app
 from tests.session_helpers import seed_client_session
 from app.extensions import db
 import app.models  # noqa: F401
-from app.models import Campaign, GMProfile, Player, User
+from app.models import Campaign, GMProfile, Player, PlayerCharacterSheet, User
 from app.services.user_capabilities import ensure_gm_profile, has_gm_capability
 
 
@@ -194,6 +194,7 @@ def test_create_character_get_renders_form(client):
         body = resp.data
         assert b'name="system_type"' in body
         assert b'id="character_name"' in body
+        assert b"id=\"dnd5e-wizard\"" in body
         assert b"Create character" in body or b"Create Character" in body
 
 
@@ -218,6 +219,60 @@ def test_registration_without_campaign_code_does_not_create_character(client, mo
         assert user is not None
         assert GMProfile.query.filter_by(user_id=user.id).count() == 1
         assert Player.query.filter_by(user_id=user.id, is_npc=False).count() == 0
+
+
+def test_campaign_code_registration_creates_player_only_account(client, monkeypatch):
+    monkeypatch.delenv("REQUIRE_REGISTRATION_KEY", raising=False)
+    with flask_app.app_context():
+        gm = _make_user("gm-code-owner", role="GM")
+        campaign = _make_gm_campaign(gm, name="Code Camp")
+
+        resp = client.post(
+            "/auth/register?campaign_code=1",
+            data={
+                "username": "code-player",
+                "email": "code-player@example.com",
+                "password": "ValidPass1!",
+                "confirm_password": "ValidPass1!",
+                "campaign_code": campaign.join_code,
+            },
+            follow_redirects=False,
+        )
+
+        user = User.query.filter_by(username="code-player").first()
+        assert resp.status_code in (302, 303)
+        assert user is not None
+        assert user.role == "Player"
+        assert GMProfile.query.filter_by(user_id=user.id).count() == 0
+        player = Player.query.filter_by(user_id=user.id, is_npc=False).one()
+        assert player.campaign_id == campaign.id
+        sheet = PlayerCharacterSheet.query.filter_by(
+            player_id=player.id,
+            campaign_id=campaign.id,
+        ).one()
+        assert sheet.sheet_json["system_type"] == campaign.system_type
+        assert f"/player/character/{player.id}/dashboard" in resp.location
+        with client.session_transaction() as sess:
+            assert sess.get("_user_id") == str(user.id)
+            assert sess.get("session_mode") == "player"
+            assert sess.get("campaign_id") == campaign.id
+            assert sess.get("player_id") == player.id
+
+        from app.models import CampaignCodeRedemption
+
+        redemption = CampaignCodeRedemption.query.filter_by(user_id=user.id).one()
+        assert redemption.campaign_id == campaign.id
+        assert redemption.player_id == player.id
+        assert redemption.source == "registration"
+
+
+def test_campaign_code_registration_page_omits_registration_key(client):
+    resp = client.get("/auth/register?campaign_code=1")
+    assert resp.status_code == 200
+    assert b"GM Campaign Code" in resp.data
+    assert b'name="campaign_code"' in resp.data
+    assert b'name="registration_key"' not in resp.data
+    assert b"does not grant GM tools" in resp.data
 
 
 def test_user_capabilities_can_redeem():

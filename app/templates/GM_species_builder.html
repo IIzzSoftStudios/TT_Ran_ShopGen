@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Build Custom Species</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        body { font-family: Arial, sans-serif; background: var(--color-bg); color: var(--color-text); }
+        .container { max-width: 1040px; margin: 32px auto; padding: 0 16px; }
+        .species-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 18px;
+            margin: 16px 0;
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08));
+        }
+        .species-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin: 12px 0;
+        }
+        label { display: grid; gap: 4px; font-weight: 700; }
+        input, textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-input-bg, var(--color-surface));
+            color: var(--color-text);
+        }
+        textarea { min-height: 90px; resize: vertical; }
+        .hint { color: var(--color-text-muted, #6b7280); }
+        .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+        .ability-grid { grid-template-columns: repeat(6, minmax(80px, 1fr)); }
+    </style>
+</head>
+<body>
+<main class="container">
+    <h1>Build Custom Species</h1>
+    <p class="hint">
+        Add the mechanical notes for your custom species. These values will be used later by generated
+        content, players, NPCs, and monsters. You can skip now and edit everything later in Species Compendium.
+    </p>
+
+    <form method="POST" action="{{ url_for('gm.save_species_builder') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% for species in species_entries %}
+        {% set key = species.key %}
+        <section class="species-card">
+            <input type="hidden" name="species_key" value="{{ key }}">
+            <h2>{{ species.name }}</h2>
+            <div class="species-grid">
+                <label>
+                    Species name
+                    <input type="text" name="species_{{ key }}_name" value="{{ species.name }}" maxlength="60" required>
+                </label>
+                <label>
+                    Population %
+                    <input type="number" name="species_{{ key }}_population_percent"
+                           value="{{ species.population_percent }}" min="0" max="100" step="0.1">
+                </label>
+            </div>
+
+            <h3>Ability Modifiers</h3>
+            <div class="species-grid ability-grid">
+                {% for ability in ['str', 'dex', 'con', 'int', 'wis', 'cha'] %}
+                <label>
+                    {{ ability|upper }}
+                    <input type="number" name="species_{{ key }}_{{ ability }}"
+                           value="{{ species.ability_modifiers.get(ability, 0) }}" min="-10" max="10">
+                </label>
+                {% endfor %}
+            </div>
+
+            <label>
+                Traits
+                <textarea name="species_{{ key }}_traits"
+                          placeholder="One trait per line. Use your own wording.">{% for trait in species.traits %}{{ trait.name }}{% if trait.description %}: {{ trait.description }}{% endif %}
+{% endfor %}</textarea>
+            </label>
+
+            <label>
+                Stat or rules modifiers
+                <textarea name="species_{{ key }}_stat_modifiers"
+                          placeholder="Speed, senses, proficiencies, resistances, size, or other mechanical notes.">{{ species.stat_modifiers }}</textarea>
+            </label>
+
+            <label>
+                GM notes
+                <textarea name="species_{{ key }}_notes"
+                          placeholder="Culture, naming notes, generation guidance, or restrictions.">{{ species.notes }}</textarea>
+            </label>
+        </section>
+        {% endfor %}
+
+        <div class="actions">
+            <button type="submit" class="button" name="builder_action" value="skip">Skip for now</button>
+            <button type="submit" class="button" name="builder_action" value="save">Save species</button>
+        </div>
+    </form>
+</main>
+</body>
+</html>

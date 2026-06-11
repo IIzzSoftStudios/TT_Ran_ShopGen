@@ -14,6 +14,7 @@ from app.extensions import db
 from app.models import Campaign, City, Player, Shop, SimulationState
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
 from app.routes.handlers.gm_helpers import get_current_gm_profile, require_active_campaign
+from app.routes.handlers.gm_players_handler import build_player_entries
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
 from app.services.distributed_lock import get_redis_client
 from app.services.market_overview import capture_start_metrics_for_job
@@ -176,12 +177,34 @@ def home():
         return redirect_response
 
     shops_panel = get_shop_city_panel_context(gm_profile, include_nav_toggles=True)
+    player_entries = build_player_entries(campaign)
     onboarding_checklist = build_gm_onboarding_context(gm_profile, campaign)
+    # Battle tab is D&D-5e-only: hidden entirely for other rulesets.
+    from app.services.rulesets import get_ruleset
+
+    combat_enabled = (
+        campaign is not None
+        and get_ruleset(campaign.system_type).system_type == "dnd5e"
+    )
+    character_creation_settings = None
+    species_compendium_preview = []
+    if combat_enabled and campaign is not None:
+        from app.services.character_creation.campaign_settings import (
+            get_creation_settings,
+        )
+        from app.services.species_compendium_service import ensure_species_compendium
+
+        character_creation_settings = get_creation_settings(campaign.id)
+        species_compendium_preview = ensure_species_compendium(campaign.id)
     return render_template(
         "GM_Home.html",
         gm_profile=gm_profile,
         current_speed="pause",
         onboarding_checklist=onboarding_checklist,
+        combat_enabled=combat_enabled,
+        player_entries=player_entries,
+        character_creation_settings=character_creation_settings,
+        species_compendium_preview=species_compendium_preview,
         **shops_panel,
     )
 

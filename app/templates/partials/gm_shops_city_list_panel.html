@@ -29,7 +29,7 @@
                     {% if group.cities %}
                     <div class="city-list">
                         {% for item in group.cities %}
-                        <details class="city-block" data-region={{ item.region_label|tojson }} data-region-id="{{ item.city.region_id or '' }}">
+                        <details class="city-block" data-region={{ item.region_label|tojson }} data-region-id="{{ item.city.region_id or '' }}" data-map-city-id="{{ item.city.city_id }}">
                 <summary>
                     <span class="city-name">{{ item.city.name }}</span>
                     <span class="city-meta">
@@ -38,6 +38,12 @@
                     <span class="city-summary-right">
                         <span class="shop-count-badge">{{ item.shop_count }} shop{% if item.shop_count != 1 %}s{% endif %}</span>
                         <span class="city-summary-actions" onclick="event.stopPropagation()">
+                            <button type="button" class="button map-list-control map-city-add"
+                                    data-map-city-id="{{ item.city.city_id }}"
+                                    data-map-city-name="{{ item.city.name|e }}" hidden>Add city to map</button>
+                            <button type="button" class="delete-button map-list-control map-city-remove"
+                                    data-map-city-id="{{ item.city.city_id }}"
+                                    data-map-city-name="{{ item.city.name|e }}" hidden>Remove city from map</button>
                             <a href="{{ url_for('gm.edit_city', city_id=item.city.city_id) }}" class="button">Edit</a>
                             <button type="button" class="delete-button" data-city-id="{{ item.city.city_id }}" data-city-name="{{ item.city.name|e }}">Delete</button>
                         </span>
@@ -67,6 +73,14 @@
                                     <button type="submit" class="btn-save-sm">Save</button>
                                 </form>
                                 <div class="shop-actions">
+                                    <button type="button" class="button map-list-control map-shop-add"
+                                            data-map-city-id="{{ item.city.city_id }}"
+                                            data-map-shop-id="{{ shop.shop_id }}"
+                                            data-map-shop-name="{{ shop.name|e }}" hidden>Add shop to map</button>
+                                    <button type="button" class="delete-button map-list-control map-shop-remove"
+                                            data-map-city-id="{{ item.city.city_id }}"
+                                            data-map-shop-id="{{ shop.shop_id }}"
+                                            data-map-shop-name="{{ shop.name|e }}" hidden>Remove shop from map</button>
                                     <a href="{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}" class="button">Edit</a>
                                     <a href="{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
                                     <button type="button" class="delete-button" data-shop-id="{{ shop.shop_id }}" data-shop-name="{{ shop.name|e }}">Delete</button>

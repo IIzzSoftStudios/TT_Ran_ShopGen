@@ -144,6 +144,43 @@ def test_submission_invalid_category_rejected(client):
         assert UserSubmission.query.count() == 0
 
 
+def test_prompted_import_submission_updates_existing_file_type(client):
+    with flask_app.app_context():
+        user = _make_user("prompted-importer", role="GM")
+        _login_as(user)
+        payload = {
+            "kind": "suggestion",
+            "category": "Reports & exports",
+            "title": "Monster import request",
+            "description": "Please add import support for: CSV",
+            "frequency": "Once",
+            "beta_test": True,
+            "prompted_key": "monster_import",
+            "file_type": "CSV",
+            "page_url": "/gm/",
+        }
+        first = client.post(
+            "/auth/account/submissions",
+            json=payload,
+            content_type="application/json",
+        )
+        assert first.status_code == 201
+
+        payload["description"] = "Please add import support for: JSON"
+        payload["file_type"] = "JSON"
+        second = client.post(
+            "/auth/account/submissions",
+            json=payload,
+            content_type="application/json",
+        )
+        assert second.status_code == 200
+
+        row = UserSubmission.query.filter_by(user_id=user.id).one()
+        assert row.body == "Please add import support for: JSON"
+        assert row.extra["prompted_key"] == "monster_import"
+        assert row.extra["file_type"] == "JSON"
+
+
 def test_avatar_upload_rejects_oversized_file(client):
     with flask_app.app_context():
         user = _make_user("avatar-user", role="Player")

@@ -14,6 +14,13 @@ def city_size_variation_range(settings: Mapping[str, Any]) -> Dict[str, int]:
     return {"min": 3, "max": 8}
 
 
+def population_scale_range(settings: Mapping[str, Any]) -> Dict[str, int]:
+    ranges = settings.get("ranges") or {}
+    if "population_scale" in ranges:
+        return dict(ranges["population_scale"])
+    return {"min": 8, "max": 12}
+
+
 def shops_per_city_range(
     settings: Mapping[str, Any],
     catalog: ShopRollCatalog | None = None,

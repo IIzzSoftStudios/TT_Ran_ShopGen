@@ -9,6 +9,7 @@ config.env.*
 !config.example.env
 .env
 .env.*
+!.env.example
 
 # Python caches and bytecode
 __pycache__/

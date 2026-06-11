@@ -79,6 +79,36 @@ def create_initial_vault_sheet(player_id, *, system_type, name=None):
     return row
 
 
+def ensure_initial_campaign_sheet(player, campaign, *, name=None):
+    """Create the starter campaign sheet for a campaign-bound character.
+
+    CAMP-code registration creates the campaign ``Player`` row before the
+    full character-builder flow runs. This gives that character a scoped sheet
+    immediately so the later walkthrough can edit the existing character
+    instead of creating a second solo vault character.
+    """
+    if player is None or campaign is None:
+        return None
+    row = PlayerCharacterSheet.query.filter_by(
+        player_id=player.id,
+        campaign_id=campaign.id,
+    ).first()
+    if row is not None:
+        return row
+    sheet = _empty_sheet(_system_type_of(campaign))
+    if name:
+        clean = str(name).strip()
+        if clean:
+            sheet["name"] = clean[:100]
+    row = PlayerCharacterSheet(
+        player_id=player.id,
+        campaign_id=campaign.id,
+        sheet_json=sheet,
+    )
+    db.session.add(row)
+    return row
+
+
 def get_or_default_sheet(player, campaign):
     """Return the stored sheet dict (or a defaulted one). Never auto-inserts."""
     if player is None:

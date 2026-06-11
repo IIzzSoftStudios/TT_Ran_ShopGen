@@ -317,6 +317,59 @@ def warn_if_expansion_interest_table_applied(patched_any: bool) -> None:
         )
 
 
+def ensure_campaign_code_redemption_table() -> bool:
+    """Create campaign_code_redemption when missing (vault campaign-code telemetry)."""
+    if db.engine.dialect.name != "postgresql":
+        return False
+    if not _regclass_exists("campaign") or not _regclass_exists("user"):
+        return False
+    if _regclass_exists("campaign_code_redemption"):
+        return False
+    db.session.execute(
+        text(
+            """
+            CREATE TABLE campaign_code_redemption (
+                id SERIAL PRIMARY KEY,
+                campaign_id INTEGER NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                player_id INTEGER REFERENCES player(id) ON DELETE SET NULL,
+                source VARCHAR(40) NOT NULL DEFAULT 'unknown',
+                redeemed_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                    DEFAULT (NOW() AT TIME ZONE 'utc')
+            )
+            """
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_campaign_code_redemption_campaign "
+            "ON campaign_code_redemption(campaign_id)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_campaign_code_redemption_user "
+            "ON campaign_code_redemption(user_id)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_campaign_code_redemption_redeemed_at "
+            "ON campaign_code_redemption(redeemed_at DESC)"
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def warn_if_campaign_code_redemption_table_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "campaign_code_redemption table created via compat bootstrap. "
+            "Run a controlled migration in production deploys."
+        )
+
+
 def ensure_player_npc_columns() -> bool:
     """Add is_npc and allow NULL on player user FK columns for GM-only NPC rows.
 
@@ -1726,4 +1779,328 @@ def warn_if_shop_next_restock_day_applied(applied: bool) -> None:
         log.warning(
             "shops.next_restock_day added via schema_compat; "
             "run sql/shops_next_restock_day.sql in production."
+        )
+
+
+def ensure_map_tables() -> bool:
+    """Create ``map_canvas`` and ``map_marker`` if missing (dev / pre-migration DBs).
+
+    GM interactive map storage (app.models.MapCanvas / MapMarker). DDL must
+    stay in sync with sql/map_canvas_create.sql and sql/map_marker_create.sql.
+    """
+    if db.engine.dialect.name != "postgresql":
+        return False
+
+    applied = False
+    if not _regclass_exists("map_canvas"):
+        db.session.execute(
+            text(
+                "CREATE TABLE map_canvas ("
+                "id SERIAL PRIMARY KEY, "
+                "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
+                "city_id INTEGER NULL REFERENCES cities (city_id) ON DELETE CASCADE, "
+                "scope VARCHAR(10) NOT NULL DEFAULT 'world', "
+                "source_type VARCHAR(20) NOT NULL DEFAULT 'generated', "
+                "image_path VARCHAR(255) NULL, "
+                "generation_json JSONB NULL, "
+                "width INTEGER NOT NULL DEFAULT 1024, "
+                "height INTEGER NOT NULL DEFAULT 1024, "
+                "created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "CONSTRAINT uq_map_canvas_city UNIQUE (campaign_id, city_id)"
+                ")"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_map_canvas_campaign_id "
+                "ON map_canvas (campaign_id)"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_map_canvas_city_id "
+                "ON map_canvas (city_id)"
+            )
+        )
+        # Partial unique index: exactly one world canvas per campaign. City
+        # canvases all share scope='city', so a plain (campaign_id, scope)
+        # unique constraint would be wrong.
+        db.session.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_map_canvas_world "
+                "ON map_canvas (campaign_id) WHERE scope = 'world'"
+            )
+        )
+        applied = True
+
+    if not _regclass_exists("map_marker"):
+        db.session.execute(
+            text(
+                "CREATE TABLE map_marker ("
+                "id SERIAL PRIMARY KEY, "
+                "canvas_id INTEGER NOT NULL REFERENCES map_canvas (id) ON DELETE CASCADE, "
+                "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
+                "entity_type VARCHAR(10) NOT NULL, "
+                "city_id INTEGER NULL REFERENCES cities (city_id) ON DELETE CASCADE, "
+                "shop_id INTEGER NULL REFERENCES shops (shop_id) ON DELETE CASCADE, "
+                "x DOUBLE PRECISION NOT NULL, "
+                "y DOUBLE PRECISION NOT NULL, "
+                "created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "CONSTRAINT uq_map_marker_canvas_city UNIQUE (canvas_id, city_id), "
+                "CONSTRAINT uq_map_marker_canvas_shop UNIQUE (canvas_id, shop_id), "
+                "CONSTRAINT chk_map_marker_x_bounds CHECK (x >= 0.0 AND x <= 1.0), "
+                "CONSTRAINT chk_map_marker_y_bounds CHECK (y >= 0.0 AND y <= 1.0)"
+                ")"
+            )
+        )
+        for ddl in (
+            "CREATE INDEX IF NOT EXISTS ix_map_marker_canvas_id ON map_marker (canvas_id)",
+            "CREATE INDEX IF NOT EXISTS ix_map_marker_campaign_id ON map_marker (campaign_id)",
+            "CREATE INDEX IF NOT EXISTS ix_map_marker_city_id ON map_marker (city_id)",
+            "CREATE INDEX IF NOT EXISTS ix_map_marker_shop_id ON map_marker (shop_id)",
+        ):
+            db.session.execute(text(ddl))
+        applied = True
+
+    if not _regclass_exists("map_point_of_interest"):
+        db.session.execute(
+            text(
+                "CREATE TABLE map_point_of_interest ("
+                "id SERIAL PRIMARY KEY, "
+                "canvas_id INTEGER NOT NULL REFERENCES map_canvas (id) ON DELETE CASCADE, "
+                "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
+                "label VARCHAR(120) NOT NULL, "
+                "note TEXT NULL, "
+                "x DOUBLE PRECISION NOT NULL, "
+                "y DOUBLE PRECISION NOT NULL, "
+                "visible_to_players BOOLEAN NOT NULL DEFAULT false, "
+                "created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "CONSTRAINT chk_map_poi_x_bounds CHECK (x >= 0.0 AND x <= 1.0), "
+                "CONSTRAINT chk_map_poi_y_bounds CHECK (y >= 0.0 AND y <= 1.0)"
+                ")"
+            )
+        )
+        for ddl in (
+            "CREATE INDEX IF NOT EXISTS ix_map_point_of_interest_canvas_id "
+            "ON map_point_of_interest (canvas_id)",
+            "CREATE INDEX IF NOT EXISTS ix_map_point_of_interest_campaign_id "
+            "ON map_point_of_interest (campaign_id)",
+        ):
+            db.session.execute(text(ddl))
+        applied = True
+    else:
+        if not _column_exists("map_point_of_interest", "visible_to_players"):
+            db.session.execute(
+                text(
+                    "ALTER TABLE map_point_of_interest "
+                    "ADD COLUMN visible_to_players BOOLEAN NOT NULL DEFAULT false"
+                )
+            )
+            applied = True
+
+    if applied:
+        db.session.commit()
+    return applied
+
+
+def warn_if_map_tables_created(applied: bool) -> None:
+    if applied:
+        log.warning(
+            "map_canvas / map_marker / map_point_of_interest tables created "
+            "(were missing). Run sql/map_canvas_create.sql, "
+            "sql/map_marker_create.sql, and sql/map_point_of_interest_create.sql in "
+            "production before relying on the GM Map tab."
+        )
+
+
+def ensure_battle_tables() -> bool:
+    """Create the D&D 5e tactical combat tables if missing (dev / pre-migration DBs).
+
+    Tables: battle_settings, monster_compendium_entry, battle_encounter,
+    battle_combatant, battle_action_log. DDL must stay in sync with
+    sql/battle_tables_create.sql and the Battle* models in app/models.py.
+    """
+    if db.engine.dialect.name != "postgresql":
+        return False
+
+    applied = False
+    if not _regclass_exists("battle_settings"):
+        db.session.execute(
+            text(
+                "CREATE TABLE battle_settings ("
+                "id SERIAL PRIMARY KEY, "
+                "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
+                "settings_json JSONB NOT NULL DEFAULT '{}'::jsonb, "
+                "created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "CONSTRAINT uq_battle_settings_campaign UNIQUE (campaign_id)"
+                ")"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_battle_settings_campaign_id "
+                "ON battle_settings (campaign_id)"
+            )
+        )
+        applied = True
+
+    if not _regclass_exists("monster_compendium_entry"):
+        db.session.execute(
+            text(
+                "CREATE TABLE monster_compendium_entry ("
+                "id SERIAL PRIMARY KEY, "
+                "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
+                "name VARCHAR(120) NOT NULL, "
+                "source VARCHAR(16) NOT NULL DEFAULT 'custom', "
+                "generation_seed VARCHAR(64) NULL, "
+                "challenge_rating DOUBLE PRECISION NULL, "
+                "stat_json JSONB NOT NULL DEFAULT '{}'::jsonb, "
+                "created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()"
+                ")"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_monster_compendium_entry_campaign_id "
+                "ON monster_compendium_entry (campaign_id)"
+            )
+        )
+        applied = True
+
+    if not _regclass_exists("battle_encounter"):
+        db.session.execute(
+            text(
+                "CREATE TABLE battle_encounter ("
+                "id SERIAL PRIMARY KEY, "
+                "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
+                "map_canvas_id INTEGER NULL REFERENCES map_canvas (id) ON DELETE SET NULL, "
+                "map_x DOUBLE PRECISION NULL, "
+                "map_y DOUBLE PRECISION NULL, "
+                "name VARCHAR(120) NOT NULL DEFAULT 'Encounter', "
+                "status VARCHAR(16) NOT NULL DEFAULT 'setup', "
+                "visible_to_players BOOLEAN NOT NULL DEFAULT false, "
+                "grid_width INTEGER NOT NULL DEFAULT 20, "
+                "grid_height INTEGER NOT NULL DEFAULT 20, "
+                "round_number INTEGER NOT NULL DEFAULT 0, "
+                "turn_index INTEGER NOT NULL DEFAULT 0, "
+                "turn_version INTEGER NOT NULL DEFAULT 0, "
+                "settings_json JSONB NULL, "
+                "created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()"
+                ")"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_battle_encounter_campaign_id "
+                "ON battle_encounter (campaign_id)"
+            )
+        )
+        applied = True
+    else:
+        if not _column_exists("battle_encounter", "map_x"):
+            db.session.execute(
+                text("ALTER TABLE battle_encounter ADD COLUMN map_x DOUBLE PRECISION NULL")
+            )
+            applied = True
+        if not _column_exists("battle_encounter", "map_y"):
+            db.session.execute(
+                text("ALTER TABLE battle_encounter ADD COLUMN map_y DOUBLE PRECISION NULL")
+            )
+            applied = True
+        if not _column_exists("battle_encounter", "visible_to_players"):
+            db.session.execute(
+                text(
+                    "ALTER TABLE battle_encounter "
+                    "ADD COLUMN visible_to_players BOOLEAN NOT NULL DEFAULT false"
+                )
+            )
+            applied = True
+
+    if not _regclass_exists("battle_combatant"):
+        db.session.execute(
+            text(
+                "CREATE TABLE battle_combatant ("
+                "id SERIAL PRIMARY KEY, "
+                "encounter_id INTEGER NOT NULL REFERENCES battle_encounter (id) ON DELETE CASCADE, "
+                "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
+                "player_id INTEGER NULL REFERENCES player (id) ON DELETE SET NULL, "
+                "compendium_entry_id INTEGER NULL REFERENCES monster_compendium_entry (id) ON DELETE SET NULL, "
+                "name VARCHAR(120) NOT NULL, "
+                "side VARCHAR(10) NOT NULL DEFAULT 'foe', "
+                "status VARCHAR(16) NOT NULL DEFAULT 'active', "
+                "x INTEGER NOT NULL DEFAULT 0, "
+                "y INTEGER NOT NULL DEFAULT 0, "
+                "hp_max INTEGER NOT NULL DEFAULT 1, "
+                "hp_current INTEGER NOT NULL DEFAULT 1, "
+                "temp_hp INTEGER NOT NULL DEFAULT 0, "
+                "ac INTEGER NOT NULL DEFAULT 10, "
+                "speed_ft INTEGER NOT NULL DEFAULT 30, "
+                "initiative INTEGER NULL, "
+                "initiative_order INTEGER NULL, "
+                "dex_mod INTEGER NOT NULL DEFAULT 0, "
+                "movement_used_ft INTEGER NOT NULL DEFAULT 0, "
+                "has_waited BOOLEAN NOT NULL DEFAULT FALSE, "
+                "ability_json JSONB NULL, "
+                "action_data_json JSONB NULL, "
+                "resources_json JSONB NULL, "
+                "spell_slots_json JSONB NULL, "
+                "conditions_json JSONB NULL, "
+                "created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(), "
+                "updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()"
+                ")"
+            )
+        )
+        for ddl in (
+            "CREATE INDEX IF NOT EXISTS ix_battle_combatant_encounter_id "
+            "ON battle_combatant (encounter_id)",
+            "CREATE INDEX IF NOT EXISTS ix_battle_combatant_campaign_id "
+            "ON battle_combatant (campaign_id)",
+            "CREATE INDEX IF NOT EXISTS ix_battle_combatant_player_id "
+            "ON battle_combatant (player_id)",
+        ):
+            db.session.execute(text(ddl))
+        applied = True
+
+    if not _regclass_exists("battle_action_log"):
+        db.session.execute(
+            text(
+                "CREATE TABLE battle_action_log ("
+                "id SERIAL PRIMARY KEY, "
+                "encounter_id INTEGER NOT NULL REFERENCES battle_encounter (id) ON DELETE CASCADE, "
+                "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
+                "combatant_id INTEGER NULL REFERENCES battle_combatant (id) ON DELETE SET NULL, "
+                "round_number INTEGER NOT NULL DEFAULT 0, "
+                "action_type VARCHAR(30) NOT NULL, "
+                "payload_json JSONB NULL, "
+                "created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()"
+                ")"
+            )
+        )
+        for ddl in (
+            "CREATE INDEX IF NOT EXISTS ix_battle_action_log_encounter_id "
+            "ON battle_action_log (encounter_id)",
+            "CREATE INDEX IF NOT EXISTS ix_battle_action_log_campaign_id "
+            "ON battle_action_log (campaign_id)",
+        ):
+            db.session.execute(text(ddl))
+        applied = True
+
+    if applied:
+        db.session.commit()
+    return applied
+
+
+def warn_if_battle_tables_created(applied: bool) -> None:
+    if applied:
+        log.warning(
+            "battle_settings / monster_compendium_entry / battle_encounter / "
+            "battle_combatant / battle_action_log tables created (were missing). "
+            "Run sql/battle_tables_create.sql in production before relying on "
+            "the GM Battle tab."
         )

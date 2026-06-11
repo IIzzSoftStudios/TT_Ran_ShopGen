@@ -263,6 +263,36 @@ html.dark-mode .simulation-panel .market-overview-table th {
 html.dark-mode .simulation-panel .market-overview-table td {
   border-bottom-color: var(--color-border);
 }
+html.dark-mode .simulation-panel .map-stage {
+  border-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .map-hint,
+html.dark-mode .simulation-panel .map-feedback {
+  color: var(--color-text-muted);
+}
+html.dark-mode .simulation-panel .map-poi-popout,
+html.dark-mode .simulation-panel .map-entity-popout,
+html.dark-mode .simulation-panel .map-poi-dialog form {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+html.dark-mode .simulation-panel .map-entity-popout h3,
+html.dark-mode .simulation-panel .map-entity-popout p,
+html.dark-mode .simulation-panel .map-city-summary-meta,
+html.dark-mode .simulation-panel .map-city-species-list,
+html.dark-mode .simulation-panel .map-city-goods-list {
+  color: var(--color-text) !important;
+}
+
+html.dark-mode .simulation-panel .map-city-summary-section h4 {
+  color: var(--color-text-muted) !important;
+}
+
+html.dark-mode .simulation-panel .map-city-goods-list li {
+  border-bottom-color: rgba(226, 232, 240, 0.18);
+}
 
 /* Character panel: make class/level and stat section headers white in dark mode */
 html.dark-mode .character-class-level,

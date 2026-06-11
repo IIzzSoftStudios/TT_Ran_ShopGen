@@ -454,9 +454,31 @@ def redeem_campaign_post():
         return redirect(url_for("main.campaigns"))
 
     try:
-        redeem_campaign_code(current_user, code, _commit=True)
+        from app.services.join_codes import REDEMPTION_SOURCE_CAMPAIGN_SELECTION
+
+        campaign = redeem_campaign_code(
+            current_user,
+            code,
+            source=REDEMPTION_SOURCE_CAMPAIGN_SELECTION,
+            _commit=True,
+        )
+        player = Player.query.filter_by(
+            user_id=current_user.id,
+            campaign_id=campaign.id,
+            is_npc=False,
+        ).order_by(Player.id.desc()).first()
+        session["campaign_id"] = campaign.id
+        session["system_type"] = campaign.system_type
+        if player is not None:
+            session["player_id"] = player.id
+        session.permanent = True
+        session.modified = True
         _clear_redeem_failures()
         flash("You joined the campaign.", "success")
+        if player is not None and (campaign.system_type or "").lower() == "dnd5e":
+            return redirect(
+                url_for("player.create_character", campaign_player_id=player.id)
+            )
     except (InvalidCodeError, SeatCapError, WrongRoleError, JoinCodeError) as e:
         _register_redeem_failure()
         flash(

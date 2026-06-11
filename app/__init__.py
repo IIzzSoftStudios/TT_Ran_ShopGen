@@ -15,6 +15,7 @@ from app.models import User
 from app.services.phase_config import PhaseEntitlements, resolve_phase_entitlements_path
 from app.services.schema_compat import (
     drop_campaign_player_table,
+    ensure_battle_tables,
     ensure_campaign_debt_column,
     ensure_campaign_current_game_day_column,
     ensure_campaign_scope_columns,
@@ -22,7 +23,9 @@ from app.services.schema_compat import (
     ensure_gm_world_state_campaign_id,
     ensure_global_market_baseline_stock_column,
     ensure_join_codes_columns,
+    ensure_campaign_code_redemption_table,
     ensure_expansion_interest_table,
+    ensure_map_tables,
     ensure_phase_entitlement_columns,
     ensure_player_campaign_id,
     ensure_player_npc_columns,
@@ -38,6 +41,7 @@ from app.services.schema_compat import (
     ensure_shop_next_restock_day_column,
     ensure_world_tables_campaign_only,
     preflight_campaign_rekey,
+    warn_if_battle_tables_created,
     warn_if_campaign_current_game_day_applied,
     warn_if_campaign_debt_column_applied,
     warn_if_campaign_player_dropped,
@@ -46,10 +50,12 @@ from app.services.schema_compat import (
     warn_if_gm_world_state_campaign_applied,
     warn_if_global_market_baseline_stock_applied,
     warn_if_join_codes_compat_applied,
+    warn_if_campaign_code_redemption_table_applied,
     warn_if_expansion_interest_table_applied,
     warn_if_password_history_compat_applied,
     warn_if_user_avatar_column_applied,
     warn_if_user_submissions_table_applied,
+    warn_if_map_tables_created,
     warn_if_phase_compat_applied,
     warn_if_player_campaign_applied,
     warn_if_player_npc_compat_applied,
@@ -401,6 +407,11 @@ def create_app():
                 warn_if_expansion_interest_table_applied,
             )
             _safe_bootstrap(
+                "campaign_code_redemption table compatibility bootstrap",
+                ensure_campaign_code_redemption_table,
+                warn_if_campaign_code_redemption_table_applied,
+            )
+            _safe_bootstrap(
                 "player NPC compatibility bootstrap",
                 ensure_player_npc_columns,
                 warn_if_player_npc_compat_applied,
@@ -498,6 +509,18 @@ def create_app():
                 ensure_world_tables_campaign_only,
                 warn_if_world_tables_campaign_only_applied,
             )
+            _safe_bootstrap(
+                "ensure_map_tables",
+                ensure_map_tables,
+                warn_if_map_tables_created,
+            )
+            # Battle tables FK onto map_canvas, so this must run after
+            # ensure_map_tables.
+            _safe_bootstrap(
+                "ensure_battle_tables",
+                ensure_battle_tables,
+                warn_if_battle_tables_created,
+            )
 
     from app.routes.main_routes import main_bp
     from app.routes.auth_routes import auth
@@ -505,11 +528,13 @@ def create_app():
     from app.routes.gm_routes import gm_bp
     from app.routes.simulation_routes import simulation_bp
     from app.routes.admin_routes import admin_bp
+    from app.routes.combat_routes import combat_bp
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
     app.register_blueprint(gm_bp)
     app.register_blueprint(player_bp, url_prefix="/player")
+    app.register_blueprint(combat_bp, url_prefix="/api/combat")
     app.register_blueprint(simulation_bp)  # Simulation routes have /api prefix
     app.register_blueprint(admin_bp)
 

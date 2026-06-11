@@ -41,9 +41,13 @@ flask_session/
 
 # Environment variables
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
 config.env
+config.env.*
+!config.example.env
 
 # IDE and editor files
 .vscode/

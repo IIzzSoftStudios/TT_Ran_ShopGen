@@ -6,13 +6,371 @@
     {% include 'partials/theme_head.html' %}
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% if combat_enabled %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/battle.css') }}">
+    {% endif %}
     <style>
         .main-layout {
-            display: flex;
+            display: block;
             gap: 20px;
             padding: 20px;
-            max-width: 1400px;
+            width: 92%;
+            max-width: 1320px;
             margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        .player-dashboard-shell {
+            display: grid;
+            grid-template-columns: 240px minmax(0, 1fr);
+            gap: 1.25rem;
+            align-items: start;
+            width: 100%;
+        }
+
+        .player-dashboard-sidebar {
+            background: var(--color-surface);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 16px;
+            position: sticky;
+            top: 16px;
+        }
+
+        .player-panel-tabs-header {
+            margin-bottom: 14px;
+        }
+
+        .player-panel-tabs-title {
+            display: block;
+            font-weight: 700;
+            color: var(--color-accent);
+        }
+
+        .player-panel-tabs-subtitle,
+        .player-panel-tab-group-label {
+            color: var(--color-muted);
+            font-size: 0.85rem;
+        }
+
+        .player-panel-tab-group {
+            display: grid;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .player-panel-tab {
+            width: 100%;
+            text-align: left;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            background: var(--color-bg);
+            color: var(--color-text);
+            padding: 10px 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .player-panel-tab.active {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+            border-color: var(--color-accent);
+        }
+
+        .player-dashboard-content {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .player-tab-panel {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .player-tab-panel > .section,
+        .player-tab-panel .inventory-column,
+        .player-tab-panel .inventory-column > .section,
+        .player-shops-browse-panel {
+            display: block;
+            flex: 0 0 auto;
+            width: 100%;
+            max-width: none;
+            box-sizing: border-box;
+        }
+
+        .player-tab-panel[hidden] {
+            display: none !important;
+        }
+
+        .character-identity-meta {
+            color: var(--color-muted);
+            margin: 4px 0 0;
+        }
+
+        .player-map-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .map-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            max-height: 560px;
+            min-height: 558px;
+            overflow: hidden;
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 6px;
+            touch-action: none;
+            user-select: none;
+            background: #ece3cd;
+        }
+
+        .map-stage.map-palette-parchment { background: #ece3cd; }
+        .map-stage.map-palette-verdant { background: #d8e6d0; }
+        .map-stage.map-palette-ashen { background: #d9d9d9; }
+        .map-stage.map-palette-slate { background: #ccd4dd; }
+        .map-stage.map-palette-sandstone { background: #e8dcc4; }
+        .map-stage.map-palette-timber { background: #e0d3c0; }
+
+        .map-bg-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .map-gen-bg {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .map-gen-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .map-marker-layer {
+            position: absolute;
+            inset: 0;
+        }
+
+        .map-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            background: #b91c1c;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .map-marker.suggested { background: #f59e0b; }
+
+        .map-marker.poi {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px 5px 5px 0;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            background: #7c3aed;
+        }
+
+        .map-marker.poi::after {
+            content: "";
+            position: absolute;
+            inset: 5px;
+            border-radius: 50%;
+            background: #fff;
+        }
+
+        .map-marker.selected,
+        .map-marker:focus-visible {
+            outline: 3px solid var(--color-accent, #6b21a8);
+            outline-offset: 1px;
+        }
+
+        .map-marker-label {
+            position: absolute;
+            transform: translate(-50%, 10px);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #1f2937;
+            background: rgba(255,255,255,0.75);
+            border-radius: 3px;
+            padding: 0 3px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .map-poi-popout,
+        .map-entity-popout,
+        .map-encounter-popout {
+            position: absolute;
+            z-index: 4;
+            min-width: 220px;
+            max-width: min(320px, 90%);
+            transform: translate(12px, -12px);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.24);
+            padding: 0.75rem;
+            color: #1f2937;
+        }
+
+        .map-poi-popout h3,
+        .map-entity-popout h3,
+        .map-encounter-popout h3 {
+            margin: 0 0 0.4rem;
+            font-size: 1rem;
+        }
+
+        .map-poi-popout p,
+        .map-entity-popout p,
+        .map-encounter-popout p {
+            margin: 0 0 0.6rem;
+            white-space: pre-wrap;
+        }
+
+        .map-poi-popout-actions,
+        .map-entity-popout-actions,
+        .map-encounter-popout-actions {
+            display: flex;
+            gap: 0.4rem;
+            justify-content: flex-end;
+        }
+
+        .map-city-summary-card {
+            display: grid;
+            grid-template-columns: 96px minmax(0, 1fr);
+            gap: 0.65rem;
+            margin: 0.5rem 0 0.7rem;
+            font-size: 0.85rem;
+        }
+
+        .map-shop-summary-card {
+            display: block;
+        }
+
+        .map-city-pop-pie {
+            width: 86px;
+            height: 86px;
+            border-radius: 50%;
+            border: 1px solid var(--color-border, #ccc);
+            box-shadow: inset 0 0 0 12px rgba(255,255,255,0.18);
+        }
+
+        .map-city-summary-meta strong {
+            display: block;
+            font-size: 1.05rem;
+        }
+
+        .map-city-species-list,
+        .map-city-goods-list {
+            margin: 0.35rem 0 0;
+            padding-left: 1rem;
+        }
+
+        .map-city-summary-section {
+            grid-column: 1 / -1;
+        }
+
+        .map-city-summary-section h4 {
+            margin: 0.45rem 0 0.2rem;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--color-text-muted, #6b7280);
+        }
+
+        .map-city-goods-list li {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.6rem;
+            border-bottom: 1px dotted rgba(0,0,0,0.12);
+            padding: 0.08rem 0;
+        }
+
+        .player-map-empty,
+        .player-market-status {
+            color: var(--color-muted);
+            margin: 12px 0;
+        }
+
+        .player-market-table-wrapper {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        .player-market-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .player-market-table th,
+        .player-market-table td {
+            padding: 8px;
+            border-bottom: 1px solid var(--color-border);
+            text-align: left;
+        }
+
+        .player-encounter-panel .battle-layout {
+            width: 100%;
+        }
+
+        .player-encounter-panel .battle-stage {
+            min-height: 520px;
+        }
+
+        .player-encounter-empty {
+            color: var(--color-muted);
+            margin: 12px 0;
+        }
+
+        .player-encounter-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 0 0 0.75rem;
+        }
+
+        .player-encounter-list-btn {
+            border: 1px solid var(--color-border, #ddd);
+            border-radius: 6px;
+            background: var(--color-bg, #f8fafc);
+            color: var(--color-text, #333);
+            padding: 0.45rem 0.65rem;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .player-encounter-list-btn.active {
+            border-color: var(--color-accent, #6b21a8);
+            box-shadow: inset 3px 0 0 var(--color-accent, #6b21a8);
+        }
+
+        #player-character-panel .section,
+        #player-map-panel .section,
+        #player-encounter-panel .section,
+        #player-market-panel .section {
+            flex: 0 0 auto;
+            width: 100%;
+            max-width: none;
+            box-sizing: border-box;
+        }
+
+        #player-character-panel .character-panel {
+            width: 100%;
         }
 
         .market-panel {
@@ -864,8 +1222,15 @@
 
         /* Responsive Design */
         @media (max-width: 1200px) {
-            .main-layout {
-                flex-direction: column;
+            .player-dashboard-shell {
+                display: block;
+            }
+
+            .player-dashboard-sidebar {
+                position: static;
+                width: 100%;
+                box-sizing: border-box;
+                margin-bottom: 20px;
             }
             
             .market-panel {
@@ -890,6 +1255,15 @@
         }
 
         @media (max-width: 768px) {
+            .main-layout {
+                width: 100%;
+                padding: 12px;
+            }
+
+            .map-stage {
+                min-height: 360px;
+            }
+
             .character-panel {
                 flex-direction: column;
             }
@@ -1291,7 +1665,7 @@
                 setTimeout(function () {
                     if (toast.parentNode) toast.parentNode.removeChild(toast);
                 }, 300);
-            }, 3500);
+            }, 3000);
             return toast;
         }
 
@@ -1342,7 +1716,7 @@
             shopId = parseInt(shopId, 10);
             itemId = parseInt(itemId, 10);
             if (!shopId || !itemId) {
-                alert("Invalid shop/item. Please refresh the page and try again.");
+                showPurchaseToast("Purchase failed: invalid shop or item. Please refresh the page and try again.", "error");
                 return;
             }
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
@@ -1359,7 +1733,8 @@
             .then(response => response.json())
             .then(data => {
                 if (data && data.success) {
-                    location.reload();
+                    showPurchaseToast(data.message || "Purchase complete.", "success");
+                    setTimeout(function () { location.reload(); }, 3000);
                 } else {
                     var msg = (data && data.message) || "Unknown error";
                     if (data && data.error_code === "would_overdraft") {
@@ -1608,18 +1983,40 @@
         </details>
     </div>
 
-    <!-- Main Layout with Dashboard and Market Panel -->
+    <!-- Main Layout with GM-style player tabs -->
     <div class="main-layout">
-        <!-- Dashboard Panel (Left) -->
-        <div class="dashboard-panel">
-            <!-- Character + Inventory side-by-side row -->
-            <div class="character-inventory-row">
-            <!-- Character Panel -->
+        <div class="player-dashboard-shell">
+            <nav class="player-dashboard-sidebar" role="tablist" aria-label="Player dashboard panel">
+                <div class="player-panel-tabs-header" role="presentation">
+                    <span class="player-panel-tabs-title">Player Workspace</span>
+                    <span class="player-panel-tabs-subtitle">Character and world</span>
+                </div>
+                <div class="player-panel-tab-group" role="presentation">
+                    <span class="player-panel-tab-group-label">Character</span>
+                    <button type="button" class="player-panel-tab active" data-target="player-character-panel" id="player-character-tab" role="tab" aria-selected="true">Character Sheet</button>
+                    <button type="button" class="player-panel-tab" data-target="player-inventory-panel" id="player-inventory-tab" role="tab" aria-selected="false">Inventory</button>
+                </div>
+                <div class="player-panel-tab-group" role="presentation">
+                    <span class="player-panel-tab-group-label">World</span>
+                    <button type="button" class="player-panel-tab" data-target="player-map-panel" id="player-map-tab" role="tab" aria-selected="false">Map</button>
+                    {% if combat_enabled %}
+                    <button type="button" class="player-panel-tab" data-target="player-encounter-panel" id="player-encounter-tab" role="tab" aria-selected="false">Encounters</button>
+                    {% endif %}
+                    <button type="button" class="player-panel-tab" data-target="player-market-panel" id="player-market-tab" role="tab" aria-selected="false">Market Overview</button>
+                </div>
+            </nav>
+
+            <div class="player-dashboard-content">
+            <section id="player-character-panel" class="player-tab-panel active" role="tabpanel" aria-labelledby="player-character-tab">
             <div class="section">
                 <div class="character-header-row">
                     <div class="character-name-block">
                         <h2>{{ character.name|default('Your Character') }}</h2>
                         <p class="character-class-level">{% if character.class_name %}{{ character.class_name }}{% endif %}{% if character.class_name and character.level %} · {% endif %}{% if character.level %}Level {{ character.level }}{% endif %}</p>
+                        <p class="character-identity-meta">
+                            {% if character.species %}{{ character.species }}{% else %}Species not set{% endif %}
+                            {% if character.system_type %} · {{ character.system_type }}{% endif %}
+                        </p>
                         <div id="headerDerivedStats" class="header-derived-stats" style="margin-top: 8px;"></div>
                     </div>
                     <div class="saving-throws-block">
@@ -1644,9 +2041,11 @@
                     </div>
                 </div>
             </div>
+            </section>
 
             <!-- Right column: body model + equipment slot list stacked
                  above the inventory table. -->
+            <section id="player-inventory-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-inventory-tab" hidden>
             <div class="inventory-column">
                 <div class="section">
                     <div class="body-equipment-row">
@@ -1779,13 +2178,103 @@
                 {% endif %}
             </div><!-- /.section.inventory-container -->
             </div><!-- /.inventory-column -->
-            </div>
-            <!-- /character-inventory-row -->
+            </section>
+
+            <section id="player-map-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-map-tab" hidden>
+                <div class="section">
+                    <div class="player-map-toolbar">
+                        <h2 id="player-map-title" style="margin: 0;">World Map</h2>
+                        <button type="button" class="button" id="player-map-back-btn" hidden>Back to world map</button>
+                    </div>
+                    {% if player_has_active_campaign %}
+                    <p class="player-map-empty" id="player-map-status">Open this tab to load the campaign map.</p>
+                    <div class="map-stage" id="player-map-stage" aria-label="Campaign map">
+                        <img id="player-map-bg-image" class="map-bg-image" alt="Map background" hidden>
+                        <div id="player-map-gen-bg" class="map-gen-bg" aria-hidden="true"></div>
+                        <div id="player-map-markers" class="map-marker-layer"></div>
+                    </div>
+                    {% else %}
+                    <p class="player-map-empty">Join a campaign to view the world map.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            {% if combat_enabled %}
+            <section id="player-encounter-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-encounter-tab" hidden>
+                <div class="section player-encounter-panel">
+                    <div class="player-map-toolbar">
+                        <h2 style="margin: 0;">Encounters{% if battle_encounter %}: {{ battle_encounter.name }}{% endif %}</h2>
+                    </div>
+                    {% if battle_encounter %}
+                    <p class="player-map-empty">
+                        Click your highlighted character on its turn to move, attack, or wait. The board refreshes automatically.
+                    </p>
+                    <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
+                    <div class="battle-layout">
+                        <div id="battle-stage" class="battle-stage">
+                            <div id="battle-grid" class="battle-grid"></div>
+                            <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
+                                <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"
+                                      marker-end="url(#battle-arrowhead)"></line>
+                                <defs>
+                                    <marker id="battle-arrowhead" markerWidth="8" markerHeight="8"
+                                            refX="6" refY="4" orient="auto">
+                                        <path d="M0,0 L8,4 L0,8 z" fill="context-stroke"></path>
+                                    </marker>
+                                </defs>
+                            </svg>
+                            <div id="battle-radial" class="battle-radial" hidden>
+                                <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
+                                <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
+                                <button type="button" class="battle-radial-btn" id="battle-radial-wait">Wait</button>
+                                <button type="button" class="battle-radial-btn" id="battle-radial-death-save" hidden>Death save</button>
+                                <button type="button" class="battle-radial-btn battle-radial-close-btn" id="battle-radial-close" aria-label="Close">&times;</button>
+                            </div>
+                            <div id="battle-attack-popout" class="battle-attack-popout" hidden></div>
+                        </div>
+                        <aside class="battle-sidebar">
+                            <h3>Turn Tracker</h3>
+                            <ol id="battle-turn-tracker" class="battle-turn-tracker"></ol>
+                            <span class="battle-toolbar-actions">
+                                <button type="button" class="button" id="battle-place-own-character-btn">Place character</button>
+                                <button type="button" class="button" id="battle-end-turn-btn">End turn</button>
+                            </span>
+                            <h3>Battle Log</h3>
+                            <ul id="battle-log" class="battle-log"></ul>
+                        </aside>
+                    </div>
+                    {% else %}
+                    <p class="player-encounter-empty">No active encounter right now. Your GM will start one from their dashboard.</p>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
 
             <!-- City -> Shop -> Items browse accordion (replaces the old
                  filter-based Search Items / Search Results UI). Mirrors the
                  GM Shops-by-city panel so players and GMs share the same
                  mental model when browsing campaign inventory. -->
+            <section id="player-market-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-market-tab" hidden>
+            <div class="section">
+                <h2>Market Overview</h2>
+                {% if player_has_active_campaign %}
+                <p class="player-market-status" id="player-market-status">Open this tab to load current market conditions.</p>
+                <div class="player-market-table-wrapper">
+                    <table class="player-market-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Avg price</th>
+                                <th>Avg stock</th>
+                            </tr>
+                        </thead>
+                        <tbody id="player-market-table-body"></tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="player-market-status">Join a campaign to view market conditions.</p>
+                {% endif %}
+            </div>
             <div class="player-shops-browse-panel" id="player-shops-browse">
                 <h2>Shops by city</h2>
                 <div class="browse-note">
@@ -1895,10 +2384,26 @@
                 </div>
                 {% endif %}
             </div>
+            </section>
+            </div>
         </div>
 
         <!-- Market Prices panel moved to the Market Overview page. -->
     </div>
+
+    {% if combat_enabled and battle_encounter %}
+    <script>
+        window.BATTLE_CONFIG = {
+            role: 'player',
+            ownPlayerIds: {{ battle_own_player_ids | tojson }},
+            apiBase: '/api/combat',
+            csrfToken: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            initialEncounterId: {{ battle_encounter.id }},
+            autoStart: true
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/gm_battle.js') }}"></script>
+    {% endif %}
 
     <script>
         // Load character data when the dashboard is ready. The old
@@ -1924,9 +2429,623 @@
             });
         }
 
+        var playerDashboardUrls = {
+            marketOverview: "{{ url_for('player.player_market_overview') }}",
+            mapWorld: "{{ url_for('player.player_world_map') }}",
+            mapCity: "{{ url_for('player.player_city_map', city_id=999999999) }}",
+            mapImage: "{{ url_for('player.player_map_image', canvas_id=999999999) }}",
+            shop: "{{ url_for('player.view_shop', shop_id=999999999) }}"
+        };
+
+        function playerEscapeHtml(text) {
+            var d = document.createElement("div");
+            d.textContent = text == null ? "" : String(text);
+            return d.innerHTML;
+        }
+
+        function setupPlayerTabs() {
+            var tabs = document.querySelectorAll(".player-panel-tab");
+            var panels = document.querySelectorAll(".player-tab-panel");
+            tabs.forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    var targetId = btn.getAttribute("data-target");
+                    tabs.forEach(function (tab) {
+                        tab.classList.remove("active");
+                        tab.setAttribute("aria-selected", "false");
+                    });
+                    panels.forEach(function (panel) {
+                        panel.classList.remove("active");
+                        panel.setAttribute("hidden", "");
+                    });
+                    btn.classList.add("active");
+                    btn.setAttribute("aria-selected", "true");
+                    var target = document.getElementById(targetId);
+                    if (target) {
+                        target.classList.add("active");
+                        target.removeAttribute("hidden");
+                    }
+                    if (targetId === "player-market-panel") {
+                        loadPlayerMarketOverview();
+                    }
+                    if (targetId === "player-map-panel") {
+                        loadPlayerWorldMap(false);
+                    }
+                });
+            });
+        }
+
+        function marketTrendIcon(status) {
+            if (status === "higher") return "▲";
+            if (status === "lower") return "▼";
+            return "=";
+        }
+
+        function renderPlayerMarketOverview(data) {
+            var tbody = document.getElementById("player-market-table-body");
+            var status = document.getElementById("player-market-status");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            var items = (data && data.items) || [];
+            if (!items.length) {
+                tbody.innerHTML = '<tr><td colspan="3">No in-stock market items yet.</td></tr>';
+                if (status) status.textContent = "";
+                return;
+            }
+            items.forEach(function (item) {
+                var tr = document.createElement("tr");
+                tr.innerHTML =
+                    "<td><strong>" + playerEscapeHtml(item.name) + "</strong><br>" +
+                    "<span class='market-type-muted'>" + playerEscapeHtml(item.type || "") + "</span></td>" +
+                    "<td>" + Number(item.current_avg_price || 0).toFixed(2) + " " +
+                    marketTrendIcon(item.price_vs_base) + "</td>" +
+                    "<td>" + Number(item.current_avg_stock || 0).toFixed(1) + " " +
+                    marketTrendIcon(item.stock_vs_base) + "</td>";
+                tbody.appendChild(tr);
+            });
+            if (status) status.textContent = "";
+        }
+
+        function loadPlayerMarketOverview() {
+            var tbody = document.getElementById("player-market-table-body");
+            if (!tbody || tbody.getAttribute("data-loaded") === "true") return;
+            var status = document.getElementById("player-market-status");
+            if (status) status.textContent = "Loading market overview...";
+            fetch(playerDashboardUrls.marketOverview, {
+                credentials: "same-origin",
+                headers: { "Accept": "application/json" }
+            })
+                .then(function (resp) {
+                    return resp.json().then(function (data) {
+                        if (!resp.ok) throw new Error(data.error || "Could not load market overview.");
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    renderPlayerMarketOverview(data);
+                    tbody.setAttribute("data-loaded", "true");
+                })
+                .catch(function (err) {
+                    if (status) status.textContent = err.message || "Could not load market overview.";
+                });
+        }
+
+        var playerMapState = { loadedWorld: false, selectedId: null };
+
+        function playerUrl(template, id) {
+            return template.replace("999999999", encodeURIComponent(id));
+        }
+
+        function mapStatus(message) {
+            var status = document.getElementById("player-map-status");
+            if (status) status.textContent = message || "";
+        }
+
+        function playerPositionMarker(wrap, entity) {
+            wrap.style.left = (Number(entity.x) * 100) + "%";
+            wrap.style.top = (Number(entity.y) * 100) + "%";
+        }
+
+        function playerCloseEntityPopout() {
+            var markers = document.getElementById("player-map-markers");
+            if (!markers) return;
+            markers.querySelectorAll(".map-entity-popout, .map-poi-popout, .map-encounter-popout").forEach(function (el) {
+                el.remove();
+            });
+        }
+
+        function playerSetSelected(id) {
+            playerMapState.selectedId = id;
+            var markers = document.getElementById("player-map-markers");
+            if (!markers) return;
+            markers.querySelectorAll(".map-marker").forEach(function (m) {
+                m.classList.toggle("selected", Number(m.dataset.entityId) === Number(id));
+            });
+        }
+
+        function playerClampPopoutInsideStage(popout, wrap) {
+            var stage = document.getElementById("player-map-stage");
+            if (!popout || !wrap || !stage) return;
+            popout.style.transform = "none";
+            var margin = 8;
+            var desiredLeft = wrap.offsetLeft + 12;
+            var desiredTop = wrap.offsetTop - 12;
+            var width = popout.offsetWidth || 220;
+            var height = popout.offsetHeight || 120;
+            if (desiredLeft + width + margin > stage.clientWidth) {
+                desiredLeft = wrap.offsetLeft - width - 12;
+            }
+            var maxLeft = Math.max(margin, stage.clientWidth - width - margin);
+            var maxTop = Math.max(margin, stage.clientHeight - height - margin);
+            popout.style.left = Math.min(Math.max(desiredLeft, margin), maxLeft) + "px";
+            popout.style.top = Math.min(Math.max(desiredTop, margin), maxTop) + "px";
+        }
+
+        function playerFormatNumber(value) {
+            var n = Number(value || 0);
+            return isFinite(n) ? n.toLocaleString() : "0";
+        }
+
+        function playerCityPopulationPie(speciesRows) {
+            var colors = ["#7c3aed", "#2563eb", "#059669", "#f59e0b", "#dc2626", "#0891b2", "#9333ea", "#65a30d", "#be123c"];
+            var cursor = 0;
+            var stops = [];
+            (speciesRows || []).forEach(function (row, index) {
+                var pct = Math.max(0, Number(row.percent || 0));
+                if (!pct) return;
+                var next = Math.min(100, cursor + pct);
+                stops.push(colors[index % colors.length] + " " + cursor + "% " + next + "%");
+                cursor = next;
+            });
+            if (!stops.length) return "#e5e7eb";
+            if (cursor < 100) stops.push("#e5e7eb " + cursor + "% 100%");
+            return "conic-gradient(" + stops.join(", ") + ")";
+        }
+
+        function playerAppendGoodsList(parent, titleText, goods, valueKey, suffix) {
+            var section = document.createElement("div");
+            section.className = "map-city-summary-section";
+            var title = document.createElement("h4");
+            title.textContent = titleText;
+            section.appendChild(title);
+            var list = document.createElement("ol");
+            list.className = "map-city-goods-list";
+            (goods || []).slice(0, 5).forEach(function (good) {
+                var li = document.createElement("li");
+                var name = document.createElement("span");
+                name.textContent = good.name || "Unknown item";
+                var value = document.createElement("span");
+                var raw = Number(good[valueKey] || 0);
+                value.textContent = (isFinite(raw) ? raw.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0") + (suffix || "");
+                li.appendChild(name);
+                li.appendChild(value);
+                list.appendChild(li);
+            });
+            if (!list.children.length) {
+                var empty = document.createElement("li");
+                empty.textContent = "No goods data yet.";
+                list.appendChild(empty);
+            }
+            section.appendChild(list);
+            parent.appendChild(section);
+        }
+
+        function playerBuildCitySummaryCard(entity) {
+            var summary = entity.summary || {};
+            var speciesRows = summary.species_population || [];
+            var card = document.createElement("div");
+            card.className = "map-city-summary-card";
+            var pie = document.createElement("div");
+            pie.className = "map-city-pop-pie";
+            pie.style.background = playerCityPopulationPie(speciesRows);
+            pie.setAttribute("aria-label", "Population by species");
+            card.appendChild(pie);
+            var meta = document.createElement("div");
+            meta.className = "map-city-summary-meta";
+            var popLabel = document.createElement("strong");
+            popLabel.textContent = playerFormatNumber(summary.population) + " people";
+            meta.appendChild(popLabel);
+            var speciesList = document.createElement("ul");
+            speciesList.className = "map-city-species-list";
+            speciesRows.slice(0, 5).forEach(function (row) {
+                var item = document.createElement("li");
+                item.textContent = row.name + " " + Number(row.percent || 0).toFixed(1) + "%";
+                speciesList.appendChild(item);
+            });
+            if (!speciesList.children.length) {
+                var unknown = document.createElement("li");
+                unknown.textContent = "No species mix set.";
+                speciesList.appendChild(unknown);
+            }
+            meta.appendChild(speciesList);
+            card.appendChild(meta);
+            playerAppendGoodsList(card, "Top 5 goods by price", summary.top_goods_by_price, "average_price", " gp");
+            playerAppendGoodsList(card, "Top 5 goods by avg volume", summary.top_goods_by_average_volume, "average_volume", "");
+            return card;
+        }
+
+        function playerBuildShopSummaryCard(entity) {
+            var summary = entity.summary || {};
+            var card = document.createElement("div");
+            card.className = "map-city-summary-card map-shop-summary-card";
+            playerAppendGoodsList(card, "Top 5 goods by price", summary.top_goods_by_price, "average_price", " gp");
+            playerAppendGoodsList(card, "Top 5 goods by avg volume", summary.top_goods_by_average_volume, "average_volume", "");
+            return card;
+        }
+
+        function playerShowEntityPopout(entity, wrap) {
+            var markers = document.getElementById("player-map-markers");
+            if (!markers) return;
+            playerCloseEntityPopout();
+            var popout = document.createElement("div");
+            popout.className = "map-entity-popout";
+            popout.style.left = wrap.style.left;
+            popout.style.top = wrap.style.top;
+            popout.addEventListener("click", function (e) { e.stopPropagation(); });
+            var title = document.createElement("h3");
+            title.textContent = entity.name;
+            var desc = document.createElement("p");
+            desc.textContent = entity.entity_type === "city"
+                ? "City marker on this world map."
+                : "Shop marker on this city map.";
+            var actions = document.createElement("div");
+            actions.className = "map-entity-popout-actions";
+            var openBtn = document.createElement("button");
+            openBtn.type = "button";
+            openBtn.className = "button";
+            openBtn.textContent = "Open";
+            openBtn.addEventListener("click", function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (entity.entity_type === "city") {
+                    loadPlayerCityMap(entity.id);
+                } else {
+                    window.location.href = playerUrl(playerDashboardUrls.shop, entity.id);
+                }
+            });
+            actions.appendChild(openBtn);
+            popout.appendChild(title);
+            popout.appendChild(desc);
+            if (entity.entity_type === "city") {
+                popout.appendChild(playerBuildCitySummaryCard(entity));
+            } else if (entity.entity_type === "shop") {
+                popout.appendChild(playerBuildShopSummaryCard(entity));
+            }
+            popout.appendChild(actions);
+            markers.appendChild(popout);
+            playerClampPopoutInsideStage(popout, wrap);
+        }
+
+        function playerShowPoiPopout(poi, wrap) {
+            var markers = document.getElementById("player-map-markers");
+            if (!markers) return;
+            playerCloseEntityPopout();
+            var popout = document.createElement("div");
+            popout.className = "map-poi-popout";
+            popout.style.left = wrap.style.left;
+            popout.style.top = wrap.style.top;
+            popout.addEventListener("click", function (e) { e.stopPropagation(); });
+            var title = document.createElement("h3");
+            title.textContent = poi.label;
+            var note = document.createElement("p");
+            note.textContent = poi.note || "No notes yet.";
+            popout.appendChild(title);
+            popout.appendChild(note);
+            markers.appendChild(popout);
+            playerClampPopoutInsideStage(popout, wrap);
+        }
+
+        function playerShowEncounterPopout(encounter, wrap) {
+            var markers = document.getElementById("player-map-markers");
+            if (!markers) return;
+            playerCloseEntityPopout();
+            var popout = document.createElement("div");
+            popout.className = "map-encounter-popout";
+            popout.style.left = wrap.style.left;
+            popout.style.top = wrap.style.top;
+            popout.addEventListener("click", function (e) { e.stopPropagation(); });
+            var title = document.createElement("h3");
+            title.textContent = encounter.name;
+            var note = document.createElement("p");
+            note.textContent = "Visible encounter on this map.";
+            popout.appendChild(title);
+            popout.appendChild(note);
+            var tab = document.getElementById("player-encounter-tab");
+            if (tab) {
+                var actions = document.createElement("div");
+                actions.className = "map-encounter-popout-actions";
+                var openBtn = document.createElement("button");
+                openBtn.type = "button";
+                openBtn.className = "button";
+                openBtn.textContent = "Open encounter";
+                openBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    tab.click();
+                });
+                actions.appendChild(openBtn);
+                popout.appendChild(actions);
+            }
+            markers.appendChild(popout);
+            playerClampPopoutInsideStage(popout, wrap);
+        }
+
+        function renderPlayerMapBackground(canvas) {
+            var stage = document.getElementById("player-map-stage");
+            var bgImage = document.getElementById("player-map-bg-image");
+            var genBg = document.getElementById("player-map-gen-bg");
+            if (!stage || !bgImage || !genBg) return;
+            var palettes = ["parchment", "verdant", "ashen", "slate", "sandstone", "timber"];
+            palettes.forEach(function (p) { stage.classList.remove("map-palette-" + p); });
+            genBg.innerHTML = "";
+            if (canvas.has_image) {
+                bgImage.src = playerUrl(playerDashboardUrls.mapImage, canvas.id) + "?v=" + Date.now();
+                bgImage.hidden = false;
+                return;
+            }
+            bgImage.hidden = true;
+            bgImage.removeAttribute("src");
+            var gen = canvas.generation || {};
+            if (gen.palette) stage.classList.add("map-palette-" + gen.palette);
+            var ns = "http://www.w3.org/2000/svg";
+            var svg = document.createElementNS(ns, "svg");
+            svg.setAttribute("class", "map-gen-svg");
+            svg.setAttribute("viewBox", "0 0 1000 750");
+            svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+            function scaledPoint(p) { return [Number(p[0]) * 1000, Number(p[1]) * 750]; }
+            function pointsAttr(points) {
+                return (points || []).map(function (p) {
+                    var sp = scaledPoint(p);
+                    return sp[0].toFixed(1) + "," + sp[1].toFixed(1);
+                }).join(" ");
+            }
+            function poly(points, fill, stroke, opacity, width) {
+                var el = document.createElementNS(ns, "polygon");
+                el.setAttribute("points", pointsAttr(points));
+                el.setAttribute("fill", fill);
+                el.setAttribute("stroke", stroke || "none");
+                el.setAttribute("stroke-width", width || "2");
+                el.setAttribute("opacity", opacity == null ? "1" : String(opacity));
+                svg.appendChild(el);
+            }
+            function line(points, stroke, width, dash, opacity) {
+                var el = document.createElementNS(ns, "polyline");
+                el.setAttribute("points", pointsAttr(points));
+                el.setAttribute("fill", "none");
+                el.setAttribute("stroke", stroke);
+                el.setAttribute("stroke-width", String(width || 4));
+                el.setAttribute("stroke-linecap", "round");
+                el.setAttribute("stroke-linejoin", "round");
+                if (dash) el.setAttribute("stroke-dasharray", dash);
+                el.setAttribute("opacity", opacity == null ? "1" : String(opacity));
+                svg.appendChild(el);
+            }
+            function circle(x, y, size, fill, stroke, opacity) {
+                var el = document.createElementNS(ns, "circle");
+                el.setAttribute("cx", String(Number(x) * 1000));
+                el.setAttribute("cy", String(Number(y) * 750));
+                el.setAttribute("r", String(Number(size || 0.05) * 500));
+                el.setAttribute("fill", fill);
+                el.setAttribute("stroke", stroke || "none");
+                el.setAttribute("stroke-width", "3");
+                el.setAttribute("opacity", opacity == null ? "1" : String(opacity));
+                svg.appendChild(el);
+            }
+            function mountains(points) {
+                (points || []).forEach(function (p) {
+                    var sp = scaledPoint(p);
+                    var tri = [
+                        [sp[0] - 16, sp[1] + 18],
+                        [sp[0], sp[1] - 18],
+                        [sp[0] + 16, sp[1] + 18]
+                    ].map(function (v) { return v[0].toFixed(1) + "," + v[1].toFixed(1); }).join(" ");
+                    var el = document.createElementNS(ns, "polygon");
+                    el.setAttribute("points", tri);
+                    el.setAttribute("fill", "#6b6256");
+                    el.setAttribute("stroke", "#403a33");
+                    el.setAttribute("stroke-width", "2");
+                    el.setAttribute("opacity", "0.82");
+                    svg.appendChild(el);
+                });
+            }
+            var base = document.createElementNS(ns, "rect");
+            base.setAttribute("width", "1000");
+            base.setAttribute("height", "750");
+            base.setAttribute("fill", gen.scope === "world" ? "#9fc9c5" : "#d8d1c3");
+            base.setAttribute("opacity", gen.scope === "world" ? "0.5" : "0.35");
+            svg.appendChild(base);
+            (gen.features || []).forEach(function (f) {
+                if (f.type === "landmass") poly(f.points, "#d8c690", "#8e7a4e", 0.96, 5);
+                else if (f.type === "island") poly(f.points, "#d7c88f", "#8e7a4e", 0.9, 3);
+                else if (f.type === "region_tint") poly(f.points, "#c084fc", "none", 0.12, 0);
+                else if (f.type === "forest") poly(f.points, "#477c45", "#315833", 0.48, 2);
+                else if (f.type === "river") line(f.points, "#317aa3", 7, null, 0.75);
+                else if (f.type === "trade_route") line(f.points, "#7c4a23", 4, "10 10", 0.7);
+                else if (f.type === "mountain_range") mountains(f.points);
+                else if (f.type === "city_wall") poly(f.points, "none", "#5b4b3c", 1, 8);
+                else if (f.type === "district") poly(f.points, "#b68a5f", "#7a5a3c", 0.42, 2);
+                else if (f.type === "road") line(f.points, "#8b6f4e", 8, null, 0.82);
+                else if (f.type === "canal") line(f.points, "#4f9ab8", 10, null, 0.68);
+                else if (f.type === "plaza") circle(f.x, f.y, f.size, "#c7b38a", "#80643c", 0.8);
+                else if (f.type === "park") poly(f.points, "#5f8c52", "#3f6838", 0.45, 2);
+            });
+            genBg.appendChild(svg);
+        }
+
+        function renderPlayerMap(data, mode) {
+            var stage = document.getElementById("player-map-stage");
+            var markers = document.getElementById("player-map-markers");
+            var title = document.getElementById("player-map-title");
+            var back = document.getElementById("player-map-back-btn");
+            if (!stage || !markers) return;
+            markers.innerHTML = "";
+            var canvas = data.canvas || {};
+            if (title) title.textContent = mode === "city" && data.city ? data.city.name + " Map" : "World Map";
+            if (back) back.hidden = mode !== "city";
+            renderPlayerMapBackground(canvas);
+            var placed = (data.entities || []).filter(function (entity) {
+                return entity.is_on_map && entity.x !== null && entity.y !== null;
+            });
+            placed.forEach(function (entity) {
+                var wrap = document.createElement("div");
+                wrap.className = "map-entity-wrap";
+                wrap.style.position = "absolute";
+                wrap.style.transform = "translate(0, 0)";
+                playerPositionMarker(wrap, entity);
+                var dot = document.createElement("button");
+                dot.type = "button";
+                dot.className = "map-marker" + (entity.is_suggested ? " suggested" : "");
+                dot.dataset.entityId = entity.id;
+                dot.title = entity.name;
+                dot.setAttribute("aria-label", (entity.entity_type === "city" ? "City marker: " : "Shop marker: ") + entity.name);
+                var label = document.createElement("span");
+                label.className = "map-marker-label";
+                label.textContent = entity.name;
+                dot.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    playerSetSelected(entity.id);
+                    playerShowEntityPopout(entity, wrap);
+                });
+                dot.addEventListener("dblclick", function () {
+                    if (mode === "world" && entity.entity_type === "city") {
+                        loadPlayerCityMap(entity.id);
+                    } else if (mode === "city" && entity.entity_type === "shop") {
+                        window.location.href = playerUrl(playerDashboardUrls.shop, entity.id);
+                    }
+                });
+                wrap.appendChild(dot);
+                wrap.appendChild(label);
+                markers.appendChild(wrap);
+            });
+            var pois = (data.points_of_interest || []).filter(function (poi) {
+                return poi.x !== null && poi.y !== null;
+            });
+            pois.forEach(function (poi) {
+                var wrap = document.createElement("div");
+                wrap.className = "map-entity-wrap";
+                wrap.style.position = "absolute";
+                wrap.style.transform = "translate(0, 0)";
+                playerPositionMarker(wrap, poi);
+                var dot = document.createElement("button");
+                dot.type = "button";
+                dot.className = "map-marker poi";
+                dot.dataset.poiId = poi.id;
+                dot.title = poi.label;
+                dot.setAttribute("aria-label", "Point of interest: " + poi.label);
+                var label = document.createElement("span");
+                label.className = "map-marker-label";
+                label.textContent = poi.label;
+                dot.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    playerSetSelected(null);
+                    playerShowPoiPopout(poi, wrap);
+                });
+                wrap.appendChild(dot);
+                wrap.appendChild(label);
+                markers.appendChild(wrap);
+            });
+            var encounters = (data.encounters || []).filter(function (encounter) {
+                return encounter.map_x !== null && encounter.map_y !== null;
+            });
+            encounters.forEach(function (encounter) {
+                var wrap = document.createElement("div");
+                wrap.className = "map-encounter-wrap";
+                wrap.style.position = "absolute";
+                wrap.style.transform = "translate(0, 0)";
+                playerPositionMarker(wrap, {
+                    x: encounter.map_x,
+                    y: encounter.map_y
+                });
+                var dot = document.createElement("button");
+                dot.type = "button";
+                dot.className = "map-marker battle-encounter-marker";
+                dot.dataset.encounterId = encounter.id;
+                dot.title = encounter.name;
+                dot.setAttribute("aria-label", "Encounter: " + encounter.name);
+                var label = document.createElement("span");
+                label.className = "map-marker-label";
+                label.textContent = encounter.name;
+                dot.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    playerSetSelected(null);
+                    playerShowEncounterPopout(encounter, wrap);
+                });
+                wrap.appendChild(dot);
+                wrap.appendChild(label);
+                markers.appendChild(wrap);
+            });
+            mapStatus(placed.length || pois.length || encounters.length ? "" : "No placed " + (mode === "world" ? "cities" : "shops") + " on this map yet.");
+        }
+
+        function loadPlayerWorldMap(force) {
+            if (playerMapState.loadedWorld && !force) return;
+            if (!document.getElementById("player-map-stage")) return;
+            mapStatus("Loading world map...");
+            fetch(playerDashboardUrls.mapWorld, {
+                credentials: "same-origin",
+                headers: { "Accept": "application/json" }
+            })
+                .then(function (resp) {
+                    return resp.json().then(function (data) {
+                        if (!resp.ok) throw new Error(data.error || "Could not load map.");
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    playerMapState.loadedWorld = true;
+                    renderPlayerMap(data, "world");
+                })
+                .catch(function (err) {
+                    mapStatus(err.message || "Could not load map.");
+                });
+        }
+
+        function loadPlayerCityMap(cityId) {
+            mapStatus("Loading city map...");
+            fetch(playerUrl(playerDashboardUrls.mapCity, cityId), {
+                credentials: "same-origin",
+                headers: { "Accept": "application/json" }
+            })
+                .then(function (resp) {
+                    return resp.json().then(function (data) {
+                        if (!resp.ok) throw new Error(data.error || "Could not load city map.");
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    renderPlayerMap(data, "city");
+                })
+                .catch(function (err) {
+                    mapStatus(err.message || "Could not load city map.");
+                });
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
             loadCharacterData();
             stylePlayerCurrency();
+            setupPlayerTabs();
+            var mapBack = document.getElementById("player-map-back-btn");
+            if (mapBack) {
+                mapBack.addEventListener("click", function () { loadPlayerWorldMap(true); });
+            }
+            var mapStage = document.getElementById("player-map-stage");
+            if (mapStage) {
+                mapStage.addEventListener("click", function () {
+                    playerSetSelected(null);
+                    playerCloseEntityPopout();
+                });
+            }
+            document.querySelectorAll("[data-player-encounter-id]").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    var id = parseInt(btn.getAttribute("data-player-encounter-id"), 10);
+                    if (!window.gmBattle || !Number.isFinite(id)) return;
+                    document.querySelectorAll("[data-player-encounter-id]").forEach(function (other) {
+                        other.classList.remove("active");
+                    });
+                    btn.classList.add("active");
+                    window.gmBattle.openEncounter(id);
+                });
+            });
             var pr = document.getElementById("player-shops-region-filter");
             if (pr) {
                 pr.addEventListener("change", applyPlayerCityRegionFilter);

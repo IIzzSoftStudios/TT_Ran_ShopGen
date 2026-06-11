@@ -1,0 +1,711 @@
+"""Route tests for /api/combat/* (auth, D&D 5e gate, stale-turn 409,
+cross-encounter denial, GM vs player payloads, Battle tab markup)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from flask import g
+
+from app import app as flask_app
+from app.extensions import db
+import app.models  # noqa: F401
+from app.models import BattleActionLog, BattleCombatant, Campaign, Player, User
+from app.services.combat import encounter_service
+from app.services.user_capabilities import ensure_gm_profile
+from tests.session_helpers import seed_client_session
+
+
+@pytest.fixture(autouse=True)
+def _db_tables():
+    flask_app.config["WTF_CSRF_ENABLED"] = False
+    with flask_app.app_context():
+        db.create_all()
+        yield
+        db.session.rollback()
+        db.drop_all()
+
+
+def _make_gm_with_campaign(username: str, system_type: str = "dnd5e"):
+    user = User(username=username, password="x", role="GM")
+    user.set_password("Secret1!")
+    db.session.add(user)
+    db.session.commit()
+    ensure_gm_profile(user)
+    db.session.commit()
+    db.session.refresh(user)
+    campaign = Campaign(
+        gm_profile_id=user.gm_profile.id,
+        name=f"{username}-camp",
+        system_type=system_type,
+        is_active=True,
+        current_game_day=1,
+    )
+    db.session.add(campaign)
+    db.session.commit()
+    return user, campaign
+
+
+def _make_player_in_campaign(username: str, campaign: Campaign):
+    user = User(username=username, password="x", role="Player")
+    user.set_password("Secret1!")
+    db.session.add(user)
+    db.session.commit()
+    player = Player(user_id=user.id, campaign_id=campaign.id, currency=0)
+    db.session.add(player)
+    db.session.commit()
+    return user, player
+
+
+def _fresh_identity_client():
+    """Test client that drops flask-login's per-app-context user cache.
+
+    The ``_db_tables`` fixture keeps one app context alive for the whole test,
+    so ``g._login_user`` set by one client's request would otherwise leak into
+    requests made by a different client (different user) in the same test.
+    """
+    client = flask_app.test_client()
+    orig_open = client.open
+
+    def open_with_fresh_identity(*args, **kwargs):
+        g.pop("_login_user", None)
+        return orig_open(*args, **kwargs)
+
+    client.open = open_with_fresh_identity
+    return client
+
+
+def _gm_client(user, campaign):
+    client = _fresh_identity_client()
+    seed_client_session(client, user, campaign_id=campaign.id)
+    return client
+
+
+def _player_client(user):
+    client = _fresh_identity_client()
+    seed_client_session(client, user, session_mode="player")
+    return client
+
+
+_MONSTER_STATS = {
+    "hp_max": 12,
+    "ac": 12,
+    "speed_ft": 30,
+    "abilities": {"str": 12, "dex": 12, "con": 12, "int": 6, "wis": 10, "cha": 6},
+    "attacks": [
+        {
+            "key": "claw",
+            "name": "Claw",
+            "kind": "melee",
+            "attack_mod": 30,
+            "damage": "1d4+1",
+            "damage_type": "slashing",
+            "range_ft": 5,
+        }
+    ],
+}
+
+
+def _setup_running_encounter(client, campaign):
+    """Create an encounter with two monsters and roll initiative via the API."""
+    enc = client.post("/api/combat/encounters", json={"name": "Fight"}).get_json()
+    eid = enc["encounter"]["id"]
+    monster = client.post(
+        "/api/combat/monsters",
+        json={"name": "Pit Beast", "stats": _MONSTER_STATS},
+    ).get_json()["monster"]
+    client.post(
+        f"/api/combat/encounters/{eid}/monsters/{monster['id']}/add",
+        json={"count": 2},
+    )
+    state = client.get(f"/api/combat/encounters/{eid}").get_json()
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/initiative",
+        json={"turn_version": state["turn_version"]},
+    )
+    assert resp.status_code == 200
+    return eid, client.get(f"/api/combat/encounters/{eid}").get_json()
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+def test_combat_api_requires_login():
+    client = flask_app.test_client()
+    assert client.get("/api/combat/encounters").status_code in (302, 401)
+    assert client.post("/api/combat/encounters", json={}).status_code in (302, 401)
+
+
+def test_player_session_cannot_use_gm_endpoints():
+    gm, campaign = _make_gm_with_campaign("rt-gm-mode")
+    client = flask_app.test_client()
+    seed_client_session(client, gm, campaign_id=campaign.id, session_mode="player")
+    resp = client.post("/api/combat/encounters", json={"name": "X"})
+    assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# D&D 5e gate
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("system_type", ["pf2e", "generic"])
+def test_non_dnd5e_campaigns_get_403(system_type):
+    gm, campaign = _make_gm_with_campaign(f"rt-gm-{system_type}", system_type)
+    client = _gm_client(gm, campaign)
+    for method, path, body in (
+        ("post", "/api/combat/encounters", {"name": "Nope"}),
+        ("get", "/api/combat/encounters", None),
+        ("post", "/api/combat/settings", {"settings": {}}),
+        ("get", "/api/combat/settings", None),
+        ("post", "/api/combat/monsters", {"name": "X", "stats": _MONSTER_STATS}),
+        ("post", "/api/combat/monsters/generate", {"seed": "s"}),
+    ):
+        resp = getattr(client, method)(path, json=body) if body is not None else getattr(client, method)(path)
+        assert resp.status_code == 403, path
+        assert "D&D 5e" in resp.get_json()["error"]
+
+
+def test_dnd5e_alias_system_types_pass_gate():
+    gm, campaign = _make_gm_with_campaign("rt-gm-alias", "5e")
+    client = _gm_client(gm, campaign)
+    resp = client.post("/api/combat/encounters", json={"name": "Alias Fight"})
+    assert resp.status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# Full tactical loop through the API
+# ---------------------------------------------------------------------------
+def test_full_loop_create_add_initiative_move_attack_end_turn():
+    gm, campaign = _make_gm_with_campaign("rt-gm-loop")
+    client = _gm_client(gm, campaign)
+    eid, state = _setup_running_encounter(client, campaign)
+    assert state["status"] == "active"
+    assert state["round_number"] == 1
+    assert len(state["combatants"]) == 2
+
+    current_id = state["current_combatant_id"]
+    current = next(c for c in state["combatants"] if c["id"] == current_id)
+    target = next(c for c in state["combatants"] if c["id"] != current_id)
+
+    # Move one tile down.
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/move",
+        json={
+            "combatant_id": current_id,
+            "x": current["x"],
+            "y": current["y"] + 1,
+            "turn_version": state["turn_version"],
+        },
+    )
+    assert resp.status_code == 200
+    state = client.get(f"/api/combat/encounters/{eid}").get_json()
+
+    # Reposition adjacent via direct DB tweak for the attack.
+    atk = db.session.get(BattleCombatant, current_id)
+    tgt = db.session.get(BattleCombatant, target["id"])
+    atk.x, atk.y = 0, 0
+    tgt.x, tgt.y = 1, 0
+    db.session.commit()
+
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/action",
+        json={
+            "type": "attack",
+            "combatant_id": current_id,
+            "target_id": target["id"],
+            "attack_key": "claw",
+            "turn_version": state["turn_version"],
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.get_json()["result"]
+    assert "to_hit" in result
+
+    state = client.get(f"/api/combat/encounters/{eid}").get_json()
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/end-turn",
+        json={"turn_version": state["turn_version"]},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["next_combatant_id"] == target["id"]
+
+
+def test_wait_endpoint_moves_combatant_to_bottom():
+    gm, campaign = _make_gm_with_campaign("rt-gm-wait")
+    client = _gm_client(gm, campaign)
+    eid, state = _setup_running_encounter(client, campaign)
+    current_id = state["current_combatant_id"]
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/wait",
+        json={"combatant_id": current_id, "turn_version": state["turn_version"]},
+    )
+    assert resp.status_code == 200
+    after = client.get(f"/api/combat/encounters/{eid}").get_json()
+    assert after["round_number"] == state["round_number"]
+    waited = next(c for c in after["combatants"] if c["id"] == current_id)
+    assert waited["has_waited"] is True
+
+
+# ---------------------------------------------------------------------------
+# Stale turn_version -> 409 with unchanged state
+# ---------------------------------------------------------------------------
+def test_stale_turn_version_returns_409_and_state_unchanged():
+    gm, campaign = _make_gm_with_campaign("rt-gm-stale")
+    client = _gm_client(gm, campaign)
+    eid, state = _setup_running_encounter(client, campaign)
+    current_id = state["current_combatant_id"]
+    current = next(c for c in state["combatants"] if c["id"] == current_id)
+
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/move",
+        json={
+            "combatant_id": current_id,
+            "x": current["x"],
+            "y": current["y"] + 1,
+            "turn_version": state["turn_version"] + 99,
+        },
+    )
+    assert resp.status_code == 409
+
+    after = client.get(f"/api/combat/encounters/{eid}").get_json()
+    unchanged = next(c for c in after["combatants"] if c["id"] == current_id)
+    assert (unchanged["x"], unchanged["y"]) == (current["x"], current["y"])
+    assert unchanged["hp_current"] == current["hp_current"]
+    assert after["turn_version"] == state["turn_version"]
+
+
+# ---------------------------------------------------------------------------
+# Cross-encounter / cross-campaign denial
+# ---------------------------------------------------------------------------
+def test_cross_encounter_target_denied():
+    gm, campaign = _make_gm_with_campaign("rt-gm-cross")
+    client = _gm_client(gm, campaign)
+    eid, state = _setup_running_encounter(client, campaign)
+
+    with flask_app.app_context():
+        other = encounter_service.create_encounter(campaign.id, "Other")
+        db.session.commit()
+        foreign = BattleCombatant(
+            encounter_id=other.id,
+            campaign_id=campaign.id,
+            name="Foreign",
+            side="foe",
+            status="active",
+            x=1,
+            y=0,
+            hp_max=5,
+            hp_current=5,
+            ac=10,
+            speed_ft=30,
+            dex_mod=0,
+        )
+        db.session.add(foreign)
+        db.session.commit()
+        foreign_id = foreign.id
+
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/action",
+        json={
+            "type": "attack",
+            "combatant_id": state["current_combatant_id"],
+            "target_id": foreign_id,
+            "attack_key": "claw",
+            "turn_version": state["turn_version"],
+        },
+    )
+    assert resp.status_code == 400
+
+
+def test_other_gm_cannot_touch_foreign_encounter():
+    gm_a, campaign_a = _make_gm_with_campaign("rt-gm-owner")
+    client_a = _gm_client(gm_a, campaign_a)
+    eid, state = _setup_running_encounter(client_a, campaign_a)
+
+    gm_b, campaign_b = _make_gm_with_campaign("rt-gm-intruder")
+    client_b = _gm_client(gm_b, campaign_b)
+    resp = client_b.post(
+        f"/api/combat/encounters/{eid}/initiative",
+        json={"turn_version": state["turn_version"]},
+    )
+    assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Player access
+# ---------------------------------------------------------------------------
+def test_player_sees_encounter_with_foe_hp_hidden():
+    gm, campaign = _make_gm_with_campaign("rt-gm-pview")
+    client = _gm_client(gm, campaign)
+    eid, _ = _setup_running_encounter(client, campaign)
+    p_user, _player = _make_player_in_campaign("rt-player-1", campaign)
+
+    p_client = _player_client(p_user)
+    assert p_client.get(f"/api/combat/encounters/{eid}").status_code == 404
+    show = client.post(
+        f"/api/combat/encounters/{eid}/visibility",
+        json={"visible_to_players": True},
+    )
+    assert show.status_code == 200
+    assert show.get_json()["encounter"]["visible_to_players"] is True
+    resp = p_client.get(f"/api/combat/encounters/{eid}")
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    foes = [c for c in payload["combatants"] if c["side"] == "foe"]
+    assert foes
+    for foe in foes:
+        assert "hp_current" not in foe
+        assert foe["health_state"] in ("healthy", "bloodied", "down")
+
+
+def test_player_outside_campaign_gets_403():
+    gm, campaign = _make_gm_with_campaign("rt-gm-pout")
+    client = _gm_client(gm, campaign)
+    eid, _ = _setup_running_encounter(client, campaign)
+
+    other_gm, other_campaign = _make_gm_with_campaign("rt-gm-pother")
+    p_user, _ = _make_player_in_campaign("rt-player-2", other_campaign)
+    p_client = _player_client(p_user)
+    assert p_client.get(f"/api/combat/encounters/{eid}").status_code == 403
+
+
+def test_player_cannot_act_through_foe_combatant():
+    gm, campaign = _make_gm_with_campaign("rt-gm-pact")
+    client = _gm_client(gm, campaign)
+    eid, state = _setup_running_encounter(client, campaign)
+    client.post(
+        f"/api/combat/encounters/{eid}/visibility",
+        json={"visible_to_players": True},
+    )
+    p_user, _ = _make_player_in_campaign("rt-player-3", campaign)
+    p_client = _player_client(p_user)
+
+    resp = p_client.post(
+        f"/api/combat/encounters/{eid}/move",
+        json={
+            "combatant_id": state["current_combatant_id"],
+            "x": 5,
+            "y": 5,
+            "turn_version": state["turn_version"],
+        },
+    )
+    assert resp.status_code == 400
+    assert "own character" in resp.get_json()["error"]
+
+
+def test_player_can_place_own_character_once():
+    gm, campaign = _make_gm_with_campaign("rt-gm-place-own")
+    client = _gm_client(gm, campaign)
+    enc = client.post("/api/combat/encounters", json={"name": "Visible fight"}).get_json()
+    eid = enc["encounter"]["id"]
+    client.post(
+        f"/api/combat/encounters/{eid}/visibility",
+        json={"visible_to_players": True},
+    )
+    p_user, player = _make_player_in_campaign("rt-player-place-own", campaign)
+    p_client = _player_client(p_user)
+    state = p_client.get(f"/api/combat/encounters/{eid}").get_json()
+
+    resp = p_client.post(
+        f"/api/combat/encounters/{eid}/own-combatant",
+        json={
+            "player_id": player.id,
+            "x": 4,
+            "y": 5,
+            "turn_version": state["turn_version"],
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.get_json()
+    assert body["combatant"]["player_id"] == player.id
+    assert body["combatant"]["x"] == 4
+    assert body["combatant"]["y"] == 5
+
+    duplicate = p_client.post(
+        f"/api/combat/encounters/{eid}/own-combatant",
+        json={
+            "player_id": player.id,
+            "x": 6,
+            "y": 6,
+            "turn_version": body["turn_version"],
+        },
+    )
+    assert duplicate.status_code == 400
+    assert "already placed" in duplicate.get_json()["error"]
+
+
+# ---------------------------------------------------------------------------
+# Settings + compendium via API
+# ---------------------------------------------------------------------------
+def test_settings_roundtrip_via_api():
+    gm, campaign = _make_gm_with_campaign("rt-gm-set")
+    client = _gm_client(gm, campaign)
+    resp = client.get("/api/combat/settings")
+    assert resp.status_code == 200
+    defaults = resp.get_json()["settings"]
+    assert defaults["track_spell_slots"] is False
+
+    resp = client.post(
+        "/api/combat/settings",
+        json={"settings": {"track_spell_slots": True, "diagonal_mode": "euclidean"}},
+    )
+    assert resp.status_code == 200
+    saved = client.get("/api/combat/settings").get_json()["settings"]
+    assert saved["track_spell_slots"] is True
+    assert saved["diagonal_mode"] == "euclidean"
+
+    resp = client.post(
+        "/api/combat/settings", json={"settings": {"diagonal_mode": "warp"}}
+    )
+    assert resp.status_code == 400
+
+
+def test_monster_generate_same_seed_same_stats():
+    gm, campaign = _make_gm_with_campaign("rt-gm-genapi")
+    client = _gm_client(gm, campaign)
+    a = client.post(
+        "/api/combat/monsters/generate", json={"seed": "api-seed", "challenge": 3}
+    ).get_json()["monster"]
+    b = client.post(
+        "/api/combat/monsters/generate", json={"seed": "api-seed", "challenge": 3}
+    ).get_json()["monster"]
+    assert a["stats"] == b["stats"]
+    assert a["name"] == b["name"]
+
+
+def test_monsters_are_campaign_scoped_via_api():
+    gm_a, campaign_a = _make_gm_with_campaign("rt-gm-ma")
+    client_a = _gm_client(gm_a, campaign_a)
+    monster = client_a.post(
+        "/api/combat/monsters", json={"name": "Mine", "stats": _MONSTER_STATS}
+    ).get_json()["monster"]
+
+    gm_b, campaign_b = _make_gm_with_campaign("rt-gm-mb")
+    client_b = _gm_client(gm_b, campaign_b)
+    listed = client_b.get("/api/combat/monsters").get_json()["monsters"]
+    assert all(m["id"] != monster["id"] for m in listed)
+    resp = client_b.post(f"/api/combat/monsters/{monster['id']}/delete")
+    assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Battle tab markup gating
+# ---------------------------------------------------------------------------
+def test_encounter_rename_via_api():
+    gm, campaign = _make_gm_with_campaign("rt-gm-rename")
+    client = _gm_client(gm, campaign)
+    enc = client.post("/api/combat/encounters", json={"name": "Old Name"}).get_json()
+    eid = enc["encounter"]["id"]
+    resp = client.post(
+        "/api/combat/encounters/" + str(eid) + "/rename",
+        json={"name": "New Name"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["encounter"]["name"] == "New Name"
+    detail = client.get("/api/combat/encounters/" + str(eid)).get_json()
+    assert detail["name"] == "New Name"
+
+
+def test_encounter_rename_rejects_blank_name():
+    gm, campaign = _make_gm_with_campaign("rt-gm-rename-blank")
+    client = _gm_client(gm, campaign)
+    eid = client.post("/api/combat/encounters", json={"name": "X"}).get_json()["encounter"]["id"]
+    resp = client.post(
+        "/api/combat/encounters/" + str(eid) + "/rename",
+        json={"name": "   "},
+    )
+    assert resp.status_code == 400
+
+
+def test_delete_encounter_via_api_removes_battle_state():
+    gm, campaign = _make_gm_with_campaign("rt-gm-delete")
+    client = _gm_client(gm, campaign)
+    eid = client.post("/api/combat/encounters", json={"name": "Delete Me"}).get_json()["encounter"]["id"]
+    combatant = BattleCombatant(
+        encounter_id=eid,
+        campaign_id=campaign.id,
+        name="Goblin",
+        side="foe",
+        x=0,
+        y=0,
+        hp_max=7,
+        hp_current=7,
+        ac=12,
+    )
+    log = BattleActionLog(
+        encounter_id=eid,
+        campaign_id=campaign.id,
+        round_number=0,
+        action_type="note",
+        payload_json={"text": "created"},
+    )
+    db.session.add_all([combatant, log])
+    db.session.commit()
+
+    resp = client.delete("/api/combat/encounters/" + str(eid))
+    assert resp.status_code == 200
+    assert resp.get_json()["success"] is True
+    assert client.get("/api/combat/encounters/" + str(eid)).status_code == 404
+    listed = client.get("/api/combat/encounters").get_json()["encounters"]
+    assert all(enc["id"] != eid for enc in listed)
+    assert BattleCombatant.query.filter_by(encounter_id=eid).count() == 0
+    assert BattleActionLog.query.filter_by(encounter_id=eid).count() == 0
+
+
+def test_encounter_for_canvas_via_api():
+    gm, campaign = _make_gm_with_campaign("rt-gm-canvas")
+    client = _gm_client(gm, campaign)
+    from app.models import MapCanvas
+
+    canvas = MapCanvas(campaign_id=campaign.id, scope="world", source_type="generated")
+    db.session.add(canvas)
+    db.session.commit()
+
+    lookup = client.get("/api/combat/encounters/for-canvas/" + str(canvas.id))
+    assert lookup.status_code == 200
+    assert lookup.get_json()["encounter"] is None
+
+    created = client.post(
+        "/api/combat/encounters/for-canvas/" + str(canvas.id),
+        json={"name": "Map Fight", "x": 0.2, "y": 0.8},
+    )
+    assert created.status_code == 201
+    body = created.get_json()
+    assert body["created"] is True
+    assert body["encounter"]["map_canvas_id"] == canvas.id
+    assert body["encounter"]["map_x"] == 0.2
+    assert body["encounter"]["map_y"] == 0.8
+
+    again = client.post(
+        "/api/combat/encounters/for-canvas/" + str(canvas.id),
+        json={"x": 0.4, "y": 0.6},
+    )
+    assert again.status_code == 200
+    assert again.get_json()["created"] is False
+    assert again.get_json()["encounter"]["id"] == body["encounter"]["id"]
+    assert again.get_json()["encounter"]["map_x"] == 0.4
+    assert again.get_json()["encounter"]["map_y"] == 0.6
+
+    placed = client.post(
+        "/api/combat/encounters/" + str(body["encounter"]["id"]) + "/place",
+        json={"map_canvas_id": canvas.id, "x": 0.1, "y": 0.3},
+    )
+    assert placed.status_code == 200
+    assert placed.get_json()["encounter"]["map_x"] == 0.1
+    assert placed.get_json()["encounter"]["map_y"] == 0.3
+
+
+def test_create_encounter_can_start_placed_on_canvas():
+    gm, campaign = _make_gm_with_campaign("rt-gm-canvas-create")
+    client = _gm_client(gm, campaign)
+    from app.models import MapCanvas
+
+    canvas = MapCanvas(campaign_id=campaign.id, scope="world", source_type="generated")
+    db.session.add(canvas)
+    db.session.commit()
+
+    resp = client.post(
+        "/api/combat/encounters",
+        json={
+            "name": "Fresh map fight",
+            "map_canvas_id": canvas.id,
+            "x": 0.33,
+            "y": 0.44,
+        },
+    )
+    assert resp.status_code == 201
+    encounter = resp.get_json()["encounter"]
+    assert encounter["map_canvas_id"] == canvas.id
+    assert encounter["map_x"] == 0.33
+    assert encounter["map_y"] == 0.44
+
+
+def test_battle_tab_rendered_only_for_dnd5e_dashboard():
+    gm, campaign = _make_gm_with_campaign("rt-gm-tab5e", "dnd5e")
+    client = _gm_client(gm, campaign)
+    html = client.get("/gm/").data.decode("utf-8")
+    assert 'id="players-npcs-tab-btn"' in html
+    assert 'data-target="players-npcs-pane-content"' in html
+    assert 'id="players-npcs-pane-content"' in html
+    assert '<a href="/gm/players/" class="gm-panel-tab" id="players-npcs-tab-btn"' not in html
+    assert 'id="battle-tab-btn"' in html
+    assert ">Encounters</button>" in html
+    assert "Combat" in html
+    assert "gm-dashboard-sidebar" in html
+    assert 'id="battle-pane-content"' in html
+    assert 'id="battle-encounter-menu"' in html
+    assert 'id="battle-encounter-select"' not in html
+    assert 'id="battle-rename-btn"' in html
+    assert 'id="battle-rename-popout"' in html
+    assert 'id="battle-rename-input"' in html
+    assert html.index("Save name") < html.index('id="battle-rename-cancel"')
+    assert "position: fixed;" in html
+    assert "window.prompt('Rename encounter'" not in html
+    js = Path("app/static/js/gm_battle.js").read_text(encoding="utf-8")
+    css = Path("app/static/css/battle.css").read_text(encoding="utf-8")
+    assert "function positionBattleRenamePopout" in js
+    assert "positionBattleRenamePopout(popout, renameBtn)" in js
+    assert 'id="battle-delete-popout"' in html
+    assert 'id="battle-delete-confirm"' in html
+    assert "battle-encounter-remove-btn" in js
+    assert "Permanently delete this" in js
+    assert "api('/encounters/' + encounterId, 'DELETE')" in js
+    assert "setEncounterPlayerVisibility" in js
+    assert "'/visibility'" in js
+    assert "battle-player-visible-setting" in js
+    assert "dataset.playerVisibility" in js
+    assert "Show to players" in js
+    assert "battle-player-visible-setting" in css
+    assert "isOwnPlayerCombatant" in js
+    assert "battle-token-own-player" in js
+    assert "battle-token-own-player" in css
+    assert "#facc15" in css
+    assert ".battle-radial[hidden]" in css
+    assert "display: none !important" in css
+    assert "function resetBattleUiAfterMutation" in js
+    assert "function hideRadialMenu" in js
+    assert "battle-place-own-character-btn" in js
+    assert "/own-combatant" in js
+    assert "function refreshMapEncounters" in js
+    assert "refreshMapEncounters();" in js
+    assert 'id="map-add-encounter-controls"' in html
+    assert 'id="map-encounter-select"' in html
+    assert 'id="map-encounter-btn"' in html
+    assert "Add Encounter" in html
+    assert "No encounters available" in html
+    assert "mapEncounterBtn.disabled = true" in html
+    assert "refreshEncounters: function ()" in html
+    assert 'id="battle-monster-cr-min"' in html
+    assert 'id="battle-monster-cr-max"' in html
+    assert 'id="battle-monster-select"' in html
+    assert 'id="battle-monster-place-count"' in html
+    assert 'id="battle-add-monster-btn"' in html
+    assert 'id="battle-monster-import-btn"' in html
+    assert 'id="battle-monster-import-popout"' in html
+    assert 'id="battle-monster-import-file-type"' in html
+    assert 'id="battle-monster-import-file-type-other"' in html
+    assert 'data-import-title="Monster import request"' in html
+    assert 'data-import-prompted-key="monster_import"' in html
+    assert 'id="battle-sdr-monsters-btn"' in html
+    assert 'id="battle-sdr-monsters-popout"' in html
+    assert 'data-import-title="SDR-approved monsters request"' in html
+    assert 'data-import-prompted-key="sdr_monsters"' in html
+    assert "Please add SDR-approved monsters to the battle compendium." in html
+    assert "Submit request" in html
+    assert 'id="market-import-btn"' in html
+    assert 'id="market-import-popout"' in html
+    assert 'id="market-import-file-type"' in html
+    assert 'id="market-import-file-type-other"' in html
+    assert 'data-import-title="Market data import request"' in html
+    assert 'data-import-prompted-key="market_import"' in html
+    assert 'class="battle-sidebar-heading"' in html
+    assert 'id="battle-settings-btn"' in html
+    assert "register player-only accounts" in html
+    assert "continue into character setup" in html
+    assert 'id="monsters-tab-btn"' in html
+    assert 'id="monsters-pane-content"' in html
+
+    gm2, campaign2 = _make_gm_with_campaign("rt-gm-tabgen", "generic")
+    client2 = _gm_client(gm2, campaign2)
+    html2 = client2.get("/gm/").data.decode("utf-8")
+    assert 'id="battle-tab-btn"' not in html2
+    assert 'id="monsters-tab-btn"' not in html2

@@ -143,8 +143,11 @@ def build_submission(
             {
                 "frequency": frequency,
                 "beta_test": bool(data.get("beta_test")),
+                "prompted_key": (data.get("prompted_key") or "").strip()[:80],
+                "file_type": (data.get("file_type") or "").strip()[:80],
             },
         )
+        extra_payload = {k: v for k, v in extra_payload.items() if v not in ("", None)}
 
     if not body_content.strip():
         return SubmissionValidationError("Primary descriptive body content is required.")

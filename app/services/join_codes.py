@@ -26,6 +26,11 @@ CAMPAIGN_PREFIX = "CAMP"
 PLAYER_PREFIX = "PLY"
 _KNOWN_CODE_PREFIX_TOKENS = frozenset({CAMPAIGN_PREFIX, PLAYER_PREFIX})
 
+REDEMPTION_SOURCE_REGISTRATION = "registration"
+REDEMPTION_SOURCE_REGISTRATION_WITH_KEY = "registration_with_key"
+REDEMPTION_SOURCE_PLAYER_JOIN = "player_join"
+REDEMPTION_SOURCE_CAMPAIGN_SELECTION = "campaign_selection"
+
 
 class JoinCodeError(Exception):
     """Base class for join-code failures (never embed raw codes in messages)."""
@@ -61,6 +66,36 @@ class CodeGenerationExhausted(JoinCodeError):
 
 def _utc_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def mask_join_code(join_code: Optional[str]) -> str:
+    """Mask a join code for admin display (never log or store full codes in telemetry)."""
+    if not join_code:
+        return "CAMP-****-****"
+    s = join_code.strip().upper()
+    if len(s) <= 6:
+        return f"{s}****"
+    return f"{s[:6]}****-****"
+
+
+def _record_campaign_code_redemption(
+    *,
+    campaign: Campaign,
+    user: User,
+    player: Player,
+    source: str,
+) -> None:
+    from app.models import CampaignCodeRedemption
+
+    db.session.add(
+        CampaignCodeRedemption(
+            campaign_id=campaign.id,
+            user_id=user.id,
+            player_id=player.id,
+            source=(source or "unknown").strip() or "unknown",
+            redeemed_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+    )
 
 
 def log_reveal(*, user_id: int, action: str, target_id: int, ip: str) -> None:
@@ -183,6 +218,7 @@ def redeem_campaign_code(
     raw_code: str,
     *,
     player_id: Optional[int] = None,
+    source: str = "unknown",
     _commit: bool = True,
 ) -> Campaign:
     """Attach the player's character to ``campaign`` by setting ``Player.campaign_id``.
@@ -272,6 +308,17 @@ def redeem_campaign_code(
             raise SeatCapError(msg or "Campaign is full.")
 
         player.campaign_id = campaign.id
+        from app.services.character_creation.creation_service import (
+            copy_vault_sheet_to_campaign,
+        )
+
+        copy_vault_sheet_to_campaign(player.id, campaign.id)
+        _record_campaign_code_redemption(
+            campaign=campaign,
+            user=user,
+            player=player,
+            source=source,
+        )
         _finish()
         return campaign
 

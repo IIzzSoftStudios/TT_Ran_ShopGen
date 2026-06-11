@@ -30,15 +30,21 @@ def test_handle_admin_keys_skips_gm_simulation_query_for_gm_role():
             current_user=MagicMock(id=2, role="GM"),
             render_template=MagicMock(return_value="ok"),
             _gm_simulation_usage_serialized_rows=MagicMock(),
+            _campaign_code_redemption_rows=MagicMock(return_value=[]),
+            _campaign_character_rows=MagicMock(return_value=[]),
+            _prompted_feedback_answer_rows=MagicMock(return_value=[]),
             _load_submissions_by_kind=MagicMock(return_value=[]),
         ):
             admin_handler.RegistrationKey.query.filter_by.return_value = reg_chain
-            admin_handler.AccessRequest.query.filter.return_value.all.return_value = []
+            admin_handler.AccessRequest.query.all.return_value = []
             admin_handler.handle_admin_keys()
             admin_handler._gm_simulation_usage_serialized_rows.assert_not_called()
             kw = admin_handler.render_template.call_args[1]
             assert kw["gm_simulation_rows"] == []
             assert kw["show_gm_usage_tab"] is False
+            assert kw["campaign_character_rows"] == []
+            assert kw["prompted_feedback_rows"] == []
+            assert kw["prompted_feedback_questions"][0]["key"] == "campaign_limit"
 
 
 def test_handle_admin_keys_loads_gm_simulation_for_vault_keeper():
@@ -54,15 +60,20 @@ def test_handle_admin_keys_loads_gm_simulation_for_vault_keeper():
             current_user=MagicMock(id=1, role="vault_keeper"),
             render_template=MagicMock(return_value="ok"),
             _gm_simulation_usage_serialized_rows=MagicMock(return_value=fake_rows),
+            _campaign_code_redemption_rows=MagicMock(return_value=[]),
+            _campaign_character_rows=MagicMock(return_value=[]),
+            _prompted_feedback_answer_rows=MagicMock(return_value=[]),
             _load_submissions_by_kind=MagicMock(return_value=[]),
         ):
             admin_handler.RegistrationKey.query.filter_by.return_value = reg_chain
-            admin_handler.AccessRequest.query.filter.return_value.all.return_value = []
+            admin_handler.AccessRequest.query.all.return_value = []
             admin_handler.handle_admin_keys()
             admin_handler._gm_simulation_usage_serialized_rows.assert_called_once()
             kw = admin_handler.render_template.call_args[1]
             assert kw["gm_simulation_rows"] == fake_rows
             assert kw["show_gm_usage_tab"] is True
+            assert kw["campaign_character_rows"] == []
+            assert kw["prompted_feedback_rows"] == []
 
 
 def test_keys_template_includes_gm_heading_only_when_flag_true():
@@ -104,6 +115,8 @@ def test_admin_keys_full_template_hides_gm_tab_from_non_vault_render():
         stats={"total": 0, "used": 0, "available": 0},
         admin_stats={"total": 0, "used": 0, "available": 0},
         access_requests=[],
+        prompted_feedback_keys=[],
+        prompted_feedback_questions=[],
         vault_phase_slugs=["forge_master"],
         all_phase_slugs=["forge_master"],
         gm_simulation_rows=[_sample_gm_row()],
@@ -127,6 +140,8 @@ def test_admin_keys_full_template_shows_gm_tab_for_vault_keeper_render():
         stats={"total": 0, "used": 0, "available": 0},
         admin_stats={"total": 0, "used": 0, "available": 0},
         access_requests=[],
+        prompted_feedback_keys=[],
+        prompted_feedback_questions=[],
         vault_phase_slugs=["forge_master"],
         all_phase_slugs=["forge_master"],
         gm_simulation_rows=[_sample_gm_row()],
@@ -139,6 +154,247 @@ def test_admin_keys_full_template_shows_gm_tab_for_vault_keeper_render():
         )
     assert 'id="gm-simulation-tab"' in html
     assert "other_gm_leak_test@example.com" in html
+
+
+def test_campaign_code_redemption_rows_serializes_vault_payload():
+    from datetime import datetime
+
+    from app.extensions import db
+    from app.models import (
+        Campaign,
+        CampaignCodeRedemption,
+        GMProfile,
+        Player,
+        User,
+    )
+
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        gm_user = User(username="gm_owner", password="x", role="GM")
+        player_user = User(username="new_player", password="x", role="Player")
+        db.session.add_all([gm_user, player_user])
+        db.session.flush()
+        gm_profile = GMProfile(user_id=gm_user.id)
+        db.session.add(gm_profile)
+        db.session.flush()
+        campaign = Campaign(
+            gm_profile_id=gm_profile.id,
+            name="Vault Camp",
+            join_code="CAMP-ABCD-EFGH-IJKL",
+        )
+        db.session.add(campaign)
+        db.session.flush()
+        player = Player(user_id=player_user.id, campaign_id=campaign.id, is_npc=False)
+        db.session.add(player)
+        db.session.flush()
+        redeemed_at = datetime(2026, 6, 3, 1, 0)
+        db.session.add(
+            CampaignCodeRedemption(
+                campaign_id=campaign.id,
+                user_id=player_user.id,
+                player_id=player.id,
+                source="registration",
+                redeemed_at=redeemed_at,
+            )
+        )
+        db.session.commit()
+
+        rows = admin_handler._campaign_code_redemption_rows()
+
+    assert rows == [
+        {
+            "code_masked": "CAMP-A****-****",
+            "campaign_name": "Vault Camp",
+            "gm_username": "gm_owner",
+            "player_username": "new_player",
+            "source": "registration",
+            "source_label": "Player registration",
+            "redeemed_at": redeemed_at,
+        }
+    ]
+
+
+def test_keys_template_renders_campaign_code_redemptions_as_key_rows():
+    from datetime import datetime
+    from flask import render_template
+
+    redemption = {
+        "code_masked": "CAMP-T****-****",
+        "campaign_name": "Alpha World",
+        "gm_username": "gm_alpha",
+        "player_username": "T12",
+        "source": "registration",
+        "source_label": "Player registration",
+        "redeemed_at": datetime(2026, 6, 3, 0, 59),
+    }
+    ctx_kwargs = dict(
+        keys=[],
+        admin_keys=[],
+        stats={"total": 0, "used": 0, "available": 0},
+        admin_stats={"total": 0, "used": 0, "available": 0},
+        access_requests=[],
+        prompted_feedback_keys=[],
+        prompted_feedback_questions=[],
+        vault_phase_slugs=["default"],
+        all_phase_slugs=["default"],
+        gm_simulation_rows=[],
+        campaign_code_redemptions=[redemption],
+    )
+    with app.test_request_context("/"):
+        html = render_template(
+            "admin/keys.html",
+            show_gm_usage_tab=False,
+            **ctx_kwargs,
+        )
+
+    assert "Campaign codes" not in html
+    assert "No campaign code redemptions yet." not in html
+    assert "CAMP-T****-****" in html
+    assert "<td><span class=\"small\">Player</span></td>" in html
+    assert "Used by T12" in html
+
+
+def test_campaign_character_rows_group_user_campaign_players():
+    from datetime import datetime
+
+    from app.extensions import db
+    from app.models import Campaign, GMProfile, Player, PlayerCharacterSheet, User
+
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        gm_user = User(username="roster_gm", password="x", role="GM")
+        player_user = User(
+            username="roster_player",
+            password="x",
+            role="Player",
+            email="roster@example.com",
+        )
+        db.session.add_all([gm_user, player_user])
+        db.session.flush()
+        gm_profile = GMProfile(user_id=gm_user.id)
+        db.session.add(gm_profile)
+        db.session.flush()
+        campaign = Campaign(
+            gm_profile_id=gm_profile.id,
+            name="Roster Campaign",
+            system_type="dnd5e",
+        )
+        db.session.add(campaign)
+        db.session.flush()
+        player = Player(user_id=player_user.id, campaign_id=campaign.id, is_npc=False)
+        npc = Player(user_id=None, campaign_id=campaign.id, is_npc=True)
+        solo = Player(user_id=player_user.id, campaign_id=None, is_npc=False)
+        db.session.add_all([player, npc, solo])
+        db.session.flush()
+        updated = datetime(2026, 6, 3, 2, 15)
+        db.session.add(
+            PlayerCharacterSheet(
+                player_id=player.id,
+                campaign_id=campaign.id,
+                sheet_json={"name": "Keira"},
+                updated_at=updated,
+            )
+        )
+        db.session.commit()
+        gm_user_id = gm_user.id
+        campaign_id = campaign.id
+        player_id = player.id
+
+        rows = admin_handler._campaign_character_rows()
+
+    assert rows == [
+        {
+            "user_id": gm_user_id,
+            "username": "roster_gm",
+            "email": "—",
+            "campaign_count": 1,
+            "player_count": 1,
+            "campaigns": [
+                {
+                    "campaign_id": campaign_id,
+                    "campaign_name": "Roster Campaign",
+                    "system_type": "dnd5e",
+                    "is_active": True,
+                    "player_count": 1,
+                    "players": [
+                        {
+                            "player_id": player_id,
+                            "username": "roster_player",
+                            "email": "roster@example.com",
+                            "character_name": "Keira",
+                            "sheet_updated_at": updated,
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+
+
+def test_keys_template_renders_character_tab_with_campaign_rosters():
+    from datetime import datetime
+    from flask import render_template
+
+    ctx_kwargs = dict(
+        keys=[],
+        admin_keys=[],
+        stats={"total": 0, "used": 0, "available": 0},
+        admin_stats={"total": 0, "used": 0, "available": 0},
+        access_requests=[],
+        prompted_feedback_keys=[],
+        prompted_feedback_questions=[],
+        vault_phase_slugs=["default"],
+        all_phase_slugs=["default"],
+        gm_simulation_rows=[],
+        campaign_character_rows=[
+            {
+                "user_id": 3,
+                "username": "gm_alpha",
+                "email": "gm-alpha@example.com",
+                "campaign_count": 1,
+                "player_count": 1,
+                "campaigns": [
+                    {
+                        "campaign_id": 7,
+                        "campaign_name": "Alpha World",
+                        "system_type": "dnd5e",
+                        "is_active": True,
+                        "player_count": 1,
+                        "players": [
+                            {
+                                "player_id": 12,
+                                "username": "T12",
+                                "email": "t12@example.com",
+                                "character_name": "Mira",
+                                "sheet_updated_at": datetime(2026, 6, 3, 0, 59),
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    )
+    with app.test_request_context("/"):
+        html = render_template(
+            "admin/keys.html",
+            show_gm_usage_tab=False,
+            **ctx_kwargs,
+        )
+
+    assert 'id="characters-tab"' in html
+    assert "Expand a user, then a campaign" in html
+    assert 'id="campaign-roster-user-3"' in html
+    assert '<span class="badge bg-secondary">1 campaign</span>' in html
+    assert '<span class="badge bg-secondary">1 player</span>' in html
+    assert "Alpha World" in html
+    assert "gm_alpha" in html
+    assert "gm-alpha@example.com" in html
+    assert "Mira" in html
+    assert "T12" in html
 
 
 def test_keys_template_shows_compact_expansion_interest_badges_for_used_keys():
@@ -154,30 +410,83 @@ def test_keys_template_shows_compact_expansion_interest_badges_for_used_keys():
         source="campaign_selection_create",
         intent="not_interested",
     )
-    yes_key = SimpleNamespace(
-        id=1,
-        key_code="FORGE-ABCD-EFGH",
-        key_phase="default",
-        is_used=True,
-        user=SimpleNamespace(username="capped_gm"),
-        created_at=datetime(2026, 6, 2, 19, 22),
-        _expansion_interest={"selection": "yes", "latest": yes_latest},
-    )
-    no_key = SimpleNamespace(
-        id=2,
-        key_code="FORGE-WXYZ-1234",
-        key_phase="default",
-        is_used=True,
-        user=SimpleNamespace(username="base_gm"),
-        created_at=datetime(2026, 6, 2, 19, 23),
-        _expansion_interest={"selection": "no", "latest": no_latest},
-    )
     ctx_kwargs = dict(
-        keys=[yes_key, no_key],
+        keys=[],
         admin_keys=[],
         stats={"total": 2, "used": 2, "available": 0},
         admin_stats={"total": 0, "used": 0, "available": 0},
         access_requests=[],
+        prompted_feedback_rows=[
+            {
+                "username": "capped_gm",
+                "key_phase": "default",
+                "answers": {
+                    "campaign_limit": {
+                        "value": "Yes, express interest",
+                        "badge": "success",
+                        "created_at": yes_latest.created_at,
+                        "source": yes_latest.source,
+                    },
+                    "monster_import": {
+                        "value": "CSV",
+                        "badge": "secondary",
+                        "created_at": datetime(2026, 6, 2, 19, 40),
+                        "source": "Monster import request",
+                    },
+                    "setup_tutorial": {
+                        "value": "A setup tutorial would be useful.",
+                        "badge": "secondary",
+                        "created_at": datetime(2026, 6, 2, 19, 41),
+                        "source": "Setup tutorial interest",
+                    },
+                },
+            },
+            {
+                "username": "base_gm",
+                "key_phase": "default",
+                "answers": {
+                    "campaign_limit": {
+                        "value": "No, stay base tier",
+                        "badge": "danger",
+                        "created_at": no_latest.created_at,
+                        "source": no_latest.source,
+                    },
+                    "market_import": {
+                        "value": "JSON",
+                        "badge": "secondary",
+                        "created_at": datetime(2026, 6, 2, 19, 42),
+                        "source": "Market data import request",
+                    },
+                },
+            },
+        ],
+        prompted_feedback_questions=[
+            {
+                "key": "campaign_limit",
+                "label": "Ready to expand your realm?",
+                "prompt": "You've hit the base limit for active campaigns.",
+            },
+            {
+                "key": "monster_import",
+                "label": "Import monsters",
+                "prompt": "Which monster file type should import support prepare for?",
+            },
+            {
+                "key": "sdr_monsters",
+                "label": "SDR-approved monsters",
+                "prompt": "Should SDR-approved monsters be added to the battle compendium?",
+            },
+            {
+                "key": "market_import",
+                "label": "Import market data",
+                "prompt": "Which market file type should import support prepare for?",
+            },
+            {
+                "key": "setup_tutorial",
+                "label": "Setup tutorial",
+                "prompt": "Would a setup tutorial be useful?",
+            },
+        ],
         vault_phase_slugs=["default"],
         all_phase_slugs=["default"],
         gm_simulation_rows=[],
@@ -189,10 +498,26 @@ def test_keys_template_shows_compact_expansion_interest_badges_for_used_keys():
             **ctx_kwargs,
         )
 
-    assert '<th style="width: 7rem;">Pro?</th>' in html
-    assert '<span class="badge bg-success">Yes</span>' in html
-    assert '<span class="badge bg-danger">No</span>' in html
-    assert "gm_campaigns_add" not in html
+    assert '<th style="width: 7rem;">Pro?</th>' not in html
+    assert 'id="access-requests-tab"' in html
+    assert "Permanent record of public" in html
+    assert 'id="prompted-feedback-tab"' in html
+    assert "Prompted Feedback" in html
+    assert "prompted-feedback-scroll" in html
+    assert "Ready to expand your realm?" in html
+    assert "Yes, express interest" in html
+    assert "No, stay base tier" in html
+    assert "Import monsters" in html
+    assert "SDR-approved monsters" in html
+    assert "Import market data" in html
+    assert "Setup tutorial" in html
+    assert "Which monster file type should import support prepare for?" not in html
+    assert "Should SDR-approved monsters be added to the battle compendium?" not in html
+    assert "Which market file type should import support prepare for?" not in html
+    assert "CSV" in html
+    assert "JSON" in html
+    assert "A setup tutorial would be useful." in html
+    assert "gm_campaigns_add" in html
     assert "capped_gm" in html
     assert "base_gm" in html
 
