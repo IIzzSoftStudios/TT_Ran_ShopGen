@@ -43,7 +43,10 @@ from app.services.economy.supply_demand import (
 )
 from app.services.world_generator.pricing import rarity_for_simulation
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
-from app.services.world_generator.campaign_settings import read_supply_demand_flag
+from app.services.world_generator.campaign_settings import (
+    read_market_volatility,
+    read_supply_demand_flag,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +163,8 @@ class SimulationEngine:
 
             run_supply = read_supply_demand_flag(campaign_id)
             stats["supply_demand_enabled"] = run_supply
+            market_volatility = read_market_volatility(campaign_id)
+            stats["market_volatility"] = market_volatility
 
             if run_supply and inventory_rows:
                 backfill_shop_restock_schedules(
@@ -223,6 +228,7 @@ class SimulationEngine:
                                 item_id=inventory.item_id,
                                 rng=local_rng,
                                 demand_context=demand_context,
+                                market_volatility=market_volatility,
                             )
                             prices.append(p)
                         new_price = round(sum(prices) / len(prices), 2)
@@ -237,6 +243,7 @@ class SimulationEngine:
                             item_id=inventory.item_id,
                             rng=local_rng,
                             demand_context=demand_context,
+                            market_volatility=market_volatility,
                         )
 
                     inventory.dynamic_price = new_price

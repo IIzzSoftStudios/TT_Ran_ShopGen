@@ -9,6 +9,7 @@ from app.extensions import db
 import app.models  # noqa: F401
 from app.models import (
     Campaign,
+    CampaignWorldConfig,
     GlobalMarket,
     GMProfile,
     Item,
@@ -167,6 +168,8 @@ def test_build_market_overview_payload_shape_and_deltas(market_app):
         payload = build_market_overview_payload(campaign_id)
 
         assert "items" in payload
+        assert payload["market_volatility"] == 5
+        assert payload["stocked_item_count"] == 2
         assert payload["last_run"] is not None
         assert payload["last_run"]["period"] == "day"
 
@@ -181,6 +184,28 @@ def test_build_market_overview_payload_shape_and_deltas(market_app):
         herb = by_id[item_b_id]
         assert herb["stock_vs_base"] == "lower"
         assert herb["last_run_price_delta"] is None
+
+
+def test_market_overview_payload_includes_configured_volatility(market_app):
+    with market_app.app_context():
+        campaign_id, _item_a_id, _item_b_id = _seed_campaign_with_items()
+        db.session.add(
+            CampaignWorldConfig(
+                campaign_id=campaign_id,
+                settings_json={
+                    "schema_version": 2,
+                    "inventory_mode": "axis",
+                    "supply_demand_enabled": True,
+                    "market_volatility": 9,
+                    "ranges": {},
+                },
+                schema_version=2,
+            )
+        )
+        db.session.commit()
+
+        payload = build_market_overview_payload(campaign_id)
+        assert payload["market_volatility"] == 9
 
 
 def test_precomputed_price_delta_in_snapshot(market_app):

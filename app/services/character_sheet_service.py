@@ -273,6 +273,34 @@ def _assemble_display_sections(ruleset, sheet):
     return abilities, derived, saves, skills
 
 
+def _resolve_class_details(player, campaign, sheet):
+    from app.services.classes_compendium_service import resolve_character_class_details
+
+    if campaign is None or getattr(campaign, "id", None) is None:
+        return {
+            "available": False,
+            "hidden_message": "Class details require an active campaign.",
+            "name": sheet.get("class_name"),
+            "level": sheet.get("level"),
+        }
+    if (_system_type_of(campaign) or "").lower() != "dnd5e":
+        return {
+            "available": False,
+            "hidden_message": None,
+            "name": sheet.get("class_name"),
+            "level": sheet.get("level"),
+        }
+    creation = sheet.get("creation") if isinstance(sheet.get("creation"), dict) else {}
+    class_key = creation.get("class_key")
+    return resolve_character_class_details(
+        campaign.id,
+        class_key=class_key,
+        level=sheet.get("level"),
+        class_name_fallback=sheet.get("class_name"),
+        owner_class_key=class_key,
+    )
+
+
 def build_character_view(player, campaign, *, name=None, equipment_slots=None):
     """Produce the SimpleNamespace the character-sheet templates consume."""
     sheet = get_or_default_sheet(player, campaign)
@@ -304,6 +332,8 @@ def build_character_view(player, campaign, *, name=None, equipment_slots=None):
     # (template or frontend) that reads ``character.stat_display`` sees the
     # full ability + derived + save + skill set, not just abilities.
     stat_display = abilities + derived + saves + skills
+    class_details = _resolve_class_details(player, campaign, sheet)
+    spell_details = _resolve_spell_details(campaign, sheet)
 
     return SimpleNamespace(
         id=getattr(player, "id", None),
@@ -322,7 +352,43 @@ def build_character_view(player, campaign, *, name=None, equipment_slots=None):
         equipment_slots=equipment_slots or [],
         ruleset_meta=ruleset.to_meta(),
         stat_display=stat_display,
+        class_details=class_details,
+        spell_details=spell_details,
     )
+
+
+def _resolve_spell_details(campaign, sheet):
+    from app.services.spells_compendium_service import (
+        list_visible_spells,
+        resolve_character_spells,
+    )
+
+    if campaign is None or getattr(campaign, "id", None) is None:
+        return {"available": False, "spells": {}, "catalog": []}
+    if (_system_type_of(campaign) or "").lower() != "dnd5e":
+        return {"available": False, "spells": {}, "catalog": []}
+    catalog = list_visible_spells(campaign.id)
+    creation = sheet.get("creation") if isinstance(sheet.get("creation"), dict) else {}
+    class_key = str(creation.get("class_key") or "").strip().lower()
+    if not class_key:
+        class_key = str(sheet.get("class_name") or "").strip().lower().replace(" ", "_")
+    class_available = []
+    if class_key:
+        class_available = [
+            spell
+            for spell in catalog
+            if class_key in {
+                str(cls or "").strip().lower().replace(" ", "_")
+                for cls in (spell.get("classes") or [])
+            }
+        ]
+    return {
+        "available": True,
+        "spells": resolve_character_spells(campaign.id, sheet),
+        "catalog": catalog,
+        "class_key": class_key,
+        "class_available": class_available,
+    }
 
 
 def character_data_payload(player, campaign, *, equipment_slots=None):
@@ -332,10 +398,45 @@ def character_data_payload(player, campaign, *, equipment_slots=None):
 
     abilities, derived, saves, skills = _assemble_display_sections(ruleset, sheet)
     stat_display = abilities + derived + saves + skills
+    class_details = _resolve_class_details(player, campaign, sheet)
+    spell_details = _resolve_spell_details(campaign, sheet)
+
+    equipment_derived: dict = {}
+    if player is not None and (_system_type_of(campaign) or "").lower() == "dnd5e":
+        from app.services.equipment.item_rules import (
+            build_weapon_attacks,
+            compute_equipment_ac,
+            count_attuned_items,
+            get_equipped_items,
+        )
+
+        equipped = get_equipped_items(player)
+        dex_score = int((sheet.get("abilities") or {}).get("dex", 10))
+        str_score = int((sheet.get("abilities") or {}).get("str", 10))
+        dex_mod = ruleset.compute_ability_mod(dex_score)
+        str_mod = ruleset.compute_ability_mod(str_score)
+        try:
+            level = max(1, int(sheet.get("level") or 1))
+        except (TypeError, ValueError):
+            level = 1
+        prof = ruleset.proficiency_bonus(level)
+        equipment_derived = {
+            "ac": compute_equipment_ac(equipped, dex_mod=dex_mod),
+            "attacks": build_weapon_attacks(
+                equipped, str_mod=str_mod, dex_mod=dex_mod, prof_bonus=prof
+            ),
+            "attuned_count": count_attuned_items(equipped),
+            "attunement_limit": 3,
+        }
 
     return {
         "system_type": ruleset.system_type,
         "stat_display": stat_display,
+        "class_details": class_details,
+        "spell_details": spell_details,
+        "equipment_derived": equipment_derived,
+        "class_name": sheet.get("class_name"),
+        "level": sheet.get("level"),
         "stat_schema": {
             "abilities": [
                 {"key": a.key, "label": a.label} for a in ruleset.abilities
@@ -482,6 +583,27 @@ def apply_sheet_update(player, campaign, form):
         current["skill_prof_tiers"] = new_skill_tiers
     else:
         current["skill_prof_tiers"] = {}
+
+    if campaign is not None and (_system_type_of(campaign) or "").lower() == "dnd5e":
+        spells_state = dict(current.get("spells") or {})
+        for field, bucket in (
+            ("spells_cantrips", "cantrips"),
+            ("spells_prepared", "prepared"),
+            ("spells_known", "known"),
+        ):
+            if field not in form and field.replace("spells_", "spell_") not in form:
+                continue
+            raw = form.get(field)
+            if raw is None:
+                raw = form.getlist(field) if hasattr(form, "getlist") else None
+            if raw is None:
+                continue
+            if isinstance(raw, list):
+                keys = [str(item).strip() for item in raw if str(item).strip()]
+            else:
+                keys = [part.strip() for part in str(raw).split(",") if part.strip()]
+            spells_state[bucket] = keys[:64]
+        current["spells"] = spells_state
 
     current["schema_version"] = SHEET_SCHEMA_VERSION
     current["system_type"] = ruleset.system_type

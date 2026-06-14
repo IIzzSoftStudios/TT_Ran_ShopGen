@@ -52,6 +52,13 @@ def supply_demand_enabled(settings: Mapping[str, Any]) -> bool:
     return bool(raw)
 
 
+def market_volatility(settings: Mapping[str, Any]) -> int:
+    """Parse ``market_volatility`` from world config (defaults to 5)."""
+    from app.services.economy.volatility import normalize_market_volatility
+
+    return normalize_market_volatility(settings.get("market_volatility"))
+
+
 def shops_count_for_city(
     city_size: str,
     rng,

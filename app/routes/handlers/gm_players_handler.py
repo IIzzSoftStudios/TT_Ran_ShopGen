@@ -16,8 +16,10 @@ from app.models import (
 )
 from app.routes.handlers.gm_helpers import get_campaign_for_gm_session
 from app.services import character_sheet_service
+from app.services.equipment.slots import ALL_EQUIPMENT_SLOTS, normalize_slot
+from app.services.equipment.item_rules import pick_equip_slot, validate_attunement
 
-EQUIPMENT_SLOTS = ("weapon", "armor", "accessory")
+EQUIPMENT_SLOTS = ALL_EQUIPMENT_SLOTS
 
 
 def _next_default_npc_label(campaign_id: int) -> str:
@@ -131,13 +133,17 @@ def view_character(character_id: int):
         flash("Player not found in this campaign.", "danger")
         return redirect(url_for("gm.gm_view_players"))
     items = Item.query.filter_by(campaign_id=campaign.id).order_by(Item.name).all()
-    equipment = {e.slot: e for e in player.equipment_slots}
+    equipment = {normalize_slot(e.slot) or e.slot: e for e in player.equipment_slots}
     for slot in EQUIPMENT_SLOTS:
         equipment.setdefault(slot, None)
 
     equipment_slot_views = [
-        SimpleNamespace(slot_name=slot, item=(equipment[slot].item if equipment[slot] else None))
+        SimpleNamespace(
+            slot_name=slot,
+            item=(equipment[slot].item if equipment.get(slot) and equipment[slot].item_id else None),
+        )
         for slot in EQUIPMENT_SLOTS
+        if equipment.get(slot) and equipment[slot].item_id
     ]
     character = character_sheet_service.build_character_view(
         player,
@@ -264,9 +270,9 @@ def equip_item(character_id: int):
         flash("Player not found.", "danger")
         return redirect(url_for("gm.gm_view_players"))
 
-    slot = (request.form.get("slot") or "").strip().lower()
+    slot = normalize_slot((request.form.get("slot") or "").strip())
     item_id = request.form.get("item_id", type=int)
-    if slot not in EQUIPMENT_SLOTS:
+    if not slot or slot not in EQUIPMENT_SLOTS:
         flash("Invalid equipment slot.", "danger")
         return redirect(url_for("gm.gm_view_character", character_id=character_id))
     if item_id is None:
@@ -276,6 +282,15 @@ def equip_item(character_id: int):
     item = Item.query.filter_by(item_id=item_id, campaign_id=campaign.id).first()
     if not item:
         flash("Invalid item.", "danger")
+        return redirect(url_for("gm.gm_view_character", character_id=character_id))
+
+    resolved_slot = pick_equip_slot(player, item, requested_slot=slot)
+    if not resolved_slot:
+        flash("This item cannot be equipped in that slot.", "danger")
+        return redirect(url_for("gm.gm_view_character", character_id=character_id))
+    attune_err = validate_attunement(player, item)
+    if attune_err:
+        flash(attune_err, "warning")
         return redirect(url_for("gm.gm_view_character", character_id=character_id))
 
     try:
@@ -298,7 +313,7 @@ def equip_item(character_id: int):
         else:
             inv_row.quantity = int(inv_row.quantity or 0) + 1
 
-        eq = PlayerEquipment.query.filter_by(player_id=player.id, slot=slot).first()
+        eq = PlayerEquipment.query.filter_by(player_id=player.id, slot=resolved_slot).first()
         if eq:
             eq.item_id = item_id
             eq.source = "GM"
@@ -306,13 +321,13 @@ def equip_item(character_id: int):
             db.session.add(
                 PlayerEquipment(
                     player_id=player.id,
-                    slot=slot,
+                    slot=resolved_slot,
                     item_id=item_id,
                     source="GM",
                 )
             )
         db.session.commit()
-        flash(f"Equipped to {slot} (+1 to inventory, tagged GM).", "success")
+        flash(f"Equipped to {resolved_slot.replace('_', ' ')} (+1 to inventory, tagged GM).", "success")
     except Exception as e:
         db.session.rollback()
         flash(f"Error: {e}", "danger")
@@ -328,8 +343,8 @@ def unequip_item(character_id: int):
         flash("Player not found.", "danger")
         return redirect(url_for("gm.gm_view_players"))
 
-    slot = (request.form.get("slot") or "").strip().lower()
-    if slot not in EQUIPMENT_SLOTS:
+    slot = normalize_slot((request.form.get("slot") or "").strip())
+    if not slot or slot not in EQUIPMENT_SLOTS:
         flash("Invalid slot.", "danger")
         return redirect(url_for("gm.gm_view_character", character_id=character_id))
 

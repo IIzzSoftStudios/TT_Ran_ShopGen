@@ -428,6 +428,69 @@ def warn_if_player_npc_compat_applied(patched_any: bool) -> None:
         )
 
 
+def ensure_item_folder_schema() -> bool:
+    """Ensure item_folders table and items.folder_id column exist."""
+    patched_any = False
+    if not _regclass_exists("item_folders"):
+        patched_any = True
+        db.session.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS item_folders (
+                    folder_id SERIAL PRIMARY KEY,
+                    campaign_id INTEGER NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+                    name VARCHAR(100) NOT NULL,
+                    parent_id INTEGER REFERENCES item_folders(folder_id) ON DELETE SET NULL,
+                    sort_order INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
+        )
+        db.session.commit()
+    if _regclass_exists("items") and not _column_exists("items", "folder_id"):
+        patched_any = True
+        db.session.execute(
+            text(
+                "ALTER TABLE items ADD COLUMN folder_id INTEGER "
+                "REFERENCES item_folders(folder_id) ON DELETE SET NULL"
+            )
+        )
+        db.session.commit()
+    return patched_any
+
+
+def warn_if_item_folder_compat_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "item_folders table and/or items.folder_id added via schema compat bootstrap."
+        )
+
+
+def ensure_item_srd_columns() -> bool:
+    """Add origin_srd_key and content_source to items when missing."""
+    if not _regclass_exists("items"):
+        return False
+    patched_any = False
+    for col, ddl in (
+        ("origin_srd_key", "ALTER TABLE items ADD COLUMN origin_srd_key VARCHAR(80)"),
+        ("content_source", "ALTER TABLE items ADD COLUMN content_source VARCHAR(20)"),
+    ):
+        if _column_exists("items", col):
+            continue
+        patched_any = True
+        db.session.execute(text(ddl))
+    if patched_any:
+        db.session.commit()
+    return patched_any
+
+
+def warn_if_item_srd_compat_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "items origin_srd_key/content_source columns added via schema compat bootstrap."
+        )
+
+
 def ensure_join_codes_columns() -> bool:
     """Add campaign/player join_code columns and backfill missing codes.
 
@@ -2021,6 +2084,20 @@ def ensure_battle_tables() -> bool:
                 )
             )
             applied = True
+        battle_map_columns = (
+            ("map_source_type", "VARCHAR(16) NOT NULL DEFAULT 'none'"),
+            ("map_asset_key", "VARCHAR(255) NULL"),
+            ("terrain_preset", "VARCHAR(32) NULL"),
+            ("terrain_seed", "INTEGER NULL"),
+            ("terrain_metadata", "JSONB NULL"),
+            ("map_version", "INTEGER NOT NULL DEFAULT 0"),
+        )
+        for col_name, col_def in battle_map_columns:
+            if not _column_exists("battle_encounter", col_name):
+                db.session.execute(
+                    text(f"ALTER TABLE battle_encounter ADD COLUMN {col_name} {col_def}")
+                )
+                applied = True
 
     if not _regclass_exists("battle_combatant"):
         db.session.execute(

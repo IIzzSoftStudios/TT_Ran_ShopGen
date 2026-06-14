@@ -447,13 +447,58 @@ def _species_from_gm_options(options: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
+def _normalize_class_entry(raw: dict[str, Any], *, source: str) -> dict[str, Any]:
+    key = str(raw.get("key") or "").strip().lower()
+    name = str(raw.get("name") or key).strip()
+    skill_cfg = deepcopy(raw.get("skill_choices") or {"count": 2, "options": []})
+    if skill_cfg.get("options") == "any":
+        skill_cfg["options"] = list(ALL_SKILL_KEYS)
+    elif isinstance(skill_cfg.get("options"), list):
+        skill_cfg["options"] = [
+            str(item).strip().lower()
+            for item in skill_cfg["options"]
+            if str(item).strip().lower() in ALL_SKILL_KEYS
+        ]
+    return {
+        "key": key,
+        "name": name,
+        "summary": str(raw.get("summary") or "").strip()[:500],
+        "hit_die": int(raw.get("hit_die") or 8),
+        "save_proficiencies": list(raw.get("save_proficiencies") or []),
+        "skill_choices": skill_cfg,
+        "source": source,
+        "provenance": source,
+    }
+
+
+def _classes_from_compendium(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out = []
+    for row in entries:
+        if not isinstance(row, dict):
+            continue
+        if row.get("is_hidden") or row.get("secret"):
+            continue
+        key = str(row.get("key") or "").strip().lower()
+        name = str(row.get("name") or "").strip()
+        if not key or not name:
+            continue
+        out.append(
+            _normalize_class_entry(
+                row,
+                source=str(row.get("source") or "classes_compendium"),
+            )
+        )
+    return out
+
+
 def merged_creation_catalog(
     *,
     campaign_id: Optional[int] = None,
     species_compendium: Optional[list[dict[str, Any]]] = None,
+    classes_compendium: Optional[list[dict[str, Any]]] = None,
     character_options: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    """Merge core catalog, species compendium, and GM options deterministically."""
+    """Merge core catalog, species/classes compendiums, and GM options deterministically."""
     by_key: dict[str, dict[str, Any]] = {}
     order: list[str] = []
 
@@ -502,14 +547,32 @@ def merged_creation_catalog(
                 }
             )
 
-    classes = []
+    class_by_key: dict[str, dict[str, Any]] = {}
+    class_order: list[str] = []
+
+    def _add_class(entry: dict[str, Any], *, allow_override: bool) -> None:
+        key = entry["key"]
+        if key in class_by_key and not allow_override:
+            return
+        class_by_key[key] = entry
+        if key not in class_order:
+            class_order.append(key)
+
     for raw in CORE_CLASSES:
-        cls = deepcopy(raw)
-        skill_cfg = cls.get("skill_choices") or {}
-        if skill_cfg.get("options") == "any":
-            skill_cfg["options"] = list(ALL_SKILL_KEYS)
-        cls["skill_choices"] = skill_cfg
-        classes.append(cls)
+        _add_class(_normalize_class_entry(raw, source="core"), allow_override=False)
+
+    if classes_compendium:
+        for entry in _classes_from_compendium(classes_compendium):
+            if (
+                entry["key"] in class_by_key
+                and class_by_key[entry["key"]]["source"] == "core"
+                and entry.get("source") == "classes_compendium"
+            ):
+                _add_class(entry, allow_override=True)
+            else:
+                _add_class(entry, allow_override=True)
+
+    classes = [class_by_key[k] for k in class_order if k in class_by_key]
 
     return {
         "species": species,

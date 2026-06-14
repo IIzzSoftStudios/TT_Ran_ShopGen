@@ -62,6 +62,42 @@ def combat_encounter_place(encounter_id):
     return combat_handler.place_encounter(encounter_id)
 
 
+@combat_bp.route("/encounters/<int:encounter_id>/grid", methods=["POST"])
+@login_required
+def combat_encounter_grid(encounter_id):
+    return combat_handler.resize_encounter_grid(encounter_id)
+
+
+@combat_bp.route("/encounters/<int:encounter_id>/map", methods=["GET"])
+@login_required
+def combat_encounter_map_get(encounter_id):
+    return combat_handler.get_encounter_map(encounter_id)
+
+
+@combat_bp.route("/encounters/<int:encounter_id>/map/chunk", methods=["GET"])
+@login_required
+def combat_encounter_map_chunk(encounter_id):
+    return combat_handler.get_encounter_map_chunk(encounter_id)
+
+
+@combat_bp.route("/encounters/<int:encounter_id>/map/upload", methods=["POST"])
+@login_required
+def combat_encounter_map_upload(encounter_id):
+    return combat_handler.upload_encounter_map(encounter_id)
+
+
+@combat_bp.route("/encounters/<int:encounter_id>/map/generate", methods=["POST"])
+@login_required
+def combat_encounter_map_generate(encounter_id):
+    return combat_handler.generate_encounter_map(encounter_id)
+
+
+@combat_bp.route("/encounters/<int:encounter_id>/map/image", methods=["GET"])
+@login_required
+def combat_encounter_map_image(encounter_id):
+    return combat_handler.get_encounter_map_image(encounter_id)
+
+
 @combat_bp.route("/encounters/for-canvas/<int:canvas_id>", methods=["GET"])
 @login_required
 def combat_encounter_for_canvas(canvas_id):

@@ -457,6 +457,42 @@ def test_point_buy_spend_table():
     assert point_buy_spend({"str": 15, "dex": 8, "con": 8, "int": 8, "wis": 8, "cha": 8}) == 9
 
 
+def test_custom_class_with_any_skill_options_finalizes_immutable_choices():
+    from app.services.classes_compendium_service import create_class, ensure_classes_compendium
+    from app.services.character_creation.dnd5e_catalog import merged_creation_catalog
+
+    gm = _make_user("gm-any-class", role="GM")
+    camp = _make_dnd_campaign(gm)
+    base = ensure_classes_compendium(camp.id)[0]
+    create_class(
+        camp.id,
+        {
+            "name": "Lore Bard",
+            "summary": "Custom bard shell.",
+            "hit_die": 8,
+            "save_proficiencies": ["dex", "cha"],
+            "skill_choices": {"count": 3, "options": "any"},
+            "level_progression": base["level_progression"],
+        },
+    )
+    db.session.commit()
+
+    catalog = merged_creation_catalog(classes_compendium=ensure_classes_compendium(camp.id))
+    custom = next(row for row in catalog["classes"] if row["name"] == "Lore Bard")
+    sheet = build_final_sheet_json(
+        _valid_wizard_payload(
+            class_key=custom["key"],
+            class_skill_choices=["arcana", "history", "performance"],
+        ),
+        catalog=catalog,
+        settings=get_creation_settings(camp.id),
+    )
+    assert sheet["creation"]["class_key"] == custom["key"]
+    assert sheet["creation"]["class_source"] == "custom"
+    assert "level_progression" not in sheet["creation"]
+    assert sheet["creation"]["class_skill_choices"] == ["arcana", "history", "performance"]
+
+
 def test_solo_defaults_never_use_campaign_settings():
     solo = get_creation_settings(None)
     assert solo["scope"] == "solo"

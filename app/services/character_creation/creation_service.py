@@ -396,6 +396,7 @@ def build_final_sheet_json(
         "roll_draft_id": (roll_draft or {}).get("draft_id"),
         "ability_rolls": deepcopy((roll_draft or {}).get("abilities") or {}),
         "species_source": species_entry.get("source") or species_entry.get("provenance"),
+        "class_source": class_entry.get("source") or class_entry.get("provenance"),
         "settings_version": settings.get("settings_version"),
     }
     return sheet
@@ -449,6 +450,7 @@ def finalize_vault_character(
     *,
     campaign_id: Optional[int] = None,
     species_compendium: Optional[list[dict[str, Any]]] = None,
+    classes_compendium: Optional[list[dict[str, Any]]] = None,
     character_options: Optional[dict[str, Any]] = None,
     roll_draft: Optional[dict[str, Any]] = None,
     draft_token: Optional[str] = None,
@@ -479,6 +481,7 @@ def finalize_vault_character(
     catalog = merged_creation_catalog(
         campaign_id=campaign_id,
         species_compendium=species_compendium,
+        classes_compendium=classes_compendium,
         character_options=character_options,
     )
     sheet_json = build_final_sheet_json(
@@ -509,6 +512,7 @@ def wizard_catalog_for_user(
     *,
     campaign_id: Optional[int] = None,
     species_compendium: Optional[list[dict[str, Any]]] = None,
+    classes_compendium: Optional[list[dict[str, Any]]] = None,
     character_options: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     settings = (
@@ -519,6 +523,7 @@ def wizard_catalog_for_user(
     catalog = merged_creation_catalog(
         campaign_id=campaign_id,
         species_compendium=species_compendium,
+        classes_compendium=classes_compendium,
         character_options=character_options,
     )
     return {

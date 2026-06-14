@@ -1,6 +1,6 @@
 # Econo-Forge Roadmap
 
-This roadmap captures the next practical improvements for Econo-Forge based on the current app surface, tech-demo usage, simulation backend, tests, and deployment workflow. Phase 1 product polish is complete; the remaining work now shifts from activation clarity to branding consistency, simulation safety, reliability coverage, and deployment alignment.
+This roadmap captures the next practical improvements for Econo-Forge based on the current app surface, tech-demo usage, simulation backend, tests, and deployment workflow. Product polish, branding consistency, simulation safety, reliability coverage, deployment alignment, and the first GM workspace expansion are complete; the remaining work now shifts toward measurement, UX polish, and deeper campaign tooling.
 
 ## Guiding Priorities
 
@@ -10,6 +10,7 @@ This roadmap captures the next practical improvements for Econo-Forge based on t
 - Reduce production surprises: document runtime configuration, test Redis-dependent behavior, and verify web/worker deployment parity.
 - Avoid expanding new features on top of unclear state authority, especially where row-based simulation state and `GMWorldState` can diverge.
 - Deploy-branch Cloud Build already runs pytest in the promoted image; the remaining quality gaps are Redis `/ready`, lock semantics, PR/feature-branch feedback, and prodlike smoke coverage.
+- Keep the GM dashboard as the primary workspace: prefer compendium panes and dashboard anchors over older standalone list pages when the flow is not detail-form specific.
 
 ## Tech Demo Funnel Snapshot
 
@@ -137,6 +138,29 @@ Acceptance checks:
 - Web and worker images can be verified against the same digest after deployment.
 - Prodlike smoke catches bootstrap or readiness issues that SQLite-only tests miss.
 
+## Phase 6: GM Workspace, Compendiums, And Player Spell Visibility
+
+Status: completed.
+
+Goal: reduce table-management friction by keeping common GM and player review tasks in the dashboard.
+
+Completed work:
+
+- [Done] Added Region, City, Shop, and Item Compendium dashboard panes, alongside existing D&D 5e species, class, spell, and monster compendiums.
+- [Done] Replaced obsolete Players/NPCs and Cities standalone entry points with redirects into the relevant dashboard panes.
+- [Done] Added item folder organization, bulk item actions, manual stocking of existing catalog items into shops, and OGL-safe D&D 5e item template import.
+- [Done] Added campaign-scoped market volatility, visible Market Overview metadata, last-run price/stock deltas, and simulation controls directly in Market Overview.
+- [Done] Kept dashboard POST actions such as Volatility, Supply, and Debt on the active Market Overview pane after submit.
+- [Done] Updated the player Spells tab so D&D 5e players can see class-available campaign spells even before selected cantrips/prepared/known spells are saved.
+- [Done] Added focused regression coverage for compendium APIs, bulk item workflows, volatility behavior, dashboard anchor redirects, and player spell payloads.
+
+Acceptance checks:
+
+- A GM can stock shops from existing items and manage multiple catalog rows without leaving the catalog workflow.
+- A GM can review world/shop/item compendiums from dashboard panes rather than bouncing through retired list pages.
+- A player with a D&D 5e class sees useful spell options from the campaign Spell Compendium even when no spells have been selected yet.
+- Market Overview communicates active volatility and updates after simulation runs.
+
 ## Suggested Implementation Order
 
 1. Add Redis `/ready` and `distributed_lock` tests.
@@ -144,7 +168,8 @@ Acceptance checks:
 3. Preload demand modifiers and add bounded tick performance tests.
 4. Decide and test state authority before enabling `GMWorldState` reads.
 5. Phase 4 (extended `/ready`, lock safety, task lock-failure tests, and core route smoke validation) is complete; coverage caps and lint gates are deferred to a later post-Redis/readiness stage.
-6. Revisit tech-demo funnel metrics after Phase 1 has had usage time, then decide whether activation needs more product work or deeper reliability investment.
+6. ~~Consolidate dashboard compendiums and GM item management.~~ (Phase 6 complete)
+7. Revisit tech-demo funnel metrics after Phase 1 and the GM workspace update have had usage time, then decide whether activation needs more product work or deeper reliability investment.
 
 ## Deferred Ideas
 
@@ -152,3 +177,4 @@ Acceptance checks:
 - Full model/module splitting for `models.py` and large route modules.
 - Admin metrics dashboards for simulation jobs and tick timing.
 - Larger world-state migration after state authority is decided.
+- Dedicated spell selection/preparation workflow for player character sheets, beyond the current class-available spell review.

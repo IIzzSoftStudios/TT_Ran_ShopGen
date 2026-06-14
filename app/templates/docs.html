@@ -457,16 +457,16 @@
                     </p>
                     <p>
                         This documentation explains how to get access, what GMs and players can do today, and
-                        how items, inventory, population, species, character creation, encounter prep, and simulation ticks
+                        how items, inventory, market volatility, compendiums, population, species, character creation, encounter prep, and simulation ticks
                         fit together. Sections are updated as features ship; see the
                         <a href="{{ url_for('main.docs', section='changelog') }}#changelog">changelog</a> for release notes.
                     </p>
                     <h3>What you will find here</h3>
                     <ul>
                         <li><strong>Getting Started</strong> — access request, registration, and first login paths</li>
-                        <li><strong>GM Management Hub</strong> — campaigns, world generation, population, species, monsters, maps, encounters, simulation, and players</li>
-                        <li><strong>Player Use</strong> — joining a campaign, creating D&amp;D 5e characters, using dashboard tabs, viewing shared maps, browsing shops, and inventory</li>
-                        <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, compendiums, and game-day ticks</li>
+                        <li><strong>GM Management Hub</strong> — campaigns, world generation, population, compendiums, maps, encounters, simulation, and players</li>
+                        <li><strong>Player Use</strong> — joining a campaign, creating D&amp;D 5e characters, using dashboard tabs, viewing class spell options, shared maps, shops, and inventory</li>
+                        <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, folders, templates, compendiums, and game-day ticks</li>
                         <li><strong>Roadmap</strong> — what we are improving next for GMs and players</li>
                         <li><strong>Changelog</strong> — release notes for Alpha and earlier demo milestones</li>
                         <li><strong>Terms &amp; Privacy</strong> — general site rules and privacy notes</li>
@@ -537,7 +537,13 @@
                     <ul>
                         <li><strong>Supply On</strong> — each tick applies simulated daily sales and periodic shop restocks, then recalculates prices from updated stock.</li>
                         <li><strong>Supply Off</strong> — ticks update prices only; no simulated sales or restock on that path.</li>
+                        <li><strong>Volatility</strong> — campaign market volatility runs from 0 to 10 and scales price/demand randomness on future simulation ticks.</li>
                     </ul>
+                    <p>
+                        The Market Overview panel includes the same day/week/month/year/pause controls as the Simulation
+                        panel. Quick-nav form actions such as Volatility, Supply, and Debt return to the Market Overview
+                        tab instead of dropping you back on the map.
+                    </p>
                     <p>
                         Long simulation periods run as <strong>background jobs</strong> (worker + Redis). If the
                         simulation service is unavailable, you may see a user-safe offline message rather than partial
@@ -546,13 +552,15 @@
                     <h3>World setup</h3>
                     <ul>
                         <li><strong>World generation</strong> — the world generation wizard creates campaign structure, regions, cities, shops, inventory, and species population assumptions from your chosen settings and seed.</li>
-                        <li><strong>Regions and cities</strong> — edit regions, add cities, set settlement population, and record population by species when cities already exist.</li>
-                        <li><strong>Shops and markets</strong> — view grouped shops, adjust shop details, and use market overview tools to see how stock and prices are distributed.</li>
+                        <li><strong>Regions and cities</strong> — edit regions, add cities, set settlement population, and review the Region and City Compendiums from the dashboard.</li>
+                        <li><strong>Shops and markets</strong> — view grouped shops, adjust shop details, review the Shop Compendium, and use market overview tools to see how stock and prices are distributed.</li>
                     </ul>
-                    <h3>Species and monster compendiums</h3>
+                    <h3>Campaign compendiums</h3>
                     <ul>
                         <li><strong>Species Compendium</strong> — D&amp;D 5e GMs can review base species, add custom species, and maintain population percentages, traits, stat modifiers, and notes.</li>
+                        <li><strong>Class and Spell Compendiums</strong> — D&amp;D 5e GMs can inspect campaign class and spell data used by character and player spell views.</li>
                         <li><strong>Monster Compendium</strong> — D&amp;D 5e GMs can maintain campaign-scoped monster templates for encounter prep.</li>
+                        <li><strong>Region, City, Shop, and Item Compendiums</strong> — dashboard tables centralize search and review for core world and catalog records.</li>
                         <li><strong>Population by species</strong> — city summaries and player map popouts can show settlement population context when the GM has configured it.</li>
                     </ul>
                     <h3>Maps and player visibility</h3>
@@ -574,6 +582,11 @@
                         inventory rows. Manual edits apply immediately; simulation ticks then move stock and prices
                         according to supply and demand rules.
                     </p>
+                    <ul>
+                        <li>Manually stock already-created catalog items into one or more shops.</li>
+                        <li>Select multiple items for bulk stock, delete, rename, move-to-folder, or shop-removal actions.</li>
+                        <li>Organize catalog rows with item folders and import OGL-safe D&amp;D 5e item templates as a starter library.</li>
+                    </ul>
                     <h3>Players and join codes</h3>
                     <p>
                         Invite players with campaign join codes, manage NPCs, and open character sheets from the players
@@ -599,6 +612,7 @@
                     <h3>Dashboard tabs</h3>
                     <ul>
                         <li><strong>Character</strong> keeps character sheet details close to the campaign tools.</li>
+                        <li><strong>Spells</strong> shows selected cantrips/prepared/known spells and a class-filtered list of visible campaign spells available to your character.</li>
                         <li><strong>Inventory</strong> lists owned items and equipment.</li>
                         <li><strong>Map</strong> shows the GM-provided world or city map in a read-only view.</li>
                         <li><strong>Market Overview</strong> summarizes campaign-wide shop prices and stock.</li>
@@ -626,6 +640,12 @@
                         Your personal inventory lists owned items; equipment slots (weapon, armor, accessory) track what
                         your character has equipped. Selling or buying updates both your ledger and the shop in one flow
                         so counts stay consistent.
+                    </p>
+                    <h3>D&amp;D 5e spells</h3>
+                    <p>
+                        In D&amp;D 5e campaigns, the Spells tab resolves selected cantrips, prepared spells, and known spells
+                        from the campaign Spell Compendium. If your sheet does not have selected spells yet, it still shows
+                        visible spells available to your class so the tab is useful while spell selection workflows mature.
                     </p>
                     <h3>Solo character vault</h3>
                     <p>
@@ -697,15 +717,14 @@
                     </p>
                     <h3>Now: player map, population, and encounter parity</h3>
                     <ul>
-                        <li>Player dashboard tabs now bring character, inventory, map, market overview, and shared encounters into one home screen.</li>
-                        <li>GM-facing species and monster compendiums now support D&amp;D 5e worldbuilding, character creation, and encounter prep.</li>
-                        <li>Population by species now flows from GM setup into city summaries and player map context.</li>
-                        <li>GM map tools now control which points of interest and encounters are visible to players.</li>
-                        <li>D&amp;D 5e encounter work is focused on table-side reliability: token placement, action menus, and GM cleanup controls.</li>
+                        <li>GM dashboard compendiums now cover regions, cities, shops, items, species, classes, spells, and monsters.</li>
+                        <li>Item management now supports folders, bulk actions, manual stocking into shops, and OGL-safe starter item templates.</li>
+                        <li>Market Overview now includes simulation controls, active volatility context, and clearer last-run market deltas.</li>
+                        <li>Player dashboard tabs now include class-filtered spell availability for D&amp;D 5e characters.</li>
                     </ul>
                     <h3>Next: polish and reliability</h3>
                     <ul>
-                        <li>Branding and copy consistency across older templates, public docs, and new map/encounter surfaces.</li>
+                        <li>Continue replacing older standalone list pages with dashboard panes where it improves flow.</li>
                         <li>Simulation performance and predictable game-day ticks between sessions.</li>
                         <li>Stronger automated tests for readiness, locks, visibility filtering, combat routes, and regression-prone flows.</li>
                     </ul>
@@ -730,7 +749,8 @@
                     <div class="changelog-layout">
                         <aside class="changelog-index" aria-label="Patch notes">
                             <p class="changelog-index-title">Patch Notes</p>
-                            <a href="#patch-1-2-4">Alpha 1.0 Map and Encounter Update</a>
+                            <a href="#patch-1-2-5">Alpha 1.2 GM Workspace Update</a>
+                            <a href="#patch-1-2-4">Alpha 1.1 Map and Encounter Update</a>
                             <a href="#patch-1-2-3">Alpha 1.0</a>
                             <a href="#patch-1-2-2">Tech Demo Hotfix 1.2.2</a>
                             <a href="#patch-1-2-1">Tech Demo Hotfix 1.2.1</a>
@@ -739,8 +759,38 @@
                         </aside>
 
                         <div class="changelog-patches">
+                            <section class="changelog-patch" id="patch-1-2-5" aria-labelledby="heading-patch-1-2-5">
+                                <h3 id="heading-patch-1-2-5">Alpha 1.2 GM Workspace Update <span class="docs-badge">Latest</span></h3>
+                                <p>
+                                    <strong>June 14, 2026.</strong> GM dashboard compendiums, bulk item management, item folders, OGL-safe item templates, campaign market volatility controls, Market Overview simulation controls, and clearer player spell visibility.
+                                </p>
+                                <h3>GM item and catalog workflow</h3>
+                                <ul>
+                                    <li>GMs can manually add existing catalog items to shops without creating duplicate item rows.</li>
+                                    <li>Item lists now support multi-select bulk actions for stocking, deletion, renaming, moving to folders, and removing rows from shop inventory.</li>
+                                    <li>Item folders help organize catalog rows, and the first D&amp;D 5e item template import flow seeds OGL-safe starter content while preserving GM edits.</li>
+                                </ul>
+                                <h3>Dashboard compendiums</h3>
+                                <ul>
+                                    <li>Region, City, and Shop Compendiums now sit beside the Item Compendium in the GM dashboard.</li>
+                                    <li>Legacy Players/NPCs and Cities list URLs now redirect into the relevant dashboard panes instead of opening obsolete standalone views.</li>
+                                    <li>Market quick-nav POST actions return to the Market Overview pane after submit.</li>
+                                </ul>
+                                <h3>Market overview and simulation</h3>
+                                <ul>
+                                    <li>Campaign-level market volatility now scales demand and price event randomness on future ticks, with the active value shown in the Market Overview metadata.</li>
+                                    <li>Market Overview includes day/week/month/year/pause controls and refreshes after simulation runs so price and stock deltas are visible in place.</li>
+                                    <li>Empty market states now explain that volatility applies to stocked shop inventory on the next simulation tick.</li>
+                                </ul>
+                                <h3>Player spells</h3>
+                                <ul>
+                                    <li>The player Spells tab now shows selected cantrips, prepared spells, and known spells when saved on the character sheet.</li>
+                                    <li>When no spells are selected yet, D&amp;D 5e players still see visible campaign spells available to their class.</li>
+                                </ul>
+                            </section>
+
                             <section class="changelog-patch" id="patch-1-2-4" aria-labelledby="heading-patch-1-2-4">
-                                <h3 id="heading-patch-1-2-4">Alpha 1.0 Map and Encounter Update <span class="docs-badge">Latest</span></h3>
+                                <h3 id="heading-patch-1-2-4">Alpha 1.1 Map and Encounter Update</h3>
                                 <p>
                                     <strong>June 10, 2026.</strong> Player dashboard tabs, campaign map parity with the GM map, population and species visibility, D&amp;D 5e encounter visibility, GM species and monster compendium tools, the character creation wizard, and GM map tools for placing and managing encounters and points of interest.
                                 </p>

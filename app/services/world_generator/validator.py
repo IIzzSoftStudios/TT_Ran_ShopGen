@@ -302,4 +302,14 @@ def validate(form: Mapping[str, Any]) -> Dict[str, Any]:
         "species_distribution": _parse_species_distribution(form),
         "inventory_mode": INVENTORY_MODE,
         "supply_demand_enabled": supply_demand_enabled_flag,
+        "market_volatility": _parse_market_volatility(form),
     }
+
+
+def _parse_market_volatility(form: Mapping[str, Any]) -> int:
+    from app.services.economy.volatility import normalize_market_volatility
+
+    raw = form.get("market_volatility")
+    if raw is None or raw == "":
+        return 5
+    return normalize_market_volatility(raw)

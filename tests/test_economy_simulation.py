@@ -434,6 +434,72 @@ def test_price_reacts_to_stock(sim_app):
         assert low_stock_price > high_stock_price
 
 
+def test_market_volatility_zero_reduces_jitter(sim_app):
+    import random
+
+    from app.services.economy.demand import calculate_demand
+    from app.services.economy.volatility import random_demand_fluctuation
+
+    rng = random.Random(99)
+    assert random_demand_fluctuation(rng, 0) == 1.0
+    low = calculate_demand(1, 50, 1, rng=random.Random(1), market_volatility=0)
+    high = calculate_demand(1, 50, 1, rng=random.Random(1), market_volatility=0)
+    assert low == high
+
+
+def test_market_volatility_high_exceeds_default_band(sim_app):
+    import random
+
+    from app.services.economy.volatility import random_demand_fluctuation
+
+    rng = random.Random(7)
+    samples_default = [random_demand_fluctuation(rng, 5) for _ in range(200)]
+    rng2 = random.Random(7)
+    samples_high = [random_demand_fluctuation(rng2, 10) for _ in range(200)]
+    assert max(samples_high) - min(samples_high) > max(samples_default) - min(samples_default)
+
+
+def test_simulation_tick_records_market_volatility(sim_app):
+    with sim_app.app_context():
+        campaign_id = _gm_and_campaign(sim_app)
+        from app.models import CampaignWorldConfig
+
+        cfg = CampaignWorldConfig.query.filter_by(campaign_id=campaign_id).first()
+        settings = dict(cfg.settings_json or {})
+        settings["market_volatility"] = 8
+        cfg.settings_json = settings
+        db.session.commit()
+
+        city = City(name="V", size="Hamlet", population=50, campaign_id=campaign_id)
+        shop = Shop(name="VShop", type="General Store", campaign_id=campaign_id)
+        db.session.add_all([city, shop])
+        db.session.flush()
+        shop.cities.append(city)
+        item = Item(
+            name="Widget",
+            type="General",
+            rarity="Common",
+            base_price=100,
+            campaign_id=campaign_id,
+        )
+        db.session.add(item)
+        db.session.flush()
+        inv = ShopInventory(
+            shop_id=shop.shop_id,
+            item_id=item.item_id,
+            campaign_id=campaign_id,
+            stock=10,
+            dynamic_price=100.0,
+        )
+        db.session.add(inv)
+        db.session.commit()
+
+        engine = SimulationEngine()
+        stats = engine.run_tick(campaign_id)
+        assert stats.get("market_volatility") == 8
+        assert stats["items_updated"] >= 1
+
+
 def test_run_tick_supply_demand(sim_app):
     with sim_app.app_context():
         campaign_id = _gm_and_campaign(sim_app)

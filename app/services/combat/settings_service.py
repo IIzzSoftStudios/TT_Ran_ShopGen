@@ -14,6 +14,7 @@ from app.services.combat.dnd5e_rules import DIAGONAL_MODES
 
 INITIATIVE_TIE_MODES = ("dex_then_random", "stable")
 CRIT_MODES = ("double_dice",)
+CONCENTRATION_CHECK_MODES = ("server_roll", "gm_entered", "server_and_gm")
 
 DEFAULT_SETTINGS = {
     # Grid / movement
@@ -31,6 +32,14 @@ DEFAULT_SETTINGS = {
     # Resource tracking (optional per user requirement)
     "track_action_economy": True,
     "track_spell_slots": False,
+    # Spell scope guardrails (encounter-snapshotted)
+    "direct_numeric_auto_resolution": True,
+    "manual_spell_slot_consumption": True,
+    "concentration_tracking": True,
+    "concentration_auto_replace": True,
+    "concentration_cleanup_tracked_effects": True,
+    "player_concentration_end": False,
+    "concentration_check_mode": "server_and_gm",
     # Crits
     "crit_mode": "double_dice",
 }
@@ -39,6 +48,7 @@ _ENUMS = {
     "diagonal_mode": DIAGONAL_MODES,
     "initiative_tie_mode": INITIATIVE_TIE_MODES,
     "crit_mode": CRIT_MODES,
+    "concentration_check_mode": CONCENTRATION_CHECK_MODES,
 }
 
 

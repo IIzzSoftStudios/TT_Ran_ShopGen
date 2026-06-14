@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from app.models import BattleActionLog, BattleCombatant, BattleEncounter
 from app.services.combat import encounter_service
+from app.services.combat import battle_map_service
 
 
 def _health_state(combatant: BattleCombatant) -> str:
@@ -21,11 +22,38 @@ def _health_state(combatant: BattleCombatant) -> str:
     return "healthy"
 
 
+def _concentration_display(resources: dict | None) -> dict | None:
+    if not isinstance(resources, dict):
+        return None
+    conc = resources.get("concentration")
+    if isinstance(conc, dict) and conc.get("spell_key"):
+        return {
+            "spell_key": conc.get("spell_key"),
+            "spell_name": conc.get("spell_name"),
+            "target_id": conc.get("target_id"),
+            "round_number": conc.get("round_number"),
+        }
+    return None
+
+
+def _derived_conditions(
+    combatant: BattleCombatant,
+    resources: dict | None,
+) -> list[str]:
+    conditions = list(combatant.conditions_json or [])
+    if _concentration_display(resources):
+        badge = "concentrating"
+        if badge not in conditions:
+            conditions = conditions + [badge]
+    return conditions
+
+
 def serialize_combatant(combatant: BattleCombatant, *, for_gm: bool,
                         viewer_player_id=None) -> dict:
     is_own = (
         viewer_player_id is not None and combatant.player_id == viewer_player_id
     )
+    resources = dict(combatant.resources_json or {})
     base = {
         "id": combatant.id,
         "name": combatant.name,
@@ -37,10 +65,13 @@ def serialize_combatant(combatant: BattleCombatant, *, for_gm: bool,
         "initiative": combatant.initiative,
         "initiative_order": combatant.initiative_order,
         "has_waited": combatant.has_waited,
-        "conditions": list(combatant.conditions_json or []),
+        "conditions": _derived_conditions(combatant, resources),
         "player_id": combatant.player_id,
         "health_state": _health_state(combatant),
     }
+    concentration = _concentration_display(resources)
+    if concentration is not None:
+        base["concentration"] = concentration
     if for_gm or is_own or combatant.side == "party":
         base.update(
             {
@@ -49,15 +80,20 @@ def serialize_combatant(combatant: BattleCombatant, *, for_gm: bool,
                 "temp_hp": combatant.temp_hp,
                 "ac": combatant.ac,
                 "movement_used_ft": combatant.movement_used_ft,
-                "resources": dict(combatant.resources_json or {}),
+                "resources": resources,
                 "attacks": list(
                     (combatant.action_data_json or {}).get("attacks") or []
+                ),
+                "spells": list(
+                    (combatant.action_data_json or {}).get("spells") or []
                 ),
                 "legendary_actions": list(
                     (combatant.action_data_json or {}).get("legendary_actions") or []
                 ),
             }
         )
+        if is_own:
+            base["spell_slots"] = dict(combatant.spell_slots_json or {})
     if for_gm:
         base.update(
             {
@@ -97,6 +133,7 @@ def serialize_encounter(encounter: BattleEncounter, *, for_gm: bool,
         "map_y": encounter.map_y,
         "grid_width": encounter.grid_width,
         "grid_height": encounter.grid_height,
+        "map": battle_map_service.map_stub(encounter),
         "round_number": encounter.round_number,
         "turn_index": encounter.turn_index,
         "turn_version": encounter.turn_version,
@@ -134,4 +171,5 @@ def serialize_encounter_summary(encounter: BattleEncounter) -> dict:
         "turn_version": encounter.turn_version,
         "grid_width": encounter.grid_width,
         "grid_height": encounter.grid_height,
+        "map": battle_map_service.map_stub(encounter),
     }

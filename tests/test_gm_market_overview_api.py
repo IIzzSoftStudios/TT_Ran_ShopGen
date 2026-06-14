@@ -8,7 +8,16 @@ from app import app as flask_app
 from tests.session_helpers import seed_client_session
 from app.extensions import db
 import app.models  # noqa: F401
-from app.models import Campaign, GlobalMarket, GMProfile, Item, Shop, ShopInventory, User
+from app.models import (
+    Campaign,
+    CampaignWorldConfig,
+    GlobalMarket,
+    GMProfile,
+    Item,
+    Shop,
+    ShopInventory,
+    User,
+)
 from app.services.user_capabilities import ensure_gm_profile
 
 
@@ -75,6 +84,19 @@ def test_market_overview_returns_json_for_gm_with_campaign():
             baseline_avg_stock=3.0,
         )
     )
+    db.session.add(
+        CampaignWorldConfig(
+            campaign_id=campaign.id,
+            settings_json={
+                "schema_version": 2,
+                "inventory_mode": "axis",
+                "supply_demand_enabled": True,
+                "market_volatility": 10,
+                "ranges": {},
+            },
+            schema_version=2,
+        )
+    )
     db.session.commit()
 
     client = flask_app.test_client()
@@ -86,3 +108,4 @@ def test_market_overview_returns_json_for_gm_with_campaign():
     assert data is not None
     assert len(data["items"]) == 1
     assert data["items"][0]["name"] == "Rope"
+    assert data["market_volatility"] == 10

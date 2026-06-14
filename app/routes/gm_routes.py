@@ -1,14 +1,38 @@
 import traceback
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from sqlalchemy.orm import selectinload, subqueryload
 from sqlalchemy.exc import IntegrityError
 from flask_login import login_required, current_user
 
 from app.extensions import db, limiter
-from app.models import City, Shop, Item, ShopInventory, Region, CampaignWorldConfig
+from app.models import City, Shop, Item, ShopInventory, Region, CampaignWorldConfig, ItemFolder
 from app.services import species_compendium_service
 from app.services.species_compendium_service import SpeciesValidationError
+from app.services.items_catalog_service import (
+    ItemsCatalogError,
+    ensure_srd_items_for_campaign,
+    list_campaign_items,
+)
+from app.services.shop_inventory_service import (
+    ShopInventoryError,
+    bulk_delete_items,
+    bulk_remove_from_shop,
+    bulk_rename_items,
+    bulk_stock_items,
+    items_blocked_from_delete,
+    parse_id_list,
+    upsert_shop_inventory,
+)
+from app.services.item_folder_service import (
+    ItemFolderError,
+    bulk_move_items_to_folder,
+    create_folder,
+    delete_folder,
+    folders_as_tree,
+    list_campaign_folders,
+    rename_folder,
+)
 from app.routes.handlers.gm_helpers import (
     city_for_campaign_or_404,
     city_for_campaign_optional,
@@ -22,7 +46,6 @@ from app.routes.handlers.gm_helpers import (
     purge_shop_dependencies,
 )
 from app.routes.handlers.gm_players_handler import (
-    list_players,
     create_npc,
     view_character,
     update_character,
@@ -50,6 +73,16 @@ from app.routes.handlers.gm_species_handler import (
     save_species_builder as save_species_builder_handler,
     species_builder as species_builder_handler,
     update_species_compendium as update_species_compendium_handler,
+)
+from app.routes.handlers.gm_classes_handler import (
+    create_classes_compendium as create_classes_compendium_handler,
+    get_classes_compendium as get_classes_compendium_handler,
+    update_classes_compendium as update_classes_compendium_handler,
+)
+from app.routes.handlers.gm_spells_handler import (
+    create_spells_compendium as create_spells_compendium_handler,
+    get_spells_compendium as get_spells_compendium_handler,
+    update_spells_compendium as update_spells_compendium_handler,
 )
 from app.routes.handlers.gm_simulation_handler import (
     home as gm_dashboard_home,
@@ -119,10 +152,55 @@ def _active_campaign_or_redirect():
     return require_active_campaign(gm_profile)
 
 
+def _redirect_after_dashboard_action(default_endpoint: str = "gm.home"):
+    anchor = (request.form.get("return_anchor") or "").strip().lstrip("#")
+    dashboard_panes = {
+        "map-pane-content",
+        "market-pane-content",
+        "regions-pane-content",
+        "cities-pane-content",
+        "shops-pane-content",
+        "items-pane-content",
+        "sim-pane-content",
+        "players-npcs-pane-content",
+        "species-pane-content",
+        "classes-pane-content",
+        "spells-pane-content",
+        "battle-pane-content",
+        "monsters-pane-content",
+    }
+    if anchor in dashboard_panes:
+        return redirect(url_for("gm.home", _anchor=anchor))
+    return redirect(request.referrer or url_for(default_endpoint))
+
+
 @gm_bp.route("/")
 @login_required
 def home():
     return gm_dashboard_home()
+
+
+@gm_bp.route("/campaigns/market-volatility", methods=["POST"])
+@login_required
+def update_campaign_market_volatility():
+    """Persist market volatility (0–10) for the active campaign."""
+    from app.services.world_generator.campaign_settings import update_market_volatility
+
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    level = request.form.get("market_volatility", type=int)
+    if level is None:
+        flash("Enter a market volatility value from 0 to 10.", "warning")
+        return _redirect_after_dashboard_action()
+    try:
+        saved, _cfg = update_market_volatility(camp.id, level)
+        db.session.commit()
+        flash(f"Market volatility set to {saved}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error saving market volatility: {e}", "danger")
+    return _redirect_after_dashboard_action()
 
 
 @gm_bp.route("/campaigns/supply-demand/toggle", methods=["POST"])
@@ -148,7 +226,7 @@ def toggle_campaign_supply_demand():
             "Click again to turn supply back on.",
             "warning",
         )
-    return redirect(request.referrer or url_for("gm.home"))
+    return _redirect_after_dashboard_action()
 
 
 @gm_bp.route("/campaigns/debt/toggle", methods=["POST"])
@@ -166,7 +244,7 @@ def toggle_campaign_debt():
         else "Debt Off: players cannot buy items that would go below 0 currency.",
         "success",
     )
-    return redirect(request.referrer or url_for("gm.home"))
+    return _redirect_after_dashboard_action()
 
 
 @gm_bp.route("/seed_world", methods=["POST"])
@@ -205,6 +283,42 @@ def update_species_compendium(key):
     return update_species_compendium_handler(key)
 
 
+@gm_bp.route("/classes/compendium", methods=["GET"])
+@login_required
+def get_classes_compendium():
+    return get_classes_compendium_handler()
+
+
+@gm_bp.route("/classes/compendium", methods=["POST"])
+@login_required
+def create_classes_compendium():
+    return create_classes_compendium_handler()
+
+
+@gm_bp.route("/classes/compendium/<string:key>", methods=["POST"])
+@login_required
+def update_classes_compendium(key):
+    return update_classes_compendium_handler(key)
+
+
+@gm_bp.route("/spells/compendium", methods=["GET"])
+@login_required
+def get_spells_compendium():
+    return get_spells_compendium_handler()
+
+
+@gm_bp.route("/spells/compendium", methods=["POST"])
+@login_required
+def create_spells_compendium():
+    return create_spells_compendium_handler()
+
+
+@gm_bp.route("/spells/compendium/<string:key>", methods=["POST"])
+@login_required
+def update_spells_compendium(key):
+    return update_spells_compendium_handler(key)
+
+
 @gm_bp.route("/character-creation/settings", methods=["GET"])
 @login_required
 @limiter.limit("60 per hour")
@@ -229,14 +343,17 @@ def post_gm_character_creation_settings():
 
 #cities routes
 
+def _dashboard_tab_redirect(tab_id: str):
+    return redirect(url_for("gm.home", _anchor=tab_id))
+
+
 @gm_bp.route("/cities/")
 @login_required
 def view_cities():
-    camp, redir = _active_campaign_or_redirect()
+    _camp, redir = _active_campaign_or_redirect()
     if redir:
         return redir
-    ctx = get_shop_city_panel_context(current_user.gm_profile)
-    return render_template("GM_view_cities.html", **ctx)
+    return _dashboard_tab_redirect("cities-pane-content")
 
 @gm_bp.route("/cities/add", methods=["GET", "POST"])
 @login_required
@@ -678,6 +795,102 @@ def view_shops():
     )
     return render_template("GM_view_shops.html", **ctx)
 
+
+@gm_bp.route("/regions/compendium")
+@login_required
+def regions_compendium_api():
+    """Campaign-scoped region summaries for the GM dashboard compendium."""
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    if not region_table_exists():
+        return jsonify({"regions": [], "total": 0})
+
+    rows = Region.query.filter_by(campaign_id=camp.id).order_by(Region.name).all()
+    city_counts = {
+        region_id: count
+        for region_id, count in db.session.query(City.region_id, db.func.count(City.city_id))
+        .filter(City.campaign_id == camp.id, City.region_id.isnot(None))
+        .group_by(City.region_id)
+        .all()
+    }
+    payload = []
+    for region in rows:
+        flavor = region.local_flavor if isinstance(region.local_flavor, dict) else {}
+        payload.append(
+            {
+                "region_id": region.id,
+                "name": region.name,
+                "axis_position": flavor.get("axis_position"),
+                "city_count": int(city_counts.get(region.id, 0)),
+                "edit_url": url_for("gm.edit_region", region_id=region.id),
+            }
+        )
+    return jsonify({"regions": payload, "total": len(payload)})
+
+
+@gm_bp.route("/cities/compendium")
+@login_required
+def cities_compendium_api():
+    """Campaign-scoped city summaries for the GM dashboard compendium."""
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+
+    query = City.query.filter_by(campaign_id=camp.id).order_by(City.name)
+    if region_table_exists():
+        query = query.options(subqueryload(City.region_obj))
+    rows = query.all()
+    payload = []
+    for city in rows:
+        region_name = None
+        if getattr(city, "region_obj", None) is not None:
+            region_name = city.region_obj.name
+        region_name = region_name or city.region or "Unassigned"
+        payload.append(
+            {
+                "city_id": city.city_id,
+                "name": city.name,
+                "size": city.size,
+                "population": city.population or 0,
+                "region": region_name,
+                "shop_count": len(city.shops or []),
+                "edit_url": url_for("gm.edit_city", city_id=city.city_id),
+            }
+        )
+    return jsonify({"cities": payload, "total": len(payload)})
+
+
+@gm_bp.route("/shops/compendium")
+@login_required
+def shops_compendium_api():
+    """Campaign-scoped shop summaries for the GM dashboard compendium."""
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+
+    rows = (
+        Shop.query.filter_by(campaign_id=camp.id)
+        .options(selectinload(Shop.cities), selectinload(Shop.inventory))
+        .order_by(Shop.name)
+        .all()
+    )
+    payload = []
+    for shop in rows:
+        payload.append(
+            {
+                "shop_id": shop.shop_id,
+                "name": shop.name,
+                "type": shop.type,
+                "cities": [city.name for city in sorted(shop.cities or [], key=lambda c: c.name or "")],
+                "inventory_count": len(shop.inventory or []),
+                "next_restock_day": shop.next_restock_day,
+                "edit_url": url_for("gm.edit_shop", shop_id=shop.shop_id),
+                "items_url": url_for("gm.view_shop_items", shop_id=shop.shop_id),
+            }
+        )
+    return jsonify({"shops": payload, "total": len(payload)})
+
 @gm_bp.route("/shops/add", methods=["GET", "POST"])
 @login_required
 def add_shop():
@@ -837,12 +1050,70 @@ def view_shop_items(shop_id):
         return redir
     shop = shop_for_campaign_or_404(shop_id, camp.id)
     city = shop.cities[0] if shop.cities else None
+    if (getattr(camp, "system_type", None) or "").lower() == "dnd5e":
+        try:
+            ensure_srd_items_for_campaign(camp.id)
+            db.session.commit()
+        except ItemsCatalogError:
+            db.session.rollback()
+        except Exception:
+            db.session.rollback()
     shop_inventory = ShopInventory.query.filter_by(
         shop_id=shop_id, campaign_id=camp.id
     ).all()
     item_ids = [inv.item_id for inv in shop_inventory]
-    items = Item.query.filter(Item.item_id.in_(item_ids)).all()
-    return render_template("GM_view_shop_items.html", items=items, shop=shop, city=city)
+    items = Item.query.filter(Item.item_id.in_(item_ids)).all() if item_ids else []
+    grouped_shops, city_shop_meta = get_grouped_shops(current_user.gm_profile)
+    return render_template(
+        "GM_view_shop_items.html",
+        items=items,
+        shop=shop,
+        city=city,
+        campaign_id=camp.id,
+        grouped_shops=grouped_shops,
+        city_shop_meta=city_shop_meta,
+    )
+
+
+@gm_bp.route("/shops/<int:shop_id>/items/add", methods=["POST"])
+@login_required
+def add_catalog_item_to_shop(shop_id):
+    """Stock an existing campaign catalog row in a shop (no duplicate Item rows)."""
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    shop = shop_for_campaign_or_404(shop_id, camp.id)
+    item_id = request.form.get("item_id", type=int)
+    stock = request.form.get("stock", type=int)
+    dynamic_price = request.form.get("dynamic_price", type=float)
+    if item_id is None:
+        flash("Select a catalog item.", "warning")
+        return redirect(url_for("gm.view_shop_items", shop_id=shop_id))
+    item = Item.query.filter_by(item_id=item_id, campaign_id=camp.id).first()
+    if not item:
+        flash("Item not found in this campaign catalog.", "danger")
+        return redirect(url_for("gm.view_shop_items", shop_id=shop_id))
+    if stock is None:
+        stock = 0
+    if dynamic_price is None:
+        dynamic_price = float(item.base_price or 0)
+    try:
+        upsert_shop_inventory(
+            camp.id,
+            shop_id=shop.shop_id,
+            item_id=item_id,
+            stock=int(stock),
+            dynamic_price=dynamic_price,
+        )
+        db.session.commit()
+        flash(f"Stocked {item.name} in {shop.name}.", "success")
+    except ShopInventoryError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error stocking item: {e}", "danger")
+    return redirect(url_for("gm.view_shop_items", shop_id=shop_id))
 
 @gm_bp.route("/shops/remove_item/<int:shop_id>/<int:item_id>", methods=["POST"])
 @login_required
@@ -874,17 +1145,86 @@ def view_items():
     camp, redir = _active_campaign_or_redirect()
     if redir:
         return redir
-    q = Item.query.filter_by(campaign_id=camp.id).order_by(Item.name).options(
+    if (getattr(camp, "system_type", None) or "").lower() == "dnd5e":
+        try:
+            ensure_srd_items_for_campaign(camp.id)
+            db.session.commit()
+        except ItemsCatalogError:
+            db.session.rollback()
+        except Exception:
+            db.session.rollback()
+    q_text = (request.args.get("q") or "").strip()
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 50, type=int)
+    folder_filter = request.args.get("folder_id", type=int)
+    uncategorized = request.args.get("uncategorized") == "1"
+    query = Item.query.filter_by(campaign_id=camp.id).order_by(Item.name).options(
         selectinload(Item.inventory)
         .selectinload(ShopInventory.shop)
-        .selectinload(Shop.cities)
+        .selectinload(Shop.cities),
+        selectinload(Item.folder),
     )
-    items = q.all()
+    if folder_filter is not None:
+        query = query.filter(Item.folder_id == folder_filter)
+    elif uncategorized:
+        query = query.filter(Item.folder_id.is_(None))
+    if q_text:
+        needle = f"%{q_text.lower()}%"
+        query = query.filter(db.func.lower(Item.name).like(needle))
+    total = query.count()
+    page = max(1, page or 1)
+    limit = max(1, min(100, limit or 50))
+    items = query.offset((page - 1) * limit).limit(limit).all()
     for item in items:
         item.distinct_shop_count = len(
             {inv.shop_id for inv in item.inventory if inv.shop_id is not None}
         )
-    return render_template("GM_view_items.html", items=items)
+    pages = max(1, (total + limit - 1) // limit)
+    folders = list_campaign_folders(camp.id)
+    folder_tree = folders_as_tree(camp.id)
+    grouped_shops, city_shop_meta = get_grouped_shops(current_user.gm_profile)
+    return render_template(
+        "GM_view_items.html",
+        items=items,
+        q=q_text,
+        page=page,
+        pages=pages,
+        total=total,
+        limit=limit,
+        folders=folders,
+        folder_tree=folder_tree,
+        folder_filter=folder_filter,
+        uncategorized=uncategorized,
+        grouped_shops=grouped_shops,
+        city_shop_meta=city_shop_meta,
+    )
+
+
+@gm_bp.route("/items/catalog")
+@login_required
+def items_catalog_api():
+    """Paginated JSON catalog for GM item/shop pickers."""
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    if (getattr(camp, "system_type", None) or "").lower() == "dnd5e":
+        try:
+            ensure_srd_items_for_campaign(camp.id)
+            db.session.commit()
+        except ItemsCatalogError:
+            db.session.rollback()
+        except Exception:
+            db.session.rollback()
+    payload = list_campaign_items(
+        camp.id,
+        q=request.args.get("q") or "",
+        category=request.args.get("category") or "",
+        folder_id=request.args.get("folder_id", type=int),
+        uncategorized_only=request.args.get("uncategorized") == "1",
+        page=request.args.get("page", 1, type=int),
+        limit=request.args.get("limit", 50, type=int),
+    )
+    return jsonify(payload)
 
 @gm_bp.route("/items/add", methods=["GET", "POST"])
 @login_required
@@ -895,6 +1235,57 @@ def add_item():
     campaign_id = camp.id
 
     if request.method == "POST":
+        catalog_item_id = request.form.get("catalog_item_id", type=int)
+        if catalog_item_id:
+            existing = Item.query.filter_by(
+                item_id=catalog_item_id, campaign_id=campaign_id
+            ).first()
+            if not existing:
+                flash("Selected catalog item was not found.", "danger")
+                return redirect(url_for("gm.add_item"))
+            shop_ids = request.form.getlist("shop_ids")
+            stock = request.form.get("stock", type=int)
+            if stock is None:
+                stock = 0
+            dynamic_price = request.form.get("dynamic_price", type=float)
+            if dynamic_price is None:
+                dynamic_price = float(existing.base_price or 0)
+            try:
+                for shop_id in shop_ids:
+                    try:
+                        sid = int(shop_id)
+                        shop = Shop.query.filter_by(
+                            shop_id=sid, campaign_id=campaign_id
+                        ).first()
+                        if not shop:
+                            continue
+                        inv = ShopInventory.query.filter_by(
+                            shop_id=sid,
+                            item_id=existing.item_id,
+                            campaign_id=campaign_id,
+                        ).first()
+                        if inv:
+                            inv.stock = stock
+                            inv.dynamic_price = dynamic_price
+                        else:
+                            db.session.add(
+                                ShopInventory(
+                                    shop_id=sid,
+                                    item_id=existing.item_id,
+                                    campaign_id=campaign_id,
+                                    stock=stock,
+                                    dynamic_price=dynamic_price,
+                                )
+                            )
+                    except ValueError:
+                        continue
+                db.session.commit()
+                flash(f"Catalog item '{existing.name}' linked to selected shops.", "success")
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Error linking catalog item: {e}", "danger")
+            return redirect(url_for("gm.view_items"))
+
         name = request.form.get("name")
         item_type = request.form.get("type")
         rarity = request.form.get("rarity")
@@ -911,6 +1302,15 @@ def add_item():
             dynamic_price = 0
 
         try:
+            import json
+
+            stats_payload = {}
+            raw_props = request.form.get("properties_json")
+            if raw_props:
+                try:
+                    stats_payload = json.loads(raw_props)
+                except json.JSONDecodeError:
+                    stats_payload = {}
             new_item = Item(
                 name=name,
                 type=item_type,
@@ -918,6 +1318,13 @@ def add_item():
                 base_price=base_price,
                 description=description,
                 campaign_id=campaign_id,
+                content_source="gm_custom",
+                stats={
+                    "category": "gm_custom",
+                    "automation": "manual",
+                    "gm_edited": True,
+                    "type_data": stats_payload if isinstance(stats_payload, dict) else {},
+                },
             )
 
             db.session.add(new_item)
@@ -955,10 +1362,21 @@ def add_item():
         return redirect(url_for("gm.view_items"))
 
     grouped_shops, city_shop_meta = get_grouped_shops(current_user.gm_profile)
+    is_dnd5e = (getattr(camp, "system_type", None) or "").lower() == "dnd5e"
+    if is_dnd5e:
+        try:
+            ensure_srd_items_for_campaign(campaign_id)
+            db.session.commit()
+        except ItemsCatalogError:
+            db.session.rollback()
+        except Exception:
+            db.session.rollback()
     return render_template(
         "GM_add_item.html",
         grouped_shops=grouped_shops,
         city_shop_meta=city_shop_meta,
+        is_dnd5e=is_dnd5e,
+        campaign_id=campaign_id,
     )
 
 
@@ -976,6 +1394,11 @@ def edit_item(item_id):
         item.rarity = request.form.get("rarity")
         item.base_price = request.form.get("base_price")
         item.description = request.form.get("description")
+        stats = item.stats if isinstance(item.stats, dict) else {}
+        stats["gm_edited"] = True
+        item.stats = stats
+        if item.content_source != "srd_5_1":
+            item.content_source = "gm_custom"
         
         try:
             db.session.commit()
@@ -1018,6 +1441,10 @@ def delete_item(item_id):
     if redir:
         return redir
     item = item_for_campaign_or_404(item_id, camp.id)
+    blocked = items_blocked_from_delete(camp.id, [item_id])
+    if item_id in blocked:
+        flash(blocked[item_id], "danger")
+        return redirect(url_for("gm.view_items"))
     try:
         db.session.delete(item)
         db.session.commit()
@@ -1025,7 +1452,264 @@ def delete_item(item_id):
     except Exception as e:
         db.session.rollback()
         flash(f"Error deleting item: {e}", "danger")
-    return redirect(url_for("gm.view_items")) 
+    return redirect(url_for("gm.view_items"))
+
+
+@gm_bp.route("/items/bulk/stock", methods=["POST"])
+@login_required
+def bulk_stock_items_route():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    item_ids = parse_id_list(request.form.getlist("item_ids"))
+    shop_ids = parse_id_list(request.form.getlist("shop_ids"))
+    stock = request.form.get("stock", type=int)
+    if stock is None:
+        stock = 1
+    dynamic_price = request.form.get("dynamic_price", type=float)
+    try:
+        result = bulk_stock_items(
+            camp.id,
+            item_ids=item_ids,
+            shop_ids=shop_ids,
+            stock=stock,
+            dynamic_price=dynamic_price,
+        )
+        if result.errors and result.processed == 0:
+            flash("; ".join(result.errors), "danger")
+        else:
+            db.session.commit()
+            msg = f"Stocked {result.processed} shop-item link(s)."
+            if result.skipped:
+                msg += f" Skipped {result.skipped}."
+            flash(msg, "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error stocking items: {e}", "danger")
+    return redirect(request.referrer or url_for("gm.view_items"))
+
+
+@gm_bp.route("/shops/<int:shop_id>/items/bulk-remove", methods=["POST"])
+@login_required
+def bulk_remove_shop_items(shop_id):
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    shop_for_campaign_or_404(shop_id, camp.id)
+    item_ids = parse_id_list(request.form.getlist("item_ids"))
+    try:
+        result = bulk_remove_from_shop(camp.id, shop_id=shop_id, item_ids=item_ids)
+        if result.errors and result.processed == 0:
+            flash("; ".join(result.errors), "danger")
+        else:
+            db.session.commit()
+            flash(f"Removed {result.processed} item(s) from shop.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error removing items: {e}", "danger")
+    return redirect(url_for("gm.view_shop_items", shop_id=shop_id))
+
+
+@gm_bp.route("/items/bulk/delete", methods=["POST"])
+@login_required
+def bulk_delete_items_route():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    item_ids = parse_id_list(request.form.getlist("item_ids"))
+    try:
+        result = bulk_delete_items(camp.id, item_ids)
+        if result.errors and result.processed == 0:
+            flash("; ".join(result.errors[:5]), "danger")
+        else:
+            db.session.commit()
+            msg = f"Deleted {result.processed} item(s)."
+            if result.skipped:
+                msg += f" Skipped {result.skipped} (stocked or player-owned)."
+            flash(msg, "success" if result.processed else "warning")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting items: {e}", "danger")
+    return redirect(request.referrer or url_for("gm.view_items"))
+
+
+@gm_bp.route("/items/bulk/rename", methods=["POST"])
+@login_required
+def bulk_rename_items_route():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    item_ids = parse_id_list(request.form.getlist("item_ids"))
+    try:
+        result = bulk_rename_items(
+            camp.id,
+            item_ids,
+            prefix=request.form.get("prefix") or "",
+            suffix=request.form.get("suffix") or "",
+            find_text=request.form.get("find_text") or "",
+            replace_text=request.form.get("replace_text") or "",
+        )
+        if result.errors and result.processed == 0:
+            flash("; ".join(result.errors), "danger")
+        else:
+            db.session.commit()
+            flash(f"Renamed {result.processed} item(s).", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error renaming items: {e}", "danger")
+    return redirect(request.referrer or url_for("gm.view_items"))
+
+
+@gm_bp.route("/items/folders", methods=["GET"])
+@login_required
+def list_item_folders_api():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    return jsonify({"folders": folders_as_tree(camp.id)})
+
+
+@gm_bp.route("/items/folders/add", methods=["POST"])
+@login_required
+def add_item_folder():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    try:
+        create_folder(
+            camp.id,
+            name=request.form.get("name") or "",
+            parent_id=request.form.get("parent_id", type=int),
+            sort_order=request.form.get("sort_order", type=int) or 0,
+        )
+        db.session.commit()
+        flash("Folder created.", "success")
+    except ItemFolderError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error creating folder: {e}", "danger")
+    return redirect(request.referrer or url_for("gm.view_items"))
+
+
+@gm_bp.route("/items/folders/<int:folder_id>/rename", methods=["POST"])
+@login_required
+def rename_item_folder(folder_id):
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    try:
+        rename_folder(camp.id, folder_id, name=request.form.get("name") or "")
+        db.session.commit()
+        flash("Folder renamed.", "success")
+    except ItemFolderError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error renaming folder: {e}", "danger")
+    return redirect(request.referrer or url_for("gm.view_items"))
+
+
+@gm_bp.route("/items/folders/<int:folder_id>/delete", methods=["POST"])
+@login_required
+def delete_item_folder_route(folder_id):
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    try:
+        delete_folder(camp.id, folder_id)
+        db.session.commit()
+        flash("Folder deleted. Items moved to uncategorized.", "success")
+    except ItemFolderError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting folder: {e}", "danger")
+    return redirect(request.referrer or url_for("gm.view_items"))
+
+
+@gm_bp.route("/items/bulk/move-folder", methods=["POST"])
+@login_required
+def bulk_move_items_folder_route():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    item_ids = parse_id_list(request.form.getlist("item_ids"))
+    raw_folder = request.form.get("folder_id")
+    folder_id = None if raw_folder in (None, "", "none") else int(raw_folder)
+    try:
+        result = bulk_move_items_to_folder(camp.id, item_ids, folder_id)
+        if result.errors and result.processed == 0:
+            flash("; ".join(result.errors), "danger")
+        else:
+            db.session.commit()
+            flash(f"Moved {result.processed} item(s) to folder.", "success")
+    except (ValueError, ItemFolderError) as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error moving items: {e}", "danger")
+    return redirect(request.referrer or url_for("gm.view_items"))
+
+
+@gm_bp.route("/items/templates", methods=["GET"])
+@login_required
+def item_templates_page():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    system = (getattr(camp, "system_type", None) or "").lower()
+    templates = []
+    if system == "dnd5e":
+        from app.services.character_creation.srd_item_manifest import SRD_ITEM_COUNT
+
+        templates.append(
+            {
+                "key": "srd_5_1",
+                "label": "D&D 5e SRD 5.1 (OGL)",
+                "description": f"{SRD_ITEM_COUNT} weapons, armor, gear, and wondrous items.",
+                "available": True,
+            }
+        )
+    return render_template(
+        "GM_item_templates.html",
+        campaign=camp,
+        templates=templates,
+    )
+
+
+@gm_bp.route("/items/templates/import", methods=["POST"])
+@login_required
+def import_item_template():
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    template_key = (request.form.get("template_key") or "").strip()
+    if template_key != "srd_5_1":
+        flash("Unknown or unsupported item template.", "danger")
+        return redirect(url_for("gm.item_templates_page"))
+    if (getattr(camp, "system_type", None) or "").lower() != "dnd5e":
+        flash("SRD 5.1 items are only available for D&D 5e campaigns.", "warning")
+        return redirect(url_for("gm.item_templates_page"))
+    try:
+        counts = ensure_srd_items_for_campaign(camp.id)
+        db.session.commit()
+        flash(
+            f"Imported SRD items: {counts['inserted']} new, "
+            f"{counts['updated']} updated, {counts['skipped']} skipped (GM edits preserved).",
+            "success",
+        )
+    except ItemsCatalogError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error importing template: {e}", "danger")
+    return redirect(url_for("gm.view_items"))
 
 @gm_bp.route("/debug/form", methods=["POST"])
 def gm_debug_form():
@@ -1197,8 +1881,8 @@ def gm_simulation_job_status(job_id: str):
 @gm_bp.route("/players/")
 @login_required
 def gm_view_players():
-    """List players and characters for the current campaign."""
-    return list_players()
+    """Show the dashboard Players & NPCs pane instead of the legacy manager page."""
+    return _dashboard_tab_redirect("players-npcs-pane-content")
 
 
 @gm_bp.route("/npcs/create", methods=["GET", "POST"])

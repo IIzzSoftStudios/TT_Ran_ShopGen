@@ -110,6 +110,7 @@ def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False
         if include_nav_toggles:
             base["campaign"] = None
             base["supply_demand_enabled"] = True
+            base["market_volatility"] = 5
         return base
 
     q = City.query.filter_by(campaign_id=campaign_id).options(
@@ -225,10 +226,14 @@ def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False
         "type_suggestions": type_suggestions,
     }
     if include_nav_toggles:
-        from app.services.world_generator.campaign_settings import read_supply_demand_flag
+        from app.services.world_generator.campaign_settings import (
+            read_market_volatility,
+            read_supply_demand_flag,
+        )
 
         out["campaign"] = Campaign.query.filter_by(id=campaign_id).first()
         out["supply_demand_enabled"] = read_supply_demand_flag(campaign_id)
+        out["market_volatility"] = read_market_volatility(campaign_id)
     return out
 
 

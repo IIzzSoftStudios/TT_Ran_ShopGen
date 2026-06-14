@@ -142,10 +142,16 @@ def calculate_demand(
     rng: Optional[random.Random] = None,
     preloaded_modifiers: Optional[List[DemandModifier]] = None,
     demand_context: Optional[DemandContext] = None,
+    market_volatility: int = 5,
 ):
     """
     Demand strength as a multiplier (~0.5-3+) from DB modifiers, rarity, stock, and RNG.
     """
+    from app.services.economy.volatility import (
+        DEFAULT_MARKET_VOLATILITY,
+        random_demand_fluctuation,
+    )
+
     rng = rng or random
     modifier_base = get_active_modifiers(
         campaign_id,
@@ -157,7 +163,8 @@ def calculate_demand(
     )
     rarity_effect = rarity * 0.2
     stock_effect = max(0.1, (stock_level / 100) * 0.1)
-    random_fluctuation = rng.uniform(0.9, 1.1)
+    vol = market_volatility if market_volatility is not None else DEFAULT_MARKET_VOLATILITY
+    random_fluctuation = random_demand_fluctuation(rng, vol)
 
     demand = modifier_base * (1 + rarity_effect - stock_effect) * random_fluctuation
     return round(demand, 4)

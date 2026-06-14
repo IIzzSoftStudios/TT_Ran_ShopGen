@@ -107,6 +107,51 @@
             margin: 4px 0 0;
         }
 
+        .player-spells-layout {
+            display: grid;
+            gap: 14px;
+        }
+
+        .player-spell-bucket {
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-surface);
+            padding: 14px;
+        }
+
+        .player-spell-bucket h3 {
+            margin: 0 0 10px;
+            color: var(--color-accent);
+        }
+
+        .player-spell-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 10px;
+        }
+
+        .player-spell-card {
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 10px;
+            background: var(--color-bg);
+        }
+
+        .player-spell-card h4 {
+            margin: 0 0 6px;
+        }
+
+        .player-spell-meta {
+            color: var(--color-muted);
+            font-size: 0.9rem;
+            margin: 0 0 6px;
+        }
+
+        .player-spell-empty {
+            color: var(--color-muted);
+            margin: 0;
+        }
+
         .player-map-toolbar {
             display: flex;
             align-items: center;
@@ -598,6 +643,60 @@
             font-weight: 600;
             color: var(--color-accent);
             margin: 4px 0 0 0;
+        }
+
+        .character-class-trigger {
+            font: inherit;
+            font-weight: 600;
+            color: var(--color-accent);
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 4px 0 0 0;
+            cursor: pointer;
+            text-decoration: underline dotted;
+        }
+
+        .character-class-trigger:hover,
+        .character-class-trigger:focus-visible {
+            color: var(--color-accent-hover, var(--color-accent));
+        }
+
+        .class-details-popout {
+            position: absolute;
+            z-index: 30;
+            min-width: 260px;
+            max-width: 360px;
+            padding: 12px 14px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-surface, #fff);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+        }
+
+        .class-details-popout h4 {
+            margin: 0 0 6px 0;
+            font-size: 1rem;
+        }
+
+        .class-details-popout p {
+            margin: 0 0 8px 0;
+            font-size: 0.92rem;
+            line-height: 1.35;
+        }
+
+        .class-details-popout ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .class-details-popout li {
+            margin-bottom: 4px;
+        }
+
+        .class-details-anchor {
+            position: relative;
+            display: inline-block;
         }
 
         .stat-blocks h3 {
@@ -1766,6 +1865,231 @@
         }
 
         // --- Character model & stats ---
+        function escapeHtml(text) {
+            return String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function renderClassDetailsPopout(details) {
+            var popout = document.getElementById('characterClassPopout');
+            var trigger = document.getElementById('characterClassTrigger');
+            if (!popout || !trigger) return;
+            details = details || {};
+            if (!details.available) {
+                popout.innerHTML = '<p>' + escapeHtml(details.hidden_message || 'Class details are not available.') + '</p>';
+                trigger.disabled = !details.name;
+                return;
+            }
+            trigger.disabled = false;
+            var current = details.current_level_row || {};
+            var next = details.next_level_row || null;
+            var html = '<h4>' + escapeHtml(details.name || 'Class') + ' · Level ' + escapeHtml(String(details.level || '')) + '</h4>';
+            if (details.summary) {
+                html += '<p>' + escapeHtml(details.summary) + '</p>';
+            }
+            if (details.hit_die) {
+                html += '<p><strong>Hit die:</strong> d' + escapeHtml(String(details.hit_die)) + '</p>';
+            }
+            if ((current.features || []).length) {
+                html += '<p><strong>Current features</strong></p><ul>';
+                current.features.forEach(function (feature) {
+                    html += '<li><strong>' + escapeHtml(feature.name || 'Feature') + '</strong>';
+                    if (feature.description) {
+                        html += ': ' + escapeHtml(feature.description);
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+            }
+            var spellPairs = Object.keys(current.spell_slots || {});
+            if (spellPairs.length) {
+                html += '<p><strong>Spell slots:</strong> ' + spellPairs.map(function (key) {
+                    return escapeHtml(key) + '=' + escapeHtml(String(current.spell_slots[key]));
+                }).join(', ') + '</p>';
+            }
+            var resourcePairs = Object.keys(current.resources || {});
+            if (resourcePairs.length) {
+                html += '<p><strong>Resources:</strong> ' + resourcePairs.map(function (key) {
+                    return escapeHtml(key) + '=' + escapeHtml(String(current.resources[key]));
+                }).join(', ') + '</p>';
+            }
+            if (current.notes) {
+                html += '<p><em>' + escapeHtml(current.notes) + '</em></p>';
+            }
+            if (next) {
+                html += '<p><strong>Next level preview</strong></p><ul>';
+                (next.features || []).forEach(function (feature) {
+                    html += '<li><strong>' + escapeHtml(feature.name || 'Feature') + '</strong>';
+                    if (feature.description) {
+                        html += ': ' + escapeHtml(feature.description);
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+            }
+            popout.innerHTML = html;
+        }
+
+        function renderSpellDetailsPopout(spellDetails) {
+            var popout = document.getElementById('characterSpellsPopout');
+            var trigger = document.getElementById('characterSpellsTrigger');
+            if (!popout || !trigger) return;
+            spellDetails = spellDetails || {};
+            if (!spellDetails.available) {
+                popout.innerHTML = '<p>Spell compendium is not available for this campaign.</p>';
+                trigger.disabled = true;
+                return;
+            }
+            trigger.disabled = false;
+            var spells = spellDetails.spells || {};
+            var html = '<h4>Prepared &amp; known spells</h4>';
+            ['cantrips', 'prepared', 'known'].forEach(function (bucket) {
+                var rows = spells[bucket] || [];
+                if (!rows.length) return;
+                html += '<p><strong>' + escapeHtml(bucket) + '</strong></p><ul>';
+                rows.forEach(function (spell) {
+                    html += '<li><strong>' + escapeHtml(spell.name || spell.key) + '</strong> (L' +
+                        escapeHtml(String(spell.level)) + ', ' + escapeHtml(spell.school || '') + ')';
+                    if (spell.summary) {
+                        html += ': ' + escapeHtml(spell.summary);
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+            });
+            if (!(spells.cantrips || []).length && !(spells.prepared || []).length && !(spells.known || []).length) {
+                html += '<p>No spells selected on your character sheet yet.</p>';
+            }
+            popout.innerHTML = html;
+        }
+
+        function renderPlayerSpellsPanel(spellDetails) {
+            var panel = document.getElementById('playerSpellsContent');
+            if (!panel) return;
+            spellDetails = spellDetails || {};
+            if (!spellDetails.available) {
+                panel.innerHTML = '<p class="player-spell-empty">Spell compendium is not available for this campaign.</p>';
+                return;
+            }
+            var spells = spellDetails.spells || {};
+            var buckets = [
+                ['cantrips', 'Cantrips'],
+                ['prepared', 'Prepared Spells'],
+                ['known', 'Known Spells']
+            ];
+            var html = '';
+            buckets.forEach(function (pair) {
+                var key = pair[0];
+                var label = pair[1];
+                var rows = spells[key] || [];
+                html += '<section class="player-spell-bucket"><h3>' + escapeHtml(label) + '</h3>';
+                if (!rows.length) {
+                    html += '<p class="player-spell-empty">No ' + escapeHtml(label.toLowerCase()) + ' selected.</p>';
+                } else {
+                    html += '<div class="player-spell-grid">';
+                    rows.forEach(function (spell) {
+                        var classes = (spell.classes || []).join(', ');
+                        html += '<article class="player-spell-card">' +
+                            '<h4>' + escapeHtml(spell.name || spell.key) + '</h4>' +
+                            '<p class="player-spell-meta">Level ' + escapeHtml(String(spell.level)) +
+                            ' · ' + escapeHtml(spell.school || 'Unknown school') +
+                            (spell.ritual ? ' · Ritual' : '') + '</p>';
+                        if (classes) {
+                            html += '<p class="player-spell-meta">Classes: ' + escapeHtml(classes) + '</p>';
+                        }
+                        if (spell.summary) {
+                            html += '<p>' + escapeHtml(spell.summary) + '</p>';
+                        }
+                        html += '</article>';
+                    });
+                    html += '</div>';
+                }
+                html += '</section>';
+            });
+            var availableRows = spellDetails.class_available || [];
+            if (availableRows.length) {
+                html += '<section class="player-spell-bucket"><h3>Available for Your Class</h3>';
+                html += '<div class="player-spell-grid">';
+                availableRows.forEach(function (spell) {
+                    var classes = (spell.classes || []).join(', ');
+                    html += '<article class="player-spell-card">' +
+                        '<h4>' + escapeHtml(spell.name || spell.key) + '</h4>' +
+                        '<p class="player-spell-meta">Level ' + escapeHtml(String(spell.level)) +
+                        ' · ' + escapeHtml(spell.school || 'Unknown school') +
+                        (spell.ritual ? ' · Ritual' : '') + '</p>';
+                    if (classes) {
+                        html += '<p class="player-spell-meta">Classes: ' + escapeHtml(classes) + '</p>';
+                    }
+                    if (spell.summary) {
+                        html += '<p>' + escapeHtml(spell.summary) + '</p>';
+                    }
+                    html += '</article>';
+                });
+                html += '</div></section>';
+            }
+            panel.innerHTML = html;
+        }
+
+        function setupSpellDetailsPopout() {
+            var trigger = document.getElementById('characterSpellsTrigger');
+            var popout = document.getElementById('characterSpellsPopout');
+            if (!trigger || !popout || trigger.dataset.bound === '1') return;
+            trigger.dataset.bound = '1';
+            function openPopout() {
+                popout.hidden = false;
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+            function closePopout() {
+                popout.hidden = true;
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+            trigger.addEventListener('click', function () {
+                if (popout.hidden) openPopout(); else closePopout();
+            });
+            document.addEventListener('click', function (ev) {
+                if (!popout.hidden && !popout.contains(ev.target) && ev.target !== trigger) {
+                    closePopout();
+                }
+            });
+        }
+
+        function setupClassDetailsPopout() {
+            var trigger = document.getElementById('characterClassTrigger');
+            var popout = document.getElementById('characterClassPopout');
+            if (!trigger || !popout || trigger.dataset.bound === '1') return;
+            trigger.dataset.bound = '1';
+            function openPopout() {
+                popout.hidden = false;
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+            function closePopout() {
+                popout.hidden = true;
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+            trigger.addEventListener('click', function () {
+                if (popout.hidden) openPopout();
+                else closePopout();
+            });
+            trigger.addEventListener('mouseenter', openPopout);
+            trigger.addEventListener('focus', openPopout);
+            trigger.addEventListener('mouseleave', function () {
+                setTimeout(function () {
+                    if (!popout.matches(':hover') && document.activeElement !== trigger) {
+                        closePopout();
+                    }
+                }, 120);
+            });
+            popout.addEventListener('mouseleave', closePopout);
+            document.addEventListener('click', function (event) {
+                if (!trigger.contains(event.target) && !popout.contains(event.target)) {
+                    closePopout();
+                }
+            });
+        }
+
         function loadCharacterData() {
             fetch("{{ character_data_url|default(url_for('player.character_data')) }}")
                 .then(response => response.json())
@@ -1940,6 +2264,12 @@
                     if (bodyContainer) {
                         bodyContainer.addEventListener("mouseleave", hideTooltip);
                     }
+
+                    renderClassDetailsPopout(data.class_details || {});
+                    setupClassDetailsPopout();
+                    renderSpellDetailsPopout(data.spell_details || {});
+                    setupSpellDetailsPopout();
+                    renderPlayerSpellsPanel(data.spell_details || {});
                 })
                 .catch(error => {
                     console.error("Error loading character data:", error);
@@ -1994,6 +2324,7 @@
                 <div class="player-panel-tab-group" role="presentation">
                     <span class="player-panel-tab-group-label">Character</span>
                     <button type="button" class="player-panel-tab active" data-target="player-character-panel" id="player-character-tab" role="tab" aria-selected="true">Character Sheet</button>
+                    <button type="button" class="player-panel-tab" data-target="player-spells-panel" id="player-spells-tab" role="tab" aria-selected="false">Spells</button>
                     <button type="button" class="player-panel-tab" data-target="player-inventory-panel" id="player-inventory-tab" role="tab" aria-selected="false">Inventory</button>
                 </div>
                 <div class="player-panel-tab-group" role="presentation">
@@ -2012,7 +2343,18 @@
                 <div class="character-header-row">
                     <div class="character-name-block">
                         <h2>{{ character.name|default('Your Character') }}</h2>
-                        <p class="character-class-level">{% if character.class_name %}{{ character.class_name }}{% endif %}{% if character.class_name and character.level %} · {% endif %}{% if character.level %}Level {{ character.level }}{% endif %}</p>
+                        <div class="class-details-anchor">
+                            <button type="button" class="character-class-trigger" id="characterClassTrigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="characterClassPopout">
+                                {% if character.class_name %}{{ character.class_name }}{% else %}Class not set{% endif %}{% if character.class_name and character.level %} · {% endif %}{% if character.level %}Level {{ character.level }}{% endif %}
+                            </button>
+                            <div id="characterClassPopout" class="class-details-popout" role="dialog" aria-label="Class details" hidden></div>
+                        </div>
+                        <div class="class-details-anchor">
+                            <button type="button" class="character-class-trigger" id="characterSpellsTrigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="characterSpellsPopout">
+                                Spells
+                            </button>
+                            <div id="characterSpellsPopout" class="class-details-popout" role="dialog" aria-label="Spell details" hidden></div>
+                        </div>
                         <p class="character-identity-meta">
                             {% if character.species %}{{ character.species }}{% else %}Species not set{% endif %}
                             {% if character.system_type %} · {{ character.system_type }}{% endif %}
@@ -2039,6 +2381,16 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+            </section>
+
+            <section id="player-spells-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-spells-tab" hidden>
+            <div class="section">
+                <h2>Your Spells</h2>
+                <p class="small-text">Prepared, known, and cantrip spell details are resolved from the campaign Spell Compendium.</p>
+                <div id="playerSpellsContent" class="player-spells-layout">
+                    <p class="player-spell-empty">Loading spells...</p>
                 </div>
             </div>
             </section>
@@ -2212,6 +2564,7 @@
                     <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
                     <div class="battle-layout">
                         <div id="battle-stage" class="battle-stage">
+                            <div id="battle-map-bg" class="battle-map-bg" aria-hidden="true"></div>
                             <div id="battle-grid" class="battle-grid"></div>
                             <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
                                 <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"

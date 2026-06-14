@@ -102,7 +102,32 @@
 
                 <label for="class_name">Class</label>
                 <input type="text" id="class_name" name="class_name" value="{{ character.class_name or '' }}" placeholder="Class or archetype (e.g. Fighter)">
-
+                {% set class_details = character.class_details if character.class_details is defined else none %}
+                {% if class_details and class_details.available %}
+                <div class="class-details-readonly" style="margin: 10px 0 16px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;">
+                    <strong>{{ class_details.name }} · Level {{ class_details.level }}</strong>
+                    {% if class_details.summary %}
+                    <p style="margin: 8px 0;">{{ class_details.summary }}</p>
+                    {% endif %}
+                    {% if class_details.hit_die %}
+                    <p style="margin: 0 0 8px;"><strong>Hit die:</strong> d{{ class_details.hit_die }}</p>
+                    {% endif %}
+                    {% set current_row = class_details.current_level_row or {} %}
+                    {% if current_row.features %}
+                    <p style="margin: 0 0 4px;"><strong>Current features</strong></p>
+                    <ul style="margin: 0 0 8px;">
+                        {% for feature in current_row.features %}
+                        <li><strong>{{ feature.name }}</strong>{% if feature.description %}: {{ feature.description }}{% endif %}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    {% if current_row.notes %}
+                    <p style="margin: 0;"><em>{{ current_row.notes }}</em></p>
+                    {% endif %}
+                </div>
+                {% elif class_details and class_details.hidden_message %}
+                <p style="margin: 8px 0 16px; color: #666;"><em>{{ class_details.hidden_message }}</em></p>
+                {% endif %}
                 <label for="species">Species / Ancestry</label>
                 <input type="text" id="species" name="species" value="{{ character.species or '' }}" placeholder="Species or ancestry (e.g. Human)">
 

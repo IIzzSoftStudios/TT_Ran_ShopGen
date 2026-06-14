@@ -17,6 +17,7 @@ from app.models import (
     MapMarker,
     MapPointOfInterest,
     Player,
+    PlayerCharacterSheet,
     Shop,
     ShopInventory,
     User,
@@ -70,7 +71,8 @@ def test_docs_changelog_section_renders(client):
     assert resp.status_code == 200
     assert b'id="section-changelog"' in resp.data
     assert b"Patch Notes" in resp.data
-    assert b"Alpha 1.0 Map and Encounter Update" in resp.data
+    assert b"Alpha 1.1 Map and Encounter Update" in resp.data
+    assert b"Alpha 1.2 GM Workspace Update" in resp.data
     assert b'id="patch-1-2-4"' in resp.data
     assert b"population and species visibility" in resp.data
     assert b"Species Compendium" in resp.data
@@ -116,10 +118,12 @@ def test_player_home_uses_browse_shops_not_market_route(client):
     assert b"Browse Shops" in resp.data
     assert b"#player-shops-browse" in resp.data
     assert b'id="player-character-tab"' in resp.data
+    assert b'id="player-spells-tab"' in resp.data
     assert b'id="player-inventory-tab"' in resp.data
     assert b'id="player-map-tab"' in resp.data
     assert b'id="player-market-tab"' in resp.data
     assert b'id="player-character-panel"' in resp.data
+    assert b'id="player-spells-panel"' in resp.data
     assert b'id="player-inventory-panel"' in resp.data
     assert b'id="player-map-panel"' in resp.data
     assert b'id="player-market-panel"' in resp.data
@@ -139,6 +143,8 @@ def test_player_home_uses_browse_shops_not_market_route(client):
     assert b'className = "map-poi-popout"' in resp.data
     assert b'className = "map-encounter-popout"' in resp.data
     assert b".map-encounter-popout {" in resp.data
+    assert b'id="playerSpellsContent"' in resp.data
+    assert b"renderPlayerSpellsPanel(data.spell_details || {})" in resp.data
     assert b"showPurchaseToast(data.message || \"Purchase complete.\", \"success\")" in resp.data
     assert b"setTimeout(function () { location.reload(); }, 3000)" in resp.data
     assert b"Add Region" not in resp.data
@@ -146,6 +152,43 @@ def test_player_home_uses_browse_shops_not_market_route(client):
     assert b"Supply On" not in resp.data
     assert b"Debt Off" not in resp.data
     assert b"player.view_market" not in resp.data
+
+
+def test_player_character_data_includes_class_available_spells(client):
+    user, player, campaign = _player_with_campaign()
+    campaign.system_type = "dnd5e"
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=campaign.id,
+            sheet_json={
+                "system_type": "dnd5e",
+                "name": "Spell Tester",
+                "class_name": "Wizard",
+                "level": 1,
+                "creation": {"class_key": "wizard"},
+                "abilities": {"int": 16},
+                "defenses": {"hp_max": 8, "hp_current": 8, "ac": 12},
+                "spells": {},
+            },
+        )
+    )
+    db.session.commit()
+    seed_client_session(
+        client,
+        user,
+        campaign_id=player.campaign_id,
+        player_id=player.id,
+        session_mode="player",
+    )
+
+    resp = client.get("/player/character-data")
+    assert resp.status_code == 200
+    spell_details = resp.get_json()["spell_details"]
+    by_key = {row["key"]: row for row in spell_details["class_available"]}
+    assert spell_details["class_key"] == "wizard"
+    assert "fire_bolt" in by_key
+    assert "magic_missile" in by_key
 
 
 def test_player_home_shows_encounter_tab_for_dnd5e_campaign(client):

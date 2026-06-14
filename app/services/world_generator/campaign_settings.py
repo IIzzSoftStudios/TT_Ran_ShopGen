@@ -11,7 +11,10 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.extensions import db
 from app.models import CampaignWorldConfig
 from app.services.world_generator.defaults import RANGE_SETTINGS, SCHEMA_VERSION
-from app.services.world_generator.settings_resolve import supply_demand_enabled
+from app.services.world_generator.settings_resolve import (
+    market_volatility as resolve_market_volatility,
+    supply_demand_enabled,
+)
 
 
 def _default_ranges() -> Dict[str, Dict[str, int]]:
@@ -26,6 +29,7 @@ def _minimal_settings_json() -> Dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "inventory_mode": "axis",
         "supply_demand_enabled": True,
+        "market_volatility": 5,
         "ranges": _default_ranges(),
     }
 
@@ -58,6 +62,41 @@ def read_supply_demand_flag(campaign_id: int) -> bool:
     if not settings:
         return True
     return supply_demand_enabled(settings)
+
+
+def read_market_volatility(campaign_id: int) -> int:
+    """Effective market volatility (0–10); legacy campaigns default to 5."""
+    cfg = get_world_config(campaign_id)
+    if cfg is None:
+        return 5
+    settings = normalize_settings_json(cfg.settings_json)
+    if not settings:
+        return 5
+    return resolve_market_volatility(settings)
+
+
+def update_market_volatility(campaign_id: int, level: int) -> Tuple[int, CampaignWorldConfig]:
+    """Persist market volatility; create minimal config row if missing."""
+    level = resolve_market_volatility({"market_volatility": level})
+    cfg = get_world_config(campaign_id)
+    if cfg is None:
+        settings = _minimal_settings_json()
+        settings["market_volatility"] = level
+        cfg = CampaignWorldConfig(
+            campaign_id=campaign_id,
+            settings_json=settings,
+            schema_version=SCHEMA_VERSION,
+        )
+        db.session.add(cfg)
+        return level, cfg
+
+    settings = deepcopy(normalize_settings_json(cfg.settings_json))
+    if not settings:
+        settings = _minimal_settings_json()
+    settings["market_volatility"] = level
+    cfg.settings_json = settings
+    flag_modified(cfg, "settings_json")
+    return level, cfg
 
 
 def toggle_supply_demand(campaign_id: int) -> Tuple[bool, CampaignWorldConfig]:

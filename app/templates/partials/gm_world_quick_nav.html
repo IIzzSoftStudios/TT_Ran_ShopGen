@@ -5,8 +5,11 @@
 {% set _show_add_region = show_add_region|default(true) %}
 {% set _show_debt_toggle = show_debt_toggle|default(false) %}
 {% set _show_supply_demand_toggle = show_supply_demand_toggle|default(false) %}
+{% set _show_volatility_control = show_volatility_control|default(false) %}
 {% set _show_market_import = show_market_import|default(false) %}
 {% set _supply_demand_enabled = supply_demand_enabled|default(true) %}
+{% set _market_volatility = market_volatility|default(5) %}
+{% set _return_anchor = return_anchor|default('') %}
 <style>
     .gm-world-quick-nav .nav-buttons {
         display: flex;
@@ -17,6 +20,32 @@
     }
     .gm-world-quick-nav .nav-form {
         margin: 0;
+    }
+    .gm-world-quick-nav .volatility-form {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 5px;
+        background-color: purple;
+        color: white;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .gm-world-quick-nav .volatility-form input {
+        width: 48px;
+        margin: 0;
+        padding: 4px 6px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 4px;
+    }
+    .gm-world-quick-nav .volatility-form button {
+        padding: 4px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        cursor: pointer;
     }
 </style>
 <div class="gm-world-quick-nav">
@@ -37,6 +66,7 @@
         {% if _show_supply_demand_toggle and campaign %}
         <form method="POST" action="{{ url_for('gm.toggle_campaign_supply_demand') }}" class="nav-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if _return_anchor %}<input type="hidden" name="return_anchor" value="{{ _return_anchor }}"/>{% endif %}
             <button type="submit"
                     class="button"
                     title="{% if _supply_demand_enabled %}Each game-day tick simulates sales and periodic shop restocks{% else %}Ticks update prices only; no simulated sales or restock{% endif %}">
@@ -44,9 +74,20 @@
             </button>
         </form>
         {% endif %}
+        {% if _show_volatility_control and campaign %}
+        <form method="POST" action="{{ url_for('gm.update_campaign_market_volatility') }}" class="nav-form volatility-form" title="0 = stable prices, 10 = wild swings each tick">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if _return_anchor %}<input type="hidden" name="return_anchor" value="{{ _return_anchor }}"/>{% endif %}
+            <label>Volatility
+                <input type="number" name="market_volatility" min="0" max="10" value="{{ _market_volatility }}" aria-label="Market volatility from 0 to 10">
+            </label>
+            <button type="submit">Set</button>
+        </form>
+        {% endif %}
         {% if _show_debt_toggle and campaign %}
         <form method="POST" action="{{ url_for('gm.toggle_campaign_debt') }}" class="nav-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if _return_anchor %}<input type="hidden" name="return_anchor" value="{{ _return_anchor }}"/>{% endif %}
             <button type="submit"
                     class="button"
                     title="{% if campaign.allow_player_debt %}Players can go below 0 currency when buying items{% else %}Players cannot buy items that would go below 0 currency{% endif %}">

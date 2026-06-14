@@ -36,6 +36,7 @@
     <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
     <div class="battle-layout">
         <div id="battle-stage" class="battle-stage">
+            <div id="battle-map-bg" class="battle-map-bg" aria-hidden="true"></div>
             <div id="battle-grid" class="battle-grid"></div>
             <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
                 <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"
@@ -50,11 +51,13 @@
             <div id="battle-radial" class="battle-radial" hidden>
                 <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
                 <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
+                <button type="button" class="battle-radial-btn battle-radial-cast-btn" id="battle-radial-cast">Cast</button>
                 <button type="button" class="battle-radial-btn" id="battle-radial-wait">Wait</button>
                 <button type="button" class="battle-radial-btn" id="battle-radial-death-save" hidden>Death save</button>
                 <button type="button" class="battle-radial-btn battle-radial-close-btn" id="battle-radial-close" aria-label="Close">&times;</button>
             </div>
             <div id="battle-attack-popout" class="battle-attack-popout" hidden></div>
+            <div id="battle-cast-popout" class="battle-attack-popout" hidden></div>
         </div>
         <aside class="battle-sidebar">
             <h3>Turn Tracker</h3>

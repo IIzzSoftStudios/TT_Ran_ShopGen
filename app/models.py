@@ -110,10 +110,47 @@ class Shop(db.Model):
     def __repr__(self):
         return f"<Shop {self.name} (Type: {self.type})>"
 
+class ItemFolder(db.Model):
+    """Campaign-scoped folder for organizing catalog items."""
+
+    __tablename__ = "item_folders"
+    __table_args__ = (
+        Index("ix_item_folder_campaign", "campaign_id"),
+    )
+
+    folder_id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name = db.Column(db.String(100), nullable=False)
+    parent_id = db.Column(
+        db.Integer,
+        db.ForeignKey("item_folders.folder_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    parent = db.relationship(
+        "ItemFolder",
+        remote_side="ItemFolder.folder_id",
+        backref=db.backref("children", lazy="dynamic"),
+    )
+    items = db.relationship("Item", back_populates="folder")
+
+    def __repr__(self):
+        return f"<ItemFolder {self.name} (campaign={self.campaign_id})>"
+
+
 class Item(db.Model):
     __tablename__ = "items"
     __table_args__ = (
         Index("ix_item_campaign_axis", "campaign_id", "axis_position"),
+        Index("ix_item_campaign_origin_srd", "campaign_id", "origin_srd_key"),
+        Index("ix_item_campaign_folder", "campaign_id", "folder_id"),
     )
 
     item_id = db.Column(db.Integer, primary_key=True)
@@ -138,7 +175,17 @@ class Item(db.Model):
     stats = db.Column(_json_with_jsonb(), nullable=True)
     # Fused-axis position this item was forged for (0=God Magic .. 10=Post-Apoc Tech).
     axis_position = db.Column(db.Integer, nullable=True, index=True)
+    # Stable SRD seed identity for idempotent compendium seeding.
+    origin_srd_key = db.Column(db.String(80), nullable=True, index=True)
+    content_source = db.Column(db.String(20), nullable=True)
+    folder_id = db.Column(
+        db.Integer,
+        db.ForeignKey("item_folders.folder_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
+    folder = db.relationship("ItemFolder", back_populates="items")
     # Many-to-Many relationship with Shop through ShopInventory
     inventory = db.relationship("ShopInventory", back_populates="item")
     # One-to-Many relationship with RegionalMarket
@@ -1240,6 +1287,12 @@ class BattleEncounter(db.Model):
     visible_to_players = db.Column(db.Boolean, nullable=False, default=False)
     grid_width = db.Column(db.Integer, nullable=False, default=20)
     grid_height = db.Column(db.Integer, nullable=False, default=20)
+    map_source_type = db.Column(db.String(16), nullable=False, default="none")
+    map_asset_key = db.Column(db.String(255), nullable=True)
+    terrain_preset = db.Column(db.String(32), nullable=True)
+    terrain_seed = db.Column(db.Integer, nullable=True)
+    terrain_metadata = db.Column(_json_with_jsonb(), nullable=True)
+    map_version = db.Column(db.Integer, nullable=False, default=0)
     round_number = db.Column(db.Integer, nullable=False, default=0)
     turn_index = db.Column(db.Integer, nullable=False, default=0)
     turn_version = db.Column(db.Integer, nullable=False, default=0)

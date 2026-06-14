@@ -432,6 +432,74 @@
             flex-wrap: wrap;
             justify-content: flex-end;
         }
+        .spell-compendium-search {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1 1 320px;
+            min-width: 240px;
+            color: var(--color-text);
+            font-weight: 700;
+        }
+        .spell-compendium-search input {
+            width: min(100%, 360px);
+            border: 1px solid var(--color-border);
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: var(--color-surface);
+            color: var(--color-text);
+        }
+        .spell-sort-header {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .spell-hierarchy-list {
+            display: grid;
+            gap: 10px;
+        }
+        .spell-table-head {
+            display: grid;
+            grid-template-columns: minmax(220px, 2fr) 80px minmax(120px, 1fr) 120px minmax(180px, 1.2fr) 90px;
+            gap: 8px;
+            align-items: center;
+            border-bottom: 1px solid var(--color-border);
+            padding: 8px;
+            font-weight: 700;
+        }
+        .spell-level-block,
+        .spell-class-block {
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-surface);
+        }
+        .spell-level-block > summary,
+        .spell-class-block > summary {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            cursor: pointer;
+            padding: 10px 12px;
+            font-weight: 700;
+        }
+        .spell-class-block {
+            margin: 8px 12px 12px;
+        }
+        .spell-class-block > summary {
+            font-weight: 600;
+        }
+        .spell-row {
+            display: grid;
+            grid-template-columns: minmax(220px, 2fr) 80px minmax(120px, 1fr) 120px minmax(180px, 1.2fr) 90px;
+            gap: 8px;
+            align-items: center;
+            border-top: 1px solid var(--color-border);
+            padding: 8px;
+        }
         .species-compendium-table-wrapper {
             overflow-x: auto;
         }
@@ -514,6 +582,14 @@
         .metric-down { color: #ef4444; font-weight: bold; }
         .metric-flat { color: var(--color-text-muted, #888); }
         .market-type-muted { font-size: 0.8rem; color: var(--color-text-muted, #888); }
+        .market-meta-chip {
+            display: inline-block;
+            margin: 0 0.35rem 0.35rem 0;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid var(--color-border, #ddd);
+            border-radius: 999px;
+            background: var(--color-table-stripe, #f5f5f5);
+        }
 
         /* GM interactive map */
         .map-toolbar {
@@ -1173,6 +1249,10 @@
                     <span class="gm-panel-tab-group-label">World</span>
                     <button type="button" class="gm-panel-tab active" data-target="map-pane-content" id="map-tab-btn" role="tab" aria-selected="true">Map</button>
                     <button type="button" class="gm-panel-tab" data-target="market-pane-content" id="market-tab-btn" role="tab" aria-selected="false">Market Overview</button>
+                    <button type="button" class="gm-panel-tab" data-target="regions-pane-content" id="regions-tab-btn" role="tab" aria-selected="false">Region Compendium</button>
+                    <button type="button" class="gm-panel-tab" data-target="cities-pane-content" id="cities-tab-btn" role="tab" aria-selected="false">City Compendium</button>
+                    <button type="button" class="gm-panel-tab" data-target="shops-pane-content" id="shops-tab-btn" role="tab" aria-selected="false">Shop Compendium</button>
+                    <button type="button" class="gm-panel-tab" data-target="items-pane-content" id="items-tab-btn" role="tab" aria-selected="false">Item Compendium</button>
                     <button type="button" class="gm-panel-tab" data-target="sim-pane-content" role="tab" aria-selected="false">Simulation</button>
                 </div>
                 <div class="gm-panel-tab-group" role="presentation">
@@ -1180,6 +1260,8 @@
                     <button type="button" class="gm-panel-tab" data-target="players-npcs-pane-content" id="players-npcs-tab-btn" role="tab" aria-selected="false">Players &amp; NPCs</button>
                     {% if combat_enabled %}
                     <button type="button" class="gm-panel-tab" data-target="species-pane-content" id="species-tab-btn" role="tab" aria-selected="false">Species Compendium</button>
+                    <button type="button" class="gm-panel-tab" data-target="classes-pane-content" id="classes-tab-btn" role="tab" aria-selected="false">Classes Compendium</button>
+                    <button type="button" class="gm-panel-tab" data-target="spells-pane-content" id="spells-tab-btn" role="tab" aria-selected="false">Spell Compendium</button>
                     {% endif %}
                 </div>
                 {% if combat_enabled %}
@@ -1253,7 +1335,6 @@
                 </span>
                 <span>
                     <a href="{{ url_for('gm.gm_create_npc') }}" class="button">Add NPC</a>
-                    <a href="{{ url_for('gm.gm_view_players') }}" class="button">Open full manager</a>
                 </span>
             </div>
             {% if combat_enabled and character_creation_settings %}
@@ -1348,6 +1429,15 @@
 
         <div id="market-pane-content" class="tab-panel-content" role="tabpanel" hidden>
             <h2>Market Overview</h2>
+            <div class="market-simulation-controls" aria-label="Market simulation controls">
+                <div class="sim-row">
+                    <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('day', this)">Run day</button>
+                    <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('week', this)">Run week</button>
+                    <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('month', this)">Run month</button>
+                    <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('year', this)">Run year</button>
+                    <button type="button" class="sim-action-btn sim-pause-btn" onclick="pauseSimulation()">Pause</button>
+                </div>
+            </div>
             <div class="market-meta-summary" id="market-meta-summary" hidden></div>
             <div class="market-table-wrapper">
                 <table class="market-overview-table">
@@ -1362,7 +1452,7 @@
                 </table>
             </div>
             <div class="gm-world-quick-nav--dashboard">
-                {% with show_back_to_dashboard=false, show_add_city=true, show_market_import=true, show_supply_demand_toggle=true, show_debt_toggle=true, supply_demand_enabled=supply_demand_enabled %}
+                {% with show_back_to_dashboard=false, show_add_city=true, show_market_import=true, show_supply_demand_toggle=true, show_volatility_control=true, show_debt_toggle=true, supply_demand_enabled=supply_demand_enabled, market_volatility=market_volatility, return_anchor='market-pane-content' %}
                 {% include 'partials/gm_world_quick_nav.html' %}
                 {% endwith %}
                 <div id="market-import-popout" class="import-type-popout" hidden>
@@ -1388,6 +1478,147 @@
             </div>
 
             {% include 'partials/gm_shops_city_list_panel.html' %}
+        </div>
+
+        <div id="regions-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-compendium">
+                <h2>Region Compendium</h2>
+                <p class="battle-compendium-hint">
+                    Campaign regions, their magic-tech axis position, and how many cities are assigned to each.
+                </p>
+                <div class="species-compendium-tools">
+                    <span id="regions-compendium-status" role="status" aria-live="polite"></span>
+                    <label class="spell-compendium-search">Search
+                        <input type="search" id="regions-search-input" placeholder="Name, axis, city count...">
+                    </label>
+                    <span class="species-compendium-actions">
+                        <a href="{{ url_for('gm.add_region') }}" class="button">Add Region</a>
+                        <button type="button" class="button" id="regions-refresh-btn">Refresh regions</button>
+                    </span>
+                </div>
+                <p class="battle-compendium-hint" id="regions-compendium-count"></p>
+                <div class="species-compendium-table-wrapper">
+                    <table class="species-compendium-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Axis</th>
+                                <th>Cities</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="regions-compendium-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="cities-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-compendium">
+                <h2>City Compendium</h2>
+                <p class="battle-compendium-hint">
+                    Campaign cities grouped by region, with size, population, and shop coverage.
+                </p>
+                <div class="species-compendium-tools">
+                    <span id="cities-compendium-status" role="status" aria-live="polite"></span>
+                    <label class="spell-compendium-search">Search
+                        <input type="search" id="cities-search-input" placeholder="Name, region, size...">
+                    </label>
+                    <span class="species-compendium-actions">
+                        <a href="{{ url_for('gm.add_city') }}" class="button">Add City</a>
+                        <button type="button" class="button" id="cities-refresh-btn">Refresh cities</button>
+                    </span>
+                </div>
+                <p class="battle-compendium-hint" id="cities-compendium-count"></p>
+                <div class="species-compendium-table-wrapper">
+                    <table class="species-compendium-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Region</th>
+                                <th>Size</th>
+                                <th>Population</th>
+                                <th>Shops</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cities-compendium-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="shops-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-compendium">
+                <h2>Shop Compendium</h2>
+                <p class="battle-compendium-hint">
+                    Campaign shops, city links, inventory coverage, and next restock timing.
+                </p>
+                <div class="species-compendium-tools">
+                    <span id="shops-compendium-status" role="status" aria-live="polite"></span>
+                    <label class="spell-compendium-search">Search
+                        <input type="search" id="shops-search-input" placeholder="Name, type, city...">
+                    </label>
+                    <span class="species-compendium-actions">
+                        <a href="{{ url_for('gm.add_shop') }}" class="button">Add Shop</a>
+                        <a href="{{ url_for('gm.view_shops') }}" class="button">Open shop list</a>
+                        <button type="button" class="button" id="shops-refresh-btn">Refresh shops</button>
+                    </span>
+                </div>
+                <p class="battle-compendium-hint" id="shops-compendium-count"></p>
+                <div class="species-compendium-table-wrapper">
+                    <table class="species-compendium-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Cities</th>
+                                <th>Items</th>
+                                <th>Restock</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="shops-compendium-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="items-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-compendium">
+                <h2>Item Compendium</h2>
+                <p class="battle-compendium-hint">
+                    Campaign item catalog rows, including seeded SRD 5.1 equipment and magic-item mechanical shells.
+                    Stock shops from the catalog without creating duplicate item rows.
+                </p>
+                <div class="species-compendium-tools">
+                    <span id="items-compendium-status" role="status" aria-live="polite"></span>
+                    <label class="spell-compendium-search">Search
+                        <input type="search" id="items-search-input" placeholder="Name, type, rarity, category...">
+                    </label>
+                    <span class="species-compendium-actions">
+                        <a href="{{ url_for('gm.add_item') }}" class="button">Add / Stock Item</a>
+                        <a href="{{ url_for('gm.view_items') }}" class="button">Open full catalog</a>
+                        <button type="button" class="button" id="items-refresh-btn">Refresh items</button>
+                    </span>
+                </div>
+                <p class="battle-compendium-hint" id="items-compendium-count"></p>
+                <div class="species-compendium-table-wrapper">
+                    <table class="species-compendium-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Rarity</th>
+                                <th>Category</th>
+                                <th>Base Price</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-compendium-body"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         {% if combat_enabled %}
@@ -1567,6 +1798,205 @@
                 </form>
             </div>
         </div>
+        <div id="classes-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-compendium">
+                <h2>Classes Compendium</h2>
+                <p class="battle-compendium-hint">
+                    Campaign classes include editable D&amp;D 5e shells and custom classes with level 1–20 progression rows.
+                    Add your own feature wording; no book text is bundled here.
+                </p>
+                <div class="species-compendium-tools">
+                    <span id="classes-compendium-status" role="status" aria-live="polite"></span>
+                    <span class="species-compendium-actions">
+                        <button type="button" class="button" id="classes-add-btn">Add class</button>
+                        <button type="button" class="button" id="classes-refresh-btn">Refresh classes</button>
+                    </span>
+                </div>
+                <div class="species-compendium-table-wrapper">
+                    <table class="species-compendium-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Source</th>
+                                <th>Hit die</th>
+                                <th>Visibility</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="classes-compendium-body"></tbody>
+                    </table>
+                </div>
+                <form id="classes-editor" class="species-editor" hidden>
+                    <input type="hidden" id="classes-edit-key">
+                    <h3 id="classes-editor-title">Edit class</h3>
+                    <div class="species-editor-grid">
+                        <label>Name <input type="text" id="classes-edit-name" maxlength="60" required></label>
+                        <label>Hit die
+                            <select id="classes-edit-hit-die">
+                                <option value="4">d4</option>
+                                <option value="6">d6</option>
+                                <option value="8" selected>d8</option>
+                                <option value="10">d10</option>
+                                <option value="12">d12</option>
+                            </select>
+                        </label>
+                        <label>Skill choice count <input type="number" id="classes-edit-skill-count" min="0" max="4" value="2"></label>
+                    </div>
+                    <label>Summary
+                        <textarea id="classes-edit-summary" placeholder="Short class overview for players and the creation wizard."></textarea>
+                    </label>
+                    <label>Save proficiencies (comma-separated: str, dex, con, int, wis, cha)
+                        <input type="text" id="classes-edit-saves" placeholder="str, con">
+                    </label>
+                    <label>Skill options (comma-separated skill keys, or type any)
+                        <input type="text" id="classes-edit-skills" placeholder="athletics, intimidation or any">
+                    </label>
+                    <fieldset class="species-editor-grid">
+                        <legend>Visibility</legend>
+                        <label><input type="checkbox" id="classes-edit-hidden"> Hidden from player lookup</label>
+                        <label><input type="checkbox" id="classes-edit-secret"> Secret (GM-only concept)</label>
+                        <label><input type="checkbox" id="classes-edit-visible-owner" checked> Visible to owning player when hidden</label>
+                    </fieldset>
+                    <label>Progression level
+                        <select id="classes-edit-level-select"></select>
+                    </label>
+                    <label>Level features (one per line; optional Name: description)
+                        <textarea id="classes-edit-level-features" placeholder="Second Wind: Recover hit points as a bonus action."></textarea>
+                    </label>
+                    <label>Spell slots (optional, e.g. 1=2, 2=0)
+                        <input type="text" id="classes-edit-level-spell-slots" placeholder="1=2">
+                    </label>
+                    <label>Resources (optional, e.g. rage=2)
+                        <input type="text" id="classes-edit-level-resources" placeholder="rage=2">
+                    </label>
+                    <label>Level notes
+                        <textarea id="classes-edit-level-notes" placeholder="GM guidance for this level."></textarea>
+                    </label>
+                    <label>GM notes
+                        <textarea id="classes-edit-notes" placeholder="Campaign guidance for this class."></textarea>
+                    </label>
+                    <div class="species-editor-actions">
+                        <button type="button" class="button" id="classes-edit-cancel">Cancel</button>
+                        <button type="submit" class="button">Save class</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="spells-pane-content" class="tab-panel-content" role="tabpanel" hidden>
+            <div class="battle-compendium">
+                <h2>Spell Compendium</h2>
+                <p class="battle-compendium-hint">
+                    Campaign spell catalog with SRD 5.1 mechanical shells. Players request additions via Prompted Feedback; only GM-approved entries become usable.
+                </p>
+                <div class="species-compendium-tools">
+                    <span id="spells-compendium-status" role="status" aria-live="polite"></span>
+                    <label class="spell-compendium-search">Search
+                        <input type="search" id="spells-search-input" placeholder="Name, level, school, class, damage...">
+                    </label>
+                    <span class="species-compendium-actions">
+                        <button type="button" class="button" id="spells-add-btn">Add spell</button>
+                        <button type="button" class="button" id="spells-refresh-btn">Refresh spells</button>
+                        <button type="button" class="button" id="spells-request-btn">Request / import</button>
+                    </span>
+                </div>
+                <p class="battle-compendium-hint" id="spells-compendium-count"></p>
+                <div id="spells-import-popout" class="species-import-popout" hidden>
+                    <p><strong>Request a spell import</strong></p>
+                    <label>Spell or source
+                        <select data-import-type-select>
+                            <option value="custom">Custom homebrew spell</option>
+                            <option value="other">Other (describe below)</option>
+                        </select>
+                    </label>
+                    <label class="import-type-other-label" hidden>Description
+                        <input type="text" class="import-type-other-input" hidden>
+                    </label>
+                    <div class="species-import-actions">
+                        <button type="button" class="button" data-import-submit
+                                data-import-title="Spell compendium import request"
+                                data-import-description="Please review this spell for the campaign compendium."
+                                data-import-prompted-key="spell_request">Submit request</button>
+                        <button type="button" class="button" data-import-close>Close</button>
+                    </div>
+                    <span data-import-status role="status"></span>
+                </div>
+                <div class="species-compendium-table-wrapper">
+                    <div class="spell-table-head" role="row">
+                        <button type="button" class="spell-sort-header" data-spell-sort="name">Name</button>
+                        <button type="button" class="spell-sort-header" data-spell-sort="level">Level</button>
+                        <button type="button" class="spell-sort-header" data-spell-sort="school">School</button>
+                        <button type="button" class="spell-sort-header" data-spell-sort="ritual">Ritual Casting</button>
+                        <button type="button" class="spell-sort-header" data-spell-sort="classes">Classes</button>
+                        <span></span>
+                    </div>
+                    <div id="spells-compendium-body" class="spell-hierarchy-list"></div>
+                </div>
+                <form id="spells-editor" class="species-editor" hidden>
+                    <input type="hidden" id="spells-edit-key">
+                    <h3 id="spells-editor-title">Edit spell</h3>
+                    <div class="species-editor-grid">
+                        <label>Name <input type="text" id="spells-edit-name" maxlength="80" required></label>
+                        <label>Level <input type="number" id="spells-edit-level" min="0" max="9" value="0"></label>
+                        <label>School
+                            <select id="spells-edit-school">
+                                <option value="abjuration">Abjuration</option>
+                                <option value="conjuration">Conjuration</option>
+                                <option value="divination">Divination</option>
+                                <option value="enchantment">Enchantment</option>
+                                <option value="evocation" selected>Evocation</option>
+                                <option value="illusion">Illusion</option>
+                                <option value="necromancy">Necromancy</option>
+                                <option value="transmutation">Transmutation</option>
+                            </select>
+                        </label>
+                        <label>Automation
+                            <select id="spells-edit-automation">
+                                <option value="manual">Manual</option>
+                                <option value="auto">Auto</option>
+                            </select>
+                        </label>
+                    </div>
+                    <label>Summary
+                        <textarea id="spells-edit-summary" placeholder="Short rules summary for players."></textarea>
+                    </label>
+                    <div class="species-editor-grid">
+                        <label>Casting time <input type="text" id="spells-edit-casting-time" value="1 action"></label>
+                        <label>Range text <input type="text" id="spells-edit-range-text" value="60 feet"></label>
+                        <label>Range (ft) <input type="number" id="spells-edit-range-ft" min="0" max="1000" value="60"></label>
+                        <label>Components <input type="text" id="spells-edit-components" value="V, S"></label>
+                    </div>
+                    <label>Duration <input type="text" id="spells-edit-duration" value="Instantaneous"></label>
+                    <div class="species-editor-grid">
+                        <label>Attack type
+                            <select id="spells-edit-attack-type">
+                                <option value="">None</option>
+                                <option value="spell_attack">Spell attack</option>
+                                <option value="save">Saving throw</option>
+                            </select>
+                        </label>
+                        <label>Save ability <input type="text" id="spells-edit-save-ability" placeholder="dex"></label>
+                        <label>Damage <input type="text" id="spells-edit-damage" placeholder="1d10"></label>
+                        <label>Damage type <input type="text" id="spells-edit-damage-type" placeholder="fire"></label>
+                        <label>Healing <input type="text" id="spells-edit-healing" placeholder="1d8"></label>
+                    </div>
+                    <fieldset class="species-editor-grid">
+                        <legend>Flags</legend>
+                        <label><input type="checkbox" id="spells-edit-concentration"> Concentration</label>
+                        <label><input type="checkbox" id="spells-edit-ritual"> Ritual</label>
+                        <label><input type="checkbox" id="spells-edit-hidden"> Hidden from player lookup</label>
+                        <label><input type="checkbox" id="spells-edit-secret"> Secret (GM-only)</label>
+                        <label><input type="checkbox" id="spells-edit-visible-owner" checked> Visible to owning player when hidden</label>
+                    </fieldset>
+                    <label>GM notes
+                        <textarea id="spells-edit-notes" placeholder="Campaign guidance for this spell."></textarea>
+                    </label>
+                    <div class="species-editor-actions">
+                        <button type="button" class="button" id="spells-edit-cancel">Cancel</button>
+                        <button type="submit" class="button">Save spell</button>
+                    </div>
+                </form>
+            </div>
+        </div>
         {% endif %}
 
         <div id="map-pane-content" class="tab-panel-content active" role="tabpanel">
@@ -1646,6 +2076,7 @@
                     <span class="battle-encounter-menu-actions">
                         <button type="button" class="button" id="battle-rename-btn">Rename</button>
                         <button type="button" class="button" id="battle-create-btn">New encounter</button>
+                        <button type="button" class="button" id="battle-setup-edit-btn">Map setup</button>
                         <button type="button" class="button" id="battle-place-map-btn">Place on map</button>
                         <button type="button" class="button" id="battle-initiative-btn">Roll initiative</button>
                         <button type="button" class="button" id="battle-end-turn-btn">End turn</button>
@@ -1688,8 +2119,63 @@
                 </div>
             </div>
 
+            <div id="battle-setup-popout" class="battle-setup-popout" hidden>
+                <form id="battle-setup-form">
+                    <h3 id="battle-setup-title">Encounter setup</h3>
+                    <p id="battle-setup-locked-note" class="battle-setup-locked-note" hidden>
+                        Map and grid size can only be changed during setup. Create a new encounter
+                        to change them after initiative is rolled.
+                    </p>
+                    <label for="battle-setup-name">Name
+                        <input type="text" id="battle-setup-name" maxlength="120" required>
+                    </label>
+                    <div class="battle-setup-grid-row">
+                        <label for="battle-setup-width">Width (min 5; drag or use edge bars)
+                            <input type="number" id="battle-setup-width" min="5" max="1000" value="20">
+                        </label>
+                        <label for="battle-setup-height">Height (min 5; drag or use edge bars)
+                            <input type="number" id="battle-setup-height" min="5" max="1000" value="20">
+                        </label>
+                    </div>
+                    <label for="battle-setup-source">Map source
+                        <select id="battle-setup-source">
+                            <option value="generated">Generated terrain</option>
+                            <option value="uploaded">Upload image</option>
+                        </select>
+                    </label>
+                    <label for="battle-setup-preset">Terrain preset
+                        <select id="battle-setup-preset">
+                            <option value="plains">Plains</option>
+                            <option value="forest">Forest</option>
+                            <option value="mountains">Mountains</option>
+                            <option value="river">River</option>
+                            <option value="village">Village</option>
+                            <option value="road">Road</option>
+                            <option value="encampment">Encampment</option>
+                            <option value="small_fort">Small fort</option>
+                        </select>
+                    </label>
+                    <div id="battle-setup-generated-actions" class="battle-setup-actions-row">
+                        <button type="button" class="button" id="battle-setup-regenerate-btn">Regenerate map</button>
+                    </div>
+                    <div id="battle-setup-upload-row" class="battle-setup-upload-row" hidden>
+                        <label class="button battle-setup-upload-label">
+                            Choose map image
+                            <input type="file" id="battle-setup-upload-input"
+                                   accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                        </label>
+                        <span class="battle-setup-upload-note">Max 4 MB. PNG, JPEG, WebP, or GIF.</span>
+                    </div>
+                    <div class="battle-setup-form-actions">
+                        <button type="button" class="button" id="battle-setup-cancel">Cancel</button>
+                        <button type="submit" class="button" id="battle-setup-submit">Create encounter</button>
+                    </div>
+                </form>
+            </div>
+
             <div class="battle-layout">
                 <div id="battle-stage" class="battle-stage">
+                    <div id="battle-map-bg" class="battle-map-bg" aria-hidden="true"></div>
                     <div id="battle-grid" class="battle-grid"></div>
                     <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
                         <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"
@@ -1704,11 +2190,13 @@
                     <div id="battle-radial" class="battle-radial" hidden>
                         <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
                         <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
+                        <button type="button" class="battle-radial-btn battle-radial-cast-btn" id="battle-radial-cast">Cast</button>
                         <button type="button" class="battle-radial-btn" id="battle-radial-wait">Wait</button>
                         <button type="button" class="battle-radial-btn" id="battle-radial-death-save" hidden>Death save</button>
                         <button type="button" class="battle-radial-btn battle-radial-close-btn" id="battle-radial-close" aria-label="Close">&times;</button>
                     </div>
                     <div id="battle-attack-popout" class="battle-attack-popout" hidden></div>
+                    <div id="battle-cast-popout" class="battle-attack-popout" hidden></div>
                 </div>
                 <aside class="battle-sidebar">
                     <div class="battle-sidebar-heading">
@@ -1785,6 +2273,16 @@
             speciesCompendium: "{{ url_for('gm.get_species_compendium') }}",
             speciesCreate: "{{ url_for('gm.create_species_compendium') }}",
             speciesUpdateBase: "/gm/species/compendium/",
+            classesCompendium: "{{ url_for('gm.get_classes_compendium') }}",
+            classesCreate: "{{ url_for('gm.create_classes_compendium') }}",
+            classesUpdateBase: "/gm/classes/compendium/",
+            spellsCompendium: "{{ url_for('gm.get_spells_compendium') }}",
+            spellsCreate: "{{ url_for('gm.create_spells_compendium') }}",
+            spellsUpdateBase: "/gm/spells/compendium/",
+            itemCatalog: "{{ url_for('gm.items_catalog_api') }}",
+            regionsCompendium: "{{ url_for('gm.regions_compendium_api') }}",
+            citiesCompendium: "{{ url_for('gm.cities_compendium_api') }}",
+            shopsCompendium: "{{ url_for('gm.shops_compendium_api') }}",
             shopItems: "{{ url_for('gm.view_shop_items', shop_id=999999999) }}"
         };
 
@@ -1811,22 +2309,41 @@
             var tbody = document.getElementById('market-table-body');
             if (!summaryDiv || !tbody) return;
 
-            summaryDiv.innerHTML = '';
-            summaryDiv.hidden = true;
+            var meta = [];
+            if (data.current_game_day != null) {
+                meta.push('Day ' + data.current_game_day);
+            }
+            if (data.market_volatility != null) {
+                meta.push('Volatility ' + data.market_volatility + '/10');
+            }
+            if (data.last_run && data.last_run.period) {
+                meta.push('Last run: ' + data.last_run.period);
+            }
+            meta.push('Volatility applies on the next simulation tick to stocked shop inventory.');
+            summaryDiv.innerHTML = meta.map(function (text) {
+                return '<span class="market-meta-chip">' + escapeHtml(text) + '</span>';
+            }).join('');
+            summaryDiv.hidden = false;
 
             tbody.innerHTML = '';
             if (!data.items || data.items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center">No in-stock items in this campaign.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center">No in-stock items in this campaign. Stock items in at least one shop, then run a day/week/month/year to see volatility affect market prices.</td></tr>';
                 return;
             }
 
             data.items.forEach(function (item) {
                 var tr = document.createElement('tr');
+                var priceDelta = item.last_run_price_delta == null
+                    ? ''
+                    : '<br><span class="market-type-muted">Last run Δ ' + Number(item.last_run_price_delta).toFixed(2) + '</span>';
+                var stockDelta = item.last_run_stock_delta == null
+                    ? ''
+                    : '<br><span class="market-type-muted">Last run Δ ' + Number(item.last_run_stock_delta).toFixed(2) + '</span>';
                 tr.innerHTML =
                     '<td><strong>' + escapeHtml(item.name) + '</strong><br>' +
                     '<span class="market-type-muted">' + escapeHtml(item.type || '') + '</span></td>' +
-                    '<td>' + Number(item.current_avg_price).toFixed(2) + ' ' + getTrendIcon(item.price_vs_base) + '</td>' +
-                    '<td>' + Number(item.current_avg_stock).toFixed(1) + ' ' + getTrendIcon(item.stock_vs_base) + '</td>';
+                    '<td>' + Number(item.current_avg_price).toFixed(2) + ' ' + getTrendIcon(item.price_vs_base) + priceDelta + '</td>' +
+                    '<td>' + Number(item.current_avg_stock).toFixed(1) + ' ' + getTrendIcon(item.stock_vs_base) + stockDelta + '</td>';
                 tbody.appendChild(tr);
             });
         }
@@ -2039,6 +2556,803 @@
             window.gmSpecies = { ensureLoaded: function () { return loadSpeciesCompendium(false); } };
         }
 
+        var classesState = { loaded: false, entries: [], draftProgression: [] };
+
+        function classesStatus(message, isError) {
+            var el = document.getElementById('classes-compendium-status');
+            if (!el) return;
+            el.textContent = message || '';
+            el.style.color = isError ? '#c00' : '';
+        }
+
+        function classVisibilityLabel(entry) {
+            if (entry.secret) return 'Secret';
+            if (entry.is_hidden) return 'Hidden';
+            return 'Visible';
+        }
+
+        function defaultProgressionRows() {
+            return Array.from({ length: 20 }, function (_, index) {
+                var level = index + 1;
+                return {
+                    level: level,
+                    proficiency_bonus: 2 + Math.floor((level - 1) / 4),
+                    features: [],
+                    spell_slots: {},
+                    resources: {},
+                    notes: ''
+                };
+            });
+        }
+
+        function featuresToText(features) {
+            return (features || []).map(function (feature) {
+                return (feature.name || 'Feature') + (feature.description ? ': ' + feature.description : '');
+            }).join('\n');
+        }
+
+        function featuresFromText(text) {
+            return String(text || '').split(/\r?\n/).map(function (line, index) {
+                var trimmed = line.trim();
+                if (!trimmed) return null;
+                var sep = trimmed.indexOf(':');
+                if (sep > 0) {
+                    return {
+                        name: trimmed.slice(0, sep).trim().slice(0, 80),
+                        description: trimmed.slice(sep + 1).trim().slice(0, 500)
+                    };
+                }
+                return { name: 'Feature ' + (index + 1), description: trimmed.slice(0, 500) };
+            }).filter(Boolean);
+        }
+
+        function mapFromPairs(text) {
+            var out = {};
+            String(text || '').split(',').forEach(function (chunk) {
+                var part = chunk.trim();
+                if (!part) return;
+                var eq = part.indexOf('=');
+                if (eq <= 0) return;
+                out[part.slice(0, eq).trim()] = Number(part.slice(eq + 1).trim());
+            });
+            return out;
+        }
+
+        function mapToPairs(obj) {
+            return Object.keys(obj || {}).map(function (key) {
+                return key + '=' + obj[key];
+            }).join(', ');
+        }
+
+        function ensureLevelSelectOptions() {
+            var select = document.getElementById('classes-edit-level-select');
+            if (!select || select.options.length) return;
+            for (var level = 1; level <= 20; level += 1) {
+                var opt = document.createElement('option');
+                opt.value = String(level);
+                opt.textContent = 'Level ' + level;
+                select.appendChild(opt);
+            }
+        }
+
+        function loadLevelEditorFromDraft() {
+            var select = document.getElementById('classes-edit-level-select');
+            if (!select || !classesState.draftProgression.length) return;
+            var level = Number(select.value || 1);
+            var row = classesState.draftProgression.find(function (item) {
+                return Number(item.level) === level;
+            }) || classesState.draftProgression[level - 1];
+            document.getElementById('classes-edit-level-features').value = featuresToText(row.features);
+            document.getElementById('classes-edit-level-spell-slots').value = mapToPairs(row.spell_slots);
+            document.getElementById('classes-edit-level-resources').value = mapToPairs(row.resources);
+            document.getElementById('classes-edit-level-notes').value = row.notes || '';
+        }
+
+        function saveLevelEditorToDraft() {
+            var select = document.getElementById('classes-edit-level-select');
+            if (!select || !classesState.draftProgression.length) return;
+            var level = Number(select.value || 1);
+            var row = classesState.draftProgression.find(function (item) {
+                return Number(item.level) === level;
+            });
+            if (!row) return;
+            row.features = featuresFromText(document.getElementById('classes-edit-level-features').value);
+            row.spell_slots = mapFromPairs(document.getElementById('classes-edit-level-spell-slots').value);
+            row.resources = mapFromPairs(document.getElementById('classes-edit-level-resources').value);
+            row.notes = document.getElementById('classes-edit-level-notes').value || '';
+        }
+
+        function renderClassesCompendium() {
+            var tbody = document.getElementById('classes-compendium-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (!classesState.entries.length) {
+                tbody.innerHTML = '<tr><td colspan="5">No classes configured yet.</td></tr>';
+                return;
+            }
+            classesState.entries.forEach(function (entry) {
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
+                    '<td>' + escapeHtml(entry.source || 'base') + '</td>' +
+                    '<td>d' + escapeHtml(String(entry.hit_die || 8)) + '</td>' +
+                    '<td>' + escapeHtml(classVisibilityLabel(entry)) + '</td>' +
+                    '<td><button type="button" class="button" data-class-edit="' + escapeHtml(entry.key) + '">Edit</button></td>';
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('[data-class-edit]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var key = btn.getAttribute('data-class-edit');
+                    var entry = classesState.entries.find(function (row) { return row.key === key; });
+                    if (entry) openClassEditor(entry);
+                });
+            });
+        }
+
+        async function loadClassesCompendium(force) {
+            if (classesState.loaded && !force) return;
+            var body = document.getElementById('classes-compendium-body');
+            if (!body) return;
+            classesStatus('Loading classes...', false);
+            try {
+                var resp = await fetch(urls.classesCompendium, {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                var data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Could not load classes.');
+                classesState.entries = data.classes || [];
+                classesState.loaded = true;
+                renderClassesCompendium();
+                classesStatus('', false);
+            } catch (err) {
+                classesStatus(err.message || 'Could not load classes.', true);
+            }
+        }
+
+        function openClassEditor(entry) {
+            var form = document.getElementById('classes-editor');
+            if (!form) return;
+            ensureLevelSelectOptions();
+            document.getElementById('classes-edit-key').value = entry.key;
+            document.getElementById('classes-editor-title').textContent = 'Edit ' + entry.name;
+            document.getElementById('classes-edit-name').value = entry.name || '';
+            document.getElementById('classes-edit-hit-die').value = String(entry.hit_die || 8);
+            document.getElementById('classes-edit-summary').value = entry.summary || '';
+            document.getElementById('classes-edit-saves').value = (entry.save_proficiencies || []).join(', ');
+            var skillCfg = entry.skill_choices || {};
+            document.getElementById('classes-edit-skill-count').value = skillCfg.count || 0;
+            document.getElementById('classes-edit-skills').value = skillCfg.options === 'any'
+                ? 'any'
+                : (skillCfg.options || []).join(', ');
+            document.getElementById('classes-edit-hidden').checked = !!entry.is_hidden;
+            document.getElementById('classes-edit-secret').checked = !!entry.secret;
+            document.getElementById('classes-edit-visible-owner').checked = entry.visible_to_owner !== false;
+            document.getElementById('classes-edit-notes').value = entry.notes || '';
+            classesState.draftProgression = JSON.parse(JSON.stringify(entry.level_progression || defaultProgressionRows()));
+            document.getElementById('classes-edit-level-select').value = '1';
+            loadLevelEditorFromDraft();
+            form.hidden = false;
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function openClassCreator() {
+            var form = document.getElementById('classes-editor');
+            if (!form) return;
+            ensureLevelSelectOptions();
+            document.getElementById('classes-edit-key').value = '';
+            document.getElementById('classes-editor-title').textContent = 'Add class';
+            document.getElementById('classes-edit-name').value = '';
+            document.getElementById('classes-edit-hit-die').value = '8';
+            document.getElementById('classes-edit-summary').value = '';
+            document.getElementById('classes-edit-saves').value = 'str, con';
+            document.getElementById('classes-edit-skill-count').value = 2;
+            document.getElementById('classes-edit-skills').value = 'athletics, intimidation';
+            document.getElementById('classes-edit-hidden').checked = false;
+            document.getElementById('classes-edit-secret').checked = false;
+            document.getElementById('classes-edit-visible-owner').checked = true;
+            document.getElementById('classes-edit-notes').value = '';
+            classesState.draftProgression = defaultProgressionRows();
+            document.getElementById('classes-edit-level-select').value = '1';
+            loadLevelEditorFromDraft();
+            form.hidden = false;
+            document.getElementById('classes-edit-name').focus();
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function classesPayloadFromEditor() {
+            saveLevelEditorToDraft();
+            var skillsRaw = document.getElementById('classes-edit-skills').value.trim();
+            return {
+                name: document.getElementById('classes-edit-name').value,
+                summary: document.getElementById('classes-edit-summary').value,
+                hit_die: Number(document.getElementById('classes-edit-hit-die').value || 8),
+                save_proficiencies: document.getElementById('classes-edit-saves').value.split(',').map(function (s) {
+                    return s.trim().toLowerCase();
+                }).filter(Boolean),
+                skill_choices: {
+                    count: Number(document.getElementById('classes-edit-skill-count').value || 0),
+                    options: skillsRaw.toLowerCase() === 'any'
+                        ? 'any'
+                        : skillsRaw.split(',').map(function (s) { return s.trim().toLowerCase(); }).filter(Boolean)
+                },
+                level_progression: classesState.draftProgression,
+                is_hidden: document.getElementById('classes-edit-hidden').checked,
+                secret: document.getElementById('classes-edit-secret').checked,
+                visible_to_owner: document.getElementById('classes-edit-visible-owner').checked,
+                notes: document.getElementById('classes-edit-notes').value
+            };
+        }
+
+        function setupClassesCompendium() {
+            var add = document.getElementById('classes-add-btn');
+            var refresh = document.getElementById('classes-refresh-btn');
+            var form = document.getElementById('classes-editor');
+            var cancel = document.getElementById('classes-edit-cancel');
+            var levelSelect = document.getElementById('classes-edit-level-select');
+            if (add) add.addEventListener('click', openClassCreator);
+            if (refresh) refresh.addEventListener('click', function () { loadClassesCompendium(true); });
+            if (cancel && form) cancel.addEventListener('click', function () { form.hidden = true; });
+            if (levelSelect) {
+                levelSelect.addEventListener('change', function () {
+                    saveLevelEditorToDraft();
+                    loadLevelEditorFromDraft();
+                });
+            }
+            if (form) {
+                form.addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    var key = document.getElementById('classes-edit-key').value;
+                    var isCreate = !key;
+                    classesStatus('Saving class...', false);
+                    try {
+                        var resp = await fetch(isCreate ? urls.classesCreate : urls.classesUpdateBase + encodeURIComponent(key), {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify(classesPayloadFromEditor())
+                        });
+                        var data = await resp.json();
+                        if (!resp.ok) throw new Error(data.error || 'Could not save class.');
+                        classesState.loaded = false;
+                        await loadClassesCompendium(true);
+                        form.hidden = true;
+                        classesStatus(isCreate ? 'Class added.' : 'Class saved.', false);
+                    } catch (err) {
+                        classesStatus(err.message || 'Could not save class.', true);
+                    }
+                });
+            }
+            window.gmClasses = { ensureLoaded: function () { return loadClassesCompendium(false); } };
+        }
+
+        var spellsState = {
+            entries: [],
+            loaded: false,
+            query: '',
+            sortBy: 'name',
+            sortDir: 'asc'
+        };
+
+        function spellsStatus(msg, isError) {
+            var el = document.getElementById('spells-compendium-status');
+            if (!el) return;
+            el.textContent = msg || '';
+            el.classList.toggle('species-compendium-error', !!isError);
+        }
+
+        function spellVisibilityLabel(entry) {
+            if (entry.secret) return 'Secret';
+            if (entry.is_hidden) return 'Hidden';
+            return 'Visible';
+        }
+
+        function spellSearchText(entry) {
+            return [
+                entry.name,
+                entry.key,
+                entry.level == null ? '' : ('level ' + entry.level),
+                entry.school,
+                (entry.classes || []).join(' '),
+                entry.source,
+                entry.automation,
+                entry.ritual ? 'ritual ritual casting' : '',
+                spellVisibilityLabel(entry),
+                entry.summary,
+                entry.casting_time,
+                entry.range_text,
+                entry.damage,
+                entry.damage_type,
+                entry.healing
+            ].join(' ').toLowerCase();
+        }
+
+        function spellLevelFolderLabel(entry) {
+            return Number(entry.level || 0) === 0 ? 'Cantrips' : 'Level ' + entry.level;
+        }
+
+        function spellClassLabels(entry) {
+            var classes = entry.classes || [];
+            if (!classes.length) return ['No class listed'];
+            return classes.map(function (name) {
+                var raw = String(name || '').trim();
+                if (!raw) return 'No class listed';
+                return raw.charAt(0).toUpperCase() + raw.slice(1);
+            });
+        }
+
+        function spellSortValue(entry, key) {
+            if (key === 'level') return Number(entry.level || 0);
+            if (key === 'classes') return spellClassLabels(entry).join(', ').toLowerCase();
+            if (key === 'ritual') return entry.ritual ? 1 : 0;
+            return String(entry[key] == null ? '' : entry[key]).toLowerCase();
+        }
+
+        function sortedFilteredSpells() {
+            var query = (spellsState.query || '').trim().toLowerCase();
+            var rows = spellsState.entries.filter(function (entry) {
+                return !query || spellSearchText(entry).indexOf(query) !== -1;
+            });
+            rows.sort(function (a, b) {
+                var levelA = Number(a.level || 0);
+                var levelB = Number(b.level || 0);
+                if (levelA !== levelB) {
+                    return levelA < levelB ? -1 : 1;
+                }
+                var classA = spellClassLabels(a)[0].toLowerCase();
+                var classB = spellClassLabels(b)[0].toLowerCase();
+                if (classA !== classB) return classA < classB ? -1 : 1;
+                var valueA = spellSortValue(a, spellsState.sortBy);
+                var valueB = spellSortValue(b, spellsState.sortBy);
+                if (valueA === valueB) {
+                    valueA = String(a.name || '').toLowerCase();
+                    valueB = String(b.name || '').toLowerCase();
+                }
+                if (valueA === valueB) return 0;
+                var result = valueA < valueB ? -1 : 1;
+                return spellsState.sortDir === 'desc' ? -result : result;
+            });
+            return rows;
+        }
+
+        function updateSpellsCount(rows) {
+            var count = document.getElementById('spells-compendium-count');
+            if (!count) return;
+            var total = spellsState.entries.length;
+            count.textContent = rows.length === total
+                ? total + ' spells'
+                : rows.length + ' of ' + total + ' spells shown';
+        }
+
+        function renderSpellsCompendium() {
+            var tbody = document.getElementById('spells-compendium-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            var rows = sortedFilteredSpells();
+            updateSpellsCount(rows);
+            if (!spellsState.entries.length) {
+                tbody.innerHTML = '<p class="empty-city">No spells configured yet.</p>';
+                return;
+            }
+            if (!rows.length) {
+                tbody.innerHTML = '<p class="empty-city">No spells match the current search.</p>';
+                return;
+            }
+            var grouped = {};
+            rows.forEach(function (entry) {
+                var levelFolder = spellLevelFolderLabel(entry);
+                if (!grouped[levelFolder]) grouped[levelFolder] = {};
+                spellClassLabels(entry).forEach(function (classFolder) {
+                    if (!grouped[levelFolder][classFolder]) grouped[levelFolder][classFolder] = [];
+                    grouped[levelFolder][classFolder].push(entry);
+                });
+            });
+            Object.keys(grouped).forEach(function (levelFolder) {
+                var levelDetails = document.createElement('details');
+                levelDetails.className = 'spell-level-block region-block';
+                var classCount = Object.keys(grouped[levelFolder]).length;
+                levelDetails.innerHTML = '<summary><span class="region-name">' +
+                    escapeHtml(levelFolder) + '</span><span class="region-summary-right">' +
+                    '<span class="city-count-badge">' + classCount + ' class' +
+                    (classCount === 1 ? '' : 'es') + '</span></span></summary>';
+                var levelPanel = document.createElement('div');
+                levelPanel.className = 'region-panel';
+                Object.keys(grouped[levelFolder]).sort().forEach(function (classFolder) {
+                    var spells = grouped[levelFolder][classFolder];
+                    var classDetails = document.createElement('details');
+                    classDetails.className = 'spell-class-block city-block';
+                    classDetails.innerHTML = '<summary><span class="city-name">' +
+                        escapeHtml(classFolder) + '</span><span class="city-summary-right">' +
+                        '<span class="shop-count-badge">' + spells.length + ' spell' +
+                        (spells.length === 1 ? '' : 's') + '</span></span></summary>';
+                    var classPanel = document.createElement('div');
+                    classPanel.className = 'city-panel';
+                    spells.forEach(function (entry) {
+                        var row = document.createElement('div');
+                        row.className = 'spell-row shop-row';
+                        row.innerHTML =
+                            '<span><strong>' + escapeHtml(entry.name) + '</strong></span>' +
+                            '<span>' + escapeHtml(String(entry.level)) + '</span>' +
+                            '<span>' + escapeHtml(entry.school || '') + '</span>' +
+                            '<span>' + escapeHtml(entry.ritual ? 'Yes' : 'No') + '</span>' +
+                            '<span>' + escapeHtml(spellClassLabels(entry).join(', ')) + '</span>' +
+                            '<span><button type="button" class="button" data-spell-edit="' + escapeHtml(entry.key) + '">Edit</button></span>';
+                        classPanel.appendChild(row);
+                    });
+                    classDetails.appendChild(classPanel);
+                    levelPanel.appendChild(classDetails);
+                });
+                levelDetails.appendChild(levelPanel);
+                tbody.appendChild(levelDetails);
+            });
+            tbody.querySelectorAll('[data-spell-edit]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var key = btn.getAttribute('data-spell-edit');
+                    var entry = spellsState.entries.find(function (row) { return row.key === key; });
+                    if (entry) openSpellEditor(entry);
+                });
+            });
+        }
+
+        async function loadSpellsCompendium(force) {
+            if (spellsState.loaded && !force) return;
+            if (!document.getElementById('spells-compendium-body')) return;
+            spellsStatus('Loading spells...', false);
+            try {
+                var resp = await fetch(urls.spellsCompendium, {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                var data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Could not load spells.');
+                spellsState.entries = data.spells || [];
+                spellsState.loaded = true;
+                renderSpellsCompendium();
+                spellsStatus('', false);
+            } catch (err) {
+                spellsStatus(err.message || 'Could not load spells.', true);
+            }
+        }
+
+        function openSpellEditor(entry) {
+            var form = document.getElementById('spells-editor');
+            if (!form) return;
+            document.getElementById('spells-edit-key').value = entry.key || '';
+            document.getElementById('spells-editor-title').textContent = entry.key ? ('Edit ' + entry.name) : 'Add spell';
+            document.getElementById('spells-edit-name').value = entry.name || '';
+            document.getElementById('spells-edit-level').value = String(entry.level == null ? 0 : entry.level);
+            document.getElementById('spells-edit-school').value = entry.school || 'evocation';
+            document.getElementById('spells-edit-automation').value = entry.automation || 'manual';
+            document.getElementById('spells-edit-summary').value = entry.summary || '';
+            document.getElementById('spells-edit-casting-time').value = entry.casting_time || '1 action';
+            document.getElementById('spells-edit-range-text').value = entry.range_text || '60 feet';
+            document.getElementById('spells-edit-range-ft').value = String(entry.range_ft == null ? 60 : entry.range_ft);
+            document.getElementById('spells-edit-components').value = entry.components || 'V, S';
+            document.getElementById('spells-edit-duration').value = entry.duration || 'Instantaneous';
+            document.getElementById('spells-edit-attack-type').value = entry.attack_type || '';
+            document.getElementById('spells-edit-save-ability').value = entry.save_ability || '';
+            document.getElementById('spells-edit-damage').value = entry.damage || '';
+            document.getElementById('spells-edit-damage-type').value = entry.damage_type || '';
+            document.getElementById('spells-edit-healing').value = entry.healing || '';
+            document.getElementById('spells-edit-concentration').checked = !!entry.concentration;
+            document.getElementById('spells-edit-ritual').checked = !!entry.ritual;
+            document.getElementById('spells-edit-hidden').checked = !!entry.is_hidden;
+            document.getElementById('spells-edit-secret').checked = !!entry.secret;
+            document.getElementById('spells-edit-visible-owner').checked = entry.visible_to_owner !== false;
+            document.getElementById('spells-edit-notes').value = entry.notes || '';
+            form.hidden = false;
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function openSpellCreator() {
+            openSpellEditor({
+                key: '', name: '', level: 0, school: 'evocation', automation: 'manual',
+                summary: '', casting_time: '1 action', range_text: '60 feet', range_ft: 60,
+                components: 'V, S', duration: 'Instantaneous'
+            });
+        }
+
+        function spellsPayloadFromEditor() {
+            var attackType = document.getElementById('spells-edit-attack-type').value;
+            return {
+                name: document.getElementById('spells-edit-name').value,
+                level: Number(document.getElementById('spells-edit-level').value || 0),
+                school: document.getElementById('spells-edit-school').value,
+                automation: document.getElementById('spells-edit-automation').value,
+                summary: document.getElementById('spells-edit-summary').value,
+                casting_time: document.getElementById('spells-edit-casting-time').value,
+                range_text: document.getElementById('spells-edit-range-text').value,
+                range_ft: Number(document.getElementById('spells-edit-range-ft').value || 0),
+                components: document.getElementById('spells-edit-components').value,
+                duration: document.getElementById('spells-edit-duration').value,
+                attack_type: attackType || null,
+                save_ability: document.getElementById('spells-edit-save-ability').value || null,
+                damage: document.getElementById('spells-edit-damage').value || null,
+                damage_type: document.getElementById('spells-edit-damage-type').value || null,
+                healing: document.getElementById('spells-edit-healing').value || null,
+                concentration: document.getElementById('spells-edit-concentration').checked,
+                ritual: document.getElementById('spells-edit-ritual').checked,
+                is_hidden: document.getElementById('spells-edit-hidden').checked,
+                secret: document.getElementById('spells-edit-secret').checked,
+                visible_to_owner: document.getElementById('spells-edit-visible-owner').checked,
+                notes: document.getElementById('spells-edit-notes').value
+            };
+        }
+
+        function setupSpellsCompendium() {
+            var add = document.getElementById('spells-add-btn');
+            var refresh = document.getElementById('spells-refresh-btn');
+            var form = document.getElementById('spells-editor');
+            var cancel = document.getElementById('spells-edit-cancel');
+            if (add) add.addEventListener('click', openSpellCreator);
+            if (refresh) refresh.addEventListener('click', function () { loadSpellsCompendium(true); });
+            if (cancel && form) cancel.addEventListener('click', function () { form.hidden = true; });
+            var search = document.getElementById('spells-search-input');
+            if (search) {
+                search.addEventListener('input', function () {
+                    spellsState.query = search.value || '';
+                    renderSpellsCompendium();
+                });
+            }
+            document.querySelectorAll('[data-spell-sort]').forEach(function (header) {
+                header.addEventListener('click', function () {
+                    var nextSort = header.getAttribute('data-spell-sort') || 'name';
+                    if (spellsState.sortBy === nextSort) {
+                        spellsState.sortDir = spellsState.sortDir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        spellsState.sortBy = nextSort;
+                        spellsState.sortDir = 'asc';
+                    }
+                    document.querySelectorAll('[data-spell-sort]').forEach(function (btn) {
+                        var isActive = btn.getAttribute('data-spell-sort') === spellsState.sortBy;
+                        btn.textContent = btn.textContent.replace(/\s*[▲▼]$/, '') +
+                            (isActive ? (spellsState.sortDir === 'asc' ? ' ▲' : ' ▼') : '');
+                    });
+                    renderSpellsCompendium();
+                });
+            });
+            if (form) {
+                form.addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    var key = document.getElementById('spells-edit-key').value;
+                    var isCreate = !key;
+                    spellsStatus('Saving spell...', false);
+                    try {
+                        var resp = await fetch(isCreate ? urls.spellsCreate : urls.spellsUpdateBase + encodeURIComponent(key), {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify(spellsPayloadFromEditor())
+                        });
+                        var data = await resp.json();
+                        if (!resp.ok) throw new Error(data.error || 'Could not save spell.');
+                        spellsState.loaded = false;
+                        await loadSpellsCompendium(true);
+                        form.hidden = true;
+                        spellsStatus(isCreate ? 'Spell added.' : 'Spell saved.', false);
+                    } catch (err) {
+                        spellsStatus(err.message || 'Could not save spell.', true);
+                    }
+                });
+            }
+            setupImportPopout('spells-request-btn', 'spells-import-popout');
+            window.gmSpells = { ensureLoaded: function () { return loadSpellsCompendium(false); } };
+        }
+
+        var itemsState = {
+            entries: [],
+            loaded: false,
+            query: ''
+        };
+
+        function itemsStatus(msg, isError) {
+            var el = document.getElementById('items-compendium-status');
+            if (!el) return;
+            el.textContent = msg || '';
+            el.classList.toggle('species-compendium-error', !!isError);
+        }
+
+        function renderItemsCompendium() {
+            var tbody = document.getElementById('items-compendium-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            var count = document.getElementById('items-compendium-count');
+            var rows = itemsState.entries || [];
+            if (count) {
+                count.textContent = rows.length ? rows.length + ' item' + (rows.length === 1 ? '' : 's') + ' shown' : '';
+            }
+            if (!rows.length) {
+                var empty = document.createElement('tr');
+                empty.innerHTML = '<td colspan="6" class="empty-city">No items match the current search.</td>';
+                tbody.appendChild(empty);
+                return;
+            }
+            rows.forEach(function (entry) {
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
+                    '<td>' + escapeHtml(entry.type || '') + '</td>' +
+                    '<td>' + escapeHtml(entry.rarity || '') + '</td>' +
+                    '<td>' + escapeHtml(entry.category || '') + '</td>' +
+                    '<td>' + escapeHtml(String(entry.base_price == null ? 0 : entry.base_price)) + '</td>' +
+                    '<td>' + escapeHtml(entry.content_source || '') + '</td>';
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadItemsCompendium(force) {
+            if (itemsState.loaded && !force) return;
+            if (!document.getElementById('items-compendium-body')) return;
+            itemsStatus('Loading items...', false);
+            try {
+                var params = new URLSearchParams();
+                params.set('limit', '100');
+                if (itemsState.query) params.set('q', itemsState.query);
+                var resp = await fetch(urls.itemCatalog + '?' + params.toString(), {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                var data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Could not load items.');
+                itemsState.entries = data.items || [];
+                itemsState.loaded = true;
+                renderItemsCompendium();
+                itemsStatus('', false);
+            } catch (err) {
+                itemsStatus(err.message || 'Could not load items.', true);
+            }
+        }
+
+        function setupItemsCompendium() {
+            var refresh = document.getElementById('items-refresh-btn');
+            if (refresh) {
+                refresh.addEventListener('click', function () {
+                    itemsState.loaded = false;
+                    loadItemsCompendium(true);
+                });
+            }
+            var search = document.getElementById('items-search-input');
+            if (search) {
+                search.addEventListener('input', function () {
+                    itemsState.query = search.value || '';
+                    itemsState.loaded = false;
+                    loadItemsCompendium(true);
+                });
+            }
+            window.gmItems = { ensureLoaded: function () { return loadItemsCompendium(false); } };
+        }
+
+        var worldCompendiumState = {
+            regions: { entries: [], loaded: false, query: '' },
+            cities: { entries: [], loaded: false, query: '' },
+            shops: { entries: [], loaded: false, query: '' }
+        };
+
+        function worldStatus(kind, msg, isError) {
+            var el = document.getElementById(kind + '-compendium-status');
+            if (!el) return;
+            el.textContent = msg || '';
+            el.classList.toggle('species-compendium-error', !!isError);
+        }
+
+        function searchWorldRows(kind) {
+            var state = worldCompendiumState[kind];
+            var query = (state.query || '').toLowerCase().trim();
+            if (!query) return state.entries || [];
+            return (state.entries || []).filter(function (entry) {
+                return JSON.stringify(entry).toLowerCase().indexOf(query) >= 0;
+            });
+        }
+
+        function linkCell(url, label) {
+            if (!url) return '';
+            return '<a href="' + escapeHtml(url) + '" class="button">' + escapeHtml(label || 'Open') + '</a>';
+        }
+
+        function renderWorldCompendium(kind) {
+            var tbody = document.getElementById(kind + '-compendium-body');
+            if (!tbody) return;
+            var rows = searchWorldRows(kind);
+            var count = document.getElementById(kind + '-compendium-count');
+            tbody.innerHTML = '';
+            if (count) {
+                var label = kind.slice(0, -1);
+                count.textContent = rows.length ? rows.length + ' ' + label + (rows.length === 1 ? '' : 's') + ' shown' : '';
+            }
+            if (!rows.length) {
+                var empty = document.createElement('tr');
+                var colspan = kind === 'regions' ? 4 : 6;
+                empty.innerHTML = '<td colspan="' + colspan + '" class="empty-city">No ' + escapeHtml(kind) + ' match the current search.</td>';
+                tbody.appendChild(empty);
+                return;
+            }
+            rows.forEach(function (entry) {
+                var tr = document.createElement('tr');
+                if (kind === 'regions') {
+                    tr.innerHTML =
+                        '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
+                        '<td>' + escapeHtml(entry.axis_position == null ? 'Unspecified' : String(entry.axis_position)) + '</td>' +
+                        '<td>' + escapeHtml(String(entry.city_count || 0)) + '</td>' +
+                        '<td>' + linkCell(entry.edit_url, 'Edit') + '</td>';
+                } else if (kind === 'cities') {
+                    tr.innerHTML =
+                        '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
+                        '<td>' + escapeHtml(entry.region || 'Unassigned') + '</td>' +
+                        '<td>' + escapeHtml(entry.size || '') + '</td>' +
+                        '<td>' + escapeHtml(String(entry.population || 0)) + '</td>' +
+                        '<td>' + escapeHtml(String(entry.shop_count || 0)) + '</td>' +
+                        '<td>' + linkCell(entry.edit_url, 'Edit') + '</td>';
+                } else {
+                    tr.innerHTML =
+                        '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
+                        '<td>' + escapeHtml(entry.type || '') + '</td>' +
+                        '<td>' + escapeHtml((entry.cities || []).join(', ') || 'Unassigned') + '</td>' +
+                        '<td>' + escapeHtml(String(entry.inventory_count || 0)) + '</td>' +
+                        '<td>' + escapeHtml(entry.next_restock_day == null ? 'Not set' : String(entry.next_restock_day)) + '</td>' +
+                        '<td>' + linkCell(entry.items_url, 'Items') + ' ' + linkCell(entry.edit_url, 'Edit') + '</td>';
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadWorldCompendium(kind, force) {
+            var state = worldCompendiumState[kind];
+            if (!state || (state.loaded && !force)) return;
+            if (!document.getElementById(kind + '-compendium-body')) return;
+            var urlMap = {
+                regions: urls.regionsCompendium,
+                cities: urls.citiesCompendium,
+                shops: urls.shopsCompendium
+            };
+            worldStatus(kind, 'Loading ' + kind + '...', false);
+            try {
+                var resp = await fetch(urlMap[kind], {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                var data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Could not load ' + kind + '.');
+                state.entries = data[kind] || [];
+                state.loaded = true;
+                renderWorldCompendium(kind);
+                worldStatus(kind, '', false);
+            } catch (err) {
+                worldStatus(kind, err.message || 'Could not load ' + kind + '.', true);
+            }
+        }
+
+        function setupWorldCompendiums() {
+            ['regions', 'cities', 'shops'].forEach(function (kind) {
+                var refresh = document.getElementById(kind + '-refresh-btn');
+                if (refresh) {
+                    refresh.addEventListener('click', function () {
+                        worldCompendiumState[kind].loaded = false;
+                        loadWorldCompendium(kind, true);
+                    });
+                }
+                var search = document.getElementById(kind + '-search-input');
+                if (search) {
+                    search.addEventListener('input', function () {
+                        worldCompendiumState[kind].query = search.value || '';
+                        renderWorldCompendium(kind);
+                    });
+                }
+            });
+            window.gmWorldCompendiums = {
+                ensureLoaded: function (kind) {
+                    return loadWorldCompendium(kind, false);
+                }
+            };
+        }
+
         function setupImportPopout(buttonId, popoutId) {
             var button = document.getElementById(buttonId);
             var popout = document.getElementById(popoutId);
@@ -2183,10 +3497,43 @@
                     if (window.gmSpecies && targetId === 'species-pane-content') {
                         window.gmSpecies.ensureLoaded();
                     }
+                    if (window.gmClasses && targetId === 'classes-pane-content') {
+                        window.gmClasses.ensureLoaded();
+                    }
+                    if (window.gmSpells && targetId === 'spells-pane-content') {
+                        window.gmSpells.ensureLoaded();
+                    }
+                    if (window.gmItems && targetId === 'items-pane-content') {
+                        window.gmItems.ensureLoaded();
+                    }
+                    if (window.gmWorldCompendiums) {
+                        if (targetId === 'regions-pane-content') {
+                            window.gmWorldCompendiums.ensureLoaded('regions');
+                        } else if (targetId === 'cities-pane-content') {
+                            window.gmWorldCompendiums.ensureLoaded('cities');
+                        } else if (targetId === 'shops-pane-content') {
+                            window.gmWorldCompendiums.ensureLoaded('shops');
+                        }
+                    }
                     gmMap.refreshControls();
                     setDrawer(false);
                 });
             });
+            function activateDashboardHash() {
+                var targetId = (window.location.hash || '').replace(/^#/, '');
+                if (!targetId) return false;
+                var matched = null;
+                tabButtons.forEach(function (btn) {
+                    if (btn.getAttribute('data-target') === targetId) {
+                        matched = btn;
+                    }
+                });
+                if (!matched) return false;
+                matched.click();
+                return true;
+            }
+            window.addEventListener('hashchange', activateDashboardHash);
+            activateDashboardHash();
             var activeBtn = document.querySelector('.gm-panel-tab.active');
             var activeTargetId = activeBtn ? activeBtn.getAttribute('data-target') : null;
             document.body.classList.toggle('gm-map-tab-active', activeTargetId === 'map-pane-content');
@@ -3740,6 +5087,7 @@
                 }
                 showFeedback('Simulation finished.', false);
                 updateSimulationStatus();
+                if (isMarketPaneActive()) fetchMarketOverview();
             } catch (err) {
                 console.error(err);
                 showFeedback(err.message || 'Simulation failed', true);
@@ -3874,6 +5222,10 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             setupSpeciesCompendium();
+            setupClassesCompendium();
+            setupSpellsCompendium();
+            setupItemsCompendium();
+            setupWorldCompendiums();
             setupPanelTabs();
             setupCharacterCreationControls();
             setupImportPopout('market-import-btn', 'market-import-popout');

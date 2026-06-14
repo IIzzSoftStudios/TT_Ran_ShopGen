@@ -3,16 +3,19 @@ cross-encounter denial, GM vs player payloads, Battle tab markup)."""
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from flask import g
+from PIL import Image
 
 from app import app as flask_app
 from app.extensions import db
 import app.models  # noqa: F401
-from app.models import BattleActionLog, BattleCombatant, Campaign, Player, User
-from app.services.combat import encounter_service
+from app.models import BattleActionLog, BattleCombatant, BattleEncounter, Campaign, Player, User
+from app.services.combat import battle_map_service, encounter_service
 from app.services.user_capabilities import ensure_gm_profile
 from tests.session_helpers import seed_client_session
 
@@ -703,9 +706,462 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     assert "continue into character setup" in html
     assert 'id="monsters-tab-btn"' in html
     assert 'id="monsters-pane-content"' in html
+    assert 'id="battle-map-bg"' in html
+    assert 'id="battle-setup-popout"' in html
+    assert 'id="battle-setup-edit-btn"' in html
+    assert 'loadEncounterMap' in js
+    assert 'renderBattleMapBackground' in js
+    assert 'pointer-events: none' in css
+    assert '.battle-map-bg' in css
+    assert 'var OVERSCAN = 3' in js
+    assert 'function visibleCellBounds' in js
+    assert 'function scheduleVirtualRender' in js
+    assert 'requestAnimationFrame' in js
+    assert 'battle-visible-layer' in js
+    assert 'battle-board-virtual' in js
+    assert 'translate3d' in js
+    assert '1000 750' not in js
+    assert 'function focusCameraOnCell' in js
+    assert 'function loadVisibleMapChunks' in js
+    assert 'function onStagePointerDown' in js
+    assert 'battle-map-nav-x' in js
+    assert 'battle-map-nav-y' in js
+    assert 'battle-map-zoom-in' in js
+    assert 'battle-map-zoom-out' in js
+    assert 'function setBattleZoom' in js
+    assert '/map/chunk' in js
+    assert '.battle-visible-layer' in css
+    assert '.battle-stage.is-panning' in css
+    assert '.battle-map-shell' in css
+    assert '.battle-map-nav-horizontal' in css
+    assert '.battle-map-nav-vertical' in css
+    assert '.battle-map-zoom-btn' in css
+    assert 'overflow: hidden' in css
+    assert 'min 5; drag or use edge bars' in html
+    assert 'max="1000"' in html
 
     gm2, campaign2 = _make_gm_with_campaign("rt-gm-tabgen", "generic")
     client2 = _gm_client(gm2, campaign2)
     html2 = client2.get("/gm/").data.decode("utf-8")
     assert 'id="battle-tab-btn"' not in html2
     assert 'id="monsters-tab-btn"' not in html2
+
+
+def test_player_battle_templates_include_map_background():
+    player_battle = Path("app/templates/Player_Battle.html").read_text(encoding="utf-8")
+    player_home = Path("app/templates/Player_Home.html").read_text(encoding="utf-8")
+    assert 'id="battle-map-bg"' in player_battle
+    assert 'id="battle-map-bg"' in player_home
+    js = Path("app/static/js/gm_battle.js").read_text(encoding="utf-8")
+    assert "loadEncounterMap" in js
+    assert "/encounters/' + state.encounterId + '/map'" in js
+
+
+# ---------------------------------------------------------------------------
+# Battle map routes
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def memory_map_storage():
+    storage = battle_map_service.MemoryBattleMapStorage()
+    battle_map_service.set_storage(storage)
+    yield storage
+    battle_map_service.set_storage(None)
+
+
+def _tiny_png_bytes() -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 64), color="green").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _create_setup_encounter(client, **kwargs):
+    payload = {"name": "Map test", **kwargs}
+    resp = client.post("/api/combat/encounters", json=payload)
+    assert resp.status_code == 201
+    return resp.get_json()["encounter"]
+
+
+def _add_monster_at(client, eid, x=0, y=0):
+    monster = client.post(
+        "/api/combat/monsters",
+        json={"name": "Map Gob", "stats": _MONSTER_STATS},
+    ).get_json()["monster"]
+    client.post(
+        f"/api/combat/encounters/{eid}/monsters/{monster['id']}/add",
+        json={"count": 1, "x": x, "y": y},
+    )
+
+
+def test_create_encounter_custom_grid_and_bounds(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-grid")
+    client = _gm_client(gm, campaign)
+    enc = _create_setup_encounter(
+        client,
+        grid_width=12,
+        grid_height=15,
+        terrain_preset="forest",
+    )
+    assert enc["grid_width"] == 12
+    assert enc["grid_height"] == 15
+    assert enc["map"]["source_type"] == "generated"
+    assert enc["map"]["terrain_preset"] == "forest"
+    assert "terrain_metadata" not in enc["map"]
+
+    for bad in (
+        {"grid_width": 4},
+        {"grid_height": 1001},
+        {"grid_width": encounter_service.MAX_GRID_ABUSE + 1},
+        {"grid_width": 0},
+    ):
+        resp = client.post("/api/combat/encounters", json={"name": "Bad", **bad})
+        assert resp.status_code == 400
+
+    ok_large = _create_setup_encounter(client, grid_width=500, grid_height=750)
+    assert ok_large["grid_width"] == 500
+    assert ok_large["grid_height"] == 750
+
+
+def test_poll_payload_excludes_terrain_metadata(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-poll")
+    client = _gm_client(gm, campaign)
+    enc = _create_setup_encounter(client, terrain_preset="plains")
+    eid = enc["id"]
+    poll = client.get(f"/api/combat/encounters/{eid}").get_json()
+    assert "terrain_metadata" not in poll
+    assert "terrain_metadata" not in poll.get("map", {})
+    heavy = client.get(f"/api/combat/encounters/{eid}/map").get_json()
+    assert "terrain_metadata" in heavy["map"]
+    assert heavy["map"]["terrain_metadata"]["preset"] == "plains"
+
+
+def test_resize_grid_setup_only_and_token_bounds(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-resize")
+    client = _gm_client(gm, campaign)
+    enc = _create_setup_encounter(client, grid_width=10, grid_height=10)
+    eid = enc["id"]
+    _add_monster_at(client, eid, x=9, y=9)
+
+    ok = client.post(
+        f"/api/combat/encounters/{eid}/grid",
+        json={"grid_width": 10, "grid_height": 10},
+    )
+    assert ok.status_code == 200
+
+    shrink = client.post(
+        f"/api/combat/encounters/{eid}/grid",
+        json={"grid_width": 9, "grid_height": 9},
+    )
+    assert shrink.status_code == 400
+    assert "too small" in shrink.get_json()["error"]
+
+    grow = client.post(
+        f"/api/combat/encounters/{eid}/grid",
+        json={"grid_width": 12, "grid_height": 12},
+    )
+    assert grow.status_code == 200
+    assert grow.get_json()["encounter"]["grid_width"] == 12
+
+
+def test_resize_and_map_mutations_rejected_after_initiative(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-active-lock")
+    client = _gm_client(gm, campaign)
+    eid, state = _setup_running_encounter(client, campaign)
+
+    for path, body in (
+        (f"/api/combat/encounters/{eid}/grid", {"grid_width": 15, "grid_height": 15}),
+        (f"/api/combat/encounters/{eid}/map/generate", {"terrain_preset": "river"}),
+    ):
+        resp = client.post(path, json=body)
+        assert resp.status_code == 400
+        assert "setup" in resp.get_json()["error"].lower()
+
+    data = {"map_image": (io.BytesIO(_tiny_png_bytes()), "map.png")}
+    upload = client.post(f"/api/combat/encounters/{eid}/map/upload", data=data)
+    assert upload.status_code == 400
+
+
+def test_upload_validates_size_and_format(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-upload-val")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client)["id"]
+
+    big = io.BytesIO(b"x" * (4 * 1024 * 1024 + 1))
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/map/upload",
+        data={"map_image": (big, "big.bin")},
+    )
+    assert resp.status_code == 400
+
+    bad = client.post(
+        f"/api/combat/encounters/{eid}/map/upload",
+        data={"map_image": (io.BytesIO(b"not-an-image"), "bad.png")},
+    )
+    assert bad.status_code == 400
+
+    ok = client.post(
+        f"/api/combat/encounters/{eid}/map/upload",
+        data={"map_image": (io.BytesIO(_tiny_png_bytes()), "map.png")},
+    )
+    assert ok.status_code == 200
+    body = ok.get_json()["encounter"]
+    assert body["map"]["source_type"] == "uploaded"
+    assert body["map"]["has_image"] is True
+    assert body["map"]["map_version"] == 1
+
+
+def test_regenerate_clears_uploaded_asset_key(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-regen")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client)["id"]
+    client.post(
+        f"/api/combat/encounters/{eid}/map/upload",
+        data={"map_image": (io.BytesIO(_tiny_png_bytes()), "map.png")},
+    )
+    encounter = db.session.get(BattleEncounter, eid)
+    old_key = encounter.map_asset_key
+    assert old_key
+    assert memory_map_storage.read(old_key)
+
+    regen = client.post(
+        f"/api/combat/encounters/{eid}/map/generate",
+        json={"terrain_preset": "mountains"},
+    )
+    assert regen.status_code == 200
+    db.session.refresh(encounter)
+    assert encounter.map_asset_key is None
+    assert encounter.map_source_type == "generated"
+    assert encounter.terrain_preset == "mountains"
+    assert memory_map_storage.read(old_key) is None
+
+
+def test_map_version_stable_on_turn_updates(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-version")
+    client = _gm_client(gm, campaign)
+    eid, state = _setup_running_encounter(client, campaign)
+    before = client.get(f"/api/combat/encounters/{eid}").get_json()["map"]["map_version"]
+
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/end-turn",
+        json={"turn_version": state["turn_version"]},
+    )
+    assert resp.status_code == 200
+    after = client.get(f"/api/combat/encounters/{eid}").get_json()["map"]["map_version"]
+    assert after == before
+
+
+def test_map_version_increments_on_generate(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-version-bump")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client, terrain_preset="plains")["id"]
+    v0 = client.get(f"/api/combat/encounters/{eid}").get_json()["map"]["map_version"]
+    client.post(
+        f"/api/combat/encounters/{eid}/map/generate",
+        json={"terrain_preset": "forest"},
+    )
+    v1 = client.get(f"/api/combat/encounters/{eid}").get_json()["map"]["map_version"]
+    assert v1 == v0 + 1
+
+
+def test_player_map_image_auth(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-img-auth")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client)["id"]
+    client.post(
+        f"/api/combat/encounters/{eid}/map/upload",
+        data={"map_image": (io.BytesIO(_tiny_png_bytes()), "map.png")},
+    )
+    client.post(
+        f"/api/combat/encounters/{eid}/visibility",
+        json={"visible_to_players": True},
+    )
+
+    p_user, _ = _make_player_in_campaign("rt-map-player", campaign)
+    p_client = _player_client(p_user)
+    assert p_client.get(f"/api/combat/encounters/{eid}/map/image").status_code == 200
+
+    other_gm, other_campaign = _make_gm_with_campaign("rt-map-outsider")
+    outsider, _ = _make_player_in_campaign("rt-map-outsider-p", other_campaign)
+    o_client = _player_client(outsider)
+    assert o_client.get(f"/api/combat/encounters/{eid}/map/image").status_code == 403
+
+
+def test_player_can_fetch_map_metadata_when_visible(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-player-meta")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client, terrain_preset="village")["id"]
+    client.post(
+        f"/api/combat/encounters/{eid}/visibility",
+        json={"visible_to_players": True},
+    )
+    p_user, _ = _make_player_in_campaign("rt-map-meta-p", campaign)
+    p_client = _player_client(p_user)
+    assert p_client.get(f"/api/combat/encounters/{eid}").status_code == 200
+    meta = p_client.get(f"/api/combat/encounters/{eid}/map").get_json()
+    assert meta["map"]["terrain_metadata"]["preset"] == "village"
+
+
+def test_upload_commit_failure_keeps_prior_asset(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-commit-fail")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client)["id"]
+    first = client.post(
+        f"/api/combat/encounters/{eid}/map/upload",
+        data={"map_image": (io.BytesIO(_tiny_png_bytes()), "first.png")},
+    )
+    assert first.status_code == 200
+    encounter = db.session.get(BattleEncounter, eid)
+    old_key = encounter.map_asset_key
+    assert memory_map_storage.read(old_key)
+
+    with patch.object(db.session, "commit", side_effect=RuntimeError("commit failed")):
+        resp = client.post(
+            f"/api/combat/encounters/{eid}/map/upload",
+            data={"map_image": (io.BytesIO(_tiny_png_bytes()), "second.png")},
+        )
+    assert resp.status_code == 500
+    db.session.rollback()
+    db.session.refresh(encounter)
+    assert encounter.map_asset_key == old_key
+    assert memory_map_storage.read(old_key) is not None
+
+
+def test_storage_write_failure_rolls_back_without_version_bump(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-storage-fail")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client, terrain_preset="road")["id"]
+    version_before = client.get(f"/api/combat/encounters/{eid}").get_json()["map"]["map_version"]
+
+    class FailingStorage(battle_map_service.MemoryBattleMapStorage):
+        def write(self, key, data):
+            raise OSError("storage unavailable")
+
+    battle_map_service.set_storage(FailingStorage())
+    resp = client.post(
+        f"/api/combat/encounters/{eid}/map/upload",
+        data={"map_image": (io.BytesIO(_tiny_png_bytes()), "map.png")},
+    )
+    assert resp.status_code == 400
+    version_after = client.get(f"/api/combat/encounters/{eid}").get_json()["map"]["map_version"]
+    assert version_after == version_before
+
+
+def test_orphan_asset_discovery(memory_map_storage):
+    orphan_key = "encounter_0_deadbeef.webp"
+    memory_map_storage.write(orphan_key, b"webp")
+    gm, campaign = _make_gm_with_campaign("rt-map-orphan")
+    eid = _create_setup_encounter(_gm_client(gm, campaign))["id"]
+    encounter = db.session.get(BattleEncounter, eid)
+    encounter.map_asset_key = f"encounter_{eid}_live.webp"
+    memory_map_storage.write(encounter.map_asset_key, b"live")
+    db.session.commit()
+    orphans = battle_map_service.find_orphan_asset_keys()
+    assert orphan_key in orphans
+    assert encounter.map_asset_key not in orphans
+
+
+def test_grid_dimension_integer_validation(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-grid-int-val")
+    client = _gm_client(gm, campaign)
+    for bad in (
+        {"grid_width": 10.5},
+        {"grid_width": "1e6"},
+        {"grid_width": True},
+        {"grid_height": "-3"},
+        {"grid_width": "12.0"},
+    ):
+        resp = client.post("/api/combat/encounters", json={"name": "Bad", **bad})
+        assert resp.status_code == 400
+
+
+def test_chunked_map_manifest_and_player_access(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-chunk")
+    client = _gm_client(gm, campaign)
+    enc = _create_setup_encounter(
+        client,
+        grid_width=200,
+        grid_height=200,
+        terrain_preset="forest",
+    )
+    eid = enc["id"]
+    meta = client.get(f"/api/combat/encounters/{eid}/map").get_json()["map"]
+    assert meta["chunked"] is True
+    assert meta.get("terrain_metadata") == {}
+    assert meta["chunk_size"] == battle_map_service.CHUNK_CELL_SIZE
+
+    chunk = client.get(
+        f"/api/combat/encounters/{eid}/map/chunk?chunk_x=0&chunk_y=0"
+    ).get_json()["map_chunk"]
+    assert chunk["chunk_x"] == 0
+    assert chunk["chunk_y"] == 0
+    assert "terrain_metadata" in chunk
+    assert "features" in chunk["terrain_metadata"]
+
+    client.post(
+        f"/api/combat/encounters/{eid}/visibility",
+        json={"visible_to_players": True},
+    )
+    p_user, _ = _make_player_in_campaign("rt-map-chunk-p", campaign)
+    p_client = _player_client(p_user)
+    player_meta = p_client.get(f"/api/combat/encounters/{eid}/map").get_json()["map"]
+    assert player_meta["chunked"] is True
+    assert player_meta.get("terrain_metadata") == {}
+    assert p_client.get(
+        f"/api/combat/encounters/{eid}/map/chunk?chunk_x=1&chunk_y=1"
+    ).status_code == 200
+
+    other_gm, other_campaign = _make_gm_with_campaign("rt-map-chunk-outsider")
+    outsider, _ = _make_player_in_campaign("rt-map-chunk-outsider-p", other_campaign)
+    assert _player_client(outsider).get(
+        f"/api/combat/encounters/{eid}/map/chunk?chunk_x=0&chunk_y=0"
+    ).status_code == 403
+
+
+def test_chunk_route_rejects_non_chunked_map(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-chunk-small")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client, grid_width=20, grid_height=20)["id"]
+    resp = client.get(f"/api/combat/encounters/{eid}/map/chunk?chunk_x=0&chunk_y=0")
+    assert resp.status_code == 400
+
+
+def test_chunk_route_rejects_out_of_range_coordinates(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-chunk-range")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(client, grid_width=200, grid_height=200)["id"]
+    resp = client.get(f"/api/combat/encounters/{eid}/map/chunk?chunk_x=999&chunk_y=0")
+    assert resp.status_code == 400
+
+
+def test_map_regenerate_invalidates_chunk_payload(memory_map_storage):
+    gm, campaign = _make_gm_with_campaign("rt-map-chunk-version")
+    client = _gm_client(gm, campaign)
+    eid = _create_setup_encounter(
+        client,
+        grid_width=200,
+        grid_height=200,
+        terrain_preset="plains",
+    )["id"]
+    before = client.get(
+        f"/api/combat/encounters/{eid}/map/chunk?chunk_x=0&chunk_y=0"
+    ).get_json()["map_chunk"]
+    client.post(
+        f"/api/combat/encounters/{eid}/map/generate",
+        json={"terrain_preset": "mountains"},
+    )
+    after = client.get(
+        f"/api/combat/encounters/{eid}/map/chunk?chunk_x=0&chunk_y=0"
+    ).get_json()["map_chunk"]
+    assert after["map_version"] == before["map_version"] + 1
+
+
+def test_virtual_grid_static_assertions():
+    js = Path("app/static/js/gm_battle.js").read_text(encoding="utf-8")
+    css = Path("app/static/css/battle.css").read_text(encoding="utf-8")
+    assert "c.x < x0 || c.x >= x1 || c.y < y0 || c.y >= y1" in js
+    assert "battle-board-virtual" in js
+    assert "setAttribute('viewBox', bounds.x0" in js
+    assert "appendFeaturesToSvg" in js
+    assert "p[0] * gw" in js
+    assert ".battle-board-virtual .battle-tile" in css
+    assert "position: absolute" in css
+

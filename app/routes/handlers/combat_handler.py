@@ -16,7 +16,7 @@ Authority rules (mirrors gm_maps_handler):
 import logging
 from random import Random
 
-from flask import jsonify, request, session
+from flask import jsonify, request, send_file, session
 from flask_login import current_user, login_required
 
 from app.extensions import db
@@ -29,6 +29,8 @@ from app.services.combat import (
     serializers,
     settings_service,
 )
+from app.services.combat.battle_map_service import BattleMapValidationError
+from app.services.combat import battle_map_service
 from app.services.player_resolution import all_player_ids_for_user
 from app.services.rulesets import get_ruleset
 
@@ -129,7 +131,7 @@ def _error_response(exc):
     db.session.rollback()
     if isinstance(exc, StaleTurnError):
         return jsonify({"error": str(exc)}), 409
-    if isinstance(exc, CombatValidationError):
+    if isinstance(exc, (CombatValidationError, BattleMapValidationError)):
         return jsonify({"error": str(exc)}), 400
     if isinstance(exc, LookupError):
         return jsonify({"error": str(exc)}), 404
@@ -189,6 +191,7 @@ def create_encounter():
             map_canvas_id=data.get("map_canvas_id"),
             map_x=data.get("x"),
             map_y=data.get("y"),
+            terrain_preset=data.get("terrain_preset"),
         )
         db.session.commit()
     except Exception as exc:
@@ -592,6 +595,25 @@ def action(encounter_id):
         elif action_type == "death_save":
             combatant = _actor_combatant(encounter, data, role, player_ids)
             result = encounter_service.death_save_action(encounter, combatant, rng)
+        elif action_type == "cast_spell":
+            combatant = _actor_combatant(encounter, data, role, player_ids)
+            result = encounter_service.cast_spell_action(
+                encounter,
+                combatant,
+                data.get("target_id"),
+                data.get("spell_key"),
+                data.get("cast_level"),
+                rng,
+                roll_mode=data.get("roll_mode", "normal"),
+                concentration_check_override=data.get("concentration_check_override"),
+            )
+        elif action_type == "end_concentration":
+            combatant = _actor_combatant(encounter, data, role, player_ids)
+            result = encounter_service.end_concentration_action(
+                encounter,
+                combatant,
+                role=role,
+            )
         else:
             raise CombatValidationError("Unknown action type.")
         db.session.commit()
@@ -780,3 +802,132 @@ def generate_monster():
     return jsonify(
         {"success": True, "monster": monster_compendium_service.serialize_entry(entry)}
     ), 201
+
+
+# --- Battle maps -------------------------------------------------------------
+
+
+@login_required
+def resize_encounter_grid(encounter_id):
+    campaign, err = _gm_dnd5e_campaign_for_json()
+    if err:
+        return err
+    data = _json_body()
+    try:
+        encounter = encounter_service.locked_encounter(encounter_id, campaign.id)
+        battle_map_service.resize_grid(
+            encounter, data.get("grid_width"), data.get("grid_height")
+        )
+        db.session.commit()
+    except Exception as exc:
+        return _error_response(exc)
+    return jsonify(
+        {
+            "success": True,
+            "encounter": serializers.serialize_encounter(encounter, for_gm=True),
+        }
+    )
+
+
+@login_required
+def upload_encounter_map(encounter_id):
+    campaign, err = _gm_dnd5e_campaign_for_json()
+    if err:
+        return err
+    file_storage = request.files.get("map_image")
+    if file_storage is None or not file_storage.filename:
+        return jsonify({"error": "map_image file is required."}), 400
+    previous_key = new_key = None
+    try:
+        encounter = encounter_service.locked_encounter(encounter_id, campaign.id)
+        previous_key, new_key = battle_map_service.save_upload(encounter, file_storage)
+        db.session.commit()
+    except Exception as exc:
+        if new_key:
+            battle_map_service.delete_asset_key(new_key)
+        return _error_response(exc)
+    if previous_key and previous_key != new_key:
+        battle_map_service.delete_asset_key(previous_key)
+    return jsonify(
+        {
+            "success": True,
+            "encounter": serializers.serialize_encounter(encounter, for_gm=True),
+        }
+    )
+
+
+@login_required
+def generate_encounter_map(encounter_id):
+    campaign, err = _gm_dnd5e_campaign_for_json()
+    if err:
+        return err
+    data = _json_body()
+    previous_key = None
+    try:
+        encounter = encounter_service.locked_encounter(encounter_id, campaign.id)
+        previous_key = battle_map_service.regenerate_map(
+            encounter, preset=data.get("terrain_preset")
+        )
+        db.session.commit()
+    except Exception as exc:
+        return _error_response(exc)
+    if previous_key:
+        battle_map_service.delete_asset_key(previous_key)
+    return jsonify(
+        {
+            "success": True,
+            "encounter": serializers.serialize_encounter(encounter, for_gm=True),
+        }
+    )
+
+
+@login_required
+def get_encounter_map(encounter_id):
+    encounter, err = _encounter_or_404(encounter_id)
+    if err:
+        return err
+    _role, _player_ids, err = _viewer_context(encounter)
+    if err:
+        return err
+    return jsonify({"map": battle_map_service.map_payload(encounter)})
+
+
+@login_required
+def get_encounter_map_chunk(encounter_id):
+    encounter, err = _encounter_or_404(encounter_id)
+    if err:
+        return err
+    _role, _player_ids, err = _viewer_context(encounter)
+    if err:
+        return err
+    if not battle_map_service.is_chunked_map(encounter):
+        return jsonify({"error": "Encounter map is not chunked."}), 400
+    chunk_x = request.args.get("chunk_x", type=int)
+    chunk_y = request.args.get("chunk_y", type=int)
+    if chunk_x is None or chunk_y is None:
+        return jsonify({"error": "chunk_x and chunk_y are required."}), 400
+    try:
+        chunk = battle_map_service.terrain_chunk_payload(encounter, chunk_x, chunk_y)
+    except Exception as exc:
+        return _error_response(exc)
+    return jsonify({"map_chunk": chunk})
+
+
+@login_required
+def get_encounter_map_image(encounter_id):
+    import io
+
+    encounter, err = _encounter_or_404(encounter_id)
+    if err:
+        return err
+    _role, _player_ids, err = _viewer_context(encounter)
+    if err:
+        return err
+    if not encounter.map_asset_key:
+        return jsonify({"error": "Encounter map image not found."}), 404
+    data = battle_map_service.read_upload_bytes(encounter)
+    if not data:
+        return jsonify({"error": "Encounter map image not found."}), 404
+    resp = send_file(io.BytesIO(data), mimetype="image/webp", max_age=0)
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp

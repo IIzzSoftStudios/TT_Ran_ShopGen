@@ -20,7 +20,12 @@ from app.models import (
     shop_cities,
 )
 
-EQUIPMENT_SLOTS = ("weapon", "armor", "accessory")
+from app.services.equipment.slots import ALL_EQUIPMENT_SLOTS, normalize_slot
+from app.services.equipment.item_rules import (
+    equipment_slots_payload,
+    pick_equip_slot,
+    validate_attunement,
+)
 from flask_login import login_required, current_user
 from app.extensions import db, limiter
 from app.services.player_resolution import (
@@ -1134,17 +1139,12 @@ def player_market_overview():
     return jsonify(build_market_overview_payload(player.campaign_id))
 
 
-def _slot_for_item_type(item_type: str) -> str:
-    # Map Item.type onto one of the three equipment slots the game supports.
-    # Unknown/consumable/utility types fall back to "accessory" so players can
-    # still equip generic items (e.g. Bag of Holding) without the UI having to
-    # offer a slot picker.
-    t = (item_type or "").strip().lower()
-    if "weapon" in t or "sword" in t or "bow" in t or "staff" in t or "axe" in t or "gun" in t:
-        return "weapon"
-    if "armor" in t or "armour" in t or "shield" in t:
-        return "armor"
-    return "accessory"
+def _slot_for_item_type(item_type: str, item_stats: dict | None = None) -> str:
+    """Resolve equip slot from SRD stats or legacy type heuristics."""
+    from app.services.equipment.slots import resolve_equip_slot
+
+    slot = resolve_equip_slot(item_stats or {}, item_type or "")
+    return slot or "wondrous"
 
 
 def _active_campaign_for_player(player):
@@ -1202,10 +1202,12 @@ def create_character():
                 get_character_options,
             )
             from app.services.species_compendium_service import ensure_species_compendium
+            from app.services.classes_compendium_service import ensure_classes_compendium
 
             wizard_payload = wizard_catalog_for_user(
                 campaign_id=campaign_id,
                 species_compendium=ensure_species_compendium(campaign_id),
+                classes_compendium=ensure_classes_compendium(campaign_id),
                 character_options=get_character_options(campaign_id),
             )
             ok = True
@@ -1357,10 +1359,12 @@ def create_character_dnd5e_finalize():
                 wizard_catalog_for_user,
             )
             from app.services.species_compendium_service import ensure_species_compendium
+            from app.services.classes_compendium_service import ensure_classes_compendium
 
             ctx = wizard_catalog_for_user(
                 campaign_id=campaign_id,
                 species_compendium=ensure_species_compendium(campaign_id),
+                classes_compendium=ensure_classes_compendium(campaign_id),
                 character_options=get_character_options(campaign_id),
             )
             sheet_json = build_final_sheet_json(
@@ -1615,7 +1619,21 @@ def equip_item(item_id):
             flash("You do not own that item.", "error")
             return redirect(url_for("player.player_home"))
 
-        slot = _slot_for_item_type(item.type)
+        requested_slot = (request.form.get("slot") or request.args.get("slot") or "").strip()
+        slot = pick_equip_slot(
+            player,
+            item,
+            requested_slot=requested_slot or None,
+        )
+        if not slot:
+            flash("This item cannot be equipped.", "error")
+            return redirect(url_for("player.player_home"))
+
+        attune_err = validate_attunement(player, item)
+        if attune_err:
+            flash(attune_err, "warning")
+            return redirect(url_for("player.player_home"))
+
         eq = PlayerEquipment.query.filter_by(
             player_id=player.id, slot=slot
         ).first()
@@ -1632,7 +1650,7 @@ def equip_item(item_id):
                 )
             )
         db.session.commit()
-        flash(f"Equipped {item.name} to {slot}.", "success")
+        flash(f"Equipped {item.name} to {slot.replace('_', ' ')}.", "success")
     except Exception as e:
         db.session.rollback()
         print(f"[ERROR] Error equipping item: {e}")
@@ -1650,8 +1668,8 @@ def unequip_item(slot_name):
             flash("Player profile not found.", "error")
             return redirect(url_for("player.player_home"))
 
-        slot = (slot_name or "").strip().lower()
-        if slot not in EQUIPMENT_SLOTS:
+        slot = normalize_slot(slot_name)
+        if not slot or slot not in ALL_EQUIPMENT_SLOTS:
             flash("Invalid equipment slot.", "error")
             return redirect(url_for("player.player_home"))
 
@@ -1696,21 +1714,22 @@ def character_data():
             .all()
         )
 
-        equipment_slots = []
-        for eq, item in slot_rows:
-            slot_payload = {
-                "slot_name": eq.slot,
-                "item": None,
-            }
-            if item is not None and eq.item_id is not None:
-                desc = item.description or ""
-                slot_payload["item"] = {
-                    "id": item.item_id,
-                    "name": item.name,
-                    "rarity": item.rarity,
-                    "description_short": (desc[:140] + "…") if len(desc) > 140 else desc,
+        equipment_slots = equipment_slots_payload(player)
+        if not equipment_slots:
+            for eq, item in slot_rows:
+                slot_payload = {
+                    "slot_name": normalize_slot(eq.slot) or eq.slot,
+                    "item": None,
                 }
-            equipment_slots.append(slot_payload)
+                if item is not None and eq.item_id is not None:
+                    desc = item.description or ""
+                    slot_payload["item"] = {
+                        "id": item.item_id,
+                        "name": item.name,
+                        "rarity": item.rarity,
+                        "description_short": (desc[:140] + "…") if len(desc) > 140 else desc,
+                    }
+                equipment_slots.append(slot_payload)
 
         campaign = _active_campaign_for_player(player)
         payload = character_sheet_service.character_data_payload(
@@ -1737,21 +1756,22 @@ def character_data_id(player_id):
             .all()
         )
 
-        equipment_slots = []
-        for eq, item in slot_rows:
-            slot_payload = {
-                "slot_name": eq.slot,
-                "item": None,
-            }
-            if item is not None and eq.item_id is not None:
-                desc = item.description or ""
-                slot_payload["item"] = {
-                    "id": item.item_id,
-                    "name": item.name,
-                    "rarity": item.rarity,
-                    "description_short": (desc[:140] + "...") if len(desc) > 140 else desc,
+        equipment_slots = equipment_slots_payload(player)
+        if not equipment_slots:
+            for eq, item in slot_rows:
+                slot_payload = {
+                    "slot_name": normalize_slot(eq.slot) or eq.slot,
+                    "item": None,
                 }
-            equipment_slots.append(slot_payload)
+                if item is not None and eq.item_id is not None:
+                    desc = item.description or ""
+                    slot_payload["item"] = {
+                        "id": item.item_id,
+                        "name": item.name,
+                        "rarity": item.rarity,
+                        "description_short": (desc[:140] + "...") if len(desc) > 140 else desc,
+                    }
+                equipment_slots.append(slot_payload)
 
         campaign = _active_campaign_for_player(player)
         payload = character_sheet_service.character_data_payload(

@@ -22,6 +22,8 @@ from app.services.schema_compat import (
     ensure_deleted_campaign_sim_snapshot_table,
     ensure_gm_world_state_campaign_id,
     ensure_global_market_baseline_stock_column,
+    ensure_item_folder_schema,
+    ensure_item_srd_columns,
     ensure_join_codes_columns,
     ensure_campaign_code_redemption_table,
     ensure_expansion_interest_table,
@@ -49,6 +51,8 @@ from app.services.schema_compat import (
     warn_if_deleted_campaign_sim_snapshot_table_created,
     warn_if_gm_world_state_campaign_applied,
     warn_if_global_market_baseline_stock_applied,
+    warn_if_item_folder_compat_applied,
+    warn_if_item_srd_compat_applied,
     warn_if_join_codes_compat_applied,
     warn_if_campaign_code_redemption_table_applied,
     warn_if_expansion_interest_table_applied,
@@ -415,6 +419,16 @@ def create_app():
                 "player NPC compatibility bootstrap",
                 ensure_player_npc_columns,
                 warn_if_player_npc_compat_applied,
+            )
+            _safe_bootstrap(
+                "item SRD lineage columns compatibility bootstrap",
+                ensure_item_srd_columns,
+                warn_if_item_srd_compat_applied,
+            )
+            _safe_bootstrap(
+                "item folders schema compatibility bootstrap",
+                ensure_item_folder_schema,
+                warn_if_item_folder_compat_applied,
             )
             _safe_bootstrap(
                 "simulation_state sim_clicks compatibility bootstrap",

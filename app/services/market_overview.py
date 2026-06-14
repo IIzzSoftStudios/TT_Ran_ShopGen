@@ -9,6 +9,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.models import Campaign, GlobalMarket, Item, Shop, ShopInventory, SimulationState
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
+from app.services.world_generator.campaign_settings import read_market_volatility
 
 _EPSILON = 0.01
 
@@ -99,6 +100,7 @@ def aggregate_item_metrics(
 
 def build_market_overview_payload(campaign_id: int) -> Dict[str, Any]:
     current_metrics = aggregate_item_metrics(campaign_id, in_stock_only=True)
+    market_volatility = read_market_volatility(campaign_id)
 
     market_map = {
         m.item_id: m
@@ -196,6 +198,8 @@ def build_market_overview_payload(campaign_id: int) -> Dict[str, Any]:
         "items": payload_items,
         "last_run": last_run,
         "current_game_day": current_game_day,
+        "market_volatility": market_volatility,
+        "stocked_item_count": len(payload_items),
     }
 
 

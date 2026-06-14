@@ -640,6 +640,12 @@
                 <div class="estimator" id="entity-estimator">
                     Est. max ShopInventory: <span id="estimator-value">0</span> of {{ shop_inventory_cap }}.
                 </div>
+                <div class="field-row">
+                    <div class="field-label-row">
+                        <p class="field-label-text">Market volatility<span class="floor-ceiling">(0 = stable, 5 = default, 10 = wild)</span></p>
+                    </div>
+                    <input type="number" name="market_volatility" min="0" max="10" value="5" aria-label="Market volatility">
+                </div>
             </fieldset>
 
             <fieldset>

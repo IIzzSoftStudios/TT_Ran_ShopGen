@@ -16,6 +16,56 @@
     var API = cfg.apiBase || '/api/combat';
     var IS_GM = cfg.role === 'gm';
     var OWN_PLAYER_IDS = cfg.ownPlayerIds || [];
+    var SPELL_AUTOMATION_MANUAL = 'manual';
+    var SPELL_AUTOMATION_DIRECT_NUMERIC = 'direct_numeric';
+
+    function normalizeSpellAutomation(value) {
+        var raw = String(value || SPELL_AUTOMATION_MANUAL).toLowerCase();
+        if (raw === 'auto' || raw === SPELL_AUTOMATION_DIRECT_NUMERIC) {
+            return SPELL_AUTOMATION_DIRECT_NUMERIC;
+        }
+        return SPELL_AUTOMATION_MANUAL;
+    }
+
+    function isDirectNumericSpell(spell) {
+        return normalizeSpellAutomation(spell && spell.automation) === SPELL_AUTOMATION_DIRECT_NUMERIC;
+    }
+
+    function spellCastButtonLabel(spell) {
+        return isDirectNumericSpell(spell) ? 'Cast' : 'Log Cast';
+    }
+
+    function spellAutomationHint(spell) {
+        if (isDirectNumericSpell(spell)) {
+            return 'Auto-resolves direct damage/healing on one target.';
+        }
+        return 'Manual resolution required — table effects are not auto-applied.';
+    }
+
+    function spellManualMetadataLines(spell) {
+        var lines = [];
+        if (!spell) return lines;
+        if (spell.area) {
+            lines.push('Area: ' + esc(String(spell.area.shape || 'area')) +
+                ' ' + esc(String(spell.area.size_ft || '?')) + ' ft (display only)');
+        }
+        if (spell.ritual) lines.push('Ritual (display only)');
+        if (spell.concentration) lines.push('Concentration');
+        if (spell.conditions && spell.conditions.length) {
+            lines.push('Conditions: ' + spell.conditions.map(esc).join(', ') + ' (display only)');
+        }
+        if (spell.summary && !isDirectNumericSpell(spell)) {
+            lines.push(esc(spell.summary));
+        }
+        return lines;
+    }
+
+    function canEndConcentration(c) {
+        if (!c || !c.concentration) return false;
+        if (IS_GM) return true;
+        return !!(state.settings && state.settings.player_concentration_end) &&
+            isOwnPlayerCombatant(c);
+    }
 
     var state = {
         loadedOnce: false,
@@ -25,13 +75,21 @@
         data: null,          // last GET /encounters/<id> payload
         monsters: [],
         settings: null,
-        mode: 'idle',        // idle | move | attack
+        mode: 'idle',        // idle | move | attack | cast_spell
         actorId: null,       // combatant acting via radial menu
         placement: null,     // { type, playerId|monsterId, count, label }
         pendingDeleteEncounter: null,
         pollTimer: null,
         busy: false,
-        controlsBound: false
+        controlsBound: false,
+        mapData: null,
+        mapVersionLoaded: null,
+        mapChunks: {},
+        camera: { x: 0, y: 0 },
+        stagePan: null,
+        suppressStageClick: false,
+        renderPending: false,
+        setupMode: 'create'
     };
 
     function $(id) { return document.getElementById(id); }
@@ -125,8 +183,18 @@
     async function loadEncounter(id) {
         if (!id) { state.data = null; renderAll(); return; }
         try {
+            var prevMapVer = currentMapVersion();
+            var prevId = state.encounterId;
             state.data = await api('/encounters/' + id);
             state.encounterId = id;
+            if (prevId !== id) {
+                state.camera = { x: 0, y: 0 };
+                state.mapChunks = {};
+            }
+            if (!state.data.map || Number(state.data.map.map_version) !== Number(prevMapVer)) {
+                state.mapVersionLoaded = null;
+                state.mapChunks = {};
+            }
             renderAll();
         } catch (err) {
             feedback(err.message, true);
@@ -189,12 +257,24 @@
     /* ------------------------------------------------------------------
      * Rendering
      * ------------------------------------------------------------------ */
+    function ensureCurrentCombatantInView() {
+        if (!state.data || !state.data.current_combatant_id) return;
+        var c = combatantById(state.data.current_combatant_id);
+        if (!c) return;
+        var bounds = visibleCellBounds();
+        if (c.x < bounds.x0 || c.x >= bounds.x1 || c.y < bounds.y0 || c.y >= bounds.y1) {
+            focusCameraOnCell(c.x, c.y);
+        }
+    }
+
     function renderAll() {
+        ensureCurrentCombatantInView();
         renderGrid();
         renderTracker();
         renderLog();
         renderToolbar();
         renderMonsterPicker();
+        loadEncounterMap(false);
     }
 
     function refreshMapEncounters() {
@@ -269,6 +349,8 @@
         if (initBtn) initBtn.disabled = !state.data || state.data.status === 'ended';
         var endEncBtn = $('battle-end-encounter-btn');
         if (endEncBtn) endEncBtn.disabled = !state.data || state.data.status === 'ended';
+        var setupEditBtn = $('battle-setup-edit-btn');
+        if (setupEditBtn) setupEditBtn.disabled = !state.data || !isSetupEditable();
         renderEncounterMenu();
     }
 
@@ -378,7 +460,621 @@
         }
     }
 
+    async function apiMultipart(path, formData) {
+        var opts = {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        };
+        if (cfg.csrfToken) opts.headers['X-CSRFToken'] = cfg.csrfToken;
+        opts.body = formData;
+        var resp = await fetch(API + path, opts);
+        var data = null;
+        try { data = await resp.json(); } catch (e) { /* non-JSON */ }
+        if (!resp.ok) {
+            var err = new Error((data && data.error) || ('Request failed (' + resp.status + ')'));
+            err.status = resp.status;
+            throw err;
+        }
+        return data;
+    }
+
+    function currentMapVersion() {
+        return state.data && state.data.map ? Number(state.data.map.map_version) : null;
+    }
+
+    async function loadEncounterMap(force) {
+        if (!state.encounterId || !state.data) {
+            state.mapData = null;
+            state.mapVersionLoaded = null;
+            state.mapChunks = {};
+            renderBattleMapBackground();
+            return;
+        }
+        var ver = currentMapVersion();
+        if (!force && ver !== null && ver === state.mapVersionLoaded && state.mapData) {
+            if (state.mapData.chunked) {
+                await loadVisibleMapChunks(false);
+            }
+            renderBattleMapBackground();
+            return;
+        }
+        try {
+            var out = await api('/encounters/' + state.encounterId + '/map');
+            state.mapData = out.map || null;
+            state.mapVersionLoaded = ver;
+            state.mapChunks = {};
+            if (state.mapData && state.mapData.chunked) {
+                await loadVisibleMapChunks(true);
+            }
+            renderBattleMapBackground();
+        } catch (err) {
+            feedback(err.message, true);
+        }
+    }
+
+    function syncMapBackgroundLayout(bg, bounds) {
+        if (!bg || !bounds) return;
+        var visW = (bounds.x1 - bounds.x0) * TILE;
+        var visH = (bounds.y1 - bounds.y0) * TILE;
+        bg.style.position = 'absolute';
+        bg.style.inset = 'auto';
+        bg.style.left = '0';
+        bg.style.top = '0';
+        bg.style.width = visW + 'px';
+        bg.style.height = visH + 'px';
+        bg.style.pointerEvents = 'none';
+    }
+
+    function renderBattleMapBackground() {
+        var bg = $('battle-map-bg');
+        if (!bg) return;
+        bg.innerHTML = '';
+        if (!state.data || !state.mapData) return;
+        var map = state.mapData;
+        var gw = state.data.grid_width || 20;
+        var gh = state.data.grid_height || 20;
+        var bounds = visibleCellBounds();
+        syncMapBackgroundLayout(bg, bounds);
+
+        if (map.has_image && map.image_url) {
+            var wrap = document.createElement('div');
+            wrap.className = 'battle-map-image-window';
+            wrap.style.width = '100%';
+            wrap.style.height = '100%';
+            wrap.style.overflow = 'hidden';
+            var img = document.createElement('img');
+            img.alt = '';
+            img.src = map.image_url + '?v=' + (map.map_version || 0);
+            img.style.display = 'block';
+            img.style.width = (gw * TILE) + 'px';
+            img.style.height = (gh * TILE) + 'px';
+            img.style.marginLeft = (-bounds.x0 * TILE) + 'px';
+            img.style.marginTop = (-bounds.y0 * TILE) + 'px';
+            img.style.objectFit = 'fill';
+            wrap.appendChild(img);
+            bg.appendChild(wrap);
+            return;
+        }
+
+        if (map.chunked) {
+            loadVisibleMapChunks(false).then(function () {
+                renderChunkedMapBackground(bg, gw, gh, bounds);
+            });
+            return;
+        }
+
+        var meta = map.terrain_metadata || {};
+        var svg = buildTerrainSvg(meta, gw, gh, bounds);
+        bg.appendChild(svg);
+    }
+
+    function isSetupEditable() {
+        return state.data && state.data.status === 'setup';
+    }
+
+    function updateSetupSourceVisibility() {
+        var source = ($('battle-setup-source') || {}).value || 'generated';
+        var gen = $('battle-setup-generated-actions');
+        var up = $('battle-setup-upload-row');
+        if (gen) gen.hidden = source !== 'generated';
+        if (up) up.hidden = source !== 'uploaded';
+    }
+
+    function openSetupPopout(mode) {
+        var popout = $('battle-setup-popout');
+        if (!popout) return;
+        state.setupMode = mode || 'create';
+        var title = $('battle-setup-title');
+        var submit = $('battle-setup-submit');
+        var lockedNote = $('battle-setup-locked-note');
+        var editable = mode === 'create' || isSetupEditable();
+        popout.classList.toggle('is-locked', !editable);
+        if (lockedNote) lockedNote.hidden = editable;
+        if (title) {
+            title.textContent = mode === 'create' ? 'New encounter' : 'Encounter setup';
+        }
+        if (submit) {
+            submit.textContent = mode === 'create' ? 'Create encounter' : 'Apply changes';
+            submit.disabled = mode !== 'create' && !editable;
+        }
+        var nameEl = $('battle-setup-name');
+        if (nameEl) {
+            nameEl.value = mode === 'create' ? 'Encounter' : (state.data ? state.data.name : 'Encounter');
+        }
+        var wEl = $('battle-setup-width');
+        var hEl = $('battle-setup-height');
+        if (wEl) wEl.value = state.data ? state.data.grid_width : 20;
+        if (hEl) hEl.value = state.data ? state.data.grid_height : 20;
+        var presetEl = $('battle-setup-preset');
+        if (presetEl && state.data && state.data.map && state.data.map.terrain_preset) {
+            presetEl.value = state.data.map.terrain_preset;
+        }
+        var sourceEl = $('battle-setup-source');
+        if (sourceEl && state.data && state.data.map) {
+            sourceEl.value = state.data.map.source_type === 'uploaded' ? 'uploaded' : 'generated';
+        }
+        updateSetupSourceVisibility();
+        popout.hidden = false;
+        var anchor = $('battle-create-btn') || $('battle-setup-edit-btn');
+        positionBattleRenamePopout(popout, anchor);
+    }
+
+    function closeSetupPopout() {
+        var popout = $('battle-setup-popout');
+        if (popout) popout.hidden = true;
+        var uploadInput = $('battle-setup-upload-input');
+        if (uploadInput) uploadInput.value = '';
+    }
+
     var TILE = 34;
+    var TILE_MIN = 20;
+    var TILE_MAX = 56;
+    var TILE_STEP = 4;
+    var OVERSCAN = 3;
+    var CHUNK_THRESHOLD = 150;
+
+    function getStageViewportCells() {
+        var stage = $('battle-stage');
+        if (!stage) return { cols: 20, rows: 15 };
+        return {
+            cols: Math.max(1, Math.ceil(stage.clientWidth / TILE)),
+            rows: Math.max(1, Math.ceil(stage.clientHeight / TILE))
+        };
+    }
+
+    function visibleCellBounds() {
+        if (!state.data) return { x0: 0, y0: 0, x1: 0, y1: 0 };
+        var vp = getStageViewportCells();
+        var gw = state.data.grid_width;
+        var gh = state.data.grid_height;
+        var x0 = Math.max(0, state.camera.x - OVERSCAN);
+        var y0 = Math.max(0, state.camera.y - OVERSCAN);
+        var x1 = Math.min(gw, state.camera.x + vp.cols + OVERSCAN);
+        var y1 = Math.min(gh, state.camera.y + vp.rows + OVERSCAN);
+        return { x0: x0, y0: y0, x1: x1, y1: y1, vp: vp };
+    }
+
+    function clampCamera() {
+        if (!state.data) return;
+        var vp = getStageViewportCells();
+        var maxX = Math.max(0, state.data.grid_width - vp.cols);
+        var maxY = Math.max(0, state.data.grid_height - vp.rows);
+        state.camera.x = Math.max(0, Math.min(state.camera.x, maxX));
+        state.camera.y = Math.max(0, Math.min(state.camera.y, maxY));
+    }
+
+    function cameraLimits() {
+        if (!state.data) return { maxX: 0, maxY: 0 };
+        var vp = getStageViewportCells();
+        return {
+            maxX: Math.max(0, state.data.grid_width - vp.cols),
+            maxY: Math.max(0, state.data.grid_height - vp.rows)
+        };
+    }
+
+    function updateBattleNavControls() {
+        var h = $('battle-map-nav-x');
+        var v = $('battle-map-nav-y');
+        if (!h || !v) return;
+        if (!state.data) {
+            h.hidden = true;
+            v.hidden = true;
+            return;
+        }
+        var limits = cameraLimits();
+        h.max = String(limits.maxX);
+        h.value = String(state.camera.x);
+        h.hidden = limits.maxX <= 0;
+        v.max = String(limits.maxY);
+        v.value = String(state.camera.y);
+        v.hidden = limits.maxY <= 0;
+    }
+
+    function syncStageScroll() {
+        var stage = $('battle-stage');
+        if (stage) {
+            stage.scrollLeft = state.camera.x * TILE;
+            stage.scrollTop = state.camera.y * TILE;
+        }
+        updateBattleNavControls();
+    }
+
+    function focusCameraOnCell(x, y) {
+        if (!state.data) return;
+        var vp = getStageViewportCells();
+        state.camera.x = Math.max(
+            0,
+            Math.min(x - Math.floor(vp.cols / 2), state.data.grid_width - vp.cols)
+        );
+        state.camera.y = Math.max(
+            0,
+            Math.min(y - Math.floor(vp.rows / 2), state.data.grid_height - vp.rows)
+        );
+        clampCamera();
+        syncStageScroll();
+    }
+
+    function scheduleVirtualRender() {
+        if (state.renderPending) return;
+        state.renderPending = true;
+        requestAnimationFrame(function () {
+            state.renderPending = false;
+            if (!state.data) return;
+            renderGrid();
+            renderBattleMapBackground();
+            updateBattleNavControls();
+        });
+    }
+
+    function onStageScroll() {
+        var stage = $('battle-stage');
+        if (!stage || !state.data) return;
+        state.camera.x = Math.floor(stage.scrollLeft / TILE);
+        state.camera.y = Math.floor(stage.scrollTop / TILE);
+        clampCamera();
+        scheduleVirtualRender();
+    }
+
+    function onStageWheel(ev) {
+        if (!state.data) return;
+        var stage = $('battle-stage');
+        if (!stage) return;
+        if (!ev.deltaY && !ev.deltaX) return;
+        ev.preventDefault();
+        if (ev.deltaX) {
+            var dxLines = ev.deltaMode === 1 ? ev.deltaX : (ev.deltaX / 40);
+            state.camera.x = Math.max(0, state.camera.x + Math.round(dxLines));
+        }
+        if (ev.deltaY) {
+            var dyLines = ev.deltaMode === 1 ? ev.deltaY : (ev.deltaY / 40);
+            state.camera.y = Math.max(0, state.camera.y + Math.round(dyLines));
+        }
+        clampCamera();
+        syncStageScroll();
+        scheduleVirtualRender();
+    }
+
+    function isStagePanTarget(target) {
+        if (!target || !target.closest) return true;
+        return !target.closest(
+            '.battle-token, .battle-radial, .battle-attack-popout, .battle-cast-popout,' +
+            ' button, input, select, textarea, a'
+        );
+    }
+
+    function onStagePointerDown(ev) {
+        if (!state.data || ev.button !== 0 || !isStagePanTarget(ev.target)) return;
+        var stage = $('battle-stage');
+        if (!stage) return;
+        state.stagePan = {
+            pointerId: ev.pointerId,
+            startX: ev.clientX,
+            startY: ev.clientY,
+            cameraX: state.camera.x,
+            cameraY: state.camera.y,
+            moved: false
+        };
+        stage.classList.add('is-panning');
+        if (stage.setPointerCapture) stage.setPointerCapture(ev.pointerId);
+    }
+
+    function onStagePointerMove(ev) {
+        var pan = state.stagePan;
+        if (!pan || pan.pointerId !== ev.pointerId || !state.data) return;
+        var deltaX = ev.clientX - pan.startX;
+        var deltaY = ev.clientY - pan.startY;
+        if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+            pan.moved = true;
+        }
+        state.camera.x = pan.cameraX - Math.round(deltaX / TILE);
+        state.camera.y = pan.cameraY - Math.round(deltaY / TILE);
+        clampCamera();
+        syncStageScroll();
+        scheduleVirtualRender();
+        ev.preventDefault();
+    }
+
+    function endStagePan(ev) {
+        var pan = state.stagePan;
+        if (!pan || (ev && pan.pointerId !== ev.pointerId)) return;
+        var stage = $('battle-stage');
+        if (stage) {
+            stage.classList.remove('is-panning');
+            if (ev && stage.releasePointerCapture) {
+                try { stage.releasePointerCapture(ev.pointerId); } catch (e) { /* already released */ }
+            }
+        }
+        if (pan.moved) {
+            state.suppressStageClick = true;
+            setTimeout(function () { state.suppressStageClick = false; }, 100);
+        }
+        state.stagePan = null;
+    }
+
+    function onStageClickCapture(ev) {
+        if (!state.suppressStageClick) return;
+        state.suppressStageClick = false;
+        ev.preventDefault();
+        ev.stopPropagation();
+    }
+
+    function setBattleZoom(delta) {
+        if (!state.data) return;
+        TILE = Math.max(TILE_MIN, Math.min(TILE + delta, TILE_MAX));
+        clampCamera();
+        syncStageScroll();
+        renderGrid();
+        renderBattleMapBackground();
+        updateBattleNavControls();
+        updateBattleZoomControls();
+    }
+
+    function createBattleNavControl(id, className, label) {
+        var input = document.createElement('input');
+        input.type = 'range';
+        input.id = id;
+        input.className = 'battle-map-nav ' + className;
+        input.min = '0';
+        input.max = '0';
+        input.value = '0';
+        input.step = '1';
+        input.hidden = true;
+        input.setAttribute('aria-label', label);
+        input.addEventListener('input', function () {
+            if (!state.data) return;
+            if (id === 'battle-map-nav-x') {
+                state.camera.x = parseInt(input.value, 10) || 0;
+            } else {
+                state.camera.y = parseInt(input.value, 10) || 0;
+            }
+            clampCamera();
+            syncStageScroll();
+            scheduleVirtualRender();
+        });
+        return input;
+    }
+
+    function createBattleZoomButton(id, label, text, delta) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = id;
+        btn.className = 'battle-map-zoom-btn';
+        btn.textContent = text;
+        btn.setAttribute('aria-label', label);
+        btn.addEventListener('click', function () {
+            setBattleZoom(delta);
+        });
+        return btn;
+    }
+
+    function updateBattleZoomControls() {
+        var out = $('battle-map-zoom-out');
+        var inn = $('battle-map-zoom-in');
+        if (out) out.disabled = TILE <= TILE_MIN;
+        if (inn) inn.disabled = TILE >= TILE_MAX;
+    }
+
+    function ensureBattleMapShell() {
+        var stage = $('battle-stage');
+        if (!stage) return null;
+        var existing = stage.parentElement && stage.parentElement.classList.contains('battle-map-shell')
+            ? stage.parentElement
+            : null;
+        if (existing) return existing;
+        var shell = document.createElement('div');
+        shell.className = 'battle-map-shell';
+        stage.parentNode.insertBefore(shell, stage);
+        shell.appendChild(stage);
+        return shell;
+    }
+
+    function ensureBattleNavControls() {
+        var stage = $('battle-stage');
+        var shell = ensureBattleMapShell();
+        if (!stage || $('battle-map-nav-x')) return;
+        shell.appendChild(createBattleNavControl(
+            'battle-map-nav-x',
+            'battle-map-nav-horizontal',
+            'Pan battle map left and right'
+        ));
+        shell.appendChild(createBattleNavControl(
+            'battle-map-nav-y',
+            'battle-map-nav-vertical',
+            'Pan battle map up and down'
+        ));
+        var zoom = document.createElement('div');
+        zoom.className = 'battle-map-zoom';
+        zoom.appendChild(createBattleZoomButton(
+            'battle-map-zoom-out',
+            'Zoom battle map out',
+            '-',
+            -TILE_STEP
+        ));
+        zoom.appendChild(createBattleZoomButton(
+            'battle-map-zoom-in',
+            'Zoom battle map in',
+            '+',
+            TILE_STEP
+        ));
+        shell.appendChild(zoom);
+        updateBattleNavControls();
+        updateBattleZoomControls();
+    }
+
+    function onStageKeyPan(ev) {
+        if (!state.data) return;
+        var target = ev.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
+            target.tagName === 'SELECT' || target.isContentEditable)) return;
+        var dx = 0;
+        var dy = 0;
+        if (ev.key === 'ArrowLeft') dx = -3;
+        else if (ev.key === 'ArrowRight') dx = 3;
+        else if (ev.key === 'ArrowUp') dy = -3;
+        else if (ev.key === 'ArrowDown') dy = 3;
+        else return;
+        ev.preventDefault();
+        state.camera.x = Math.max(0, state.camera.x + dx);
+        state.camera.y = Math.max(0, state.camera.y + dy);
+        clampCamera();
+        syncStageScroll();
+        scheduleVirtualRender();
+    }
+
+    function appendFeaturesToSvg(svg, features, palette, gw, gh) {
+        var unit = Math.min(gw, gh);
+        (features || []).forEach(function (feat) {
+            var t = feat.type;
+            if (t === 'patch' || t === 'wall') {
+                var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                poly.setAttribute('points', (feat.points || []).map(function (p) {
+                    return (p[0] * gw) + ',' + (p[1] * gh);
+                }).join(' '));
+                poly.setAttribute('fill', palette.accent || '#6b8e4e');
+                poly.setAttribute('opacity', '0.75');
+                svg.appendChild(poly);
+            } else if (t === 'river' || t === 'road') {
+                var pl = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                pl.setAttribute('points', (feat.points || []).map(function (p) {
+                    return (p[0] * gw) + ',' + (p[1] * gh);
+                }).join(' '));
+                pl.setAttribute('fill', 'none');
+                pl.setAttribute('stroke', t === 'river'
+                    ? (palette.detail || '#4a90a4')
+                    : (palette.accent || '#8a7a62'));
+                pl.setAttribute('stroke-width', String(
+                    t === 'river' ? Math.max(0.15, unit * 0.04) : Math.max(0.08, unit * 0.025)
+                ));
+                pl.setAttribute('vector-effect', 'non-scaling-stroke');
+                pl.setAttribute('stroke-linecap', 'round');
+                pl.setAttribute('opacity', '0.85');
+                svg.appendChild(pl);
+            } else if (t === 'building') {
+                var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', String((feat.x || 0) * gw));
+                rect.setAttribute('y', String((feat.y || 0) * gh));
+                rect.setAttribute('width', String((feat.w || 0.08) * gw));
+                rect.setAttribute('height', String((feat.h || 0.08) * gh));
+                rect.setAttribute('fill', palette.detail || '#6b5344');
+                svg.appendChild(rect);
+            } else if (t === 'tent') {
+                var tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                var cx = (feat.x || 0) * gw;
+                var cy = (feat.y || 0) * gh;
+                var sz = (feat.size || 0.06) * unit;
+                tri.setAttribute('points', cx + ',' + (cy - sz) + ' ' +
+                    (cx - sz * 0.7) + ',' + (cy + sz * 0.5) + ' ' +
+                    (cx + sz * 0.7) + ',' + (cy + sz * 0.5));
+                tri.setAttribute('fill', palette.accent || '#6b5d4f');
+                svg.appendChild(tri);
+            }
+        });
+    }
+
+    function buildTerrainSvg(meta, gw, gh, clipBounds) {
+        var palette = (meta && meta.palette) || {
+            base: '#8fbc8f', accent: '#6b8e4e', detail: '#c4a35a'
+        };
+        var bounds = clipBounds || { x0: 0, y0: 0, x1: gw, y1: gh };
+        var vbW = bounds.x1 - bounds.x0;
+        var vbH = bounds.y1 - bounds.y0;
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', bounds.x0 + ' ' + bounds.y0 + ' ' + vbW + ' ' + vbH);
+        svg.setAttribute('preserveAspectRatio', 'none');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        var base = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        base.setAttribute('x', String(bounds.x0));
+        base.setAttribute('y', String(bounds.y0));
+        base.setAttribute('width', String(vbW));
+        base.setAttribute('height', String(vbH));
+        base.setAttribute('fill', palette.base || '#8fbc8f');
+        svg.appendChild(base);
+        appendFeaturesToSvg(svg, (meta && meta.features) || [], palette, gw, gh);
+        return svg;
+    }
+
+    async function loadVisibleMapChunks(force) {
+        if (!state.mapData || !state.mapData.chunked || !state.encounterId) return;
+        var bounds = visibleCellBounds();
+        var cs = state.mapData.chunk_size || 64;
+        var cx0 = Math.floor(bounds.x0 / cs);
+        var cy0 = Math.floor(bounds.y0 / cs);
+        var cx1 = Math.floor((bounds.x1 - 1) / cs);
+        var cy1 = Math.floor((bounds.y1 - 1) / cs);
+        var ver = state.mapData.map_version || 0;
+        var pending = [];
+        for (var cy = cy0; cy <= cy1; cy++) {
+            for (var cx = cx0; cx <= cx1; cx++) {
+                var key = ver + ':' + cx + ':' + cy;
+                if (!force && state.mapChunks[key]) continue;
+                pending.push((function (chunkX, chunkY, cacheKey) {
+                    return api('/encounters/' + state.encounterId +
+                        '/map/chunk?chunk_x=' + chunkX + '&chunk_y=' + chunkY)
+                        .then(function (out) {
+                            state.mapChunks[cacheKey] = out.map_chunk || null;
+                        })
+                        .catch(function () { /* chunk fetch is best-effort */ });
+                })(cx, cy, key));
+            }
+        }
+        if (pending.length) await Promise.all(pending);
+    }
+
+    function renderChunkedMapBackground(bg, gw, gh, bounds) {
+        if (!bg) return;
+        bg.innerHTML = '';
+        syncMapBackgroundLayout(bg, bounds);
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute(
+            'viewBox',
+            bounds.x0 + ' ' + bounds.y0 + ' ' +
+            (bounds.x1 - bounds.x0) + ' ' + (bounds.y1 - bounds.y0)
+        );
+        svg.setAttribute('preserveAspectRatio', 'none');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        var base = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        base.setAttribute('x', String(bounds.x0));
+        base.setAttribute('y', String(bounds.y0));
+        base.setAttribute('width', String(bounds.x1 - bounds.x0));
+        base.setAttribute('height', String(bounds.y1 - bounds.y0));
+        base.setAttribute('fill', '#8fbc8f');
+        svg.appendChild(base);
+        Object.keys(state.mapChunks).forEach(function (key) {
+            var chunk = state.mapChunks[key];
+            if (!chunk || !chunk.terrain_metadata) return;
+            appendFeaturesToSvg(
+                svg,
+                chunk.terrain_metadata.features || [],
+                chunk.terrain_metadata.palette || {},
+                gw,
+                gh
+            );
+        });
+        bg.appendChild(svg);
+    }
 
     function occupiedTiles() {
         if (!state.data) return {};
@@ -540,6 +1236,7 @@
     }
 
     function renderGrid() {
+        ensureBattleNavControls();
         var grid = $('battle-grid');
         if (!grid) return;
         grid.innerHTML = '';
@@ -547,15 +1244,29 @@
         if (!state.data) {
             grid.innerHTML = '<p class="battle-empty">No encounter loaded.' +
                 (IS_GM ? ' Create one to begin.' : '') + '</p>';
+            updateBattleNavControls();
             return;
         }
-        var w = state.data.grid_width, h = state.data.grid_height;
+        clampCamera();
+        var bounds = visibleCellBounds();
+        var x0 = bounds.x0;
+        var y0 = bounds.y0;
+        var x1 = bounds.x1;
+        var y1 = bounds.y1;
+        var visW = (x1 - x0) * TILE;
+        var visH = (y1 - y0) * TILE;
+
         var board = document.createElement('div');
-        board.className = 'battle-board';
-        board.style.gridTemplateColumns = 'repeat(' + w + ', ' + TILE + 'px)';
-        board.style.gridTemplateRows = 'repeat(' + h + ', ' + TILE + 'px)';
-        for (var y = 0; y < h; y++) {
-            for (var x = 0; x < w; x++) {
+        board.className = 'battle-board battle-board-virtual';
+        board.style.width = visW + 'px';
+        board.style.height = visH + 'px';
+
+        var layer = document.createElement('div');
+        layer.className = 'battle-visible-layer';
+        layer.style.transform = 'translate3d(0, 0, 0)';
+
+        for (var y = y0; y < y1; y++) {
+            for (var x = x0; x < x1; x++) {
                 var tile = document.createElement('div');
                 tile.className = 'battle-tile';
                 if (isTileOccupied(x, y)) {
@@ -563,14 +1274,21 @@
                 }
                 tile.dataset.x = x;
                 tile.dataset.y = y;
+                tile.style.left = ((x - x0) * TILE) + 'px';
+                tile.style.top = ((y - y0) * TILE) + 'px';
+                tile.style.width = TILE + 'px';
+                tile.style.height = TILE + 'px';
                 tile.addEventListener('click', onTileClick);
-                board.appendChild(tile);
+                layer.appendChild(tile);
             }
         }
+
         (state.data.combatants || []).forEach(function (c) {
             if (c.status === 'removed') return;
-            var idx = c.y * w + c.x;
-            var tile = board.children[idx];
+            if (c.x < x0 || c.x >= x1 || c.y < y0 || c.y >= y1) return;
+            var tile = layer.querySelector(
+                '.battle-tile[data-x="' + c.x + '"][data-y="' + c.y + '"]'
+            );
             if (!tile) return;
             var token = document.createElement('button');
             token.type = 'button';
@@ -581,11 +1299,16 @@
             token.dataset.combatantId = c.id;
             token.title = c.name + (c.hp_current !== undefined
                 ? (' - ' + c.hp_current + '/' + c.hp_max + ' HP')
-                : (' - ' + c.health_state));
+                : (' - ' + c.health_state)) +
+                (c.concentration && c.concentration.spell_name
+                    ? (' — Concentrating: ' + c.concentration.spell_name)
+                    : '');
             token.textContent = (c.name || '?').charAt(0).toUpperCase();
             token.addEventListener('click', onTokenClick);
             tile.appendChild(token);
         });
+
+        board.appendChild(layer);
         grid.appendChild(board);
         grid.classList.toggle('battle-mode-move', state.mode === 'move');
         grid.classList.toggle('battle-mode-attack', state.mode === 'attack');
@@ -654,6 +1377,31 @@
             case 'wait': return who + ' waits (drops to bottom of round).';
             case 'turn_ended': return 'R' + (p.round || '?') + ': next turn.';
             case 'death_save': return who + ' rolled a death save.';
+            case 'cast_spell': {
+                var spell = p.spell || {};
+                var target = p.target_id ? combatantById(p.target_id) : null;
+                var tn = target ? target.name : 'target';
+                var label = spell.name || spell.key || 'a spell';
+                if (p.manual_resolution) {
+                    return who + ' logged ' + label + ' at ' + tn + ' (manual resolution).';
+                }
+                if (p.damage_roll) {
+                    return who + ' cast ' + label + ' at ' + tn + ' for ' + p.damage_roll.total + ' damage.';
+                }
+                if (p.healing_roll) {
+                    return who + ' cast ' + label + ' on ' + tn + ' for ' + p.healing_roll.total + ' healing.';
+                }
+                return who + ' cast ' + label + ' at ' + tn + '.';
+            }
+            case 'concentration_start': {
+                var started = (p.spell && p.spell.name) || 'a spell';
+                return who + ' began concentrating on ' + started + '.';
+            }
+            case 'concentration_end': {
+                var ended = (p.ended_spell && p.ended_spell.name) || 'a spell';
+                var reason = p.reason || 'ended';
+                return who + ' stopped concentrating on ' + ended + ' (' + reason + ').';
+            }
             default: return entry.type;
         }
     }
@@ -679,13 +1427,14 @@
         hideArrow();
         var grid = $('battle-grid');
         if (grid) {
-            grid.classList.remove('battle-mode-move', 'battle-mode-attack');
+            grid.classList.remove('battle-mode-move', 'battle-mode-attack', 'battle-mode-cast');
         }
     }
 
     function resetBattleUiAfterMutation() {
         var attackPop = $('battle-attack-popout');
-        if (attackPop && !attackPop.hidden) {
+        var castPop = $('battle-cast-popout');
+        if ((attackPop && !attackPop.hidden) || (castPop && !castPop.hidden)) {
             hideRadialMenu();
             clearTargetingModes();
             return;
@@ -698,6 +1447,7 @@
         cancelPlacement();
         hideRadialMenu();
         closeAttackPopout();
+        closeCastPopout();
         var grid = $('battle-grid');
         if (grid) grid.classList.remove('battle-mode-place');
     }
@@ -710,6 +1460,10 @@
 
         if (state.mode === 'attack' && state.actorId && id !== state.actorId) {
             openAttackPopout(combatantById(state.actorId), c, ev.currentTarget);
+            return;
+        }
+        if (state.mode === 'cast_spell' && state.actorId && id !== state.actorId) {
+            openCastPopout(combatantById(state.actorId), c, ev.currentTarget);
             return;
         }
         if (state.mode !== 'idle') { exitMode(); return; }
@@ -728,17 +1482,42 @@
         state.actorId = c.id;
         var sRect = stage.getBoundingClientRect();
         var tRect = tokenEl.getBoundingClientRect();
-        var anchorX = tRect.left - sRect.left + stage.scrollLeft + TILE / 2;
-        var anchorY = tRect.top - sRect.top + stage.scrollTop + TILE / 2;
+        var anchorX = tRect.left - sRect.left + TILE / 2;
+        var anchorY = tRect.top - sRect.top + TILE / 2;
         positionPopoutWithinStage(menu, stage, anchorX, anchorY);
 
         var isDown = c.status === 'down';
         $('battle-radial-move').hidden = isDown;
         $('battle-radial-attack').hidden = isDown;
+        var castBtn = $('battle-radial-cast');
+        if (castBtn) {
+            castBtn.hidden = isDown || !(c.spells && c.spells.length);
+        }
         $('battle-radial-wait').hidden = isDown;
         $('battle-radial-wait').disabled = !!c.has_waited;
         var deathBtn = $('battle-radial-death-save');
         if (deathBtn) deathBtn.hidden = !isDown;
+
+        var endConcBtn = menu.querySelector('[data-action="end-concentration"]');
+        if (!endConcBtn) {
+            endConcBtn = document.createElement('button');
+            endConcBtn.type = 'button';
+            endConcBtn.className = 'battle-radial-btn';
+            endConcBtn.dataset.action = 'end-concentration';
+            endConcBtn.textContent = 'End concentration';
+            endConcBtn.addEventListener('click', async function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                var actorId = state.actorId;
+                exitMode();
+                await mutate('/encounters/' + state.encounterId + '/action', {
+                    type: 'end_concentration',
+                    combatant_id: actorId
+                });
+            });
+            menu.insertBefore(endConcBtn, $('battle-radial-close'));
+        }
+        endConcBtn.hidden = isDown || !canEndConcentration(c);
     }
 
     function showArrow(color) {
@@ -754,16 +1533,16 @@
     }
 
     function onStageMouseMove(ev) {
-        if (state.mode !== 'move' && state.mode !== 'attack') return;
+        if (state.mode !== 'move' && state.mode !== 'attack' && state.mode !== 'cast_spell') return;
         var actor = combatantById(state.actorId);
         var svg = $('battle-arrow'), stage = $('battle-stage');
         if (!actor || !svg || !stage) return;
         var rect = stage.getBoundingClientRect();
         var line = svg.querySelector('line');
-        line.setAttribute('x1', actor.x * TILE + TILE / 2);
-        line.setAttribute('y1', actor.y * TILE + TILE / 2);
-        line.setAttribute('x2', ev.clientX - rect.left + stage.scrollLeft);
-        line.setAttribute('y2', ev.clientY - rect.top + stage.scrollTop);
+        line.setAttribute('x1', (actor.x - state.camera.x) * TILE + TILE / 2);
+        line.setAttribute('y1', (actor.y - state.camera.y) * TILE + TILE / 2);
+        line.setAttribute('x2', ev.clientX - rect.left);
+        line.setAttribute('y2', ev.clientY - rect.top);
     }
 
     function onTileClick(ev) {
@@ -787,6 +1566,103 @@
     function closeAttackPopout() {
         var pop = $('battle-attack-popout');
         if (pop) pop.hidden = true;
+    }
+
+    function closeCastPopout() {
+        var pop = $('battle-cast-popout');
+        if (pop) pop.hidden = true;
+    }
+
+    function openCastPopout(caster, target, targetEl) {
+        var pop = $('battle-cast-popout');
+        if (!pop || !caster || !target) return;
+        hideRadialMenu();
+        clearTargetingModes();
+
+        var spells = caster.spells || [];
+        var slots = caster.spell_slots || {};
+        var html = '<h4>' + esc(caster.name) + ' &rarr; ' + esc(target.name) + '</h4>';
+        if (Object.keys(slots).length) {
+            html += '<p class="battle-spell-slots">Slots: ' + Object.keys(slots).map(function (lvl) {
+                var bucket = slots[lvl] || {};
+                return esc(lvl) + '=' + esc(String(bucket.remaining != null ? bucket.remaining : '?'));
+            }).join(', ') + '</p>';
+        }
+        if (!spells.length) {
+            html += '<p>No spells available.</p>';
+        }
+        spells.forEach(function (spell) {
+            var lvl = spell.level == null ? 0 : spell.level;
+            var meta = spellManualMetadataLines(spell);
+            html += '<div class="battle-attack-row battle-cast-row">' +
+                '<div class="battle-cast-spell-head">' +
+                '<span>' + esc(spell.name) + ' (L' + esc(lvl) + ', ' + esc(spell.range_ft || 0) + ' ft)</span>' +
+                '<span class="battle-cast-mode">' + esc(spellAutomationHint(spell)) + '</span>' +
+                (meta.length ? ('<ul class="battle-cast-meta">' +
+                    meta.map(function (line) { return '<li>' + line + '</li>'; }).join('') +
+                    '</ul>') : '') +
+                '</div>' +
+                '<label>Slot <input type="number" class="battle-cast-level-input" min="' + esc(lvl) +
+                '" max="9" value="' + esc(lvl) + '" data-spell-key="' + esc(spell.key) + '" style="width:3em"></label>' +
+                '<button type="button" class="button battle-cast-roll-btn" data-spell-key="' +
+                esc(spell.key) + '">' + esc(spellCastButtonLabel(spell)) + '</button></div>';
+        });
+        html += '<div class="battle-attack-results" id="battle-cast-results"></div>' +
+            '<button type="button" class="button" id="battle-cast-close">Close</button>';
+        pop.innerHTML = html;
+        var stage = $('battle-stage');
+        var sRect = stage.getBoundingClientRect();
+        var tRect = targetEl.getBoundingClientRect();
+        var anchorX = tRect.left - sRect.left + stage.scrollLeft + TILE / 2;
+        var anchorY = tRect.top - sRect.top + stage.scrollTop + TILE / 2;
+        positionPopoutWithinStage(pop, stage, anchorX, anchorY, { preferBelow: true });
+
+        pop.querySelector('#battle-cast-close').addEventListener('click', exitMode);
+        pop.querySelectorAll('.battle-cast-roll-btn').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var key = btn.dataset.spellKey;
+                var levelInput = pop.querySelector('.battle-cast-level-input[data-spell-key="' + key + '"]');
+                var castLevel = levelInput ? parseInt(levelInput.value, 10) : null;
+                var out = await mutate('/encounters/' + state.encounterId + '/action', {
+                    type: 'cast_spell',
+                    combatant_id: caster.id,
+                    target_id: target.id,
+                    spell_key: key,
+                    cast_level: castLevel
+                });
+                if (out) showCastResults(out.result);
+            });
+        });
+    }
+
+    function showCastResults(result) {
+        var box = $('battle-cast-results');
+        if (!box) return;
+        var html = '';
+        if (result.manual_resolution) {
+            html += '<div>Manual resolution required — effects were logged, not auto-applied.</div>';
+        }
+        if (result.concentration && result.concentration.spell_name) {
+            html += '<div>Concentration: ' + esc(result.concentration.spell_name) + '</div>';
+        }
+        if (result.concentration && result.concentration.gm_manual_remainder) {
+            html += '<div>Remaining table effects are GM-resolved.</div>';
+        }
+        if (result.to_hit) {
+            html += '<div>To hit: ' + esc(result.to_hit.total) +
+                (result.hit ? ' — HIT' : ' — miss') + '</div>';
+        }
+        if (result.save) {
+            html += '<div>Save: ' + esc(result.save.total) +
+                (result.save.success ? ' — saved' : ' — failed') + '</div>';
+        }
+        if (result.damage_roll) {
+            html += '<div>Damage: ' + esc(result.damage_roll.total) + '</div>';
+        }
+        if (result.healing_roll) {
+            html += '<div>Healing: ' + esc(result.healing_roll.total) + '</div>';
+        }
+        box.innerHTML = html || '<div>Spell resolved.</div>';
     }
 
     function openAttackPopout(attacker, target, targetEl) {
@@ -889,17 +1765,25 @@
         flanking: 'Flanking',
         cover: 'Cover',
         death_saves: 'Death saves',
-        concentration_checks: 'Concentration checks',
+        concentration_checks: 'Concentration damage checks',
         conditions_enabled: 'Track conditions',
         auto_apply_damage: 'Auto-apply damage',
         track_action_economy: 'Track action economy',
         track_spell_slots: 'Track spell slots',
+        direct_numeric_auto_resolution: 'Auto-resolve direct numeric spells',
+        manual_spell_slot_consumption: 'Consume slots on manual leveled casts',
+        concentration_tracking: 'Track concentration',
+        concentration_auto_replace: 'Auto-replace concentration on new cast',
+        concentration_cleanup_tracked_effects: 'Clean up tracked concentration effects',
+        player_concentration_end: 'Allow players to end concentration',
+        concentration_check_mode: 'Concentration check handling',
         crit_mode: 'Critical hits'
     };
     var SETTING_ENUMS = {
         diagonal_mode: ['five_ten_five', 'always_five', 'euclidean'],
         initiative_tie_mode: ['dex_then_random', 'stable'],
-        crit_mode: ['double_dice']
+        crit_mode: ['double_dice'],
+        concentration_check_mode: ['server_roll', 'gm_entered', 'server_and_gm']
     };
 
     function renderSettings() {
@@ -1287,8 +2171,11 @@
             if (!state.encounterId || state.busy || state.mode !== 'idle') return;
             try {
                 var data = await api('/encounters/' + state.encounterId);
-                if (!state.data || data.turn_version !== state.data.turn_version) {
+                var mapChanged = !state.data || !state.data.map || !data.map ||
+                    Number(data.map.map_version) !== Number(state.data.map.map_version);
+                if (!state.data || data.turn_version !== state.data.turn_version || mapChanged) {
                     state.data = data;
+                    if (mapChanged) state.mapVersionLoaded = null;
                     renderAll();
                 }
             } catch (e) { /* transient poll errors are non-fatal */ }
@@ -1310,24 +2197,113 @@
         state.controlsBound = true;
         var stage = $('battle-stage');
         if (stage) {
+            ensureBattleNavControls();
             stage.addEventListener('mousemove', onStageMouseMove);
+            stage.addEventListener('wheel', onStageWheel, { passive: false });
+            stage.addEventListener('pointerdown', onStagePointerDown);
+            stage.addEventListener('pointermove', onStagePointerMove);
+            stage.addEventListener('pointerup', endStagePan);
+            stage.addEventListener('pointercancel', endStagePan);
+            stage.addEventListener('click', onStageClickCapture, true);
         }
+        document.addEventListener('keydown', onStageKeyPan);
         document.addEventListener('keydown', function (ev) {
             if (ev.key === 'Escape') exitMode();
+        });
+        window.addEventListener('resize', function () {
+            clampCamera();
+            scheduleVirtualRender();
         });
 
         var createBtn = $('battle-create-btn');
         if (createBtn) {
-            createBtn.addEventListener('click', async function () {
-                var name = window.prompt('Encounter name?', 'Encounter');
-                if (name === null) return;
+            createBtn.addEventListener('click', function () {
+                openSetupPopout('create');
+            });
+        }
+        var setupEditBtn = $('battle-setup-edit-btn');
+        if (setupEditBtn) {
+            setupEditBtn.addEventListener('click', function () {
+                if (!state.encounterId) return;
+                openSetupPopout('edit');
+            });
+        }
+        var setupCancel = $('battle-setup-cancel');
+        if (setupCancel) setupCancel.addEventListener('click', closeSetupPopout);
+        var setupSource = $('battle-setup-source');
+        if (setupSource) setupSource.addEventListener('change', updateSetupSourceVisibility);
+        var setupRegen = $('battle-setup-regenerate-btn');
+        if (setupRegen) {
+            setupRegen.addEventListener('click', async function () {
+                if (!state.encounterId || !isSetupEditable()) return;
                 try {
-                    var out = await api('/encounters', 'POST', { name: name });
-                    state.encounterId = out.encounter.id;
-                    state.data = out.encounter;
-                    await loadEncounters();
-                    refreshMapEncounters();
-                    renderAll();
+                    var preset = ($('battle-setup-preset') || {}).value;
+                    await api('/encounters/' + state.encounterId + '/map/generate', 'POST', {
+                        terrain_preset: preset
+                    });
+                    await loadEncounter(state.encounterId);
+                    feedback('Map regenerated.');
+                } catch (err) { feedback(err.message, true); }
+            });
+        }
+        var setupUpload = $('battle-setup-upload-input');
+        if (setupUpload) {
+            setupUpload.addEventListener('change', async function () {
+                if (!setupUpload.files || !setupUpload.files.length) return;
+                if (setupUpload.files[0].size > 4 * 1024 * 1024) {
+                    feedback('File exceeds 4 MB.', true);
+                    setupUpload.value = '';
+                    return;
+                }
+                if (state.setupMode === 'create') {
+                    feedback('Create the encounter first, then upload a map.');
+                    setupUpload.value = '';
+                    return;
+                }
+                if (!state.encounterId || !isSetupEditable()) return;
+                var fd = new FormData();
+                fd.append('map_image', setupUpload.files[0]);
+                try {
+                    await apiMultipart('/encounters/' + state.encounterId + '/map/upload', fd);
+                    await loadEncounter(state.encounterId);
+                    feedback('Map uploaded.');
+                } catch (err) { feedback(err.message, true); }
+                setupUpload.value = '';
+            });
+        }
+        var setupForm = $('battle-setup-form');
+        if (setupForm) {
+            setupForm.addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                var name = ($('battle-setup-name') || {}).value || 'Encounter';
+                var gw = parseInt(($('battle-setup-width') || {}).value, 10) || 20;
+                var gh = parseInt(($('battle-setup-height') || {}).value, 10) || 20;
+                var preset = ($('battle-setup-preset') || {}).value || 'plains';
+                try {
+                    if (state.setupMode === 'create') {
+                        var out = await api('/encounters', 'POST', {
+                            name: name,
+                            grid_width: gw,
+                            grid_height: gh,
+                            terrain_preset: preset
+                        });
+                        state.encounterId = out.encounter.id;
+                        state.data = out.encounter;
+                        await loadEncounters();
+                        refreshMapEncounters();
+                        renderAll();
+                    } else if (isSetupEditable()) {
+                        await api('/encounters/' + state.encounterId + '/grid', 'POST', {
+                            grid_width: gw,
+                            grid_height: gh
+                        });
+                        await api('/encounters/' + state.encounterId + '/map/generate', 'POST', {
+                            terrain_preset: preset
+                        });
+                        await loadEncounter(state.encounterId);
+                        feedback('Encounter setup updated.');
+                    }
+                    closeSetupPopout();
                     var menu = $('battle-encounter-menu');
                     if (menu) menu.open = false;
                 } catch (err) { feedback(err.message, true); }
@@ -1461,6 +2437,17 @@
                 hideRadialMenu();
                 $('battle-grid').classList.add('battle-mode-attack');
                 showArrow('var(--color-danger, #dc2626)');
+            });
+        }
+        var radialCast = $('battle-radial-cast');
+        if (radialCast) {
+            radialCast.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                state.mode = 'cast_spell';
+                hideRadialMenu();
+                $('battle-grid').classList.add('battle-mode-cast');
+                showArrow('var(--color-accent, #7c3aed)');
             });
         }
         var radialWait = $('battle-radial-wait');

@@ -21,8 +21,9 @@ from app.services.combat import dnd5e_rules as rules
 from app.services.combat import settings_service
 from app.services.rulesets import get_ruleset
 
-MAX_GRID = 60
 MIN_GRID = 5
+MAX_GRID = 1000
+MAX_GRID_ABUSE = 100000
 MAX_COMBATANTS = 60
 
 _SKIP_TURN_STATUSES = ("dead", "removed")
@@ -34,8 +35,56 @@ def _fresh_resources() -> dict:
         "bonus_action": True,
         "reaction": True,
         "concentrating": False,
+        "concentration": None,
         "death_saves": {"successes": 0, "failures": 0},
     }
+
+
+# ---------------------------------------------------------------------------
+# Grid dimension validation
+# ---------------------------------------------------------------------------
+
+
+def parse_grid_dimension(value, field_name: str = "Grid dimension") -> int:
+    """Parse and validate a single grid axis; reject floats, bools, and 1e6-style input."""
+    if isinstance(value, bool):
+        raise CombatValidationError(f"{field_name} must be an integer.")
+    if isinstance(value, float):
+        raise CombatValidationError(f"{field_name} must be an integer.")
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned or cleaned.lower() in {"true", "false"}:
+            raise CombatValidationError(f"{field_name} must be an integer.")
+        lowered = cleaned.lower()
+        if "e" in lowered or "." in cleaned:
+            raise CombatValidationError(f"{field_name} must be an integer.")
+        try:
+            parsed = int(cleaned, 10)
+        except ValueError as exc:
+            raise CombatValidationError(f"{field_name} must be an integer.") from exc
+        if str(parsed) != cleaned and str(parsed) != cleaned.lstrip("+"):
+            raise CombatValidationError(f"{field_name} must be an integer.")
+        value = parsed
+    else:
+        try:
+            value = int(value)
+        except (TypeError, ValueError) as exc:
+            raise CombatValidationError(f"{field_name} must be an integer.") from exc
+    if value > MAX_GRID_ABUSE:
+        raise CombatValidationError(
+            f"Grid dimensions cannot exceed {MAX_GRID_ABUSE}."
+        )
+    return value
+
+
+def validate_grid_dimensions(width, height) -> tuple[int, int]:
+    width = parse_grid_dimension(width, "Grid width")
+    height = parse_grid_dimension(height, "Grid height")
+    if not (MIN_GRID <= width <= MAX_GRID and MIN_GRID <= height <= MAX_GRID):
+        raise CombatValidationError(
+            f"Grid dimensions must be between {MIN_GRID} and {MAX_GRID}."
+        )
+    return width, height
 
 
 # ---------------------------------------------------------------------------
@@ -43,17 +92,10 @@ def _fresh_resources() -> dict:
 # ---------------------------------------------------------------------------
 
 def create_encounter(campaign_id: int, name=None, grid_width=20, grid_height=20,
-                     map_canvas_id=None, map_x=None, map_y=None) -> BattleEncounter:
+                     map_canvas_id=None, map_x=None, map_y=None,
+                     terrain_preset=None) -> BattleEncounter:
     name = (str(name or "Encounter")).strip()[:120] or "Encounter"
-    try:
-        grid_width = int(grid_width)
-        grid_height = int(grid_height)
-    except (TypeError, ValueError):
-        raise CombatValidationError("Grid dimensions must be integers.")
-    if not (MIN_GRID <= grid_width <= MAX_GRID and MIN_GRID <= grid_height <= MAX_GRID):
-        raise CombatValidationError(
-            f"Grid dimensions must be between {MIN_GRID} and {MAX_GRID}."
-        )
+    grid_width, grid_height = validate_grid_dimensions(grid_width, grid_height)
     resolved_canvas_id = _validated_map_canvas_id(campaign_id, map_canvas_id)
     coords = (
         _coerce_map_position(map_x, map_y)
@@ -73,6 +115,10 @@ def create_encounter(campaign_id: int, name=None, grid_width=20, grid_height=20,
     )
     db.session.add(encounter)
     db.session.flush()
+    if terrain_preset is not None:
+        from app.services.combat import battle_map_service
+
+        battle_map_service.initialize_generated_map(encounter, preset=terrain_preset)
     _log(encounter, None, "encounter_created", {"name": name})
     return encounter
 
@@ -134,6 +180,9 @@ def rename_encounter(encounter: BattleEncounter, name) -> None:
 
 def delete_encounter(encounter: BattleEncounter) -> None:
     """Permanently remove an encounter and its dependent battle state."""
+    from app.services.combat import battle_map_service
+
+    battle_map_service.cleanup_encounter_assets(encounter)
     BattleActionLog.query.filter_by(encounter_id=encounter.id).delete(
         synchronize_session=False
     )
@@ -241,6 +290,43 @@ def settings_for(encounter: BattleEncounter) -> dict:
     return merged
 
 
+def _spell_attack_mod(combatant: BattleCombatant, *, level: int = 1) -> int:
+    abilities = combatant.ability_json or {}
+    ruleset = get_ruleset("dnd5e")
+    prof = ruleset.proficiency_bonus(max(1, int(level or 1)))
+    mods = [
+        ruleset.compute_ability_mod(abilities.get(key, 10))
+        for key in ("int", "wis", "cha")
+    ]
+    return max(mods) + prof
+
+
+def _build_spell_slots_snapshot(class_row: dict | None) -> dict:
+    slots = (class_row or {}).get("spell_slots") or {}
+    snapshot: dict[str, dict[str, int]] = {}
+    for key, total in slots.items():
+        try:
+            slot_total = int(total)
+        except (TypeError, ValueError):
+            continue
+        if slot_total > 0:
+            snapshot[str(key)] = {"total": slot_total, "remaining": slot_total}
+    return snapshot
+
+
+def _player_spell_keys(sheet: dict) -> list[str]:
+    spells_state = sheet.get("spells") if isinstance(sheet.get("spells"), dict) else {}
+    keys: list[str] = []
+    seen: set[str] = set()
+    for bucket in ("cantrips", "prepared", "known"):
+        for raw in spells_state.get(bucket) or []:
+            key = str(raw or "").strip()
+            if key and key not in seen:
+                seen.add(key)
+                keys.append(key)
+    return keys
+
+
 # ---------------------------------------------------------------------------
 # Combatants
 # ---------------------------------------------------------------------------
@@ -326,7 +412,56 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
     ruleset = get_ruleset("dnd5e")
     dex_mod = ruleset.compute_ability_mod(abilities.get("dex", 10))
     str_mod = ruleset.compute_ability_mod(abilities.get("str", 10))
-    prof = ruleset.proficiency_bonus(1)
+    try:
+        char_level = max(1, int(sheet.get("level") or 1))
+    except (TypeError, ValueError):
+        char_level = 1
+    prof = ruleset.proficiency_bonus(char_level)
+
+    from app.services.classes_compendium_service import resolve_character_class_details
+    from app.services.spells_compendium_service import combat_spell_snapshots
+
+    creation = sheet.get("creation") if isinstance(sheet.get("creation"), dict) else {}
+    class_details = resolve_character_class_details(
+        encounter.campaign_id,
+        class_key=creation.get("class_key"),
+        level=char_level,
+        class_name_fallback=sheet.get("class_name"),
+        owner_class_key=creation.get("class_key"),
+    )
+    spell_keys = _player_spell_keys(sheet)
+    spell_snapshots = combat_spell_snapshots(encounter.campaign_id, spell_keys)
+    spell_slots = _build_spell_slots_snapshot(class_details.get("current_level_row"))
+    spell_mod = _spell_attack_mod(
+        BattleCombatant(ability_json=abilities), level=char_level
+    )
+
+    from app.services.equipment.item_rules import (
+        build_weapon_attacks,
+        combat_equipment_snapshots,
+        compute_equipment_ac,
+        get_equipped_items,
+    )
+
+    equipped = get_equipped_items(player)
+    equipment_ac = compute_equipment_ac(equipped, dex_mod=dex_mod)
+    weapon_attacks = build_weapon_attacks(
+        equipped, str_mod=str_mod, dex_mod=dex_mod, prof_bonus=prof
+    )
+    if not weapon_attacks:
+        weapon_attacks = [
+            {
+                "key": "unarmed",
+                "name": "Unarmed Strike",
+                "kind": "melee",
+                "attack_mod": str_mod + prof,
+                "damage": f"1+{max(0, str_mod)}",
+                "damage_type": "bludgeoning",
+                "range_ft": 5,
+                "automation": "auto",
+            }
+        ]
+    equipment_snapshot = combat_equipment_snapshots(player)
 
     x, y = _free_tile(encounter, *_coerce_tile(encounter, x, y))
     combatant = BattleCombatant(
@@ -341,25 +476,19 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         hp_max=hp_max,
         hp_current=hp_current,
         temp_hp=0,
-        ac=max(1, _defense("ac", 10)),
+        ac=max(1, equipment_ac),
         speed_ft=30,
         dex_mod=dex_mod,
         ability_json=abilities,
         action_data_json={
-            "attacks": [
-                {
-                    "key": "weapon",
-                    "name": "Weapon Attack",
-                    "kind": "melee",
-                    "attack_mod": str_mod + prof,
-                    "damage": f"1d8+{max(0, str_mod)}",
-                    "damage_type": "slashing",
-                    "range_ft": 5,
-                }
-            ]
+            "attacks": weapon_attacks,
+            "spells": spell_snapshots,
+            "spell_attack_mod": spell_mod,
+            "character_level": char_level,
+            "equipment": equipment_snapshot,
         },
         resources_json=_fresh_resources(),
-        spell_slots_json={},
+        spell_slots_json=spell_slots,
         conditions_json=[],
     )
     db.session.add(combatant)
@@ -641,8 +770,204 @@ def _attack_definition(combatant: BattleCombatant, attack_key) -> dict:
     raise CombatValidationError("Unknown attack for this combatant.")
 
 
-def _apply_outcome_to_target(encounter: BattleEncounter, target: BattleCombatant,
-                             damage_total: int, settings: dict, rng: Random) -> dict:
+def _get_concentration(resources: dict) -> dict | None:
+    conc = resources.get("concentration")
+    if isinstance(conc, dict) and conc.get("spell_key"):
+        return conc
+    return None
+
+
+def _sync_concentrating_flag(resources: dict) -> dict:
+    resources["concentrating"] = _get_concentration(resources) is not None
+    return resources
+
+
+def _clear_concentration_linked_effects(
+    encounter: BattleEncounter,
+    caster: BattleCombatant,
+    linked_effects: list,
+    settings: dict,
+) -> list[dict]:
+    if not settings.get("concentration_cleanup_tracked_effects", True):
+        return []
+    removed: list[dict] = []
+    for effect in linked_effects or []:
+        if not isinstance(effect, dict) or not effect.get("applied"):
+            continue
+        if effect.get("type") != "condition":
+            continue
+        target = combatant_in_encounter(encounter, effect.get("target_id")) or caster
+        if target is None or not settings.get("conditions_enabled", True):
+            continue
+        cond = str(effect.get("value") or "").strip().lower()
+        if not cond:
+            continue
+        conditions = list(target.conditions_json or [])
+        if cond in conditions:
+            conditions.remove(cond)
+            target.conditions_json = conditions
+            removed.append(effect)
+    return removed
+
+
+def _end_concentration(
+    encounter: BattleEncounter,
+    combatant: BattleCombatant,
+    settings: dict,
+    *,
+    reason: str,
+    log_actor: BattleCombatant | None = None,
+) -> dict | None:
+    resources = dict(combatant.resources_json or _fresh_resources())
+    conc = _get_concentration(resources)
+    if conc is None:
+        return None
+    linked = list(conc.get("linked_effects") or [])
+    cleaned = _clear_concentration_linked_effects(
+        encounter, combatant, linked, settings
+    )
+    resources["concentration"] = None
+    _sync_concentrating_flag(resources)
+    combatant.resources_json = resources
+    payload = {
+        "reason": reason,
+        "ended_spell": {
+            "key": conc.get("spell_key"),
+            "name": conc.get("spell_name"),
+        },
+        "cleaned_effects": cleaned,
+        "gm_manual_remainder": bool(linked and not cleaned),
+    }
+    _log(encounter, log_actor or combatant, "concentration_end", payload)
+    return payload
+
+
+def _register_concentration_linked_effects(
+    spell: dict,
+    target: BattleCombatant,
+    *,
+    apply_conditions: bool,
+    settings: dict,
+) -> list[dict]:
+    linked: list[dict] = []
+    for raw in spell.get("conditions") or []:
+        cond = str(raw or "").strip().lower()
+        if not cond:
+            continue
+        applied = False
+        if apply_conditions and settings.get("conditions_enabled", True):
+            conditions = list(target.conditions_json or [])
+            if cond not in conditions:
+                conditions.append(cond)
+                target.conditions_json = conditions
+                applied = True
+        linked.append(
+            {
+                "type": "condition",
+                "target_id": target.id,
+                "value": cond,
+                "applied": applied,
+            }
+        )
+    return linked
+
+
+def _start_concentration(
+    encounter: BattleEncounter,
+    caster: BattleCombatant,
+    spell: dict,
+    target: BattleCombatant,
+    settings: dict,
+) -> dict | None:
+    if not settings.get("concentration_tracking", True):
+        return None
+    resources = dict(caster.resources_json or _fresh_resources())
+    if settings.get("concentration_auto_replace", True) and _get_concentration(resources):
+        _end_concentration(encounter, caster, settings, reason="replaced")
+        resources = dict(caster.resources_json or _fresh_resources())
+
+    from app.services.spells_compendium_service import is_direct_numeric_automation
+
+    apply_conditions = is_direct_numeric_automation(spell.get("automation"))
+    linked_effects = _register_concentration_linked_effects(
+        spell,
+        target,
+        apply_conditions=apply_conditions,
+        settings=settings,
+    )
+    resources["concentration"] = {
+        "spell_key": spell.get("key"),
+        "spell_name": spell.get("name"),
+        "target_id": target.id,
+        "round_number": encounter.round_number,
+        "linked_effects": linked_effects,
+    }
+    _sync_concentrating_flag(resources)
+    caster.resources_json = resources
+    payload = {
+        "spell": {"key": spell.get("key"), "name": spell.get("name")},
+        "target_id": target.id,
+        "linked_effects": linked_effects,
+        "gm_manual_remainder": bool(
+            (spell.get("conditions") or []) and not linked_effects
+        ),
+    }
+    _log(encounter, caster, "concentration_start", payload)
+    return resources["concentration"]
+
+
+def _resolve_concentration_damage_check(
+    combatant: BattleCombatant,
+    damage_taken: int,
+    settings: dict,
+    rng: Random,
+    *,
+    gm_override=None,
+) -> dict | None:
+    ruleset = get_ruleset("dnd5e")
+    con_mod = ruleset.compute_ability_mod((combatant.ability_json or {}).get("con", 10))
+    dc = rules.concentration_dc(damage_taken)
+    mode = settings.get("concentration_check_mode", "server_and_gm")
+    if mode == "gm_entered":
+        if gm_override is None:
+            return None
+        success = bool(
+            gm_override.get("success")
+            if isinstance(gm_override, dict)
+            else gm_override
+        )
+        return {
+            "dc": dc,
+            "success": success,
+            "source": "gm_override",
+            "ability_mod": con_mod,
+        }
+    if gm_override is not None and mode == "server_and_gm":
+        success = bool(
+            gm_override.get("success")
+            if isinstance(gm_override, dict)
+            else gm_override
+        )
+        return {
+            "dc": dc,
+            "success": success,
+            "source": "gm_override",
+            "ability_mod": con_mod,
+        }
+    save = rules.saving_throw(con_mod, dc, rng)
+    save["source"] = "server_roll"
+    return save
+
+
+def _apply_outcome_to_target(
+    encounter: BattleEncounter,
+    target: BattleCombatant,
+    damage_total: int,
+    settings: dict,
+    rng: Random,
+    *,
+    concentration_check_override=None,
+) -> dict:
     """Apply damage temp-HP-first; handle down/dead and concentration."""
     outcome = rules.apply_damage(target.hp_current, target.temp_hp, damage_total)
     target.hp_current = outcome["hp_current"]
@@ -656,23 +981,45 @@ def _apply_outcome_to_target(encounter: BattleEncounter, target: BattleCombatant
             target.status = "dead"
         result["target_status"] = target.status
 
-    resources = dict(target.resources_json or {})
+    resources = dict(target.resources_json or _fresh_resources())
+    conc = _get_concentration(resources)
     if (
-        settings["concentration_checks"]
+        settings.get("concentration_checks", True)
+        and settings.get("concentration_tracking", True)
         and outcome["taken"] > 0
-        and resources.get("concentrating")
+        and conc is not None
         and target.status == "active"
     ):
-        ruleset = get_ruleset("dnd5e")
-        con_mod = ruleset.compute_ability_mod(
-            (target.ability_json or {}).get("con", 10)
+        save = _resolve_concentration_damage_check(
+            target,
+            outcome["taken"],
+            settings,
+            rng,
+            gm_override=concentration_check_override,
         )
-        dc = rules.concentration_dc(outcome["taken"])
-        save = rules.saving_throw(con_mod, dc, rng)
-        if not save["success"]:
-            resources["concentrating"] = False
-            target.resources_json = resources
-        result["concentration"] = save
+        if save is not None:
+            result["concentration"] = save
+            if not save["success"]:
+                _end_concentration(
+                    encounter,
+                    target,
+                    settings,
+                    reason="damage_check_failed",
+                )
+
+    if (
+        target.status in ("down", "dead")
+        and settings.get("concentration_tracking", True)
+        and _get_concentration(dict(target.resources_json or {}))
+    ):
+        end_payload = _end_concentration(
+            encounter,
+            target,
+            settings,
+            reason="incapacitated",
+        )
+        if end_payload:
+            result["concentration_end"] = end_payload
     return result
 
 
@@ -815,6 +1162,268 @@ def batch_attack_action(encounter: BattleEncounter, attacker_ids, target_id,
     _log(encounter, current, "batch_attack", {"results_count": len(results)})
     db.session.flush()
     return results
+
+
+def _spell_definition(combatant: BattleCombatant, spell_key) -> dict:
+    spells = (combatant.action_data_json or {}).get("spells") or []
+    needle = str(spell_key or "").strip().lower()
+    for spell in spells:
+        if str(spell.get("key") or "").lower() == needle:
+            return spell
+    raise CombatValidationError("Unknown spell for this combatant.")
+
+
+def _save_mod(combatant: BattleCombatant, ability: str) -> int:
+    ruleset = get_ruleset("dnd5e")
+    abilities = combatant.ability_json or {}
+    return ruleset.compute_ability_mod(abilities.get(str(ability or "dex"), 10))
+
+
+def _spell_uses_bonus_action(spell: dict) -> bool:
+    return "bonus action" in str(spell.get("casting_time") or "").lower()
+
+
+def _consume_spell_slot(combatant: BattleCombatant, cast_level: int) -> None:
+    if cast_level <= 0:
+        return
+    slots = dict(combatant.spell_slots_json or {})
+    bucket = slots.get(str(cast_level))
+    if not isinstance(bucket, dict):
+        raise CombatValidationError(f"No spell slot available at level {cast_level}.")
+    remaining = int(bucket.get("remaining") or 0)
+    if remaining <= 0:
+        raise CombatValidationError(f"No spell slot available at level {cast_level}.")
+    bucket = dict(bucket)
+    bucket["remaining"] = remaining - 1
+    slots[str(cast_level)] = bucket
+    combatant.spell_slots_json = slots
+
+
+def _roll_spell_damage(spell: dict, cast_level: int, rng: Random, *, crit: bool = False) -> dict | None:
+    notation = spell.get("damage")
+    if not notation:
+        return None
+    damage = rules.roll_damage(str(notation), rng, crit=crit)
+    base_level = int(spell.get("level") or 0)
+    upcast = spell.get("upcast") or {}
+    per_slot = upcast.get("damage_per_slot")
+    if cast_level > base_level and per_slot:
+        slots_above = cast_level - max(base_level, 1)
+        for _ in range(slots_above):
+            extra = rules.roll_damage(str(per_slot), rng)
+            damage["total"] += extra["total"]
+            damage.setdefault("upcast_rolls", []).append(extra)
+    return damage
+
+
+def _roll_spell_healing(spell: dict, cast_level: int, rng: Random) -> dict | None:
+    notation = spell.get("healing")
+    if not notation:
+        return None
+    healing = rules.roll_damage(str(notation), rng)
+    base_level = int(spell.get("level") or 0)
+    upcast = spell.get("upcast") or {}
+    per_slot = upcast.get("healing_per_slot")
+    if cast_level > base_level and per_slot:
+        slots_above = cast_level - max(base_level, 1)
+        for _ in range(slots_above):
+            extra = rules.roll_damage(str(per_slot), rng)
+            healing["total"] += extra["total"]
+            healing.setdefault("upcast_rolls", []).append(extra)
+    return healing
+
+
+def cast_spell_action(
+    encounter: BattleEncounter,
+    attacker: BattleCombatant,
+    target_id,
+    spell_key,
+    cast_level,
+    rng: Random,
+    roll_mode: str = "normal",
+    *,
+    concentration_check_override=None,
+) -> dict:
+    """Resolve a prepared spell from the combatant snapshot."""
+    from app.services.spells_compendium_service import (
+        AUTOMATION_MANUAL,
+        is_direct_numeric_automation,
+        normalize_automation,
+    )
+
+    _require_active(encounter)
+    _require_turn(encounter, attacker)
+    if attacker.status != "active":
+        raise CombatValidationError(f"{attacker.name} cannot act right now.")
+
+    spell = _spell_definition(attacker, spell_key)
+    try:
+        spell_level = int(spell.get("level") or 0)
+    except (TypeError, ValueError):
+        spell_level = 0
+    try:
+        cast_level_int = spell_level if cast_level in (None, "") else int(cast_level)
+    except (TypeError, ValueError):
+        raise CombatValidationError("cast_level must be an integer.")
+    if cast_level_int < spell_level or cast_level_int > 9:
+        raise CombatValidationError(
+            f"cast_level must be between {spell_level} and 9."
+        )
+
+    target = combatant_in_encounter(encounter, target_id)
+    if target is None or target.status in ("dead", "removed"):
+        raise CombatValidationError("Target not found in this encounter.")
+
+    settings = settings_for(encounter)
+    resources = dict(attacker.resources_json or _fresh_resources())
+    uses_bonus = _spell_uses_bonus_action(spell)
+    if settings["track_action_economy"]:
+        economy_key = "bonus_action" if uses_bonus else "action"
+        if not resources.get(economy_key, True):
+            raise CombatValidationError(
+                f"{attacker.name} has already used their {'bonus action' if uses_bonus else 'action'}."
+            )
+
+    distance = rules.grid_distance_ft(
+        attacker.x, attacker.y, target.x, target.y, settings["diagonal_mode"]
+    )
+    range_ft = int(spell.get("range_ft") or 0)
+    if range_ft > 0 and target.id != attacker.id and distance > range_ft:
+        raise CombatValidationError(
+            f"Target is out of range ({distance} ft > {range_ft} ft)."
+        )
+
+    automation = normalize_automation(spell.get("automation"))
+    direct_numeric = is_direct_numeric_automation(automation)
+    consume_slot = (
+        settings["track_spell_slots"]
+        and cast_level_int > 0
+        and (
+            direct_numeric
+            or settings.get("manual_spell_slot_consumption", True)
+        )
+    )
+    if consume_slot:
+        _consume_spell_slot(attacker, cast_level_int)
+
+    action_data = dict(attacker.action_data_json or {})
+    spell_mod = int(action_data.get("spell_attack_mod") or 0)
+    auto_resolve = (
+        direct_numeric and settings.get("direct_numeric_auto_resolution", True)
+    )
+    manual_resolution = automation == AUTOMATION_MANUAL or not auto_resolve
+
+    result: dict = {
+        "attacker_id": attacker.id,
+        "target_id": target.id,
+        "spell": {"key": spell.get("key"), "name": spell.get("name"), "level": spell_level},
+        "cast_level": cast_level_int,
+        "distance_ft": distance,
+        "automation": automation,
+        "manual_resolution": manual_resolution,
+    }
+
+    if auto_resolve:
+        attack_type = spell.get("attack_type")
+        if attack_type == "spell_attack" and spell.get("damage"):
+            if roll_mode not in rules.ROLL_MODES:
+                raise CombatValidationError("Invalid roll mode.")
+            to_hit = rules.resolve_attack_roll(spell_mod, target.ac, rng, roll_mode)
+            result["to_hit"] = to_hit
+            result["hit"] = to_hit["hit"]
+            if to_hit["hit"]:
+                crit = to_hit["crit"] and settings["crit_mode"] == "double_dice"
+                damage = _roll_spell_damage(spell, cast_level_int, rng, crit=crit)
+                result["damage_roll"] = damage
+                if damage and settings["auto_apply_damage"]:
+                    result["outcome"] = _apply_outcome_to_target(
+                        encounter,
+                        target,
+                        damage["total"],
+                        settings,
+                        rng,
+                        concentration_check_override=concentration_check_override,
+                    )
+        elif attack_type == "save" and spell.get("damage"):
+            save_ability = str(spell.get("save_ability") or "dex")
+            save = rules.saving_throw(
+                _save_mod(target, save_ability), 8 + spell_mod, rng, roll_mode
+            )
+            result["save"] = save
+            damage = _roll_spell_damage(spell, cast_level_int, rng)
+            if damage and save["success"]:
+                damage = dict(damage)
+                damage["total"] = damage["total"] // 2
+            result["damage_roll"] = damage
+            if damage and settings["auto_apply_damage"] and damage["total"] > 0:
+                result["outcome"] = _apply_outcome_to_target(
+                    encounter,
+                    target,
+                    damage["total"],
+                    settings,
+                    rng,
+                    concentration_check_override=concentration_check_override,
+                )
+        elif spell.get("damage") and not attack_type:
+            damage = _roll_spell_damage(spell, cast_level_int, rng)
+            result["damage_roll"] = damage
+            if damage and settings["auto_apply_damage"]:
+                result["outcome"] = _apply_outcome_to_target(
+                    encounter,
+                    target,
+                    damage["total"],
+                    settings,
+                    rng,
+                    concentration_check_override=concentration_check_override,
+                )
+        elif spell.get("healing"):
+            healing = _roll_spell_healing(spell, cast_level_int, rng)
+            result["healing_roll"] = healing
+            if healing and settings["auto_apply_damage"] and target.status == "active":
+                target.hp_current = min(
+                    target.hp_max, target.hp_current + healing["total"]
+                )
+                result["healing_applied"] = healing["total"]
+
+    if spell.get("concentration"):
+        conc_state = _start_concentration(encounter, attacker, spell, target, settings)
+        if conc_state is not None:
+            result["concentration"] = conc_state
+
+    if settings["track_action_economy"]:
+        resources = dict(attacker.resources_json or _fresh_resources())
+        if uses_bonus:
+            resources["bonus_action"] = False
+        else:
+            resources["action"] = False
+        attacker.resources_json = resources
+
+    encounter.turn_version += 1
+    _log(encounter, attacker, "cast_spell", result)
+    db.session.flush()
+    return result
+
+
+def end_concentration_action(
+    encounter: BattleEncounter,
+    combatant: BattleCombatant,
+    *,
+    role: str = "gm",
+) -> dict:
+    """Manually end combat-local concentration for an authorized actor."""
+    _require_active(encounter)
+    settings = settings_for(encounter)
+    if not settings.get("concentration_tracking", True):
+        raise CombatValidationError("Concentration tracking is disabled.")
+    if role != "gm" and not settings.get("player_concentration_end", False):
+        raise CombatValidationError("Players cannot end concentration in this encounter.")
+    resources = dict(combatant.resources_json or _fresh_resources())
+    if _get_concentration(resources) is None:
+        raise CombatValidationError(f"{combatant.name} is not concentrating.")
+    payload = _end_concentration(encounter, combatant, settings, reason="manual")
+    encounter.turn_version += 1
+    db.session.flush()
+    return payload or {}
 
 
 def death_save_action(encounter: BattleEncounter, combatant: BattleCombatant,
