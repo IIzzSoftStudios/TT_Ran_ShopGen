@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <div class="gm-shops-city-panel">
     <div class="content-container">
         <div class="section">
@@ -6,6 +7,11 @@
         </div>
 
         <h2>Shops by city</h2>
+=======
+﻿<div class="gm-shops-city-panel">
+    <div class="content-container">
+        <span id="gm-region-delete-url-template" data-url="{{ url_for('gm.delete_region', region_id=900000001) }}" hidden aria-hidden="true"></span>
+>>>>>>> GCP
 
         <datalist id="shop-type-list">
             {% for t in type_suggestions %}
@@ -13,6 +19,7 @@
             {% endfor %}
         </datalist>
 
+<<<<<<< HEAD
         {% if city_data %}
         <div class="city-list">
             {% for item in city_data %}
@@ -21,11 +28,49 @@
                     <span class="city-name">{{ item.city.name }}</span>
                     <span class="city-meta">
                         {{ item.city.region or 'Unspecified' }}{% if item.city.size %} | {{ item.city.size }}{% endif %}
+=======
+        {% if region_groups|default([]) %}
+        <div class="region-list">
+            {% for group in region_groups %}
+            <details class="region-block" data-region={{ group.label|tojson }} data-region-id="{{ group.region_id or '' }}" open>
+                <summary>
+                    <span class="region-name">{{ group.label }}</span>
+                    <span class="region-summary-right">
+                        <span class="city-count-badge">{{ group.city_count }} cit{% if group.city_count == 1 %}y{% else %}ies{% endif %}</span>
+                        <span class="shop-count-badge">{{ group.shop_count }} shop{% if group.shop_count != 1 %}s{% endif %}</span>
+                        {% if group.region_id %}
+                        <span class="region-summary-actions" onclick="event.stopPropagation()">
+                            <button type="button" class="delete-button" data-region-id="{{ group.region_id }}" data-region-name="{{ group.label|e }}">Delete</button>
+                            <a href="{{ url_for('gm.edit_region', region_id=group.region_id) }}" class="button">Edit</a>
+                        </span>
+                        {% endif %}
+                    </span>
+                </summary>
+                <div class="region-panel">
+                    {% if group.cities %}
+                    <div class="city-list">
+                        {% for item in group.cities %}
+                        <details class="city-block" data-region={{ item.region_label|tojson }} data-region-id="{{ item.city.region_id or '' }}" data-map-city-id="{{ item.city.city_id }}">
+                <summary>
+                    <span class="city-name">{{ item.city.name }}</span>
+                    <span class="city-meta">
+                        {% if item.city.size %}{{ item.city.size }}{% else %}Unspecified size{% endif %}
+>>>>>>> GCP
                     </span>
                     <span class="city-summary-right">
                         <span class="shop-count-badge">{{ item.shop_count }} shop{% if item.shop_count != 1 %}s{% endif %}</span>
                         <span class="city-summary-actions" onclick="event.stopPropagation()">
+<<<<<<< HEAD
                             <a href="{{ url_for('gm.gm_edit_city', city_id=item.city.city_id) }}" class="button">Edit</a>
+=======
+                            <button type="button" class="button map-list-control map-city-add"
+                                    data-map-city-id="{{ item.city.city_id }}"
+                                    data-map-city-name="{{ item.city.name|e }}" hidden>Add city to map</button>
+                            <button type="button" class="delete-button map-list-control map-city-remove"
+                                    data-map-city-id="{{ item.city.city_id }}"
+                                    data-map-city-name="{{ item.city.name|e }}" hidden>Remove city from map</button>
+                            <a href="{{ url_for('gm.edit_city', city_id=item.city.city_id) }}" class="button">Edit</a>
+>>>>>>> GCP
                             <button type="button" class="delete-button" data-city-id="{{ item.city.city_id }}" data-city-name="{{ item.city.name|e }}">Delete</button>
                         </span>
                     </span>
@@ -47,15 +92,32 @@
                         <div class="shop-panel">
                             {% for shop in row.shops %}
                             <div class="shop-row">
+<<<<<<< HEAD
                                 <form class="inline-update-form" method="POST" action="{{ url_for('gm.gm_update_shop_basic', shop_id=shop.shop_id) }}">
+=======
+                                <form class="inline-update-form" method="POST" action="{{ url_for('gm.update_shop_basic', shop_id=shop.shop_id) }}">
+>>>>>>> GCP
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <input type="text" name="name" value="{{ shop.name }}" placeholder="Shop name" required autocomplete="off"/>
                                     <input type="text" name="type" list="shop-type-list" value="{{ shop.type }}" placeholder="Type" required autocomplete="off"/>
                                     <button type="submit" class="btn-save-sm">Save</button>
                                 </form>
                                 <div class="shop-actions">
+<<<<<<< HEAD
                                     <a href="{{ url_for('gm.gm_edit_shop', shop_id=shop.shop_id) }}" class="button">Edit</a>
                                     <a href="{{ url_for('gm.gm_view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
+=======
+                                    <button type="button" class="button map-list-control map-shop-add"
+                                            data-map-city-id="{{ item.city.city_id }}"
+                                            data-map-shop-id="{{ shop.shop_id }}"
+                                            data-map-shop-name="{{ shop.name|e }}" hidden>Add shop to map</button>
+                                    <button type="button" class="delete-button map-list-control map-shop-remove"
+                                            data-map-city-id="{{ item.city.city_id }}"
+                                            data-map-shop-id="{{ shop.shop_id }}"
+                                            data-map-shop-name="{{ shop.name|e }}" hidden>Remove shop from map</button>
+                                    <a href="{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}" class="button">Edit</a>
+                                    <a href="{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
+>>>>>>> GCP
                                     <button type="button" class="delete-button" data-shop-id="{{ shop.shop_id }}" data-shop-name="{{ shop.name|e }}">Delete</button>
                                 </div>
                             </div>
@@ -65,6 +127,57 @@
                     {% endfor %}
                     {% endif %}
                 </div>
+<<<<<<< HEAD
+=======
+                        </details>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if group.orphan_shop_type_rows|default([]) %}
+                    <div class="orphan-shops-panel">
+                        <div class="orphan-shops-summary">
+                            <span class="city-name">Shops without a city</span>
+                            <span class="city-summary-right">
+                                <span class="shop-count-badge">
+                                    {{ group.orphan_shop_type_rows|sum(attribute='count') }} shop{% if group.orphan_shop_type_rows|sum(attribute='count') != 1 %}s{% endif %}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="type-table-head" aria-hidden="true">
+                            <span>Type</span>
+                            <span>Count</span>
+                        </div>
+                        {% for row in group.orphan_shop_type_rows %}
+                        <details class="type-block orphan-type-block">
+                            <summary>
+                                <span class="type-name">{{ row.type }}</span>
+                                <span class="type-count">{{ row.count }}</span>
+                            </summary>
+                            <div class="shop-panel">
+                                {% for shop in row.shops %}
+                                <div class="shop-row">
+                                    <form class="inline-update-form" method="POST" action="{{ url_for('gm.update_shop_basic', shop_id=shop.shop_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <input type="text" name="name" value="{{ shop.name }}" placeholder="Shop name" required autocomplete="off"/>
+                                        <input type="text" name="type" list="shop-type-list" value="{{ shop.type }}" placeholder="Type" required autocomplete="off"/>
+                                        <button type="submit" class="btn-save-sm">Save</button>
+                                    </form>
+                                    <div class="shop-actions">
+                                        <a href="{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}" class="button">Edit</a>
+                                        <a href="{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}" class="button">View Items</a>
+                                        <button type="button" class="delete-button" data-shop-id="{{ shop.shop_id }}" data-shop-name="{{ shop.name|e }}">Delete</button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </details>
+                        {% endfor %}
+                    </div>
+                    {% elif not group.cities %}
+                    <p class="empty-city">No cities in this region yet.</p>
+                    {% endif %}
+                </div>
+>>>>>>> GCP
             </details>
             {% endfor %}
         </div>
@@ -73,7 +186,10 @@
             <p>No cities available. Add cities first, then attach shops.</p>
         </div>
         {% endif %}
+<<<<<<< HEAD
         </div>
+=======
+>>>>>>> GCP
     </div>
 
     <div id="deleteModal" class="modal">
@@ -97,4 +213,18 @@
             </div>
         </div>
     </div>
+<<<<<<< HEAD
+=======
+
+    <div id="regionDeleteModal" class="modal">
+        <div class="modal-content">
+            <h2>Confirm Deletion</h2>
+            <p id="regionDeleteModalText"></p>
+            <div class="modal-buttons">
+                <button type="button" class="button" onclick="closeRegionDeleteModal()">Cancel</button>
+                <button type="button" class="delete-button" onclick="confirmRegionDelete()">Delete region</button>
+            </div>
+        </div>
+    </div>
+>>>>>>> GCP
 </div>

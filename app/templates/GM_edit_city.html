@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Edit City</title>
@@ -76,6 +76,35 @@
             border-radius: 5px;
             font-size: 14px;
         }
+        .species-population-section {
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+        .species-population-section h2 {
+            font-size: 1.1rem;
+            margin: 0 0 8px;
+            color: #222;
+        }
+        .species-population-hint,
+        .species-population-total {
+            font-size: 12px;
+            color: #555;
+            margin: 0 0 10px;
+        }
+        .species-population-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 120px;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .species-population-row input {
+            margin-bottom: 0;
+        }
 
         /* Save and Delete Button Row */
         .button-row {
@@ -108,9 +137,14 @@
 
     <!-- Navigation Button Container -->
     <div class="button-container">
+<<<<<<< HEAD
         <a href="{{ url_for('gm.gm_view_city_shops', city_id=city.city_id) }}" class="button">Manage Shops</a>
         <a href="{{ url_for('gm.gm_view_cities') }}" class="button">All Cities</a>
         <a href="{{ url_for('gm.gm_home') }}" class="button">Game Master Interface</a>
+=======
+        <a href="{{ url_for('gm.view_city_shops', city_id=city.city_id) }}" class="button">Manage Shops</a>
+        <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
+>>>>>>> GCP
     </div>
 
     <!-- Centered Form -->
@@ -136,11 +170,47 @@
 
         <!-- Population -->
         <label for="population">Population:</label>
-        <input type="number" id="population" name="population" value="{{ city.population }}" required>
+        <input type="number" id="population" name="population" value="{{ city.population }}" min="0" required>
+
+        {% if species_population_rows is defined and species_population_rows %}
+        <section class="species-population-section">
+            <h2>Population by Species</h2>
+            <p class="species-population-hint">
+                Edit each species count. The total population above updates from these rows when you save.
+            </p>
+            {% for row in species_population_rows %}
+            <div class="species-population-row">
+                <label for="species-{{ row.key }}-population">
+                    {{ row.name }}
+                    <small>({{ '%.1f'|format(row.percent) }}%)</small>
+                </label>
+                <input type="hidden" name="species_key" value="{{ row.key }}">
+                <input type="hidden" name="species_{{ row.key }}_name" value="{{ row.name }}">
+                <input type="number" id="species-{{ row.key }}-population"
+                       name="species_{{ row.key }}_population"
+                       value="{{ row.population }}" min="0" data-species-population>
+            </div>
+            {% endfor %}
+            <p class="species-population-total" id="species-population-total">
+                Species total: {{ city.population or 0 }}
+            </p>
+        </section>
+        {% endif %}
+
+        {% if campaign_regions is defined and campaign_regions %}
+        <label for="region_id">Campaign region</label>
+        <select id="region_id" name="region_id">
+            <option value="">None — use specialty below</option>
+            {% for r in campaign_regions %}
+            <option value="{{ r.id }}" {% if city.region_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+            {% endfor %}
+        </select>
+        <p style="font-size:12px;color:#555;margin:0 0 10px;">If you select a campaign region, the specialty field is ignored.</p>
+        {% endif %}
 
         <!-- Specialty -->
         <label for="region">Specialty:</label>
-        <select id="region" name="region" required>
+        <select id="region" name="region" {% if not (campaign_regions is defined and campaign_regions) %}required{% endif %}>
             <option value="Industrial City" {% if city.region == "Industrial City" %}selected{% endif %}>Industrial City</option>
             <option value="Agricultural Hub" {% if city.region == "Agricultural Hub" %}selected{% endif %}>Agricultural Hub</option>
             <option value="Technological City" {% if city.region == "Technological City" %}selected{% endif %}>Technological City</option>
@@ -159,5 +229,25 @@
             <button type="submit" class="delete-button">Delete City</button>
         </div>
     </form>
+    <script>
+    (function () {
+        var totalInput = document.getElementById('population');
+        var totalLabel = document.getElementById('species-population-total');
+        var inputs = document.querySelectorAll('[data-species-population]');
+        function syncTotal() {
+            var total = 0;
+            inputs.forEach(function (input) {
+                var value = parseInt(input.value || '0', 10);
+                if (!isNaN(value) && value > 0) total += value;
+            });
+            if (totalInput && inputs.length) totalInput.value = total;
+            if (totalLabel) totalLabel.textContent = 'Species total: ' + total.toLocaleString();
+        }
+        inputs.forEach(function (input) {
+            input.addEventListener('input', syncTotal);
+        });
+        syncTotal();
+    })();
+    </script>
 </body>
 </html>

@@ -1,36 +1,34 @@
-# TT Ran Shop Gen
+# Econo-Forge
 
 ## Overview
-**TT Ran Shop Gen** is a dynamic and scalable **Tabletop RPG Shop Generator** designed to replace slow and complex Google Sheets setups with a robust SQL-backed system. This tool allows Game Masters (GMs) to generate shops with dynamic inventory and pricing based on various in-game factors such as city size, item rarity, and supply-demand trends.
+**Econo-Forge** is a campaign economy tool for tabletop GMs. It replaces spreadsheet shop tracking with a SQL-backed system where shops restock, prices react to stock, and market days advance from one GM hub.
 
-The project is built using **Python, PostgreSQL, and Flask**, with a potential **React-based** companion app for real-time player interactions.
+The project is built with **Python, PostgreSQL, and Flask**, with player dashboards for browsing shops, inventory, and character gear in the same campaign economy.
 
 ## Features
 ### **Game Master Interface**
-- Dashboard for managing cities, shops, and inventory.
-- Tools for adding new items, updating stock, and running inventory simulations.
-- Dynamic event system for adjusting prices based on shortages, festivals, or economic changes.
+- Dashboard for managing regions, cities, shops, items, players/NPCs, maps, encounters, and compendiums.
+- Tools for world generation, player setup, and running market-day simulations from both Simulation and Market Overview panels.
+- Item folders, bulk catalog actions, manual shop stocking, OGL-safe D&D 5e starter item templates, and campaign-scoped item/world compendiums.
+- Dynamic pricing based on stock levels, rarity, demand modifiers, and configurable market volatility.
 
-### **Player Interface (In Progress)**
-- View personal funds and inventory.
-- Navigate cities, browse shop inventories, and search/filter items by price, rarity, or category.
-- Track item availability across multiple shops.
+### **Player Interface**
+- View personal funds and inventory on the player dashboard.
+- Browse shops by city and region from the integrated shop browse panel.
+- Buy and sell items with stock reflected across the campaign.
+- Review D&D 5e class spell options from the player Spells tab, even before specific spells are selected on the sheet.
 
 ### **Dynamic Pricing & Inventory Management**
-- Item prices fluctuate based on stock levels, rarity, and demand.
-- Shops restock periodically, influenced by city size and economic factors.
-- Events (e.g., war, trade booms, supply shortages) dynamically affect item availability.
+- Item prices fluctuate based on stock levels, rarity, and demand modifiers.
+- Each simulation tick (one game day) runs bounded price-elasticity **daily sales**, then recalculates prices from updated stock.
+- Shops **restock on a per-shop schedule**, with replenishment scaled by city size (`data/shop_roll_catalog.yaml`).
+- World generation builds a **procedural item pool** and stocks shops from that pool.
+- Campaign market volatility (`0` stable to `10` wild) scales demand and price event randomness on future ticks.
 
 ### **Database Structure**
-- **Cities Table**: Stores city details such as size, population, and economy type.
-- **Shops Table**: Contains shop types (e.g., weaponsmith, apothecary) and their locations.
-- **Items Table**: A centralized database of items with categories, rarity levels, and base pricing.
-- **Shop Inventory Table**: Manages item stock, pricing adjustments, and availability per shop.
-- **Player Inventory Table**: Tracks player-owned items and funds.
-- **Pricing Log (Optional)**: Logs price changes over time for analysis.
+- **Cities**, **Shops**, **Items**, and **Shop Inventory** tables power the shared campaign economy.
+- **Registration keys** gate account creation in early-access deployments.
 
-## Technologies Used
-- **Backend:** Flask (Python), PostgreSQL (SQLAlchemy ORM)
-- **Frontend:** HTML, CSS (Future: React for an enhanced player interface)
-- **Authentication:** Secure login system with hashed passwords and user roles (Game Master, Player)
-- **Deployment:** To be determined (Potential options: AWS, DigitalOcean, or Heroku)
+## Documentation
+- In-app docs: `/docs` (getting started, GM hub, player guide, changelog, roadmap).
+- Deployment notes: `deploy/README.md`, `DOCKER.md`, `config.example.env`.

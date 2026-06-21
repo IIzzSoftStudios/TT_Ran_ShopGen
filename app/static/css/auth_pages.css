@@ -1,0 +1,291 @@
+/* Shared auth page layout (register, login, forgot/reset password). */
+body.auth-page {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
+.auth-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.auth-topbar-inner {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.auth-brand {
+    font-weight: 900;
+    letter-spacing: 0.2px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.auth-topbar-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.auth-page-wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 28px 18px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.auth-title {
+    font-size: 2rem;
+    margin: 0 0 8px;
+    color: var(--color-text);
+    text-align: center;
+}
+
+.auth-subtitle {
+    margin: 0 0 20px;
+    color: var(--color-muted);
+    line-height: 1.55;
+    text-align: center;
+    font-size: 0.98rem;
+}
+
+.auth-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    background: var(--color-surface);
+    padding: 24px;
+    border-radius: 16px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-panel, 0 4px 24px rgba(0, 0, 0, 0.12));
+}
+
+.auth-card label {
+    font-size: 1rem;
+    margin-top: 10px;
+    color: var(--color-text);
+    font-weight: 650;
+}
+
+.auth-card input:not(.password-field input),
+.auth-card select {
+    padding: 10px 12px;
+    margin-top: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--color-input-bg, var(--color-bg));
+    color: var(--color-text);
+}
+
+.auth-card .form-group {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.auth-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    padding: 10px 14px;
+    border: 1px solid transparent;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.95rem;
+}
+
+.auth-btn-primary {
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+}
+
+.auth-btn-primary:hover {
+    background: var(--color-accent-hover);
+}
+
+.auth-btn-secondary {
+    background: transparent;
+    border-color: rgba(124, 58, 237, 0.35);
+    color: var(--color-accent);
+}
+
+.auth-btn-secondary:hover {
+    border-color: rgba(124, 58, 237, 0.7);
+}
+
+.auth-card button[type="submit"],
+.auth-card .auth-primary-btn {
+    background-color: var(--color-accent);
+    color: var(--color-accent-contrast);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 15px;
+    width: 100%;
+}
+
+.auth-card button[type="submit"]:hover,
+.auth-card .auth-primary-btn:hover {
+    background-color: var(--color-accent-hover);
+}
+
+.auth-card .secondary-button,
+.auth-card .auth-secondary-btn {
+    background-color: transparent;
+    color: var(--color-muted);
+    border: 1px solid var(--color-border);
+    margin-top: 10px;
+}
+
+.auth-card .secondary-button:hover,
+.auth-card .auth-secondary-btn:hover {
+    color: var(--color-text);
+    border-color: var(--color-accent);
+}
+
+.auth-flash-wrap {
+    width: 100%;
+    margin-bottom: 14px;
+}
+
+.auth-flash {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.auth-page p {
+    margin-top: 15px;
+    color: var(--color-muted);
+    text-align: center;
+}
+
+.auth-page p a,
+.auth-page .back-link {
+    color: var(--color-accent);
+    font-weight: 600;
+}
+
+.auth-page .info-box {
+    background: rgba(124, 58, 237, 0.12);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    color: var(--color-text);
+    line-height: 1.5;
+}
+
+.auth-page .password-field {
+    position: relative;
+    width: 100%;
+    margin-top: 6px;
+}
+
+.auth-page .password-field input {
+    width: 100%;
+    padding: 10px 72px 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    box-sizing: border-box;
+    background: var(--color-input-bg, var(--color-bg));
+    color: var(--color-text);
+}
+
+.auth-page .password-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 6px;
+}
+
+.auth-page .password-toggle:hover {
+    color: var(--color-accent-hover);
+}
+
+.auth-page .password-mismatch {
+    color: var(--color-danger);
+    font-size: 0.9rem;
+    margin-top: 6px;
+    display: none;
+}
+
+.auth-page .password-info {
+    display: inline-block;
+    margin-left: 4px;
+    font-weight: bold;
+    color: var(--color-accent);
+    cursor: help;
+    position: relative;
+}
+
+.auth-page .password-info::after {
+    content: "Must be at least 8 characters, include one uppercase, one lowercase, and one special character.";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 120%;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: normal;
+    width: 220px;
+    box-shadow: var(--shadow-panel);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+    z-index: 100;
+    white-space: normal;
+}
+
+.auth-page .password-info:hover::after,
+.auth-page .password-info:focus::after {
+    opacity: 1;
+}
+
+.auth-alt-link {
+    font-size: 0.95rem;
+}
+
+@media (max-width: 720px) {
+    .auth-title {
+        font-size: 1.7rem;
+    }
+}

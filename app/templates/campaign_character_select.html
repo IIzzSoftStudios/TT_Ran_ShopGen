@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Choose Character — {{ campaign.name }}</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        .container {
+            background-color: var(--color-surface);
+            color: var(--color-text);
+            padding: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-panel);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin: 0 0 6px 0;
+            text-align: center;
+            color: var(--color-accent);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--color-muted);
+            margin-bottom: 6px;
+        }
+
+        .campaign-meta {
+            text-align: center;
+            color: var(--color-muted);
+            margin-bottom: 24px;
+            font-size: 0.95rem;
+        }
+
+        .characters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .character-card {
+            background-color: var(--color-surface);
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: var(--color-text);
+            display: block;
+        }
+
+        .character-card-wrap {
+            position: relative;
+            display: block;
+        }
+
+        .character-card-wrap .character-card {
+            padding-bottom: 56px;
+        }
+
+        .character-card:hover {
+            border-color: var(--color-accent);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-panel);
+        }
+
+        .character-card h3 {
+            margin: 0 0 6px 0;
+            color: var(--color-accent);
+            font-size: 1.1rem;
+        }
+
+        .character-meta {
+            color: var(--color-muted);
+            font-size: 0.9rem;
+            margin: 2px 0;
+        }
+
+        .character-badge-row {
+            margin-top: 10px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .character-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+        }
+
+        .footer-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 28px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .back-link {
+            display: inline-block;
+            padding: 12px 28px;
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.15s;
+        }
+
+        .back-link:hover {
+            background-color: var(--color-accent-hover);
+            transform: translateY(-2px);
+        }
+
+        .card-delete-form {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            margin: 0;
+            z-index: 2;
+        }
+
+        .card-delete-btn {
+            width: 100%;
+            padding: 6px 10px;
+            background: transparent;
+            color: var(--color-muted);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .card-delete-btn:hover {
+            background: #c0392b;
+            color: white;
+            border-color: #c0392b;
+        }
+
+        .flash-stack {
+            width: 100%;
+            max-width: 520px;
+            margin: 0 auto 16px auto;
+        }
+
+        .flash-stack div {
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid var(--color-border);
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Choose Character</h1>
+        <p class="subtitle">You have multiple characters in <strong>{{ campaign.name }}</strong>. Pick one to play.</p>
+        <p class="campaign-meta">
+            GM: {{ campaign.gm_username }}{% if campaign.system_type %} &middot; System: {{ campaign.system_type }}{% endif %}
+        </p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack">
+                    {% for category, message in messages %}
+                        <div><strong>{{ category|capitalize }}:</strong> {{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="characters-grid">
+            {% for ch in characters %}
+                <div class="character-card-wrap">
+                    <a href="{{ url_for('main.load_campaign_character_route', campaign_id=campaign.id, player_id=ch.id) }}"
+                       class="character-card"
+                       aria-label="Play as {{ ch.name }}">
+                        <h3>{{ ch.name }}</h3>
+                        {% if ch.class_name %}
+                            <div class="character-meta"><strong>Class:</strong> {{ ch.class_name }}</div>
+                        {% endif %}
+                        {% if ch.species %}
+                            <div class="character-meta"><strong>Species:</strong> {{ ch.species }}</div>
+                        {% endif %}
+                        {% if ch.level is not none %}
+                            <div class="character-meta"><strong>Level:</strong> {{ ch.level }}</div>
+                        {% endif %}
+                        <div class="character-badge-row">
+                            <span class="character-badge">{{ ch.system_type }}</span>
+                        </div>
+                    </a>
+                    <form method="POST"
+                          action="{{ url_for('main.delete_campaign_character_route', campaign_id=campaign.id, player_id=ch.id) }}"
+                          class="card-delete-form"
+                          data-confirm-delete="Are you sure you want to delete {{ ch.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="card-delete-btn" aria-label="Delete {{ ch.name|e }}">Delete character</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="footer-row">
+            <a href="{{ url_for('main.campaigns') }}" class="back-link">&larr; Select Campaign</a>
+        </div>
+    </div>
+    {% include 'partials/confirm_delete_script.html' %}
+</body>
+</html>

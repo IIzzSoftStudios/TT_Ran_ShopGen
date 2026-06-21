@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
+=======
+﻿<!DOCTYPE html>
+>>>>>>> GCP
 <html lang="en">
 <head>
     <title>GM - Edit Character {{ character.name }}</title>
@@ -181,7 +185,11 @@
     <h1>Editing {{ character.name }} for {{ player.player_user.username if player.player_user else 'Unknown Player' }}</h1>
     <div class="nav-buttons">
         <a href="{{ url_for('gm.gm_view_players') }}" class="button">Back to Player Manager</a>
+<<<<<<< HEAD
         <a href="{{ url_for('gm.gm_home') }}" class="button">GM Dashboard</a>
+=======
+        <a href="{{ url_for('gm.home') }}" class="button">GM Dashboard</a>
+>>>>>>> GCP
     </div>
 
     <div class="content-wrapper">
@@ -269,7 +277,11 @@
                                     </div>
                                 {% endif %}
 
+<<<<<<< HEAD
                                 {% if stat.category == 'save' and character.system_type in ['dnd5e', 'dnd', '5e'] %}
+=======
+                                {% if stat.category == 'save' and character.ruleset_meta and character.ruleset_meta.supports_save_proficiency %}
+>>>>>>> GCP
                                     {% set save_flag = character.save_prof_flags.get(stat.key) if character.save_prof_flags is defined else None %}
                                     <label class="section-subtitle" style="display: flex; align-items: center; gap: 4px;">
                                         <input type="checkbox" name="save_prof_flag_{{ stat.key }}" value="1" {% if save_flag and save_flag >= 0.5 %}checked{% endif %}>
@@ -280,6 +292,10 @@
                         {% endfor %}
                     </div>
 
+<<<<<<< HEAD
+=======
+                    {% if character.skills_display %}
+>>>>>>> GCP
                     <h2>Skills</h2>
                     <p class="section-subtitle">Set skill proficiencies and tiers for this character.</p>
                     <table class="inventory-table">
@@ -287,7 +303,11 @@
                             <tr>
                                 <th>Skill</th>
                                 <th>Total</th>
+<<<<<<< HEAD
                                 {% if character.system_type in ['dnd5e', 'dnd', '5e'] %}
+=======
+                                {% if character.ruleset_meta and character.ruleset_meta.supports_skill_proficiency %}
+>>>>>>> GCP
                                 <th>Proficiency</th>
                                 {% endif %}
                             </tr>
@@ -303,7 +323,11 @@
                                         <span>{{ skill.value if skill.value is not none else '-' }}</span>
                                     {% endif %}
                                 </td>
+<<<<<<< HEAD
                                 {% if character.system_type in ['dnd5e', 'dnd', '5e'] %}
+=======
+                                {% if character.ruleset_meta and character.ruleset_meta.supports_skill_proficiency %}
+>>>>>>> GCP
                                 <td>
                                     {% set tier = character.skill_prof_tiers.get(skill.key) if character.skill_prof_tiers is defined else 0 %}
                                     {% set tier_int = tier|int if tier is not none else 0 %}
@@ -312,10 +336,19 @@
                                         <input type="checkbox" name="skill_prof_flag_{{ skill.key }}" value="1" {% if is_proficient %}checked{% endif %} onchange="this.closest('tr').querySelector('.tier-select-{{ skill.key }}').disabled = !this.checked;">
                                         <span>Proficient</span>
                                     </label>
+<<<<<<< HEAD
                                     <select name="skill_prof_tier_{{ skill.key }}" class="tier-select-{{ skill.key }}" style="margin-top: 4px; width: 120px;" {% if not is_proficient %}disabled{% endif %}>
                                         <option value="1" {% if tier_int == 1 %}selected{% endif %}>Half</option>
                                         <option value="2" {% if tier_int == 2 or tier_int == 0 %}selected{% endif %}>Normal</option>
                                         <option value="3" {% if tier_int == 3 %}selected{% endif %}>Expertise</option>
+=======
+                                    <select name="skill_prof_tier_{{ skill.key }}" class="tier-select-{{ skill.key }}" style="margin-top: 4px; width: 140px;" {% if not is_proficient %}disabled{% endif %}>
+                                        {% for t in character.ruleset_meta.proficiency_tiers %}
+                                            {% if t.value > 0 %}
+                                            <option value="{{ t.value }}" {% if tier_int == t.value %}selected{% endif %}>{{ t.label }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+>>>>>>> GCP
                                     </select>
                                 </td>
                                 {% endif %}
@@ -323,6 +356,10 @@
                             {% endfor %}
                         </tbody>
                     </table>
+<<<<<<< HEAD
+=======
+                    {% endif %}
+>>>>>>> GCP
 
                     <div style="margin-top: 16px;">
                         <button type="submit" class="button">Save Character</button>

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
+=======
+﻿<!DOCTYPE html>
+>>>>>>> GCP
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,6 +11,7 @@
     {% include 'partials/theme_head.html' %}
     <style>
         .access-requests-wrap { margin-bottom: 18px; }
+<<<<<<< HEAD
         .access-request-card {
             border: 1px solid rgba(148, 163, 184, 0.25);
             background: rgba(30, 41, 59, 0.25);
@@ -39,6 +44,322 @@
         @media (max-width: 720px) {
             .access-request-card { flex-direction: column; }
             .access-request-actions { flex: 1 1 auto; width: 100%; }
+=======
+
+        .access-request-block {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .access-request-block > summary.triage-summary {
+            list-style: none;
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.85fr);
+            gap: 12px 16px;
+            align-items: center;
+            padding: 12px 14px;
+            border-bottom: 1px solid transparent;
+        }
+        .access-request-block > summary.triage-summary::-webkit-details-marker { display: none; }
+        .access-request-block[open] > summary.triage-summary {
+            border-bottom-color: rgba(148, 163, 184, 0.2);
+        }
+        .triage-summary .col-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .request-name {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--color-text, #e2e8f0);
+            line-height: 1.25;
+        }
+        .request-ruleset {
+            font-size: 0.8rem;
+            font-style: italic;
+            color: var(--color-muted, #94a3b8);
+        }
+        .triage-summary .col-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .badge-players, .badge-role {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25em 0.5em;
+            border-radius: 6px;
+        }
+        .badge-players { background: rgba(59, 130, 246, 0.25); color: #93c5fd; }
+        .badge-role { background: rgba(168, 85, 247, 0.25); color: #d8b4fe; }
+        .triage-summary .col-meta {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+        .request-date {
+            font-size: 0.8rem;
+            color: var(--color-muted, #94a3b8);
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.status-pending { background: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35); }
+        .status-dot.status-hold { background: #64748b; box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.35); }
+
+        .triage-body {
+            padding: 14px 16px 16px;
+        }
+        .triage-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 14px;
+            margin-bottom: 14px;
+        }
+        .triage-detail-grid .full { grid-column: 1 / -1; }
+        .triage-detail-grid .lbl { font-weight: 800; font-size: 0.85rem; }
+        .triage-detail-grid .val { color: var(--color-muted, #94a3b8); font-size: 0.9rem; }
+        .triage-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 220px;
+        }
+
+        .tab-content .card,
+        .tab-content .card-body,
+        .tab-content .submission-triage-block,
+        .tab-content .submission-context-panel,
+        .tab-content .border.rounded {
+            background: var(--color-surface, #fff) !important;
+            color: var(--color-text, #111827) !important;
+            border-color: var(--color-border, #d1d5db) !important;
+        }
+        .tab-content .card-header {
+            background: var(--color-table-stripe, rgba(148, 163, 184, 0.12)) !important;
+            color: var(--color-text, #111827) !important;
+            border-color: var(--color-border, #d1d5db) !important;
+        }
+        .tab-content .text-muted,
+        .tab-content label.text-muted,
+        .tab-content dt.text-muted,
+        .tab-content .small.text-muted {
+            color: var(--color-muted, #64748b) !important;
+        }
+        .tab-content .p-2.border.rounded {
+            background: var(--color-bg, #f8fafc) !important;
+            color: var(--color-text, #111827) !important;
+        }
+        .tab-content a {
+            color: var(--color-accent, #7c3aed);
+        }
+
+        .prompted-feedback-scroll {
+            overflow-x: auto;
+            border: 1px solid var(--color-border, #d1d5db);
+            border-radius: 10px;
+        }
+        .prompted-feedback-table {
+            min-width: 920px;
+            margin-bottom: 0;
+        }
+        .prompted-feedback-table th,
+        .prompted-feedback-table td {
+            vertical-align: top;
+            white-space: nowrap;
+        }
+        .prompted-feedback-question {
+            min-width: 260px;
+            white-space: normal;
+        }
+        .prompted-feedback-response {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .prompted-feedback-time {
+            color: var(--color-muted, #64748b);
+            font-size: 0.78rem;
+        }
+        .campaign-roster-block {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.16);
+            border-radius: 14px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .campaign-roster-block > summary {
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+            gap: 10px 16px;
+            align-items: center;
+            padding: 12px 14px;
+            list-style: none;
+        }
+        .campaign-roster-block > summary::-webkit-details-marker { display: none; }
+        .campaign-roster-block[open] > summary {
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        .campaign-roster-title {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .campaign-roster-title strong {
+            color: var(--color-text, #111827);
+            line-height: 1.25;
+        }
+        .campaign-roster-body {
+            padding: 12px 14px 14px;
+        }
+        .campaign-roster-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .campaign-roster-count {
+            text-align: right;
+            color: var(--color-muted, #64748b);
+            font-size: 0.9rem;
+        }
+        .campaign-roster-table th,
+        .campaign-roster-table td {
+            vertical-align: top;
+        }
+        .campaign-roster-campaign {
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 12px;
+            margin-top: 10px;
+            overflow: hidden;
+            background: rgba(15, 23, 42, 0.06);
+        }
+        .campaign-roster-campaign > summary {
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 0.7fr);
+            gap: 10px 16px;
+            align-items: center;
+            padding: 10px 12px;
+            list-style: none;
+        }
+        .campaign-roster-campaign > summary::-webkit-details-marker { display: none; }
+        .campaign-roster-campaign[open] > summary {
+            border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        @media (max-width: 720px) {
+            .access-request-block > summary.triage-summary {
+                grid-template-columns: 1fr;
+            }
+            .triage-summary .col-meta { align-items: flex-start; text-align: left; }
+            .campaign-roster-block > summary {
+                grid-template-columns: 1fr;
+            }
+            .campaign-roster-campaign > summary {
+                grid-template-columns: 1fr;
+            }
+            .campaign-roster-count {
+                text-align: left;
+            }
+        }
+
+        .gm-sim-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+        .gm-sim-sortable:hover { color: var(--bs-primary, #0d6efd); }
+        .gm-sim-sort-hint { font-size: 0.7rem; opacity: 0.65; margin-left: 2px; }
+
+        #gm-simulation-pane .gm-filter-tabs .nav-link {
+            background: rgba(15, 23, 42, 0.45);
+            color: var(--color-text, #e2e8f0);
+            border-color: rgba(148, 163, 184, 0.35);
+        }
+        #gm-simulation-pane .gm-filter-tabs .nav-link:hover {
+            border-color: rgba(148, 163, 184, 0.5);
+        }
+        #gm-simulation-pane .gm-filter-tabs .nav-link.active {
+            background: rgba(30, 41, 59, 0.92);
+            color: var(--color-text, #f8fafc);
+            border-color: rgba(148, 163, 184, 0.45);
+        }
+        #gm-simulation-pane .tab-content.border {
+            border-color: rgba(148, 163, 184, 0.35) !important;
+        }
+
+        /* Expandable per-campaign drill-down inside the GM simulation usage table. */
+        .gm-sim-expander-cell { width: 36px; padding-right: 0; }
+        .gm-sim-expand-btn {
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            color: var(--color-text, #e2e8f0);
+            border-radius: 4px;
+            width: 26px;
+            height: 26px;
+            line-height: 1;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        .gm-sim-expand-btn:hover { border-color: var(--bs-primary, #0d6efd); }
+        .gm-sim-expand-btn[aria-expanded="true"] { transform: rotate(90deg); }
+        .gm-sim-expand-btn[disabled] {
+            opacity: 0.3;
+            cursor: default;
+            pointer-events: none;
+        }
+        .gm-sim-detail-row > td {
+            background: rgba(15, 23, 42, 0.55);
+            padding: 12px 18px;
+        }
+        .gm-sim-detail-row .gm-sim-campaigns {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+        }
+        .gm-sim-detail-row .gm-sim-campaigns th,
+        .gm-sim-detail-row .gm-sim-campaigns td {
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+            text-align: left;
+            white-space: nowrap;
+        }
+        .gm-sim-detail-row .gm-sim-campaigns thead th {
+            font-weight: 600;
+            color: var(--color-muted, #94a3b8);
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.04em;
+        }
+        .gm-sim-detail-row .gm-sim-campaigns tr:last-child td {
+            border-bottom: none;
+        }
+        .gm-sim-campaign-name { font-weight: 600; }
+        .gm-sim-campaign-inactive { opacity: 0.55; }
+        .gm-sim-campaign-pill {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(148, 163, 184, 0.18);
+            color: var(--color-muted, #94a3b8);
+            margin-left: 6px;
+>>>>>>> GCP
         }
     </style>
 </head>
@@ -46,6 +367,7 @@
     <div class="container py-4">
         <h1 class="mb-4">Registration Key Vault</h1>
 
+<<<<<<< HEAD
         <div class="access-requests-wrap">
             <div class="card mb-4">
                 <div class="card-header">Access Requests (Triage)</div>
@@ -122,6 +444,49 @@
                 </div>
             </div>
         </div>
+=======
+        {% set show_gm_usage_tab = show_gm_usage_tab | default(false) %}
+        {% set gm_simulation_rows = gm_simulation_rows | default([]) %}
+        {% set access_requests = access_requests | default([]) %}
+        {% set prompted_feedback_rows = prompted_feedback_rows | default([]) %}
+        {% set prompted_feedback_questions = prompted_feedback_questions | default([]) %}
+        {% set campaign_character_rows = campaign_character_rows | default([]) %}
+
+        <ul class="nav nav-tabs mb-3" id="vaultDashTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="vault-keys-tab" data-bs-toggle="tab" data-bs-target="#vault-keys-pane" type="button" role="tab" aria-controls="vault-keys-pane" aria-selected="true">Vault &amp; keys</button>
+            </li>
+            {% if show_gm_usage_tab %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="gm-simulation-tab" data-bs-toggle="tab" data-bs-target="#gm-simulation-pane" type="button" role="tab" aria-controls="gm-simulation-pane" aria-selected="false">GM simulation usage</button>
+            </li>
+            {% endif %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="access-requests-tab" data-bs-toggle="tab" data-bs-target="#vault-access-requests-pane" type="button" role="tab" aria-controls="vault-access-requests-pane" aria-selected="false">Access Requests</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="characters-tab" data-bs-toggle="tab" data-bs-target="#vault-characters-pane" type="button" role="tab" aria-controls="vault-characters-pane" aria-selected="false">Characters</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="prompted-feedback-tab" data-bs-toggle="tab" data-bs-target="#vault-prompted-feedback-pane" type="button" role="tab" aria-controls="vault-prompted-feedback-pane" aria-selected="false">Prompted Feedback</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="bug-reports-tab" data-bs-toggle="tab" data-bs-target="#vault-bug-reports-pane" type="button" role="tab">Bug Reports</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="feedback-tab" data-bs-toggle="tab" data-bs-target="#vault-feedback-pane" type="button" role="tab">Feedback</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="suggestions-tab" data-bs-toggle="tab" data-bs-target="#vault-suggestions-pane" type="button" role="tab">Suggestions</button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+        <div class="tab-pane fade show active" id="vault-keys-pane" role="tabpanel" aria-labelledby="vault-keys-tab" tabindex="0">
+
+        <div class="row g-4 align-items-start">
+        <div class="col-12 col-lg-8">
+>>>>>>> GCP
 
         <div class="card mb-4">
             <div class="card-body">
@@ -141,17 +506,37 @@
                 <input type="number" id="count" name="count" class="form-control" value="5" min="1" max="50" style="width: 6rem;">
             </div>
             <div class="col-auto">
+<<<<<<< HEAD
+=======
+                <label for="key_phase" class="form-label">Phase</label>
+                <select id="key_phase" name="key_phase" class="form-select" style="min-width: 10rem;" required>
+                    {% for slug in vault_phase_slugs %}
+                    <option value="{{ slug }}" {% if slug == 'forge_master' %}selected{% endif %}>{{ slug }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+>>>>>>> GCP
                 <button type="submit" class="btn btn-primary">Generate</button>
             </div>
         </form>
 
+<<<<<<< HEAD
         <div class="card">
+=======
+        {% set campaign_code_redemptions = campaign_code_redemptions | default([]) %}
+        <div class="card mb-4">
+>>>>>>> GCP
             <div class="card-header">Keys</div>
             <div class="card-body p-0">
                 <table class="gm-list-table">
                     <thead>
                         <tr>
                             <th>Key Code</th>
+<<<<<<< HEAD
+=======
+                            <th>Phase</th>
+>>>>>>> GCP
                             <th>Status</th>
                             <th>Created</th>
                             <th>Actions</th>
@@ -161,10 +546,18 @@
                         {% for key in keys %}
                         <tr>
                             <td>
+<<<<<<< HEAD
                                 <span id="key-{{ key.id }}-display" class="font-monospace">
                                     {{ key.key_code[:6] }}****-****
                                 </span>
                             </td>
+=======
+                                <span id="vault-key-{{ key.id }}-display" class="font-monospace">
+                                    {{ key.key_code[:6] }}****-****
+                                </span>
+                            </td>
+                            <td><span class="small">{{ key.key_phase }}</span></td>
+>>>>>>> GCP
                             <td>
                                 {% if key.is_used %}
                                     <span class="badge bg-secondary">Used by {{ key.user.username if key.user else '—' }}</span>
@@ -175,7 +568,11 @@
                             <td>{{ key.created_at.strftime('%Y-%m-%d %H:%M') if key.created_at else '—' }}</td>
                             <td>
                                 {% if not key.is_used %}
+<<<<<<< HEAD
                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="revealKey({{ key.id }})">
+=======
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="revealKey('vault', {{ key.id }})">
+>>>>>>> GCP
                                     Reveal
                                 </button>
                                 {% else %}
@@ -184,11 +581,26 @@
                             </td>
                         </tr>
                         {% endfor %}
+<<<<<<< HEAD
+=======
+                        {% for row in campaign_code_redemptions %}
+                        <tr>
+                            <td><span class="font-monospace">{{ row.code_masked }}</span></td>
+                            <td><span class="small">Player</span></td>
+                            <td>
+                                <span class="badge bg-secondary">Used by {{ row.player_username }}</span>
+                            </td>
+                            <td>{{ row.redeemed_at.strftime('%Y-%m-%d %H:%M') if row.redeemed_at else '—' }}</td>
+                            <td>—</td>
+                        </tr>
+                        {% endfor %}
+>>>>>>> GCP
                     </tbody>
                 </table>
             </div>
         </div>
 
+<<<<<<< HEAD
         <p class="mt-3"><a href="{{ url_for('main.index') }}">Back home</a></p>
     </div>
 
@@ -202,6 +614,435 @@
 
         async function revealKey(keyId) {
             const display = document.getElementById('key-' + keyId + '-display');
+=======
+        <p class="mt-3">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+        </p>
+
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="card border-secondary">
+                <div class="card-header fw-bold">Admin keys</div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        Dev registration: optional email (not stored), weak password, username 1–100 chars.
+                        Codes: <span class="font-monospace">TEST-…</span>
+                    </p>
+                    <p class="mb-3 small">
+                        Total: <strong>{{ admin_stats.total }}</strong> —
+                        Available: <strong class="text-success">{{ admin_stats.available }}</strong> —
+                        Used: <strong class="text-secondary">{{ admin_stats.used }}</strong>
+                    </p>
+                    <form method="POST" action="{{ url_for('admin.keys_generate_admin_test') }}" class="row g-2 align-items-end mb-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="col-auto">
+                            <label for="admin_count" class="form-label">Generate</label>
+                            <input type="number" id="admin_count" name="count" class="form-control" value="3" min="1" max="20" style="width: 5rem;">
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-outline-warning">Generate test keys</button>
+                        </div>
+                    </form>
+                    <div class="small text-secondary mb-2">Admin key list</div>
+                    <div class="table-responsive">
+                        <table class="gm-list-table w-100">
+                            <thead>
+                                <tr>
+                                    <th>Key</th>
+                                    <th>Phase</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for key in admin_keys %}
+                                <tr>
+                                    <td>
+                                        <span id="admin-key-{{ key.id }}-display" class="font-monospace small">
+                                            {{ key.key_code[:6] }}****-****
+                                        </span>
+                                    </td>
+                                    <td class="small">{{ key.key_phase }}</td>
+                                    <td>
+                                        {% if key.is_used %}
+                                            <span class="badge bg-secondary small">Used</span>
+                                        {% else %}
+                                            <span class="badge bg-success small">Open</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if not key.is_used %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="revealKey('admin', {{ key.id }})">Reveal</button>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-muted small">No admin test keys yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        </div>
+        </div>
+
+        {% if show_gm_usage_tab %}
+        <div class="tab-pane fade" id="gm-simulation-pane" role="tabpanel" aria-labelledby="gm-simulation-tab" tabindex="0">
+            <h2 class="h5 mb-3" id="gm-simulation-usage-heading">GM simulation usage</h2>
+            <ul class="nav nav-tabs gm-filter-tabs mb-0" id="gm-filter-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="gm-filter-tab-username" data-bs-toggle="tab" data-bs-target="#gm-filter-pane-username" type="button" role="tab" aria-controls="gm-filter-pane-username" aria-selected="true">Username</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="gm-filter-tab-email" data-bs-toggle="tab" data-bs-target="#gm-filter-pane-email" type="button" role="tab" aria-controls="gm-filter-pane-email" aria-selected="false">Email</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="gm-filter-tab-keyphase" data-bs-toggle="tab" data-bs-target="#gm-filter-pane-keyphase" type="button" role="tab" aria-controls="gm-filter-pane-keyphase" aria-selected="false">Key phase</button>
+                </li>
+            </ul>
+            <div class="tab-content border border-top-0 rounded-bottom p-3 mb-3 bg-body-secondary bg-opacity-25">
+                <div class="tab-pane fade show active" id="gm-filter-pane-username" role="tabpanel" aria-labelledby="gm-filter-tab-username" tabindex="0">
+                    <label for="gm-filter-username" class="form-label small text-muted mb-1">Filter by username</label>
+                    <input type="text" id="gm-filter-username" class="form-control form-control-sm" placeholder="Substring match…" autocomplete="off">
+                </div>
+                <div class="tab-pane fade" id="gm-filter-pane-email" role="tabpanel" aria-labelledby="gm-filter-tab-email" tabindex="0">
+                    <label for="gm-filter-email" class="form-label small text-muted mb-1">Filter by email</label>
+                    <input type="text" id="gm-filter-email" class="form-control form-control-sm" placeholder="Substring match…" autocomplete="off">
+                </div>
+                <div class="tab-pane fade" id="gm-filter-pane-keyphase" role="tabpanel" aria-labelledby="gm-filter-tab-keyphase" tabindex="0">
+                    <label for="gm-filter-keyphase" class="form-label small text-muted mb-1">Filter by key phase</label>
+                    <input type="text" id="gm-filter-keyphase" class="form-control form-control-sm" placeholder="Substring match…" autocomplete="off">
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <button type="button" id="gm-simulation-filter-btn" class="btn btn-sm btn-primary">Filter</button>
+                <a href="{{ url_for('admin.gm_simulation_usage_export') }}" class="btn btn-sm btn-outline-secondary">Export to Excel</a>
+            </div>
+            <script type="application/json" id="gm-simulation-bootstrap">{{ gm_simulation_rows | tojson }}</script>
+            <div class="table-responsive">
+                <table class="gm-list-table w-100" id="gm-simulation-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="gm-sim-expander-cell" aria-label="Expand"></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="username" data-sort-type="string">Username<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="email" data-sort-type="string">Email<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="key_phase" data-sort-type="string">Key phase<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_day" data-sort-type="number">Run day<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_week" data-sort-type="number">Run week<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_month" data-sort-type="number">Run month<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_year" data-sort-type="number">Run year<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="sim_clicks_pause" data-sort-type="number">Pause<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="last_tick_time" data-sort-type="iso">Last run<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="days_simulated" data-sort-type="number">Days simulated<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                            <th scope="col" class="gm-sim-sortable" data-sort="campaigns_count" data-sort-type="number">Campaigns<span class="gm-sim-sort-hint" aria-hidden="true"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="gm-simulation-tbody"></tbody>
+                </table>
+            </div>
+
+            <p class="mt-3">
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+            </p>
+        </div>
+        {% endif %}
+
+        <div class="tab-pane fade" id="vault-characters-pane" role="tabpanel" aria-labelledby="characters-tab" tabindex="0">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header fw-bold">Characters</div>
+                <div class="card-body p-3">
+                    <p class="text-muted small mb-3">
+                        Expand a user, then a campaign, to see all non-NPC player characters currently assigned to it.
+                    </p>
+                    {% if campaign_character_rows and campaign_character_rows|length > 0 %}
+                        {% for user_row in campaign_character_rows %}
+                        <details class="campaign-roster-block" id="campaign-roster-user-{{ user_row.user_id or loop.index }}">
+                            <summary>
+                                <span class="campaign-roster-title">
+                                    <strong>{{ user_row.username }}</strong>
+                                    <span class="small text-muted">{{ user_row.email }}</span>
+                                </span>
+                                <span class="campaign-roster-meta">
+                                    <span class="badge bg-secondary">{{ user_row.campaign_count }} campaign{{ '' if user_row.campaign_count == 1 else 's' }}</span>
+                                    <span class="badge bg-secondary">{{ user_row.player_count }} player{{ '' if user_row.player_count == 1 else 's' }}</span>
+                                </span>
+                                <span class="campaign-roster-count">
+                                    {{ user_row.player_count }} player{{ '' if user_row.player_count == 1 else 's' }}
+                                </span>
+                            </summary>
+                            <div class="campaign-roster-body">
+                                {% if user_row.campaigns %}
+                                    {% for campaign_row in user_row.campaigns %}
+                                    <details class="campaign-roster-campaign" id="campaign-roster-{{ campaign_row.campaign_id }}">
+                                        <summary>
+                                            <span class="campaign-roster-title">
+                                                <strong>{{ campaign_row.campaign_name }}</strong>
+                                                <span class="small text-muted">Campaign</span>
+                                            </span>
+                                            <span class="campaign-roster-meta">
+                                                <span class="badge bg-secondary">{{ campaign_row.system_type }}</span>
+                                                {% if campaign_row.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Archived</span>
+                                                {% endif %}
+                                            </span>
+                                            <span class="campaign-roster-count">
+                                                {{ campaign_row.player_count }} player{{ '' if campaign_row.player_count == 1 else 's' }}
+                                            </span>
+                                        </summary>
+                                        <div class="campaign-roster-body">
+                                            {% if campaign_row.players %}
+                                            <div class="table-responsive">
+                                                <table class="gm-list-table w-100 campaign-roster-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Character</th>
+                                                            <th>Player</th>
+                                                            <th>Email</th>
+                                                            <th>Sheet Updated</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for player in campaign_row.players %}
+                                                        <tr>
+                                                            <td>{{ player.character_name }}</td>
+                                                            <td>{{ player.username }}</td>
+                                                            <td class="font-monospace small">{{ player.email }}</td>
+                                                            <td>{{ player.sheet_updated_at.strftime('%Y-%m-%d %H:%M') if player.sheet_updated_at else '—' }}</td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {% else %}
+                                                <p class="text-muted small mb-0">No players are currently in this campaign.</p>
+                                            {% endif %}
+                                        </div>
+                                    </details>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted small mb-0">No campaigns found for this user.</p>
+                                {% endif %}
+                            </div>
+                        </details>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted py-4 text-center mb-0">No users with campaigns found yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="vault-access-requests-pane" role="tabpanel" aria-labelledby="access-requests-tab" tabindex="0">
+            <div class="access-requests-wrap">
+                <div class="card mb-4">
+                    <div class="card-header">Access Requests</div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Permanent record of public <strong>Register For Access</strong> submissions.
+                            Auto-approved rows keep their registration details here after the user registers; pending or held rows can still be triaged.
+                        </p>
+                        {% if access_requests and access_requests|length > 0 %}
+                            {% for ar in access_requests %}
+                            <details class="access-request-block" id="access-block-{{ ar.id }}">
+                                <summary class="triage-summary">
+                                    <div class="col-main">
+                                        <span class="request-name">{{ ar.contact_name }}</span>
+                                        <span class="request-ruleset">{{ ar.primary_ruleset or '—' }}</span>
+                                    </div>
+                                    <div class="col-metrics">
+                                        <span class="badge badge-players">Players: {% if ar.user_role in ['GM', 'Both'] %}{{ ar.player_count }}{% else %}—{% endif %}</span>
+                                        <span class="badge badge-role">{{ ar.user_role }}</span>
+                                    </div>
+                                    <div class="col-meta">
+                                        <span class="request-date">{{ ar.created_at.strftime('%Y-%m-%d') if ar.created_at else '—' }}</span>
+                                        <span class="status-dot status-{{ ar.status }}" title="{{ ar.status }}"></span>
+                                    </div>
+                                </summary>
+                                <div class="triage-body">
+                                    <div class="triage-detail-grid">
+                                        <div>
+                                            <div class="lbl">Email</div>
+                                            <div class="val font-monospace">{{ ar.email }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="lbl">Status</div>
+                                            <div class="val">{{ ar.status }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="lbl">Role</div>
+                                            <div class="val">{{ ar.user_role }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="lbl">Total expected users</div>
+                                            <div class="val">{{ ar.total_expected_users }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="lbl">Homebrew GM</div>
+                                            <div class="val">{{ 'Yes' if ar.is_homebrew else 'No' }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="lbl">Registration key</div>
+                                            <div class="val font-monospace">{{ ar.vault_key or '—' }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="lbl">Key used</div>
+                                            <div class="val">
+                                                {% if ar.vault_key_used %}
+                                                    Yes{% if ar.vault_key_used_at %} — {{ ar.vault_key_used_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+                                                {% else %}
+                                                    No
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="lbl">Processed</div>
+                                            <div class="val">{{ ar.processed_at.strftime('%Y-%m-%d %H:%M') if ar.processed_at else '—' }}</div>
+                                        </div>
+                                        <div class="full">
+                                            <div class="lbl">Discovery source</div>
+                                            <div class="val">{{ ar.discovery_source or '—' }}</div>
+                                        </div>
+                                        <div class="full">
+                                            <div class="lbl">Notes</div>
+                                            <div class="val" style="white-space: pre-wrap;">{{ ar.notes or '—' }}</div>
+                                        </div>
+                                    </div>
+                                    {% if ar.status in ['pending', 'hold'] %}
+                                    <div class="triage-actions">
+                                        <form method="POST" action="{{ url_for('admin.access_request_approve', request_id=ar.id) }}" onclick="event.stopPropagation();">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <label class="form-label small text-muted mb-1">Key phase</label>
+                                            <select name="key_phase" class="form-select form-select-sm mb-2" required onclick="event.stopPropagation();">
+                                                {% for slug in all_phase_slugs %}
+                                                <option value="{{ slug }}" {% if slug == 'forge_master' %}selected{% endif %}>{{ slug }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button type="submit" class="btn btn-sm btn-success w-100">Approve</button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('admin.access_request_hold', request_id=ar.id) }}" onclick="event.stopPropagation();">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Hold</button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('admin.access_request_reject', request_id=ar.id) }}" onclick="event.stopPropagation();">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100">Reject</button>
+                                        </form>
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted small mb-0 mt-3">Read-only registration history.</p>
+                                    {% endif %}
+                                </div>
+                            </details>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-muted">No access requests have been submitted yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="vault-prompted-feedback-pane" role="tabpanel" aria-labelledby="prompted-feedback-tab" tabindex="0">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header fw-bold">Prompted Feedback</div>
+                <div class="card-body p-3">
+                    <p class="text-muted small mb-3">
+                        Each column is a prompted question. Rows only include users who answered at least one prompt; timestamps sit beside the response.
+                    </p>
+                    {% if prompted_feedback_rows and prompted_feedback_rows|length > 0 %}
+                    <div class="prompted-feedback-scroll">
+                        <table class="gm-list-table w-100 prompted-feedback-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Key phase</th>
+                                    {% for question in prompted_feedback_questions %}
+                                    <th class="prompted-feedback-question">
+                                        {{ question.label }}
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in prompted_feedback_rows %}
+                                <tr>
+                                    <td>{{ row.username }}</td>
+                                    <td class="small">{{ row.key_phase }}</td>
+                                    {% for question in prompted_feedback_questions %}
+                                    {% set answer = row.answers.get(question.key) %}
+                                    <td>
+                                        {% if answer %}
+                                            <span class="prompted-feedback-response">
+                                                <span class="badge bg-{{ answer.badge }}">{{ answer.value }}</span>
+                                                <span class="prompted-feedback-time">{{ answer.created_at.strftime('%Y-%m-%d %H:%M') if answer.created_at else '—' }}</span>
+                                            </span>
+                                            <span class="d-block text-muted small">Source: {{ answer.source or '—' }}</span>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted py-4 text-center mb-0">No prompted feedback responses yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="vault-bug-reports-pane" role="tabpanel" aria-labelledby="bug-reports-tab" tabindex="0">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header fw-bold">Bug Reports</div>
+                <div class="card-body p-3">
+                    {% with items=bug_reports %}
+                    {% include 'partials/admin_submission_triage.html' %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="vault-feedback-pane" role="tabpanel" aria-labelledby="feedback-tab" tabindex="0">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header fw-bold">User Feedback</div>
+                <div class="card-body p-3">
+                    {% with items=feedback_items %}
+                    {% include 'partials/admin_submission_triage.html' %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="vault-suggestions-pane" role="tabpanel" aria-labelledby="suggestions-tab" tabindex="0">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header fw-bold">Suggestions</div>
+                <div class="card-body p-3">
+                    {% with items=suggestions %}
+                    {% include 'partials/admin_submission_triage.html' %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+
+        </div>
+    </div>
+
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/admin_submission_triage.js') }}"></script>
+    <script>
+        async function revealKey(prefix, keyId) {
+            const display = document.getElementById(prefix + '-key-' + keyId + '-display');
+>>>>>>> GCP
             if (!display) return;
             try {
                 const response = await fetch('/admin/vault/keys/reveal/' + keyId);
@@ -218,6 +1059,266 @@
                 alert('Failed to reveal key. You may have been logged out.');
             }
         }
+<<<<<<< HEAD
+=======
+
+        (function initGmSimulationUsageTable() {
+            var boot = document.getElementById('gm-simulation-bootstrap');
+            var tbody = document.getElementById('gm-simulation-tbody');
+            var filterBtn = document.getElementById('gm-simulation-filter-btn');
+            var filterUserEl = document.getElementById('gm-filter-username');
+            var filterEmailEl = document.getElementById('gm-filter-email');
+            var filterPhaseEl = document.getElementById('gm-filter-keyphase');
+            if (!boot || !tbody) return;
+
+            var allRows = [];
+            try { allRows = JSON.parse(boot.textContent || '[]'); } catch (e) { allRows = []; }
+
+            var sortCol = 'username';
+            var sortDir = 1;
+            var filterUsername = '';
+            var filterEmail = '';
+            var filterKeyPhase = '';
+
+            function dispNum(v) { return v == null ? '—' : String(v); }
+
+            function dispIso(iso) {
+                if (!iso) return '—';
+                var normalized = String(iso);
+                if (!/(Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) {
+                    normalized += 'Z';
+                }
+                var d = new Date(normalized);
+                if (isNaN(d.getTime())) return escapeHtml(iso);
+                try {
+                    return escapeHtml(d.toLocaleString('en-US', {
+                        timeZone: 'America/Chicago',
+                        timeZoneName: 'short',
+                    }));
+                } catch (e) {
+                    return escapeHtml(iso);
+                }
+            }
+
+            function escapeHtml(s) {
+                var d = document.createElement('div');
+                d.textContent = s == null ? '' : String(s);
+                return d.innerHTML;
+            }
+
+            function rowMatches(r) {
+                if (filterUsername && String(r.username || '').toLowerCase().indexOf(filterUsername) < 0) {
+                    return false;
+                }
+                if (filterEmail && String(r.email || '').toLowerCase().indexOf(filterEmail) < 0) {
+                    return false;
+                }
+                if (filterKeyPhase && String(r.key_phase || '').toLowerCase().indexOf(filterKeyPhase) < 0) {
+                    return false;
+                }
+                return true;
+            }
+
+            function applyFiltersFromInputs() {
+                filterUsername = (filterUserEl && filterUserEl.value || '').trim().toLowerCase();
+                filterEmail = (filterEmailEl && filterEmailEl.value || '').trim().toLowerCase();
+                filterKeyPhase = (filterPhaseEl && filterPhaseEl.value || '').trim().toLowerCase();
+                render();
+            }
+
+            function cmpVal(a, b, type) {
+                if (type === 'number') {
+                    var an = a == null, bn = b == null;
+                    if (an && bn) return 0;
+                    if (an) return 1;
+                    if (bn) return -1;
+                    return (a - b) * sortDir;
+                }
+                if (type === 'iso') {
+                    var as = a || '', bs = b || '';
+                    if (!as && !bs) return 0;
+                    if (!as) return 1;
+                    if (!bs) return -1;
+                    if (as < bs) return -1 * sortDir;
+                    if (as > bs) return 1 * sortDir;
+                    return 0;
+                }
+                var astr = String(a || '').toLowerCase();
+                var bstr = String(b || '').toLowerCase();
+                return astr.localeCompare(bstr, undefined, { sensitivity: 'base' }) * sortDir;
+            }
+
+            function sortedFiltered() {
+                var rows = allRows.filter(rowMatches);
+                var th = document.querySelector('.gm-sim-sortable[data-sort="' + sortCol + '"]');
+                var type = th ? (th.getAttribute('data-sort-type') || 'string') : 'string';
+                var col = sortCol;
+                rows.sort(function(x, y) {
+                    return cmpVal(x[col], y[col], type);
+                });
+                return rows;
+            }
+
+            function updateSortHints(activeTh) {
+                document.querySelectorAll('.gm-sim-sortable .gm-sim-sort-hint').forEach(function(el) {
+                    el.textContent = '';
+                });
+                if (activeTh) {
+                    var hint = activeTh.querySelector('.gm-sim-sort-hint');
+                    if (hint) hint.textContent = sortDir === 1 ? '▲' : '▼';
+                }
+            }
+
+            var TOTAL_COLS = 12;
+
+            function buildCampaignsTable(campaigns) {
+                if (!campaigns || !campaigns.length) {
+                    return '<div class="text-muted small">No campaigns yet for this GM.</div>';
+                }
+                var head =
+                    '<thead><tr>' +
+                    '<th>Campaign</th>' +
+                    '<th>System</th>' +
+                    '<th>Status</th>' +
+                    '<th>Run day</th>' +
+                    '<th>Run week</th>' +
+                    '<th>Run month</th>' +
+                    '<th>Run year</th>' +
+                    '<th>Pause</th>' +
+                    '<th>Last run</th>' +
+                    '<th>Days simulated</th>' +
+                    '</tr></thead>';
+                var body = campaigns.map(function(c) {
+                    var deleted = c.is_deleted === true;
+                    var inactive = !deleted && c.is_active === false;
+                    var nameCls = 'gm-sim-campaign-name'
+                        + (inactive ? ' gm-sim-campaign-inactive' : '')
+                        + (deleted ? ' gm-sim-campaign-inactive' : '');
+                    var statusPill;
+                    if (deleted) {
+                        var deletedAt = c.deleted_at ? ' (' + dispIso(c.deleted_at) + ')' : '';
+                        statusPill = '<span class="gm-sim-campaign-pill" style="color:#ef4444;background:rgba(239,68,68,0.15)" title="Snapshotted at delete time">deleted' + deletedAt + '</span>';
+                    } else if (inactive) {
+                        statusPill = '<span class="gm-sim-campaign-pill">archived</span>';
+                    } else {
+                        statusPill = '<span class="gm-sim-campaign-pill" style="color:#16a34a;background:rgba(22,163,74,0.15)">active</span>';
+                    }
+                    return '<tr>' +
+                        '<td><span class="' + nameCls + '">' + escapeHtml(c.name) + '</span></td>' +
+                        '<td class="small">' + escapeHtml(c.system_type) + '</td>' +
+                        '<td>' + statusPill + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_day) + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_week) + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_month) + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_year) + '</td>' +
+                        '<td>' + dispNum(c.sim_clicks_pause) + '</td>' +
+                        '<td class="small">' + dispIso(c.last_tick_time) + '</td>' +
+                        '<td>' + dispNum(c.days_simulated) + '</td>' +
+                        '</tr>';
+                }).join('');
+                return '<table class="gm-sim-campaigns">' + head + '<tbody>' + body + '</tbody></table>';
+            }
+
+            function buildExpanderCell(rowKey, hasMultiple) {
+                if (!hasMultiple) {
+                    return '<td class="gm-sim-expander-cell"><button type="button" class="gm-sim-expand-btn" disabled aria-disabled="true" tabindex="-1" title="Single campaign">&rsaquo;</button></td>';
+                }
+                return '<td class="gm-sim-expander-cell">' +
+                    '<button type="button" class="gm-sim-expand-btn" aria-expanded="false" aria-controls="gm-sim-detail-' + escapeHtml(rowKey) + '" data-row-key="' + escapeHtml(rowKey) + '" title="Show per-campaign breakdown">&rsaquo;</button>' +
+                    '</td>';
+            }
+
+            function render() {
+                var rows = sortedFiltered();
+                tbody.innerHTML = '';
+                if (!allRows.length) {
+                    var tr0 = document.createElement('tr');
+                    tr0.innerHTML = '<td colspan="' + TOTAL_COLS + '" class="text-muted">No GM accounts yet.</td>';
+                    tbody.appendChild(tr0);
+                    return;
+                }
+                if (!rows.length) {
+                    var tr1 = document.createElement('tr');
+                    tr1.innerHTML = '<td colspan="' + TOTAL_COLS + '" class="text-muted">No rows match this filter.</td>';
+                    tbody.appendChild(tr1);
+                    return;
+                }
+                rows.forEach(function(r, idx) {
+                    var rowKey = String(idx) + '-' + (r.username || '');
+                    var hasMultiple = (r.campaigns_count || 0) > 1;
+                    var tr = document.createElement('tr');
+                    tr.className = 'gm-sim-row';
+                    tr.dataset.rowKey = rowKey;
+                    tr.innerHTML =
+                        buildExpanderCell(rowKey, hasMultiple) +
+                        '<td>' + escapeHtml(r.username) + '</td>' +
+                        '<td class="font-monospace small">' + escapeHtml(r.email) + '</td>' +
+                        '<td><span class="small">' + escapeHtml(r.key_phase) + '</span></td>' +
+                        '<td>' + dispNum(r.sim_clicks_day) + '</td>' +
+                        '<td>' + dispNum(r.sim_clicks_week) + '</td>' +
+                        '<td>' + dispNum(r.sim_clicks_month) + '</td>' +
+                        '<td>' + dispNum(r.sim_clicks_year) + '</td>' +
+                        '<td>' + dispNum(r.sim_clicks_pause) + '</td>' +
+                        '<td class="small">' + dispIso(r.last_tick_time) + '</td>' +
+                        '<td>' + dispNum(r.days_simulated) + '</td>' +
+                        '<td>' + (r.campaigns_count != null ? String(r.campaigns_count) : '—') + '</td>';
+                    tbody.appendChild(tr);
+
+                    if (hasMultiple) {
+                        var detail = document.createElement('tr');
+                        detail.className = 'gm-sim-detail-row';
+                        detail.id = 'gm-sim-detail-' + rowKey;
+                        detail.style.display = 'none';
+                        detail.dataset.rowKey = rowKey;
+                        detail.innerHTML =
+                            '<td colspan="' + TOTAL_COLS + '">' +
+                            buildCampaignsTable(r.campaigns) +
+                            '</td>';
+                        tbody.appendChild(detail);
+                    }
+                });
+            }
+
+            tbody.addEventListener('click', function(ev) {
+                var btn = ev.target.closest && ev.target.closest('.gm-sim-expand-btn');
+                if (!btn || btn.disabled) return;
+                var rowKey = btn.getAttribute('data-row-key');
+                if (!rowKey) return;
+                var detail = document.getElementById('gm-sim-detail-' + rowKey);
+                if (!detail) return;
+                var open = btn.getAttribute('aria-expanded') === 'true';
+                btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+                detail.style.display = open ? 'none' : 'table-row';
+            });
+
+            document.querySelectorAll('.gm-sim-sortable').forEach(function(th) {
+                th.addEventListener('click', function() {
+                    var col = th.getAttribute('data-sort');
+                    if (col === sortCol) sortDir = -sortDir;
+                    else { sortCol = col; sortDir = 1; }
+                    updateSortHints(th);
+                    render();
+                });
+            });
+
+            if (filterBtn) {
+                filterBtn.addEventListener('click', applyFiltersFromInputs);
+            }
+            [filterUserEl, filterEmailEl, filterPhaseEl].forEach(function(el) {
+                if (!el) return;
+                el.addEventListener('keydown', function(ev) {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        applyFiltersFromInputs();
+                    }
+                });
+            });
+
+            var defaultTh = document.querySelector('.gm-sim-sortable[data-sort="username"]');
+            updateSortHints(defaultTh);
+            render();
+        })();
+>>>>>>> GCP
     </script>
 </body>
 </html>

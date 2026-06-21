@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
+=======
+﻿<!DOCTYPE html>
+>>>>>>> GCP
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -149,7 +153,11 @@
     <div class="page-wrap">
         <h1 class="title">Register For Access</h1>
         <p class="subtitle">
+<<<<<<< HEAD
             Tell us how you run your table. We’ll use your request to prioritize early access and support for your ruleset.
+=======
+            Tell us how you run your table. Submit the form to receive a registration key and continue straight to account creation.
+>>>>>>> GCP
         </p>
 
         <div class="form-card">
@@ -158,10 +166,24 @@
 
                 <div class="field-row">
                     <div class="field">
+<<<<<<< HEAD
                         <label for="email">Email address</label>
                         <input type="email" id="email" name="email" required placeholder="you@example.com">
                     </div>
                     <div class="field">
+=======
+                        <label for="contact_name">Your name</label>
+                        <input type="text" id="contact_name" name="contact_name" required maxlength="120" placeholder="How we should address you" autocomplete="name">
+                    </div>
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <input type="email" id="email" name="email" required placeholder="you@example.com">
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field" style="grid-column: 1 / -1;">
+>>>>>>> GCP
                         <label for="user_role">I am a…</label>
                         <select id="user_role" name="user_role" required onchange="updateRoleFields()">
                             <option value="GM">GM only</option>
@@ -212,7 +234,11 @@
                 </div>
 
                 <div class="actions">
+<<<<<<< HEAD
                     <button class="btn btn-primary" type="submit">Submit Request</button>
+=======
+                    <button class="btn btn-primary" type="submit">Continue to registration</button>
+>>>>>>> GCP
                     <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Back to Home</a>
                 </div>
             </form>

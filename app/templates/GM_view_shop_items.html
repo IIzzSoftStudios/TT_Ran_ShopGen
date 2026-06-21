@@ -1,112 +1,25 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>{{ shop.name }} - Items</title>
     {% include 'partials/theme_head.html' %}
+<<<<<<< HEAD
 
+=======
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+>>>>>>> GCP
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            min-height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            color: black;
-            margin-top: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .button-container {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            width: 80%;
-            max-width: 1200px;
-        }
-
-        table {
-            width: 80%;
-            max-width: 1200px;
-            border-collapse: collapse;
-            margin: 20px auto;
-            background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
-            background-color: purple;
-            color: white;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f4f4f4;
-        }
-
-        tr:nth-child(odd) {
-            background-color: white;
-        }
-
-        tr:hover {
-            background-color: #e0e0e0;
-        }
-
-        .button {
-            background-color: purple;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .button:hover {
-            background-color: #2980b9;
-            transform: scale(1.1);
-        }
-
-        .delete-button {
-            background-color: red;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .delete-button:hover {
-            background-color: darkred;
-            transform: scale(1.1);
-        }
-
-        a {
-            color: purple;
-            text-decoration: none;
-            margin-right: 10px;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
+        body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
+        h1 { font-size: 2.5rem; color: black; margin: 20px 0; text-align: center; }
+        .button-container { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; width: 80%; max-width: 1200px; flex-wrap: wrap; }
+        table { width: 80%; max-width: 1200px; border-collapse: collapse; margin: 20px auto; background: white; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: purple; color: white; }
+        .button { background: purple; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 14px; cursor: pointer; }
+        .delete-button { background: red; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        .catalog-panel { width: 80%; max-width: 1200px; background: white; padding: 16px; border-radius: 5px; margin-bottom: 16px; }
+        #shop-catalog-results .pick-row { display: block; width: 100%; margin-bottom: 4px; text-align: left; }
+        .bulk-bar { width: 80%; max-width: 1200px; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     </style>
     <script>
         // Log when page loads
@@ -120,8 +33,8 @@
 </head>
 <body class="gm-list-page">
     <h1>Items in {{ shop.name }}</h1>
-    
     <div class="button-container">
+<<<<<<< HEAD
         <button class="button" onclick="window.location.href='{{ url_for('gm.gm_add_item') }}'">Add Shop Item</button>
         <button class="button" onclick="window.location.href='{{ url_for('gm.gm_view_shops') }}'">All Shops</button>
         <a href="{{ url_for('gm.gm_home') }}" class="button">Game Master Interface</a>
@@ -141,11 +54,52 @@
             {% if shop.inventory %}
                 {% for inventory in shop.inventory %}
                 <tr>
+=======
+        <button class="button" onclick="window.location.href='{{ url_for('gm.add_item') }}'">Add Shop Item</button>
+        <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
+    </div>
+
+    {% if campaign_id is defined %}
+    <div class="catalog-panel">
+        <h2 style="margin-top:0;">Stock From Catalog</h2>
+        <label for="shop-catalog-search">Search campaign catalog:</label>
+        <input type="text" id="shop-catalog-search" placeholder="Search items..." style="width:100%; padding:8px; margin-bottom:8px;">
+        <div id="shop-catalog-results" style="max-height:200px; overflow-y:auto; border:1px solid #ddd; margin-bottom:8px; padding:8px;"></div>
+        <label>Stock: <input type="number" id="shop-stock" value="1" min="0"></label>
+        <label style="margin-left:12px;">Price: <input type="number" id="shop-dynamic-price" step="0.01" placeholder="Base price"></label>
+        <button type="button" class="button" id="add-selected-to-shop" style="margin-left:12px;">Add selected to shop</button>
+    </div>
+    {% endif %}
+
+    <form id="shop-inventory-form" method="POST" action="{{ url_for('gm.bulk_remove_shop_items', shop_id=shop.shop_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="bulk-bar">
+            <label><input type="checkbox" id="select-all-inv"> Select all</label>
+            <button type="submit" class="delete-button" onclick="return confirm('Remove selected items from this shop?')">Remove selected</button>
+        </div>
+        <table class="gm-list-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if shop.inventory %}
+                {% for inventory in shop.inventory %}
+                <tr>
+                    <td><input type="checkbox" name="item_ids" value="{{ inventory.item_id }}" class="inv-checkbox"></td>
+>>>>>>> GCP
                     <td>{{ inventory.item.name if inventory.item else 'N/A' }}</td>
                     <td>{{ inventory.item.type if inventory.item else 'N/A' }}</td>
                     <td>{{ inventory.stock }}</td>
                     <td>{{ inventory.dynamic_price }}</td>
                     <td>
+<<<<<<< HEAD
                         <a href="{{ url_for('gm.gm_edit_item', item_id=inventory.item_id) }}" class="button" style="margin-right: 5px;">Edit</a>
                         <form method="POST" action="{{ url_for('gm.gm_remove_item_from_shop', shop_id=shop.shop_id, item_id=inventory.item_id) }}" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -163,5 +117,93 @@
             {% endif %}
         </tbody>
     </table>
+=======
+                        <a href="{{ url_for('gm.edit_item', item_id=inventory.item_id) }}" class="button">Edit</a>
+                        <form method="POST" action="{{ url_for('gm.remove_item_from_shop', shop_id=shop.shop_id, item_id=inventory.item_id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="delete-button">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td colspan="6" style="text-align:center;">No items in this shop's inventory.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </form>
+
+    <script>
+        const shopId = {{ shop.shop_id }};
+        const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const selectedCatalog = new Set();
+
+        function renderCatalog(items) {
+            const results = document.getElementById('shop-catalog-results');
+            results.innerHTML = '';
+            items.forEach(function(row) {
+                const label = document.createElement('label');
+                label.className = 'pick-row';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = row.item_id;
+                cb.checked = selectedCatalog.has(String(row.item_id));
+                cb.addEventListener('change', function() {
+                    if (cb.checked) selectedCatalog.add(String(row.item_id));
+                    else selectedCatalog.delete(String(row.item_id));
+                });
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(' ' + row.name + ' (' + row.type + ')'));
+                results.appendChild(label);
+            });
+        }
+        function loadCatalog(q) {
+            fetch('/gm/items/catalog?q=' + encodeURIComponent(q || '') + '&limit=50')
+                .then(r => r.json())
+                .then(data => renderCatalog(data.items || []));
+        }
+        const search = document.getElementById('shop-catalog-search');
+        if (search) {
+            let timer = null;
+            search.addEventListener('input', function() {
+                clearTimeout(timer);
+                timer = setTimeout(() => loadCatalog(search.value), 250);
+            });
+            loadCatalog('');
+        }
+        document.getElementById('add-selected-to-shop').addEventListener('click', function() {
+            const ids = Array.from(selectedCatalog);
+            if (!ids.length) { alert('Select catalog items first.'); return; }
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for('gm.bulk_stock_items_route') }}';
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden'; csrfInput.name = 'csrf_token'; csrfInput.value = csrf;
+            form.appendChild(csrfInput);
+            ids.forEach(id => {
+                const inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = 'item_ids'; inp.value = id;
+                form.appendChild(inp);
+            });
+            const shopInp = document.createElement('input');
+            shopInp.type = 'hidden'; shopInp.name = 'shop_ids'; shopInp.value = shopId;
+            form.appendChild(shopInp);
+            const stockInp = document.createElement('input');
+            stockInp.type = 'hidden'; stockInp.name = 'stock'; stockInp.value = document.getElementById('shop-stock').value || '1';
+            form.appendChild(stockInp);
+            const priceVal = document.getElementById('shop-dynamic-price').value;
+            if (priceVal) {
+                const priceInp = document.createElement('input');
+                priceInp.type = 'hidden'; priceInp.name = 'dynamic_price'; priceInp.value = priceVal;
+                form.appendChild(priceInp);
+            }
+            document.body.appendChild(form);
+            form.submit();
+        });
+        document.getElementById('select-all-inv').addEventListener('change', function() {
+            document.querySelectorAll('.inv-checkbox').forEach(cb => { cb.checked = this.checked; });
+        });
+    </script>
+>>>>>>> GCP
 </body>
 </html>

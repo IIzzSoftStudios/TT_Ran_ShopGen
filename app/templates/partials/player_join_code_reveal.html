@@ -1,0 +1,172 @@
+{# Player PLY- code: masked field + Reveal only (select in field to copy). Expects: reveal_url (GET JSON { code }). #}
+<div class="player-join-code-block" data-reveal-url="{{ reveal_url }}">
+  <p class="pj-title"><strong>Your player code</strong></p>
+  <p class="pj-hint">Reveal your <code>PLY-</code> code to share with your GM (select the field to copy if needed).</p>
+  <div class="pj-row pj-row--primary" data-row="ply">
+    <span class="pj-label">PLY-</span>
+    <input type="password" class="code-display" readonly autocomplete="off" spellcheck="false"
+           aria-label="Player join code (hidden until reveal)" value="••••••••••" />
+    <div class="pj-actions">
+      <button type="button" class="pj-reveal-btn pj-btn">Reveal</button>
+    </div>
+  </div>
+  <p class="pj-fetch-err" style="display:none;margin:8px 0 0 0;color:var(--color-danger, #c62828);font-size:13px;"></p>
+</div>
+<style>
+.player-join-code-block {
+  max-width: 520px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.player-join-code-block .pj-title {
+  margin: 0 0 6px 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-text);
+}
+.player-join-code-block .pj-title strong {
+  font-weight: 700;
+}
+.player-join-code-block .pj-hint {
+  margin: 0 0 12px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.player-join-code-block .pj-hint code {
+  color: var(--color-accent);
+  background: var(--color-surface);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+.player-join-code-block .pj-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  margin-bottom: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.player-join-code-block .pj-row--primary .pj-label {
+  font-weight: 700;
+  text-align: center;
+}
+.player-join-code-block .pj-label {
+  flex: 0 0 56px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  line-height: 1.2;
+}
+.player-join-code-block input.code-display[type="password"],
+.player-join-code-block input.code-display[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.35;
+  border: 1px solid var(--color-accent);
+  border-radius: 4px;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+.player-join-code-block .pj-row--primary input.code-display[type="password"],
+.player-join-code-block .pj-row--primary input.code-display[type="text"] {
+  border-color: var(--color-accent);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+.player-join-code-block .pj-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.player-join-code-block .pj-btn {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast, #fff);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.player-join-code-block .pj-row--primary .pj-reveal-btn {
+  font-weight: 600;
+}
+.player-join-code-block .pj-btn:hover { filter: brightness(1.08); }
+.player-join-code-block .pj-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>
+<script>
+(function () {
+  function ensureLoaded(block) {
+    if (block.dataset.plyCode) {
+      return Promise.resolve();
+    }
+    var url = block.getAttribute("data-reveal-url");
+    if (!url) return Promise.reject(new Error("no url"));
+    return fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      .then(function (r) {
+        if (!r.ok) throw new Error("fetch failed");
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j || j.error || !j.code) throw new Error("bad payload");
+        var raw = String(j.code).trim();
+        if (!raw.toUpperCase().startsWith("PLY-")) throw new Error("bad payload");
+        block.dataset.plyCode = raw;
+      });
+  }
+
+  function showErr(block, msg) {
+    var el = block.querySelector(".pj-fetch-err");
+    if (el) {
+      el.style.display = "block";
+      el.textContent = msg || "Could not load code.";
+    }
+  }
+
+  function wireBlock(block) {
+    var row = block.querySelector(".pj-row[data-row='ply']");
+    if (!row) return;
+    var input = row.querySelector(".code-display");
+    var revealBtn = row.querySelector(".pj-reveal-btn");
+    if (!revealBtn || !input) return;
+
+    revealBtn.addEventListener("click", function () {
+      var errEl = block.querySelector(".pj-fetch-err");
+      if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+      revealBtn.disabled = true;
+      ensureLoaded(block)
+        .then(function () {
+          var code = (block.dataset.plyCode || "").trim();
+          input.value = code;
+          input.type = "text";
+          input.setAttribute("aria-label", "Player join code (revealed)");
+          try {
+            input.focus();
+            input.select();
+          } catch (e) { /* ignore */ }
+        })
+        .catch(function () {
+          showErr(block, "Unable to load player code. Try again or refresh.");
+        })
+        .finally(function () {
+          revealBtn.disabled = false;
+        });
+    });
+  }
+
+  document.querySelectorAll(".player-join-code-block").forEach(wireBlock);
+})();
+</script>

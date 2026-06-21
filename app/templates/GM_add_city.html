@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Add New City</title>
@@ -98,8 +98,12 @@
 
     <!-- Button Container -->
     <div class="button-container">
+<<<<<<< HEAD
         <a href="{{ url_for('gm.gm_view_cities') }}" class="button">All Cities</a>
         <a href="{{ url_for('gm.gm_home') }}" class="button">Game Master Interface</a>
+=======
+        <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
+>>>>>>> GCP
     </div>
 
     <!-- Centered Form -->
@@ -127,9 +131,20 @@
         <label for="population">Population:</label>
         <input type="number" id="population" name="population" placeholder="Enter manually for now" required>
 
+        {% if campaign_regions is defined and campaign_regions %}
+        <label for="region_id">Campaign region</label>
+        <select id="region_id" name="region_id">
+            <option value="">None — use specialty below</option>
+            {% for r in campaign_regions %}
+            <option value="{{ r.id }}">{{ r.name }}</option>
+            {% endfor %}
+        </select>
+        <p style="font-size:12px;color:#555;margin:0 0 10px;">If you select a campaign region, the specialty field is ignored.</p>
+        {% endif %}
+
         <!-- Specialty -->
         <label for="region">Specialty:</label>
-        <select id="region" name="region" required>
+        <select id="region" name="region" {% if not (campaign_regions is defined and campaign_regions) %}required{% endif %}>
             <option value="Industrial City">Industrial City</option>
             <option value="Agricultural Hub">Agricultural Hub</option>
             <option value="Technological City">Technological City</option>

@@ -1,6 +1,7 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
+<<<<<<< HEAD
     <title>Register</title>
     {% include 'partials/theme_head.html' %}
 
@@ -113,16 +114,38 @@
             opacity: 1;
         }
     </style>
+=======
+    <title>Register - Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth_pages.css') }}">
+>>>>>>> GCP
     <script>
-        function toggleGMSelect() {
-            const role = document.getElementById('role').value;
-            const gmSelect = document.getElementById('gm-select');
-            gmSelect.style.display = role === 'Player' ? 'block' : 'none';
-            const gmInput = document.getElementById('gm_id');
-            gmInput.required = role === 'Player';
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+            btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            btn.textContent = show ? 'Hide' : 'Show';
+        }
+
+        function validateRegisterForm(e) {
+            const pw = document.getElementById('password');
+            const confirm = document.getElementById('confirm_password');
+            const err = document.getElementById('password-mismatch');
+            if (!pw || !confirm) return true;
+            if (pw.value !== confirm.value) {
+                e.preventDefault();
+                if (err) err.style.display = 'block';
+                return false;
+            }
+            if (err) err.style.display = 'none';
+            return true;
         }
     </script>
 </head>
+<<<<<<< HEAD
 <body>
     <h2>Register</h2>
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -179,5 +202,94 @@
         <button type="submit">Register</button>
     </form>
     <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
+=======
+<body class="auth-page">
+    {% include 'partials/auth_topbar.html' %}
+    <div class="auth-page-wrap">
+        <h1 class="auth-title">Register</h1>
+        <p class="auth-subtitle">
+            {% if campaign_code_mode %}
+            Create a player account with the CAMP code your GM shared. This does not grant GM tools.
+            {% else %}
+            Create your account with the registration key from the access form.
+            {% endif %}
+        </p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="auth-flash-wrap">
+                    {% for category, message in messages %}
+                        <div class="auth-flash">
+                            <strong>{{ category|capitalize }}:</strong> {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form class="auth-card" method="POST" onsubmit="return validateRegisterForm(event)">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if campaign_code_mode %}
+            <div class="info-box">
+                Enter the GM campaign code that starts with CAMP-. This creates player access for that campaign only.
+            </div>
+            <div class="form-group">
+                <label for="campaign_code">GM Campaign Code</label>
+                <input type="text" id="campaign_code" name="campaign_code" required placeholder="CAMP-XXXX-XXXX-XXXX" autocomplete="off">
+            </div>
+            {% else %}
+            {% if vault_key %}
+            <div class="info-box">
+                Your registration key is ready. Finish this form to activate your account and enter Econo-Forge.
+            </div>
+            {% else %}
+            <div class="info-box">
+                You need a registration key to create an account.
+                <a href="{{ url_for('main.access_request') }}">Register For Access</a> to receive one immediately.
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label for="registration_key">Registration Key</label>
+                <input type="text" id="registration_key" name="registration_key" required placeholder="FORGE-XXXX or TEST-XXXX" value="{{ vault_key or '' }}">
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="email">Email (required if your key is tied to an access request)</label>
+                <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" value="{{ email or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password <span class="password-info" tabindex="0" aria-label="Password requirements">!</span></label>
+                <div class="password-field">
+                    <input type="password" id="password" name="password" required autocomplete="new-password"
+                           title="Normal keys: 8+ chars with upper, lower, and special. TEST admin keys: any length.">
+                    <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password"
+                            onclick="togglePasswordVisibility('password', this)">Show</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm password</label>
+                <div class="password-field">
+                    <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password"
+                           title="Re-enter your password">
+                    <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password"
+                            onclick="togglePasswordVisibility('confirm_password', this)">Show</button>
+                </div>
+                <p id="password-mismatch" class="password-mismatch">Passwords do not match.</p>
+            </div>
+
+            <button type="submit">Register</button>
+        </form>
+        <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
+        {% if campaign_code_mode %}
+        <p class="auth-alt-link">Need GM access instead? <a href="{{ url_for('main.access_request') }}">Register for access as a GM</a></p>
+        {% elif not vault_key %}
+        <p class="auth-alt-link">Need a key? <a href="{{ url_for('main.access_request') }}">Register For Access</a></p>
+        {% endif %}
+    </div>
+>>>>>>> GCP
 </body>
 </html>

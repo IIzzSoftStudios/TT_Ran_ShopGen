@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Shops in {{ city.name }}</title>
@@ -101,9 +101,14 @@
     <h1>Shops in {{ city.name }}</h1>
 
     <div class="button-container">
+<<<<<<< HEAD
         <button onclick="window.location.href='{{ url_for('gm.gm_add_shop') }}'" class="button">Add New Shop</button>
         <button onclick="window.location.href='{{ url_for('gm.gm_view_cities') }}'" class="button">All Cities</button>
         <button onclick="window.location.href='{{ url_for('gm.gm_home') }}'" class="button">Game Master Interface</button>
+=======
+        <button onclick="window.location.href='{{ url_for('gm.add_shop') }}'" class="button">Add Shop</button>
+        <button onclick="window.location.href='{{ url_for('gm.home') }}'" class="button">Game Master Interface</button>
+>>>>>>> GCP
     </div>
 
     <div class="content-container">
@@ -122,9 +127,15 @@
                     <td>{{ shop.name }}</td>
                     <td>{{ shop.type }}</td>
                     <td>
+<<<<<<< HEAD
                         <button type="button" class="button" onclick="window.location.href='{{ url_for('gm.gm_edit_shop', shop_id=shop.shop_id) }}'">Edit Shop</button>
                         <button type="button" class="button" onclick="window.location.href='{{ url_for('gm.gm_view_shop_items', shop_id=shop.shop_id) }}'">View Items</button>
                         <form method="POST" action="{{ url_for('gm.gm_delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
+=======
+                        <button type="button" class="button" onclick="window.location.href='{{ url_for('gm.edit_shop', shop_id=shop.shop_id) }}'">Edit Shop</button>
+                        <button type="button" class="button" onclick="window.location.href='{{ url_for('gm.view_shop_items', shop_id=shop.shop_id) }}'">View Items</button>
+                        <form method="POST" action="{{ url_for('gm.delete_shop', shop_id=shop.shop_id) }}" style="display:inline;">
+>>>>>>> GCP
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" name="from_view_all" value="false">
                             <button type="submit" class="delete-button">Delete</button>

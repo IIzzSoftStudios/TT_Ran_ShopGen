@@ -1,13 +1,24 @@
+<<<<<<< HEAD
 """
 GM Shops Handler
 Handles all shop-related business logic for GM routes
 """
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user
+=======
+"""GM shop-related handler utilities and inline shop updates."""
+
+from collections import defaultdict
+from functools import lru_cache
+
+from flask import request, redirect, url_for, flash
+from sqlalchemy import inspect
+>>>>>>> GCP
 from sqlalchemy.orm import subqueryload
 
 from app.constants.shops import SHOP_TYPE_DEFAULTS
 from app.extensions import db
+<<<<<<< HEAD
 from app.models.backend import City, Shop, Item, ShopInventory
 from app.services.logging_config import gm_logger
 from app.routes.handlers.gm_helpers import get_current_gm_profile
@@ -16,6 +27,59 @@ from collections import defaultdict
 
 def _normalize_shop_type(raw):
     """Strip and title-case shop type for consistent grouping and display."""
+=======
+from app.models import City, Shop, ShopInventory, Region, Campaign
+from app.routes.handlers.gm_helpers import (
+    get_current_gm_profile,
+    active_campaign_id,
+)
+
+
+@lru_cache(maxsize=1)
+def _region_table_exists() -> bool:
+    """True if PostgreSQL has `region` (enables City.region_obj). Cached per process."""
+    try:
+        return bool(inspect(db.engine).has_table("region"))
+    except Exception:
+        return False
+
+
+def _city_region_label(city: City) -> str:
+    """Label for grouping/filter: denormalized `city.region`, else FK name, else Unspecified."""
+    if city.region:
+        s = str(city.region).strip()
+        if s:
+            return s
+    if _region_table_exists():
+        ro = getattr(city, "region_obj", None)
+        if ro is not None and getattr(ro, "name", None):
+            s = (ro.name or "").strip()
+            if s:
+                return s
+    return "Unspecified"
+
+
+def build_grouped_cities_for_shop_form(cities: list) -> dict:
+    """Nested dict region_label -> size_label -> [City, ...] for GM shop city pickers."""
+    nested: dict = defaultdict(lambda: defaultdict(list))
+    for city in cities:
+        region = _city_region_label(city)
+        size = (getattr(city, "size", None) or "").strip() or "Unspecified"
+        nested[region][size].append(city)
+    out = {}
+    for region in sorted(nested.keys(), key=lambda s: (s or "").lower()):
+        size_map = {}
+        for size_name in sorted(nested[region].keys(), key=lambda s: (s or "").lower()):
+            size_map[size_name] = sorted(
+                nested[region][size_name],
+                key=lambda c: ((c.name or "").lower(), c.city_id),
+            )
+        out[region] = size_map
+    return out
+
+
+def _normalize_shop_type(raw):
+>>>>>>> GCP
     if raw is None:
         return ""
     return str(raw).strip().title()
@@ -27,6 +91,7 @@ def _normalize_shop_name(raw):
     return str(raw).strip()
 
 
+<<<<<<< HEAD
 def group_cities_for_display(cities):
     """
     Groups cities by Region -> Size -> List of Cities
@@ -63,6 +128,60 @@ def get_shop_city_panel_context(gm_profile):
     discovered_rows = (
         db.session.query(Shop.type)
         .filter_by(gm_profile_id=gm_profile.id)
+=======
+def _shop_type_rows_for_shops(shops) -> list:
+    """Group shops by normalized type for nested type-block UI."""
+    by_type = {}
+    for shop in sorted(shops, key=lambda s: (s.name or "").lower()):
+        type_key = _normalize_shop_type(shop.type) or "Unspecified"
+        by_type.setdefault(type_key, []).append(shop)
+    rows = [
+        {
+            "type": type_key,
+            "count": len(type_shops),
+            "shops": sorted(type_shops, key=lambda s: (s.name or "").lower()),
+        }
+        for type_key, type_shops in by_type.items()
+    ]
+    rows.sort(key=lambda r: (-r["count"], r["type"].lower()))
+    return rows
+
+
+_ORPHAN_SHOPS_REGION_LABEL = "Unspecified"
+
+
+def get_shop_city_panel_context(gm_profile, *, include_nav_toggles: bool = False):
+    """Build city_data, region_labels, and type_suggestions for the shops-by-city UI.
+
+    When ``include_nav_toggles`` is True and a campaign is active, also passes
+    ``campaign`` and ``supply_demand_enabled`` for ``gm_world_quick_nav.html``.
+    """
+    campaign_id = active_campaign_id()
+    if not campaign_id:
+        base = {
+            "city_data": [],
+            "region_groups": [],
+            "region_labels": [],
+            "campaign_regions": [],
+            "type_suggestions": sorted(SHOP_TYPE_DEFAULTS),
+        }
+        if include_nav_toggles:
+            base["campaign"] = None
+            base["supply_demand_enabled"] = True
+            base["market_volatility"] = 5
+        return base
+
+    q = City.query.filter_by(campaign_id=campaign_id).options(
+        subqueryload(City.shops)
+    )
+    if _region_table_exists():
+        q = q.options(subqueryload(City.region_obj))
+    cities = q.order_by(City.name).all()
+
+    discovered_rows = (
+        db.session.query(Shop.type)
+        .filter_by(campaign_id=campaign_id)
+>>>>>>> GCP
         .distinct()
         .all()
     )
@@ -74,6 +193,7 @@ def get_shop_city_panel_context(gm_profile):
 
     city_data = []
     for city in cities:
+<<<<<<< HEAD
         by_type = {}
         for shop in sorted(city.shops, key=lambda s: (s.name or "").lower()):
             type_key = _normalize_shop_type(shop.type) or "Unspecified"
@@ -90,11 +210,20 @@ def get_shop_city_panel_context(gm_profile):
         city_data.append(
             {
                 "city": city,
+=======
+        shop_type_rows = _shop_type_rows_for_shops(city.shops)
+        region_label = _city_region_label(city)
+        city_data.append(
+            {
+                "city": city,
+                "region_label": region_label,
+>>>>>>> GCP
                 "shop_count": len(city.shops),
                 "shop_type_rows": shop_type_rows,
             }
         )
 
+<<<<<<< HEAD
     return {"city_data": city_data, "type_suggestions": type_suggestions}
 
 
@@ -230,21 +359,181 @@ def edit_shop(shop_id):
 
 def update_shop_basic(shop_id):
     """Update shop name and type only; preserves city M2M links."""
+=======
+    region_groups_by_key = {}
+    if _region_table_exists() and campaign_id is not None:
+        for reg in Region.query.filter_by(campaign_id=campaign_id).order_by(Region.name).all():
+            key = f"fk:{reg.id}"
+            region_groups_by_key[key] = {
+                "label": reg.name,
+                "region_id": reg.id,
+                "cities": [],
+            }
+
+    for row in city_data:
+        city = row["city"]
+        if getattr(city, "region_id", None):
+            key = f"fk:{city.region_id}"
+        else:
+            key = f"label:{row['region_label']}"
+        group = region_groups_by_key.setdefault(
+            key,
+            {
+                "label": row["region_label"],
+                "region_id": getattr(city, "region_id", None),
+                "cities": [],
+            },
+        )
+        group["cities"].append(row)
+
+    region_groups = sorted(
+        region_groups_by_key.values(),
+        key=lambda g: ((g["label"] or "").lower(), g["region_id"] or 0),
+    )
+    orphan_shops = (
+        Shop.query.filter_by(campaign_id=campaign_id)
+        .filter(~Shop.cities.any())
+        .order_by(Shop.name)
+        .all()
+    )
+    orphan_shop_type_rows = _shop_type_rows_for_shops(orphan_shops)
+    if orphan_shop_type_rows:
+        orphan_group = region_groups_by_key.setdefault(
+            f"label:{_ORPHAN_SHOPS_REGION_LABEL}",
+            {
+                "label": _ORPHAN_SHOPS_REGION_LABEL,
+                "region_id": None,
+                "cities": [],
+            },
+        )
+        orphan_group["orphan_shop_type_rows"] = orphan_shop_type_rows
+        region_groups = sorted(
+            region_groups_by_key.values(),
+            key=lambda g: ((g["label"] or "").lower(), g["region_id"] or 0),
+        )
+
+    for group in region_groups:
+        group["city_count"] = len(group["cities"])
+        group["shop_count"] = sum(row["shop_count"] for row in group["cities"])
+        group["shop_count"] += sum(
+            row["count"] for row in group.get("orphan_shop_type_rows", [])
+        )
+        group.setdefault("orphan_shop_type_rows", [])
+
+    region_labels = sorted(
+        {row["region_label"] for row in city_data},
+        key=lambda s: (s or "").lower(),
+    )
+
+    campaign_regions = []
+    if _region_table_exists() and campaign_id is not None:
+        campaign_regions = (
+            Region.query.filter_by(campaign_id=campaign_id)
+            .order_by(Region.name)
+            .all()
+        )
+
+    out = {
+        "city_data": city_data,
+        "region_groups": region_groups,
+        "region_labels": region_labels,
+        "campaign_regions": campaign_regions,
+        "type_suggestions": type_suggestions,
+    }
+    if include_nav_toggles:
+        from app.services.world_generator.campaign_settings import (
+            read_market_volatility,
+            read_supply_demand_flag,
+        )
+
+        out["campaign"] = Campaign.query.filter_by(id=campaign_id).first()
+        out["supply_demand_enabled"] = read_supply_demand_flag(campaign_id)
+        out["market_volatility"] = read_market_volatility(campaign_id)
+    return out
+
+
+def get_grouped_shops(gm_profile):
+    """
+    Materialized dict: city_name -> { shop_type -> [Shop, ...] }, plus per-city
+    metadata for shop-picker summaries (region, size, counts) aligned with the
+    GM shops-by-city panel.
+
+    Returns:
+        tuple: (grouped_shops, city_shop_meta) where city_shop_meta maps city_name
+        to dict keys: region_label, size, shop_count.
+    """
+    campaign_id = active_campaign_id()
+    if not campaign_id:
+        return {}, {}
+    q = City.query.filter_by(campaign_id=campaign_id)
+    q = q.options(subqueryload(City.shops))
+    if _region_table_exists():
+        q = q.options(subqueryload(City.region_obj))
+    cities = q.order_by(City.name).all()
+
+    grouped = {}
+    city_meta = {}
+    for city in cities:
+        by_type = {}
+        for shop in sorted(city.shops, key=lambda s: (s.name or "").lower()):
+            type_key = _normalize_shop_type(shop.type) or "Unspecified"
+            by_type.setdefault(type_key, []).append(shop)
+        city_name = city.name or "Unknown"
+        grouped[city_name] = by_type
+        shop_count = sum(len(shops) for shops in by_type.values())
+        city_meta[city_name] = {
+            "region_label": _city_region_label(city),
+            "size": (city.size or "").strip(),
+            "shop_count": shop_count,
+        }
+    return grouped, city_meta
+
+
+def get_linked_shop_ids_for_item(item_id: int) -> set:
+    """Distinct shop_ids from shop_inventory for this item (single source of truth)."""
+    rows = (
+        db.session.query(ShopInventory.shop_id)
+        .filter(
+            ShopInventory.item_id == item_id,
+            ShopInventory.shop_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    return {r[0] for r in rows}
+
+
+def update_shop_basic(shop_id):
+    """Update shop name and type from dashboard inline form; redirect to GM home."""
+>>>>>>> GCP
     gm_profile, redirect_response = get_current_gm_profile()
     if redirect_response:
         return redirect_response
 
     shop = Shop.query.get_or_404(shop_id)
+<<<<<<< HEAD
     if shop.gm_profile_id != gm_profile.id:
         flash("You don't have permission to update this shop.", "danger")
         return redirect(url_for("gm.gm_view_shops"))
+=======
+    owning_campaign = Campaign.query.filter_by(
+        id=shop.campaign_id, gm_profile_id=gm_profile.id
+    ).first()
+    if owning_campaign is None:
+        flash("You don't have permission to update this shop.", "danger")
+        return redirect(url_for("gm.home"))
+>>>>>>> GCP
 
     new_name = _normalize_shop_name(request.form.get("name"))
     new_type = _normalize_shop_type(request.form.get("type"))
 
     if not new_name or not new_type:
         flash("Name and type are required.", "warning")
+<<<<<<< HEAD
         return redirect(url_for("gm.gm_view_shops"))
+=======
+        return redirect(url_for("gm.home"))
+>>>>>>> GCP
 
     try:
         shop.name = new_name
@@ -253,6 +542,7 @@ def update_shop_basic(shop_id):
         flash(f"Updated {shop.name}.", "success")
     except Exception as e:
         db.session.rollback()
+<<<<<<< HEAD
         gm_logger.error(f"update_shop_basic failed: {e}", exc_info=True)
         flash(f"Error updating shop: {e}", "danger")
 
@@ -333,3 +623,8 @@ def remove_item_from_shop(shop_id, item_id):
         db.session.rollback()
         flash(f"Error removing item from shop: {e}", "danger")
     return redirect(url_for("gm.gm_view_shop_items", shop_id=shop_id))
+=======
+        flash(f"Error updating shop: {e}", "danger")
+
+    return redirect(url_for("gm.home"))
+>>>>>>> GCP

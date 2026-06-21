@@ -2,6 +2,12 @@
 Flask>=2.3,<4
 python-dotenv>=1.0
 
+<<<<<<< HEAD
+=======
+# Production WSGI server (Cloud Run / gunicorn)
+gunicorn>=21
+
+>>>>>>> GCP
 # Database
 flask-sqlalchemy>=3.0
 flask-migrate>=4.0
@@ -13,9 +19,35 @@ flask-bcrypt>=1.0
 flask-wtf>=1.2.0
 flask-mailman>=1.0
 
+<<<<<<< HEAD
+=======
+# Rate limiting for expensive endpoints (world-gen POST)
+flask-limiter>=3.5
+
+>>>>>>> GCP
 # Session (imported in app.extensions)
 flask-session>=0.5
 
 # App dependencies
+<<<<<<< HEAD
 Faker>=20.0
 numpy>=1.24
+=======
+Pillow>=10.0
+Faker>=20.0
+numpy>=1.24
+PyYAML>=6.0
+
+# Structured logging for Cloud Logging
+python-json-logger>=2.0
+
+# Tests
+pytest>=7.0
+
+# Vault admin: GM usage Excel export
+openpyxl>=3.1,<4
+
+# Async simulation execution
+celery>=5
+redis>=4
+>>>>>>> GCP

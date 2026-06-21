@@ -1,0 +1,41 @@
+# Mirror of .gcloudignore. Keep these in sync so local `docker build`
+# matches the Cloud Build image content.
+# tests/ tree intentionally included for Cloud Build pytest step.
+
+config.env
+config.env.*
+!config.example.env
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+
+*.sqlite
+*.sqlite3
+*.db
+flask_session/
+
+*.log
+logs/
+app/services/logs/
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+.git/
+.gitignore
+
+docker-compose.override.yml

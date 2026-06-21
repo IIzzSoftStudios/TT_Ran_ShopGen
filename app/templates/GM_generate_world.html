@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Create Campaign &mdash; Generate World</title>
+    {% include 'partials/theme_head.html' %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--color-bg, #f4f4f4);
+            color: var(--color-text, #111827);
+            margin: 0;
+            padding: 30px 10px;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--color-surface, #fff);
+            color: var(--color-text, #111827);
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 32px 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: var(--color-accent);
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--color-muted, #666);
+            margin-top: 0;
+            margin-bottom: 28px;
+        }
+
+        fieldset {
+            border: 1px solid var(--color-border, #e0e0e0);
+            border-radius: 8px;
+            padding: 8px 22px 22px;
+            margin: 0 0 22px;
+            background-color: var(--color-surface, #fafafa);
+            color: var(--color-text, #111827);
+        }
+
+        legend {
+            display: block;
+            width: fit-content;
+            margin: 0 auto;
+            padding: 4px 14px;
+            font-size: 1.15em;
+            font-weight: 700;
+            text-align: center;
+            color: var(--color-accent-contrast, #fff);
+            background-color: var(--color-accent, #7c3aed);
+            border-radius: 6px;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .field-row {
+            margin: 14px 0;
+            color: var(--color-text, #111827);
+        }
+
+        .field-hint {
+            font-size: 0.85rem;
+            color: var(--color-text-muted, #6b7280);
+            margin: 6px 0 0;
+        }
+        .species-distribution-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+        }
+        .species-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 88px;
+            gap: 8px;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-surface);
+        }
+        .species-row input[type="text"],
+        .species-row input[type="number"] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .species-row-custom {
+            grid-template-columns: minmax(0, 1fr) 88px auto;
+        }
+        .species-total {
+            margin-top: 10px;
+            font-weight: 700;
+            color: var(--color-muted);
+        }
+        .species-total.is-balanced {
+            color: var(--color-success, #15803d);
+        }
+        .species-total.is-over {
+            color: var(--color-danger, #dc2626);
+        }
+
+        .field-row > label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--color-text, #111827);
+        }
+
+        .field-label-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .field-label-row .field-label-text {
+            flex: 1;
+            font-weight: 600;
+            margin: 0;
+            color: var(--color-text, #111827);
+        }
+
+        .field-help {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .field-help-trigger {
+            list-style: none;
+            width: 24px;
+            height: 24px;
+            margin: 0;
+            padding: 0;
+            border-radius: 50%;
+            border: 1px solid var(--color-accent, #7c3aed);
+            background: var(--color-surface, #fff);
+            color: var(--color-accent, #7c3aed);
+            font-weight: 700;
+            font-size: 0.85rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .field-help-trigger::-webkit-details-marker {
+            display: none;
+        }
+
+        .field-help-popover {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            z-index: 30;
+            min-width: 260px;
+            max-width: 360px;
+            margin: 0;
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            font-weight: normal;
+            line-height: 1.45;
+            color: var(--color-text, #111827);
+            background: var(--color-surface, #fff);
+            border: 1px solid var(--color-border, #e0e0e0);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .field-row .floor-ceiling {
+            font-size: 0.85em;
+            color: var(--color-muted, #777);
+            font-weight: normal;
+            margin-left: 8px;
+        }
+
+        .field-row input[type="text"],
+        .field-row select,
+        .field-row input[type="number"] {
+            padding: 6px 8px;
+            border: 1px solid var(--color-input-border, #ccc);
+            background-color: var(--color-input-bg, #fff);
+            color: var(--color-text, #111827);
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+
+        .field-row select {
+            min-width: 180px;
+        }
+
+        .range-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .range-row .range-min-number,
+        .range-row .range-max-number {
+            width: 70px;
+            text-align: center;
+        }
+
+        .range-slider-wrapper {
+            flex: 1;
+            position: relative;
+            height: 28px;
+        }
+
+        .range-slider-wrapper input[type="range"] {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            width: 100%;
+            height: 28px;
+            margin: 0;
+            background: transparent;
+            pointer-events: auto;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .range-slider-wrapper input[type="range"]::-webkit-slider-thumb {
+            pointer-events: auto;
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--color-accent, #9b59b6);
+            border: 2px solid #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+            cursor: pointer;
+        }
+
+        .range-slider-wrapper input[type="range"]::-moz-range-thumb {
+            pointer-events: auto;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--color-accent, #9b59b6);
+            border: 2px solid #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+            cursor: pointer;
+        }
+
+        .shake {
+            animation: shake-horizontal 0.25s ease-in-out;
+            border-color: #e74c3c !important;
+        }
+
+        @keyframes shake-horizontal {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        .axis-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            font-size: 0.72em;
+            color: var(--color-muted, #777);
+        }
+
+        @media (max-width: 600px) {
+            .axis-labels .axis-label-full {
+                display: none;
+            }
+            .axis-labels .axis-label-anchor {
+                display: inline-block;
+            }
+        }
+
+        @media (min-width: 601px) {
+            .axis-labels .axis-label-anchor {
+                display: none;
+            }
+        }
+
+        .estimator {
+            text-align: right;
+            color: var(--color-muted, #555);
+            font-size: 0.85em;
+            margin-top: 4px;
+        }
+
+        .estimator.over-cap {
+            color: var(--color-danger, #e74c3c);
+            font-weight: bold;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .tutorial-interest-status {
+            flex-basis: 100%;
+            min-height: 1.25rem;
+            margin: -12px 0 0;
+            color: var(--color-accent, #9b59b6);
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 10px 22px;
+            border-radius: 6px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1em;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background-color: var(--color-accent, #9b59b6);
+            color: var(--color-accent-contrast, #fff);
+        }
+        .btn-primary:hover { background-color: var(--color-accent-hover, #8e44ad); }
+        .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        .btn-secondary {
+            background-color: var(--color-border, #eee);
+            color: var(--color-text, #333);
+        }
+        .btn-secondary:hover { filter: brightness(0.95); }
+
+        .btn-tertiary {
+            background-color: #16a34a;
+            color: #fff;
+        }
+        .btn-tertiary:hover { filter: brightness(0.95); }
+
+        .btn-link {
+            background: transparent;
+            color: var(--color-accent);
+            text-decoration: underline;
+        }
+
+        .spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 3px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-text {
+            text-align: center;
+            color: var(--color-muted, #555);
+            margin-top: 12px;
+            min-height: 1.4em;
+            font-style: italic;
+        }
+
+        .flash-errors {
+            background-color: rgba(220, 38, 38, 0.12);
+            color: var(--color-danger, #a5322a);
+            border: 1px solid var(--color-danger, #f5c6c3);
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 18px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        .generation-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(15, 23, 42, 0.92);
+            color: #f1f5f9;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        .generation-overlay.is-visible {
+            display: flex;
+        }
+
+        .generation-overlay-inner {
+            max-width: 32rem;
+        }
+
+        .generation-overlay-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: var(--color-accent, #a78bfa);
+            border-radius: 50%;
+            animation: spin 0.85s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        .generation-overlay-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin: 0 0 12px;
+        }
+
+        .generation-overlay-hint {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #94a3b8;
+            margin: 0 0 8px;
+        }
+
+        .generation-overlay-hint code {
+            font-size: 0.85em;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .generation-overlay-rotate {
+            min-height: 1.4em;
+            font-style: italic;
+            color: #cbd5e1;
+            margin: 12px 0 0;
+        }
+
+        .generation-overlay-elapsed {
+            font-size: 1.75rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.04em;
+            color: #e2e8f0;
+            margin: 10px 0 0;
+        }
+
+        .generation-overlay-elapsed-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #64748b;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="generation-overlay" class="generation-overlay" role="status" aria-live="assertive" aria-atomic="true" aria-hidden="true">
+        <div class="generation-overlay-inner">
+            <div class="generation-overlay-spinner" aria-hidden="true"></div>
+            <p class="generation-overlay-title" id="generation-overlay-title">World generation in progress</p>
+            <p class="generation-overlay-elapsed-label">Elapsed</p>
+            <p class="generation-overlay-elapsed" id="generation-overlay-elapsed" aria-live="polite">0:00</p>
+            <p class="generation-overlay-hint">
+                Keep this tab open until you are redirected to the <strong>GM dashboard</strong> (<code>/gm/</code>). Each run is one HTTP request to the server (not a background job).
+                <strong>Concurrent GMs:</strong> use a production WSGI with multiple workers (e.g. Gunicorn <code>-w 4</code>); Flask&rsquo;s dev server handles one request at a time.
+                In the server terminal you should see <code>world_generation POST started</code>, then <code>world_gen phase=…</code> while work runs.
+            </p>
+            <p class="generation-overlay-rotate" id="generation-overlay-rotate"></p>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Create Campaign</h1>
+        <p class="subtitle">Tune the sliders, then forge your world.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-errors" role="alert">
+                    {% for category, message in messages %}
+                        <div>{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form id="generate-world-form" method="POST" action="{{ url_for('gm.generate_world_submit') }}" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="form-actions">
+                <button
+                    type="{% if campaign_limit_reached %}button{% else %}submit{% endif %}"
+                    class="btn btn-primary"
+                    id="generate-btn"
+                    {% if campaign_limit_reached %}
+                    data-expansion-interest-trigger
+                    data-expansion-interest-source="generate_world_submit"
+                    aria-haspopup="dialog"
+                    {% endif %}
+                >
+                    Generate World
+                    <span class="spinner" id="generate-spinner" aria-hidden="true"></span>
+                </button>
+                <button
+                    type="{% if campaign_limit_reached %}button{% else %}submit{% endif %}"
+                    class="btn btn-tertiary"
+                    id="skip-generation-btn"
+                    formaction="{{ url_for('gm.skip_world_generation_submit') }}"
+                    formmethod="post"
+                    {% if campaign_limit_reached %}
+                    data-expansion-interest-trigger
+                    data-expansion-interest-source="skip_world_generation"
+                    aria-haspopup="dialog"
+                    {% endif %}
+                >
+                    Skip Generation
+                </button>
+                <button type="button" class="btn btn-secondary" id="setup-tutorial-interest-btn">
+                    Would a setup tutorial be useful?
+                </button>
+                <button type="button" class="btn btn-secondary" id="reset-btn">Reset to defaults</button>
+                <a href="{{ url_for('main.campaigns') }}" class="btn btn-link">Back</a>
+                <p class="tutorial-interest-status" id="setup-tutorial-interest-status" role="status" aria-live="polite"></p>
+            </div>
+
+            <fieldset>
+                <legend>Identity</legend>
+                <div class="field-row">
+                    <label for="campaign_name">World Name</label>
+                    <input type="text" id="campaign_name" name="campaign_name" required maxlength="120"
+                           value="{{ form_values.campaign_name or '' }}" style="width: 100%; box-sizing: border-box;">
+                </div>
+                <div class="field-row">
+                    <label for="system_type">Game System</label>
+                    <select id="system_type" name="system_type" required>
+                        {% for sys in system_types %}
+                            <option value="{{ sys }}" {% if form_values.system_type == sys %}selected{% endif %}>
+                                {{ {'dnd5e': 'Dungeons & Dragons 5e', 'pf2e': 'Pathfinder 2e', 'generic': 'Generic / Homebrew'}[sys] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Geography</legend>
+                {% for key in ['num_regions', 'num_cities', 'population_scale', 'map_landmass_scale', 'map_waterways', 'map_terrain_roughness'] %}
+                    {% set r = ranges[key] %}
+                    <div class="field-row">
+                        <div class="field-label-row">
+                            <p class="field-label-text">{{ labels[key] }}<span class="floor-ceiling">(floor {{ r.floor }}, ceiling {{ r.ceiling }})</span></p>
+                            {% with help_key=key %}{% include 'partials/world_gen_field_help.html' %}{% endwith %}
+                        </div>
+                        <div class="range-row" data-setting="{{ key }}" data-floor="{{ r.floor }}" data-ceiling="{{ r.ceiling }}">
+                            <input type="number" class="range-min-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                   value="{{ r.min }}" aria-label="Minimum {{ labels[key] }}">
+                            <div class="range-slider-wrapper">
+                                <input type="range" class="range-min-slider" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                       value="{{ r.min }}" aria-label="Minimum {{ labels[key] }} (slider)">
+                                <input type="range" class="range-max-slider" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                       value="{{ r.max }}" aria-label="Maximum {{ labels[key] }} (slider)">
+                            </div>
+                            <input type="number" class="range-max-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                   value="{{ r.max }}" aria-label="Maximum {{ labels[key] }}">
+                            <input type="hidden" name="{{ key }}_min" value="{{ r.min }}">
+                            <input type="hidden" name="{{ key }}_max" value="{{ r.max }}">
+                        </div>
+                        <div class="sr-only" aria-live="polite" data-clamp-announce></div>
+                    </div>
+                {% endfor %}
+            </fieldset>
+
+            <fieldset>
+                <legend>Species Population</legend>
+                <p class="field-hint">
+                    Set the percentage of the world population for each species. These are names and population shares only;
+                    mechanical traits can be added later from SRD-safe or GM-authored rules.
+                </p>
+                <div class="species-distribution-grid" id="species-default-grid">
+                    {% for species_name, percent in default_species_distribution %}
+                    <label class="species-row">
+                        <span>{{ species_name }}</span>
+                        <input type="number" name="species_percent_{{ species_name|replace(' ', '_')|replace('-', '_') }}"
+                               min="0" max="100" step="0.1" value="{{ percent }}" data-species-percent>
+                    </label>
+                    {% endfor %}
+                </div>
+                <div id="custom-species-list" class="species-distribution-grid" aria-live="polite"></div>
+                <button type="button" class="btn btn-secondary" id="add-custom-species-btn">Add custom species</button>
+                <p class="species-total is-balanced" id="species-total">Species total: 100%</p>
+            </fieldset>
+
+            <fieldset>
+                <legend>Economy</legend>
+                {% for key in ['global_item_pool_size', 'city_size_variation', 'items_per_shop'] %}
+                    {% set r = ranges[key] %}
+                    <div class="field-row">
+                        <div class="field-label-row">
+                            <p class="field-label-text">{{ labels[key] }}<span class="floor-ceiling">(floor {{ r.floor }}, ceiling {{ r.ceiling }})</span></p>
+                            {% with help_key=key %}{% include 'partials/world_gen_field_help.html' %}{% endwith %}
+                        </div>
+                        <div class="range-row" data-setting="{{ key }}" data-floor="{{ r.floor }}" data-ceiling="{{ r.ceiling }}">
+                            <input type="number" class="range-min-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                   value="{{ r.min }}" aria-label="Minimum {{ labels[key] }}">
+                            <div class="range-slider-wrapper">
+                                <input type="range" class="range-min-slider" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                       value="{{ r.min }}" aria-label="Minimum {{ labels[key] }} (slider)">
+                                <input type="range" class="range-max-slider" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                       value="{{ r.max }}" aria-label="Maximum {{ labels[key] }} (slider)">
+                            </div>
+                            <input type="number" class="range-max-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                   value="{{ r.max }}" aria-label="Maximum {{ labels[key] }}">
+                            <input type="hidden" name="{{ key }}_min" value="{{ r.min }}">
+                            <input type="hidden" name="{{ key }}_max" value="{{ r.max }}">
+                        </div>
+                        <div class="sr-only" aria-live="polite" data-clamp-announce></div>
+                    </div>
+                {% endfor %}
+                <div class="estimator" id="entity-estimator">
+                    Est. max ShopInventory: <span id="estimator-value">0</span> of {{ shop_inventory_cap }}.
+                </div>
+                <div class="field-row">
+                    <div class="field-label-row">
+                        <p class="field-label-text">Market volatility<span class="floor-ceiling">(0 = stable, 5 = default, 10 = wild)</span></p>
+                    </div>
+                    <input type="number" name="market_volatility" min="0" max="10" value="5" aria-label="Market volatility">
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Society</legend>
+                <div class="field-row">
+                    <div class="field-label-row">
+                        <p class="field-label-text">Magic &harr; Tech Balance (region-level)
+                            <span class="floor-ceiling">0 = God Magic, 5 = Medieval, 10 = Post-Apoc Tech</span>
+                        </p>
+                        {% with help_key='tech_magic_balance' %}{% include 'partials/world_gen_field_help.html' %}{% endwith %}
+                    </div>
+                    {% set r = ranges['tech_magic_balance'] %}
+                    <div class="range-row" data-setting="tech_magic_balance" data-floor="{{ r.floor }}" data-ceiling="{{ r.ceiling }}">
+                        <input type="number" class="range-min-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                               value="{{ r.min }}" aria-label="Minimum axis position">
+                        <div class="range-slider-wrapper">
+                            <input type="range" class="range-min-slider" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                   value="{{ r.min }}" aria-label="Minimum axis position (slider)">
+                            <input type="range" class="range-max-slider" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                                   value="{{ r.max }}" aria-label="Maximum axis position (slider)">
+                        </div>
+                        <input type="number" class="range-max-number" min="{{ r.floor }}" max="{{ r.ceiling }}"
+                               value="{{ r.max }}" aria-label="Maximum axis position">
+                        <input type="hidden" name="tech_magic_balance_min" value="{{ r.min }}">
+                        <input type="hidden" name="tech_magic_balance_max" value="{{ r.max }}">
+                    </div>
+                    <div class="axis-labels" aria-hidden="true">
+                        <span class="axis-label-full">God Magic</span>
+                        <span class="axis-label-full">High Magic</span>
+                        <span class="axis-label-full">Low Magic</span>
+                        <span class="axis-label-full">Medieval</span>
+                        <span class="axis-label-full">Renaissance</span>
+                        <span class="axis-label-full">Industrial</span>
+                        <span class="axis-label-full">Modern</span>
+                        <span class="axis-label-full">Post-Apoc</span>
+                        <span class="axis-label-anchor">God Magic</span>
+                        <span class="axis-label-anchor">Medieval</span>
+                        <span class="axis-label-anchor">Post-Apoc</span>
+                    </div>
+                    <div class="sr-only" aria-live="polite" data-clamp-announce></div>
+                </div>
+
+            </fieldset>
+
+            <fieldset>
+                <legend>Reproducibility</legend>
+                <div class="field-row">
+                    <label for="world_seed">World Seed <span class="floor-ceiling">(optional)</span></label>
+                    <input type="number" id="world_seed" name="world_seed" min="0" max="2147483647"
+                           placeholder="Leave blank for a random world"
+                           value="{{ form_values.world_seed or '' }}" style="width: 220px;">
+                    <div style="font-size: 0.8em; color: #777; margin-top: 4px;">
+                        A number that makes the generation repeatable. Blank = server picks one
+                        and shows it after. Use a seed to re-roll the exact same world.
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="progress-text" id="progress-text" aria-live="polite"></div>
+        </form>
+    </div>
+    {% include 'partials/expansion_interest_modal.html' %}
+
+    <script>
+    (function () {
+        "use strict";
+
+        var SHOP_INVENTORY_CAP = {{ shop_inventory_cap | tojson }};
+        var MAX_SHOPS_PER_CITY = {{ max_shops_per_city | tojson }};
+        var DEFAULTS = {{ defaults_json | tojson }};
+
+        function parseIntSafe(value, fallback) {
+            var n = parseInt(value, 10);
+            return isFinite(n) ? n : fallback;
+        }
+
+        function clampWithFeedback(input, minAllowed, maxAllowed, announceEl) {
+            var v = parseIntSafe(input.value, minAllowed);
+            var clamped = Math.min(maxAllowed, Math.max(minAllowed, v));
+            if (clamped !== v) {
+                input.value = clamped;
+                input.classList.add("shake");
+                setTimeout(function () { input.classList.remove("shake"); }, 260);
+                if (announceEl) {
+                    var hint = (v > maxAllowed) ? "maximum" : "minimum";
+                    announceEl.textContent = "Value clamped to " + clamped + " (" + hint + ").";
+                }
+            }
+            return clamped;
+        }
+
+        function initRangeRow(row) {
+            var setting = row.dataset.setting;
+            var floor = parseIntSafe(row.dataset.floor, 0);
+            var ceiling = parseIntSafe(row.dataset.ceiling, 100);
+            var minNumber = row.querySelector(".range-min-number");
+            var maxNumber = row.querySelector(".range-max-number");
+            var minSlider = row.querySelector(".range-min-slider");
+            var maxSlider = row.querySelector(".range-max-slider");
+            var wrapper = row.querySelector(".range-slider-wrapper");
+            var minHidden = row.querySelector('input[name="' + setting + '_min"]');
+            var maxHidden = row.querySelector('input[name="' + setting + '_max"]');
+            var announce = row.parentElement.querySelector("[data-clamp-announce]");
+
+            function syncHandleZIndex(isMin) {
+                minSlider.style.zIndex = isMin ? "3" : "2";
+                maxSlider.style.zIndex = isMin ? "2" : "3";
+            }
+
+            /** Full-width range inputs stack; only the top one receives pointer events. Bring the slider whose thumb is closer to the pointer to the front (mousemove / touch) so both handles stay usable. */
+            function syncStackFromClientX(clientX) {
+                if (!wrapper) return;
+                var rect = wrapper.getBoundingClientRect();
+                var width = rect.width || 1;
+                var x = clientX - rect.left;
+                var span = ceiling - floor;
+                if (span <= 0) return;
+                var minV = parseIntSafe(minSlider.value, floor);
+                var maxV = parseIntSafe(maxSlider.value, ceiling);
+                var minPos = ((minV - floor) / span) * width;
+                var maxPos = ((maxV - floor) / span) * width;
+                var distMin = Math.abs(x - minPos);
+                var distMax = Math.abs(x - maxPos);
+                syncHandleZIndex(distMin <= distMax);
+            }
+
+            function setValues(minV, maxV) {
+                minNumber.value = minV;
+                maxNumber.value = maxV;
+                minSlider.value = minV;
+                maxSlider.value = maxV;
+                minHidden.value = minV;
+                maxHidden.value = maxV;
+                updateEstimator();
+            }
+
+            minNumber.addEventListener("input", function () {
+                var maxV = parseIntSafe(maxNumber.value, ceiling);
+                var lo = clampWithFeedback(minNumber, floor, maxV, announce);
+                setValues(lo, maxV);
+            });
+            maxNumber.addEventListener("input", function () {
+                var minV = parseIntSafe(minNumber.value, floor);
+                var hi = clampWithFeedback(maxNumber, minV, ceiling, announce);
+                setValues(minV, hi);
+            });
+            minSlider.addEventListener("input", function () {
+                var lo = parseIntSafe(minSlider.value, floor);
+                var hi = parseIntSafe(maxSlider.value, ceiling);
+                if (lo > hi) { lo = hi; }
+                setValues(lo, hi);
+            });
+            maxSlider.addEventListener("input", function () {
+                var lo = parseIntSafe(minSlider.value, floor);
+                var hi = parseIntSafe(maxSlider.value, ceiling);
+                if (hi < lo) { hi = lo; }
+                setValues(lo, hi);
+            });
+            minSlider.addEventListener("pointerdown", function () { syncHandleZIndex(true); });
+            maxSlider.addEventListener("pointerdown", function () { syncHandleZIndex(false); });
+            minSlider.addEventListener("focus", function () { syncHandleZIndex(true); });
+            maxSlider.addEventListener("focus", function () { syncHandleZIndex(false); });
+            if (wrapper) {
+                wrapper.addEventListener("mousemove", function (e) { syncStackFromClientX(e.clientX); });
+                /* Capture phase: update stacking before the browser picks the range under the pointer (helps touch / some UAs). */
+                wrapper.addEventListener("pointerdown", function (e) { syncStackFromClientX(e.clientX); }, true);
+                wrapper.addEventListener("touchstart", function (e) {
+                    if (e.touches && e.touches.length) {
+                        syncStackFromClientX(e.touches[0].clientX);
+                    }
+                }, { passive: true, capture: true });
+            }
+            /* Default: min on top so the left handle is reachable (max was winning via DOM order). Proximity on mousemove refines stacking. */
+            syncHandleZIndex(true);
+        }
+
+        function getValue(setting, bound) {
+            var el = document.querySelector('input[name="' + setting + '_' + bound + '"]');
+            return el ? parseIntSafe(el.value, 0) : 0;
+        }
+
+        var estimatorEl = document.getElementById("entity-estimator");
+        var estimatorValue = document.getElementById("estimator-value");
+
+        function updateEstimator() {
+            var cMax = getValue("num_cities", "max");
+            var sMax = typeof MAX_SHOPS_PER_CITY === "number" ? MAX_SHOPS_PER_CITY : 12;
+            var iMax = getValue("items_per_shop", "max");
+            var product = cMax * sMax * iMax;
+            if (!estimatorValue) return;
+            estimatorValue.textContent = product.toLocaleString();
+            if (estimatorEl) {
+                if (product > SHOP_INVENTORY_CAP) {
+                    estimatorEl.classList.add("over-cap");
+                } else {
+                    estimatorEl.classList.remove("over-cap");
+                }
+            }
+        }
+
+        var rows = document.querySelectorAll(".range-row");
+        for (var i = 0; i < rows.length; i++) {
+            initRangeRow(rows[i]);
+        }
+        updateEstimator();
+
+        function updateSpeciesTotal() {
+            var totalEl = document.getElementById("species-total");
+            if (!totalEl) return;
+            var total = 0;
+            document.querySelectorAll("[data-species-percent]").forEach(function (input) {
+                var val = parseFloat(input.value);
+                if (isFinite(val)) total += val;
+            });
+            total = Math.round(total * 10) / 10;
+            totalEl.textContent = "Species total: " + total + "%";
+            totalEl.classList.toggle("is-balanced", Math.abs(total - 100) < 0.05);
+            totalEl.classList.toggle("is-over", total > 100);
+        }
+
+        var customSpeciesList = document.getElementById("custom-species-list");
+        var addCustomSpeciesBtn = document.getElementById("add-custom-species-btn");
+        if (addCustomSpeciesBtn && customSpeciesList) {
+            addCustomSpeciesBtn.addEventListener("click", function () {
+                var row = document.createElement("div");
+                row.className = "species-row species-row-custom";
+                row.innerHTML =
+                    '<input type="text" name="custom_species_name" maxlength="60" placeholder="Custom species">' +
+                    '<input type="number" name="custom_species_percent" min="0" max="100" step="0.1" value="0" data-species-percent>' +
+                    '<button type="button" class="btn btn-secondary">Remove</button>';
+                var removeBtn = row.querySelector("button");
+                var pct = row.querySelector("[data-species-percent]");
+                removeBtn.addEventListener("click", function () {
+                    row.remove();
+                    updateSpeciesTotal();
+                });
+                pct.addEventListener("input", updateSpeciesTotal);
+                customSpeciesList.appendChild(row);
+                row.querySelector("input").focus();
+                updateSpeciesTotal();
+            });
+        }
+        document.querySelectorAll("[data-species-percent]").forEach(function (input) {
+            input.addEventListener("input", updateSpeciesTotal);
+        });
+        updateSpeciesTotal();
+
+        // Reset to defaults
+        document.getElementById("reset-btn").addEventListener("click", function () {
+            Object.keys(DEFAULTS.ranges).forEach(function (key) {
+                var row = document.querySelector('.range-row[data-setting="' + key + '"]');
+                if (!row) return;
+                var d = DEFAULTS.ranges[key];
+                row.querySelector(".range-min-number").value = d.min;
+                row.querySelector(".range-max-number").value = d.max;
+                row.querySelector(".range-min-slider").value = d.min;
+                row.querySelector(".range-max-slider").value = d.max;
+                row.querySelector('input[name="' + key + '_min"]').value = d.min;
+                row.querySelector('input[name="' + key + '_max"]').value = d.max;
+            });
+            var nameEl = document.getElementById("campaign_name");
+            if (nameEl) nameEl.value = "";
+            var sysEl = document.getElementById("system_type");
+            if (sysEl) sysEl.value = DEFAULTS.system_type;
+            var seedEl = document.getElementById("world_seed");
+            if (seedEl) seedEl.value = "";
+            updateEstimator();
+        });
+
+        var tutorialInterestBtn = document.getElementById("setup-tutorial-interest-btn");
+        var tutorialInterestStatus = document.getElementById("setup-tutorial-interest-status");
+        if (tutorialInterestBtn && tutorialInterestStatus) {
+            tutorialInterestBtn.addEventListener("click", async function () {
+                tutorialInterestStatus.textContent = "Saving response...";
+                tutorialInterestBtn.disabled = true;
+                try {
+                    var resp = await fetch("/auth/account/submissions", {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCsrfHeader()
+                        },
+                        body: JSON.stringify({
+                            kind: "suggestion",
+                            category: "UX/workflow",
+                            title: "Setup tutorial interest",
+                            description: "A setup tutorial would be useful.",
+                            frequency: "Once",
+                            beta_test: true,
+                            prompted_key: "setup_tutorial",
+                            page_url: window.location.pathname + window.location.search
+                        })
+                    });
+                    var data = await resp.json().catch(function () { return {}; });
+                    if (!resp.ok) throw new Error(data.error || "Could not save response.");
+                    tutorialInterestStatus.textContent = resp.status === 200
+                        ? "Thank you, your response has been updated."
+                        : "Thank you, your response has been noted.";
+                } catch (err) {
+                    tutorialInterestStatus.textContent = err.message || "Could not save response.";
+                } finally {
+                    tutorialInterestBtn.disabled = false;
+                }
+            });
+        }
+
+        // Submit: full-page overlay + fetch POST so the UI stays visible during a long server run
+        // (native form submit would navigate away and hide the in-form progress text).
+        var PROGRESS_MESSAGES = [
+            "Forging regions\u2026",
+            "Populating cities\u2026",
+            "Building item catalogs\u2026",
+            "Filling shops\u2026",
+            "Seeding regional markets\u2026"
+        ];
+
+        var form = document.getElementById("generate-world-form");
+        var btn = document.getElementById("generate-btn");
+        var spinner = document.getElementById("generate-spinner");
+        var progressEl = document.getElementById("progress-text");
+        var overlay = document.getElementById("generation-overlay");
+        var overlayRotate = document.getElementById("generation-overlay-rotate");
+        var elapsedEl = document.getElementById("generation-overlay-elapsed");
+        var progressTimer = null;
+        var elapsedTimer = null;
+        var elapsedStart = 0;
+        var submitting = false;
+        var inFlight = false;
+
+        function formatElapsedMs(ms) {
+            var totalSec = Math.floor(ms / 1000);
+            var m = Math.floor(totalSec / 60);
+            var s = totalSec % 60;
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        function getCsrfHeader() {
+            var m = document.querySelector('meta[name="csrf-token"]');
+            return m && m.getAttribute("content") ? m.getAttribute("content") : "";
+        }
+
+        function showOverlay() {
+            if (!overlay) return;
+            overlay.classList.add("is-visible");
+            overlay.setAttribute("aria-hidden", "false");
+            var idx = 0;
+            if (overlayRotate) {
+                overlayRotate.textContent = PROGRESS_MESSAGES[0];
+                progressTimer = setInterval(function () {
+                    idx = (idx + 1) % PROGRESS_MESSAGES.length;
+                    overlayRotate.textContent = PROGRESS_MESSAGES[idx];
+                }, 2000);
+            }
+            if (elapsedEl) {
+                elapsedEl.textContent = "0:00";
+                elapsedStart = performance.now();
+                elapsedTimer = setInterval(function () {
+                    elapsedEl.textContent = formatElapsedMs(performance.now() - elapsedStart);
+                }, 200);
+            }
+        }
+
+        function hideOverlay() {
+            if (progressTimer) {
+                clearInterval(progressTimer);
+                progressTimer = null;
+            }
+            if (elapsedTimer) {
+                clearInterval(elapsedTimer);
+                elapsedTimer = null;
+            }
+            if (overlay) {
+                overlay.classList.remove("is-visible");
+                overlay.setAttribute("aria-hidden", "true");
+            }
+        }
+
+        form.addEventListener("submit", function (e) {
+            var submitter = e.submitter || document.activeElement;
+            if (submitter && submitter.id === "skip-generation-btn") {
+                // Let the browser do a normal submit to the skip endpoint.
+                return;
+            }
+            e.preventDefault();
+            if (inFlight) return;
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            inFlight = true;
+            submitting = true;
+            btn.disabled = true;
+            if (spinner) spinner.style.display = "inline-block";
+            if (progressEl) progressEl.textContent = "";
+            showOverlay();
+
+            var postPath = "/gm/generate_world";
+            try {
+                postPath = new URL(form.getAttribute("action") || "", window.location.href).pathname || postPath;
+            } catch (err) { /* keep default */ }
+
+            if (window.console && console.info) {
+                console.info("[Econo-Forge] POST " + postPath + " (fetch; watch server stderr for POST started)");
+            }
+
+            var headers = {};
+            var csrf = getCsrfHeader();
+            if (csrf) {
+                headers["X-CSRFToken"] = csrf;
+            }
+
+            var fd = new FormData(form);
+            fetch(form.getAttribute("action") || postPath, {
+                method: "POST",
+                body: fd,
+                credentials: "same-origin",
+                redirect: "follow",
+                headers: headers
+            })
+                .then(function (response) {
+                    var u = response.url || "";
+                    var path = "";
+                    try {
+                        path = new URL(u || window.location.href, window.location.origin).pathname;
+                    } catch (e2) { /* ignore */ }
+                    var norm = path.replace(/\/+$/, "") || path;
+                    var onGmDashboard = norm === "/gm";
+                    var viaLoadCampaign = path.indexOf("/campaigns/load/") !== -1;
+                    if (response.ok && (response.redirected || onGmDashboard || viaLoadCampaign)) {
+                        hideOverlay();
+                        inFlight = false;
+                        submitting = false;
+                        window.location.assign(u || window.location.href);
+                        return;
+                    }
+                    return response.text().then(function (html) {
+                        hideOverlay();
+                        inFlight = false;
+                        submitting = false;
+                        btn.disabled = false;
+                        if (spinner) spinner.style.display = "none";
+                        document.open();
+                        document.write(html);
+                        document.close();
+                    });
+                })
+                .catch(function (err) {
+                    hideOverlay();
+                    inFlight = false;
+                    submitting = false;
+                    btn.disabled = false;
+                    if (spinner) spinner.style.display = "none";
+                    var msg = (err && err.message) ? err.message : "Network error";
+                    if (progressEl) {
+                        progressEl.textContent = "Could not reach the server: " + msg;
+                    }
+                    if (window.console && console.error) {
+                        console.error("[Econo-Forge] generate_world fetch failed", err);
+                    }
+                });
+        });
+
+        window.addEventListener("beforeunload", function (e) {
+            if (submitting) {
+                e.preventDefault();
+                e.returnValue = "World generation is in progress. Leaving now may abort it.";
+                return e.returnValue;
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

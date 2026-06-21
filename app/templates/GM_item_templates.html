@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Item Templates</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 24px; }
+        .wrap { max-width: 720px; margin: 0 auto; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.08); }
+        h1 { margin-top: 0; }
+        .template-card { border: 1px solid #ddd; border-radius: 6px; padding: 16px; margin-bottom: 12px; }
+        .button { background: purple; color: white; border: none; padding: 10px 18px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .muted { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>Import Item Templates</h1>
+        <p class="muted">Templates add catalog rows to your campaign. GM-edited items are never overwritten.</p>
+        {% if templates %}
+        {% for tpl in templates %}
+        <div class="template-card">
+            <h3 style="margin-top:0;">{{ tpl.label }}</h3>
+            <p>{{ tpl.description }}</p>
+            {% if tpl.available %}
+            <form method="POST" action="{{ url_for('gm.import_item_template') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="template_key" value="{{ tpl.key }}"/>
+                <button type="submit" class="button">Import into campaign</button>
+            </form>
+            {% else %}
+            <p class="muted">Not available for this campaign system.</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <p>No item templates are available for the <strong>{{ campaign.system_type }}</strong> system yet.</p>
+        {% endif %}
+        <p style="margin-top:24px;">
+            <a class="button" href="{{ url_for('gm.view_items') }}">Back to catalog</a>
+        </p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Battle - Econo-Forge{% endblock %}
+
+{% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/battle.css') }}">
+<style>
+    .player-battle-wrapper {
+        width: 92%;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+    .player-battle-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="player-battle-wrapper">
+    <div class="player-battle-header">
+        <h2>Battle{% if encounter %}: {{ encounter.name }}{% endif %}</h2>
+        <span id="battle-round-label" class="battle-round-label"></span>
+        <a href="{{ url_for('player.list_characters') }}" class="button">Back to characters</a>
+    </div>
+
+    {% if encounter %}
+    <p>
+        Click your highlighted character on its turn to move, attack, or wait.
+        The board refreshes automatically.
+    </p>
+    <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
+    <div class="battle-layout">
+        <div id="battle-stage" class="battle-stage">
+            <div id="battle-map-bg" class="battle-map-bg" aria-hidden="true"></div>
+            <div id="battle-grid" class="battle-grid"></div>
+            <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
+                <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"
+                      marker-end="url(#battle-arrowhead)"></line>
+                <defs>
+                    <marker id="battle-arrowhead" markerWidth="8" markerHeight="8"
+                            refX="6" refY="4" orient="auto">
+                        <path d="M0,0 L8,4 L0,8 z" fill="context-stroke"></path>
+                    </marker>
+                </defs>
+            </svg>
+            <div id="battle-radial" class="battle-radial" hidden>
+                <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
+                <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
+                <button type="button" class="battle-radial-btn battle-radial-cast-btn" id="battle-radial-cast">Cast</button>
+                <button type="button" class="battle-radial-btn" id="battle-radial-wait">Wait</button>
+                <button type="button" class="battle-radial-btn" id="battle-radial-death-save" hidden>Death save</button>
+                <button type="button" class="battle-radial-btn battle-radial-close-btn" id="battle-radial-close" aria-label="Close">&times;</button>
+            </div>
+            <div id="battle-attack-popout" class="battle-attack-popout" hidden></div>
+            <div id="battle-cast-popout" class="battle-attack-popout" hidden></div>
+        </div>
+        <aside class="battle-sidebar">
+            <h3>Turn Tracker</h3>
+            <ol id="battle-turn-tracker" class="battle-turn-tracker"></ol>
+            <span class="battle-toolbar-actions">
+                <button type="button" class="button" id="battle-end-turn-btn">End turn</button>
+            </span>
+            <h3>Battle Log</h3>
+            <ul id="battle-log" class="battle-log"></ul>
+        </aside>
+    </div>
+    <script>
+        window.BATTLE_CONFIG = {
+            role: 'player',
+            ownPlayerIds: {{ own_player_ids | tojson }},
+            apiBase: '/api/combat',
+            csrfToken: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            initialEncounterId: {{ encounter.id }},
+            autoStart: true
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/gm_battle.js') }}"></script>
+    {% else %}
+    <p>No active battle right now. Your GM will start one from their dashboard.</p>
+    {% endif %}
+</div>
+{% endblock %}

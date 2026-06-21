@@ -1,0 +1,26 @@
+[Unit]
+Description=Cloud SQL Auth Proxy for TT Ran ShopGen worker host
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+# Listen on 127.0.0.1:5432 so the worker container (with --network host) sees
+# Postgres at the same address it would reach in Cloud Run. The instance
+# connection name is set in /etc/trsg/cloud-sql-proxy.env as
+# TRSG_CLOUD_SQL_INSTANCE=PROJECT:REGION:INSTANCE.
+EnvironmentFile=/etc/trsg/cloud-sql-proxy.env
+ExecStart=/usr/local/bin/cloud-sql-proxy \
+  --address 127.0.0.1 \
+  --port 5432 \
+  --auto-iam-authn \
+  ${TRSG_CLOUD_SQL_INSTANCE}
+
+# The proxy uses the GCE VM's attached service account; grant that account
+# the `roles/cloudsql.client` role (and `roles/cloudsql.instanceUser` for
+# IAM auth) at provisioning time.
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,7 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
+<<<<<<< HEAD
     <title>Login</title>
     {% include 'partials/theme_head.html' %}
 
@@ -106,5 +107,46 @@
     </form>
     <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
     <p><a href="{{ url_for('auth.forgot_password') }}">Forgot Password?</a></p>
+=======
+    <title>Login - Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth_pages.css') }}">
+</head>
+<body class="auth-page">
+    {% include 'partials/auth_topbar.html' %}
+    <div class="auth-page-wrap">
+        <h1 class="auth-title">Login</h1>
+        <p class="auth-subtitle">Sign in with your username or email to open your GM or player dashboard.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="auth-flash-wrap">
+                    {% set last = messages|last %}
+                    {% set category = last[0] %}
+                    {% set message = last[1] %}
+                    <div class="auth-flash">
+                        <strong>{{ category|capitalize }}:</strong> {{ message }}
+                    </div>
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form class="auth-card" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+            <label for="username">Email or Username</label>
+            <input type="text" id="username" name="username" required autocomplete="username">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+            <button type="submit">Login</button>
+            <button type="button" class="secondary-button auth-secondary-btn" onclick="window.location.href='{{ url_for('main.index') }}'">Back to Home</button>
+        </form>
+        <div class="auth-alt-actions">
+            <p>Don't have an account? <a href="{{ url_for('main.access_request') }}">Register for access as a GM</a></p>
+            <p>Have a GM campaign code? <a href="{{ url_for('auth.register', campaign_code='1') }}">Register for access with a GM Code</a></p>
+        </div>
+        <p><a href="{{ url_for('auth.forgot_password') }}">Forgot Password?</a></p>
+    </div>
+>>>>>>> GCP
 </body>
 </html>

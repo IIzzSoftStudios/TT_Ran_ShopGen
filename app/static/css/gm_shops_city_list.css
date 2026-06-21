@@ -50,6 +50,61 @@
   color: #212529;
 }
 
+<<<<<<< HEAD
+=======
+.gm-shops-city-panel .region-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.gm-shops-city-panel .region-filter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #343a40;
+  margin: 0;
+}
+
+.gm-shops-city-panel .region-filter-select {
+  min-width: 200px;
+  max-width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  color: #212529;
+}
+
+.gm-shops-city-panel .region-selection-warning {
+  flex-basis: 100%;
+  padding: 8px 10px;
+  color: #721c24;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+@keyframes gm-region-selection-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.gm-shops-city-panel.region-selection-shake {
+  animation: gm-region-selection-shake 0.35s ease-in-out;
+}
+
+>>>>>>> GCP
 .gm-shops-city-panel .m2m-banner {
   background: #e7f1ff;
   border: 1px solid #b8d4f0;
@@ -67,6 +122,119 @@
   gap: 12px;
 }
 
+<<<<<<< HEAD
+=======
+.gm-shops-city-panel .region-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gm-shops-city-panel .region-block {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #d7c4e8;
+  background: #fff;
+}
+
+.gm-shops-city-panel .region-block > summary {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px;
+  background: #f6efff;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.gm-shops-city-panel .region-block > summary::-webkit-details-marker {
+  display: none;
+}
+
+.gm-shops-city-panel .region-block > summary::before {
+  content: "\25B6";
+  font-size: 0.65rem;
+  color: #6c3f8f;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.gm-shops-city-panel .region-block[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.gm-shops-city-panel .region-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+.gm-shops-city-panel .region-summary-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-left: auto;
+}
+
+.gm-shops-city-panel .city-count-badge {
+  display: inline-block;
+  min-width: 5.5rem;
+  text-align: right;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #000;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.gm-shops-city-panel .region-summary-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gm-shops-city-panel .region-summary-actions .button,
+.gm-shops-city-panel .region-summary-actions .delete-button {
+  padding: 8px 14px;
+  font-size: 13px;
+  transform: none;
+}
+
+.gm-shops-city-panel .region-panel {
+  padding: 12px;
+  background: #fff;
+  border-top: 1px solid #d7c4e8;
+}
+
+.gm-shops-city-panel .orphan-shops-panel {
+  margin-top: 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.gm-shops-city-panel .orphan-shops-panel:first-child {
+  margin-top: 0;
+}
+
+.gm-shops-city-panel .orphan-shops-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 12px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+
+>>>>>>> GCP
 .gm-shops-city-panel .city-block {
   border-radius: 8px;
   overflow: hidden;
@@ -336,6 +504,7 @@
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.4);
+<<<<<<< HEAD
 }
 
 .gm-shops-city-panel .modal-content {
@@ -346,6 +515,39 @@
   width: 80%;
   max-width: 500px;
   border-radius: 5px;
+=======
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.gm-shops-city-panel .modal.is-open {
+  display: flex;
+}
+
+.gm-shops-city-panel .modal-content {
+  background-color: #fff;
+  color: #212529;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #dee2e6;
+  width: 80%;
+  max-width: 500px;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.gm-shops-city-panel .modal-content h2 {
+  color: #111827;
+  margin: 0 0 12px;
+}
+
+.gm-shops-city-panel .modal-content p {
+  color: #374151;
+  line-height: 1.5;
+  margin: 0;
+>>>>>>> GCP
 }
 
 .gm-shops-city-panel .modal-buttons {
@@ -362,3 +564,87 @@
   margin: 0 auto;
   padding: 0 0 8px;
 }
+<<<<<<< HEAD
+=======
+
+/* GM add/edit item: shop picker reuses city-block summary styling inside the form */
+.gm-shops-city-panel.item-form-city-picker {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gm-shops-city-panel.item-form-city-picker .city-list {
+  margin-top: 0;
+}
+
+.gm-shops-city-panel.item-form-city-picker .city-panel.item-form-city-panel {
+  padding: 10px 12px 12px;
+}
+
+/* GM edit shop: city checkbox picker uses same panel chrome as dashboard */
+.gm-shops-city-panel.shop-form-city-picker {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gm-shops-city-panel.shop-form-city-picker h2 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #212529;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.gm-shops-city-panel.shop-form-city-picker .city-filter {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  color: #212529;
+}
+
+.gm-shops-city-panel.shop-form-city-picker .shop-item label {
+  font-weight: 500;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+/* GM view items: same summary schema as city panel, primary label is item name */
+.gm-shops-city-panel .item-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.gm-shops-city-panel.gm-items-panel {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  padding: 0 0 8px;
+}
+
+.gm-shops-city-panel.gm-items-panel .item-shop-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.gm-shops-city-panel.gm-items-panel .item-shop-cities {
+  font-size: 0.95rem;
+  color: #333;
+  text-align: right;
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+>>>>>>> GCP

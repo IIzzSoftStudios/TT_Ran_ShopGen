@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
+=======
+﻿<!DOCTYPE html>
+>>>>>>> GCP
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -207,9 +211,15 @@
     <h1>{{ item.name }}</h1>
 
     <div class="button-container">
+<<<<<<< HEAD
         <a href="{{ url_for('gm.gm_edit_item', item_id=item.item_id) }}" class="button edit-button">Edit Item</a>
         <a href="{{ url_for('gm.gm_view_items') }}" class="button">All Items</a>
         <a href="{{ url_for('gm.gm_home') }}" class="button">Game Master Interface</a>
+=======
+        <a href="{{ url_for('gm.edit_item', item_id=item.item_id) }}" class="button edit-button">Edit Item</a>
+        <a href="{{ url_for('gm.view_items') }}" class="button">All Items</a>
+        <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
+>>>>>>> GCP
     </div>
 
     <div class="detail-container">

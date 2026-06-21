@@ -1,14 +1,26 @@
+<<<<<<< HEAD
 <script>
+=======
+﻿<script>
+>>>>>>> GCP
     function showDeleteConfirmation(shopId, shopName) {
         const modal = document.getElementById('deleteModal');
         const modalText = document.getElementById('deleteModalText');
         modalText.textContent = 'Are you sure you want to delete ' + shopName + '? This action cannot be undone.';
+<<<<<<< HEAD
         modal.style.display = 'block';
+=======
+        modal.classList.add('is-open');
+>>>>>>> GCP
         window.shopIdToDelete = shopId;
     }
 
     function closeDeleteModal() {
+<<<<<<< HEAD
         document.getElementById('deleteModal').style.display = 'none';
+=======
+        document.getElementById('deleteModal').classList.remove('is-open');
+>>>>>>> GCP
     }
 
     function confirmDelete() {
@@ -30,12 +42,20 @@
         const modal = document.getElementById('cityDeleteModal');
         const modalText = document.getElementById('cityDeleteModalText');
         modalText.textContent = 'Are you sure you want to delete ' + cityName + '? This action cannot be undone.';
+<<<<<<< HEAD
         modal.style.display = 'block';
+=======
+        modal.classList.add('is-open');
+>>>>>>> GCP
         window.cityIdToDelete = cityId;
     }
 
     function closeCityDeleteModal() {
+<<<<<<< HEAD
         document.getElementById('cityDeleteModal').style.display = 'none';
+=======
+        document.getElementById('cityDeleteModal').classList.remove('is-open');
+>>>>>>> GCP
     }
 
     function confirmCityDelete() {
@@ -53,6 +73,38 @@
         }
     }
 
+<<<<<<< HEAD
+=======
+    function showRegionDeleteConfirmation(regionId, regionName) {
+        const modal = document.getElementById('regionDeleteModal');
+        const modalText = document.getElementById('regionDeleteModalText');
+        modalText.textContent = 'Delete region "' + regionName + '"? Cities in this region will remain but become unassigned.';
+        modal.classList.add('is-open');
+        window.regionIdToDelete = regionId;
+    }
+
+    function closeRegionDeleteModal() {
+        document.getElementById('regionDeleteModal').classList.remove('is-open');
+    }
+
+    function confirmRegionDelete() {
+        if (window.regionIdToDelete) {
+            const tplEl = document.getElementById('gm-region-delete-url-template');
+            if (!tplEl) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = (tplEl.getAttribute('data-url') || '').replace('900000001', String(window.regionIdToDelete));
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+>>>>>>> GCP
     window.addEventListener('DOMContentLoaded', function () {
         document.body.addEventListener('click', function (e) {
             const shopBtn = e.target.closest('.delete-button[data-shop-id]');
@@ -67,8 +119,20 @@
                 var cid = parseInt(cityBtn.getAttribute('data-city-id'), 10);
                 var cname = cityBtn.getAttribute('data-city-name') || '';
                 showCityDeleteConfirmation(cid, cname);
+<<<<<<< HEAD
             }
         });
+=======
+                return;
+            }
+            const regionBtn = e.target.closest('.delete-button[data-region-id]');
+            if (regionBtn) {
+                var rid = parseInt(regionBtn.getAttribute('data-region-id'), 10);
+                var rname = regionBtn.getAttribute('data-region-name') || '';
+                showRegionDeleteConfirmation(rid, rname);
+            }
+        }, true);
+>>>>>>> GCP
     });
 
     window.addEventListener('click', function (event) {
@@ -80,5 +144,12 @@
         if (cityModal && event.target === cityModal) {
             closeCityDeleteModal();
         }
+<<<<<<< HEAD
+=======
+        const regionModal = document.getElementById('regionDeleteModal');
+        if (regionModal && event.target === regionModal) {
+            closeRegionDeleteModal();
+        }
+>>>>>>> GCP
     });
 </script>

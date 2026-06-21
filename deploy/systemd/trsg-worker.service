@@ -1,0 +1,41 @@
+[Unit]
+Description=TT Ran ShopGen Celery worker (econ-forge GCE worker host)
+Documentation=file:///opt/trsg/README
+After=network-online.target docker.service trsg-cloud-sql-proxy.service trsg-redis.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=60
+
+# Celery worker flags: use literals here. systemd often does not expand
+# ${CELERY_CONCURRENCY} inside ExecStart= the way a shell would; empty expansion
+# breaks Celery (--concurrency ''). To tune, edit this file or add a drop-in
+# that overrides ExecStart= entirely.
+
+# Image pinning policy:
+#   TRSG_IMAGE MUST be a digest (set in override.conf), e.g.
+#   region-docker.pkg.dev/PROJECT/REPO/trsg-web@sha256:...
+#   Cloud Build writes it to gs://$PROJECT-cloudbuild-artifacts/trsg-web/$SHA/image_digest.txt;
+#   align worker with the same digest as Cloud Run.
+#   `docker pull` is still issued so a freshly added VM warms its local
+#     cache; with a digest, the pull is a no-op when already present.
+ExecStartPre=-/usr/bin/docker rm -f trsg-worker
+ExecStartPre=/usr/bin/docker pull ${TRSG_IMAGE}
+
+# Real docker/celery command lives in /usr/local/bin/trsg-celery-worker.sh so this
+# unit stays short (avoids nano/terminal truncation of one huge ExecStart line).
+ExecStart=/usr/local/bin/trsg-celery-worker.sh
+ExecStop=/usr/bin/docker stop -t 30 trsg-worker
+
+# /etc/trsg/worker.env supplies REDIS_URL (typically redis://127.0.0.1:6379/0
+# when Redis is local on the same VM), SQLALCHEMY_DATABASE_URI pointing at
+# the Cloud SQL Auth Proxy on 127.0.0.1:5432, SECRET_KEY, FLASK_ENV, and
+# optional DB_* for the app. TRSG_IMAGE (a sha256 digest) is set in
+# /etc/systemd/system/trsg-worker.service.d/override.conf so version bumps
+# are a single `systemctl daemon-reload && systemctl restart trsg-worker` away.
+
+[Install]
+WantedBy=multi-user.target

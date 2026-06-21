@@ -1,8 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>Add Item</title>
     {% include 'partials/theme_head.html' %}
+<<<<<<< HEAD
+=======
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_shops_city_list.css') }}">
+>>>>>>> GCP
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -140,6 +144,7 @@
             font-size: 14px;
         }
 
+<<<<<<< HEAD
         .city-group {
             margin-bottom: 15px;
             border: 1px solid #ddd;
@@ -168,6 +173,10 @@
 
         .city-content.expanded {
             display: block;
+=======
+        .city-block.hidden {
+            display: none;
+>>>>>>> GCP
         }
 
         .shop-type-group {
@@ -204,7 +213,10 @@
             display: none;
         }
 
+<<<<<<< HEAD
         .city-group.hidden,
+=======
+>>>>>>> GCP
         .shop-type-group.hidden {
             display: none;
         }
@@ -238,6 +250,59 @@
     </div>
 
     <!-- Centered Form -->
+<<<<<<< HEAD
+=======
+    {% if is_dnd5e %}
+    <form method="POST" id="catalog-form" style="margin-bottom: 24px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <h2 style="margin-top:0;">Add From SRD Catalog</h2>
+        <p class="help-text">Search existing campaign catalog rows (seeded SRD items). Does not create duplicate Item rows.</p>
+        <label for="catalog-search">Search catalog:</label>
+        <input type="text" id="catalog-search" placeholder="Type to search items...">
+        <input type="hidden" name="catalog_item_id" id="catalog_item_id">
+        <div id="catalog-results" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; margin-bottom: 12px;"></div>
+        <label for="catalog-stock">Stock:</label>
+        <input type="number" id="catalog-stock" name="stock" value="1" min="0">
+        <label for="catalog-dynamic-price">Dynamic Price:</label>
+        <input type="number" id="catalog-dynamic-price" name="dynamic_price" step="0.01" placeholder="Defaults to base price">
+        <div class="shop-selector-container">
+            <label>Select Shops (optional):</label>
+            <input type="text" id="catalog-shop-filter" class="shop-filter" placeholder="Filter shops...">
+            <div class="gm-shops-city-panel item-form-city-picker">
+                <div class="city-list" id="catalog-shop-groups">
+                    {% for city_name, shop_types in grouped_shops.items() %}
+                    {% set meta = city_shop_meta[city_name] %}
+                    <details class="city-block" data-city="{{ city_name }}">
+                        <summary>
+                            <span class="city-name">{{ city_name }}</span>
+                            <span class="shop-count-badge">{{ meta.shop_count }} shop{% if meta.shop_count != 1 %}s{% endif %}</span>
+                        </summary>
+                        <div class="city-panel item-form-city-panel">
+                            {% for shop_type, shops_list in shop_types.items() %}
+                            <div class="shop-type-group">
+                                <div class="shop-type-header">{{ shop_type }}</div>
+                                <div class="shop-list">
+                                    {% for shop in shops_list %}
+                                    <div class="shop-item">
+                                        <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}" id="cat_shop_{{ shop.shop_id }}">
+                                        <label for="cat_shop_{{ shop.shop_id }}">{{ shop.name }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <button type="submit">Add Catalog Item To Shop(s)</button>
+    </form>
+    <hr style="width:100%; max-width:600px; margin: 20px 0;">
+    {% endif %}
+
+>>>>>>> GCP
     <form method="POST" id="item-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Name Field -->
@@ -327,6 +392,7 @@
             <label>Select Shops:</label>
             <input type="text" id="shop-filter" class="shop-filter" placeholder="Filter shops by name, city, or type...">
             
+<<<<<<< HEAD
             <div id="shop-groups">
                 {% for city_name, shop_types in grouped_shops.items() %}
                 <div class="city-group" data-city="{{ city_name }}">
@@ -351,6 +417,40 @@
                     </div>
                 </div>
                 {% endfor %}
+=======
+            <div class="gm-shops-city-panel item-form-city-picker">
+                <div class="city-list" id="shop-groups">
+                    {% for city_name, shop_types in grouped_shops.items() %}
+                    {% set meta = city_shop_meta[city_name] %}
+                    <details class="city-block" data-city="{{ city_name }}">
+                        <summary>
+                            <span class="city-name">{{ city_name }}</span>
+                            <span class="city-meta">
+                                {{ meta.region_label }}{% if meta.size %} | {{ meta.size }}{% endif %}
+                            </span>
+                            <span class="city-summary-right">
+                                <span class="shop-count-badge">{{ meta.shop_count }} shop{% if meta.shop_count != 1 %}s{% endif %}</span>
+                            </span>
+                        </summary>
+                        <div class="city-panel item-form-city-panel">
+                            {% for shop_type, shops_list in shop_types.items() %}
+                            <div class="shop-type-group" data-shop-type="{{ shop_type }}">
+                                <div class="shop-type-header">{{ shop_type }}</div>
+                                <div class="shop-list">
+                                    {% for shop in shops_list %}
+                                    <div class="shop-item" data-shop-name="{{ shop.name|lower }}" data-city-name="{{ city_name|lower }}" data-shop-type="{{ shop_type|lower }}">
+                                        <input type="checkbox" name="shop_ids" value="{{ shop.shop_id }}" id="shop_{{ shop.shop_id }}">
+                                        <label for="shop_{{ shop.shop_id }}">{{ shop.name }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+>>>>>>> GCP
             </div>
         </div>
 
@@ -504,6 +604,7 @@
             jsonInput.value = Object.keys(properties).length > 0 ? JSON.stringify(properties) : '';
         }
 
+<<<<<<< HEAD
         // Toggle city accordion
         function toggleCity(cityName) {
             const cityId = 'city-' + cityName.replace(/\s+/g, '-');
@@ -520,14 +621,20 @@
             }
         }
 
+=======
+>>>>>>> GCP
         // Filter shops
         function filterShops() {
             const filterValue = document.getElementById('shop-filter').value.toLowerCase();
             const shopItems = document.querySelectorAll('.shop-item');
             const shopTypeGroups = document.querySelectorAll('.shop-type-group');
+<<<<<<< HEAD
             const cityGroups = document.querySelectorAll('.city-group');
 
             let hasVisibleShops = false;
+=======
+            const cityBlocks = document.querySelectorAll('.city-block[data-city]');
+>>>>>>> GCP
 
             shopItems.forEach(item => {
                 const shopName = item.getAttribute('data-shop-name');
@@ -537,13 +644,19 @@
 
                 if (filterValue === '' || searchText.includes(filterValue)) {
                     item.classList.remove('hidden');
+<<<<<<< HEAD
                     hasVisibleShops = true;
+=======
+>>>>>>> GCP
                 } else {
                     item.classList.add('hidden');
                 }
             });
 
+<<<<<<< HEAD
             // Hide/show shop type groups
+=======
+>>>>>>> GCP
             shopTypeGroups.forEach(group => {
                 const visibleShops = group.querySelectorAll('.shop-item:not(.hidden)');
                 if (visibleShops.length === 0) {
@@ -553,6 +666,7 @@
                 }
             });
 
+<<<<<<< HEAD
             // Hide/show city groups
             cityGroups.forEach(group => {
                 const visibleTypes = group.querySelectorAll('.shop-type-group:not(.hidden)');
@@ -571,6 +685,16 @@
                             const icon = header.querySelector('.toggle-icon');
                             if (icon) icon.textContent = '▲';
                         }
+=======
+            cityBlocks.forEach(block => {
+                const visibleTypes = block.querySelectorAll('.shop-type-group:not(.hidden)');
+                if (visibleTypes.length === 0) {
+                    block.classList.add('hidden');
+                } else {
+                    block.classList.remove('hidden');
+                    if (filterValue !== '' && !block.open) {
+                        block.open = true;
+>>>>>>> GCP
                     }
                 }
             });
@@ -590,7 +714,49 @@
 
             // Filter shops
             const shopFilter = document.getElementById('shop-filter');
+<<<<<<< HEAD
             shopFilter.addEventListener('input', filterShops);
+=======
+            if (shopFilter) shopFilter.addEventListener('input', filterShops);
+
+            // SRD catalog picker
+            const catalogSearch = document.getElementById('catalog-search');
+            const catalogResults = document.getElementById('catalog-results');
+            const catalogItemId = document.getElementById('catalog_item_id');
+            let catalogTimer = null;
+            function renderCatalogResults(items) {
+                if (!catalogResults) return;
+                catalogResults.innerHTML = '';
+                items.forEach(function(row) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'button';
+                    btn.style.display = 'block';
+                    btn.style.width = '100%';
+                    btn.style.marginBottom = '4px';
+                    btn.textContent = row.name + ' (' + row.type + ', ' + row.rarity + ')';
+                    btn.addEventListener('click', function() {
+                        catalogItemId.value = row.item_id;
+                        catalogSearch.value = row.name;
+                        catalogResults.innerHTML = '<p>Selected: ' + row.name + '</p>';
+                    });
+                    catalogResults.appendChild(btn);
+                });
+            }
+            function fetchCatalog(q) {
+                fetch('{{ url_for("gm.items_catalog_api") }}?q=' + encodeURIComponent(q || '') + '&limit=25')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) { renderCatalogResults(data.items || []); })
+                    .catch(function() { if (catalogResults) catalogResults.textContent = 'Catalog search failed.'; });
+            }
+            if (catalogSearch) {
+                catalogSearch.addEventListener('input', function() {
+                    clearTimeout(catalogTimer);
+                    catalogTimer = setTimeout(function() { fetchCatalog(catalogSearch.value); }, 250);
+                });
+                fetchCatalog('');
+            }
+>>>>>>> GCP
         });
     </script>
 </body>

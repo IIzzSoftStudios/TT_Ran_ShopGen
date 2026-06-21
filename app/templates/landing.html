@@ -1,8 +1,29 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Econo-Forge</title>
+=======
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Econo-Forge</title>
+    <meta name="description" content="Econo-Forge models reactive shop economies for tabletop campaigns. Run prices, stock, and market days from one GM hub.">
+    <link rel="canonical" href="{{ url_for('main.index', _external=True) }}">
+    <meta name="theme-color" content="#0f172a">
+    <meta property="og:title" content="Econo-Forge">
+    <meta property="og:description" content="Reactive shop economies for Pathfinder, D&amp;D 5E, and long-running campaigns. Run prices, stock, and market days from one GM hub.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url_for('main.index', _external=True) }}">
+    <meta property="og:image" content="{{ url_for('static', filename='media/banner-poster.svg', _external=True) }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Econo-Forge">
+    <meta name="twitter:description" content="Reactive shop economies for tabletop GMs and players. Run prices, stock, and market days from one GM hub.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='media/banner-poster.svg', _external=True) }}">
+>>>>>>> GCP
     {% include 'partials/theme_head.html' %}
     <style>
         /* Landing page layout */
@@ -14,13 +35,25 @@
             position: sticky;
             top: 0;
             z-index: 100;
+<<<<<<< HEAD
             background: rgba(15, 23, 42, 0.65);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+=======
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--color-border);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+>>>>>>> GCP
         }
 
         html.dark-mode .topbar {
             background: rgba(15, 23, 42, 0.65);
+<<<<<<< HEAD
+=======
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: none;
+>>>>>>> GCP
         }
 
         .topbar-inner {
@@ -73,11 +106,22 @@
 
         .nav-links a {
             text-decoration: none;
+<<<<<<< HEAD
             color: var(--color-muted);
+=======
+            color: var(--color-text);
+>>>>>>> GCP
             font-weight: 600;
             font-size: 0.95rem;
         }
 
+<<<<<<< HEAD
+=======
+        html.dark-mode .nav-links a {
+            color: var(--color-muted);
+        }
+
+>>>>>>> GCP
         .nav-links a:hover {
             color: var(--color-accent-hover);
         }
@@ -114,6 +158,42 @@
             border-color: rgba(124, 58, 237, 0.7);
         }
 
+<<<<<<< HEAD
+=======
+        html.dark-mode .landing-page .cta-band .btn-secondary {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+            border-color: transparent;
+        }
+
+        html.dark-mode .landing-page .cta-band .btn-secondary:hover {
+            background: var(--color-accent-hover);
+        }
+
+        .cta-band-tagline {
+            color: var(--color-muted);
+            font-weight: 650;
+            font-size: 2rem;
+            line-height: 1.2;
+        }
+
+        .hero-media {
+            width: 50%;
+            justify-self: center;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 18px;
+            overflow: hidden;
+            background: rgba(30, 41, 59, 0.55);
+        }
+
+        .hero-media video {
+            display: block;
+            width: 100%;
+            height: auto;
+            vertical-align: middle;
+        }
+
+>>>>>>> GCP
         .search-form {
             display: flex;
             align-items: center;
@@ -295,14 +375,25 @@
                         <button class="btn btn-secondary" type="submit" style="padding:9px 12px;">Search</button>
                     </form>
 
+<<<<<<< HEAD
                     <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login</a>
                     <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+=======
+                    {% if current_user.is_authenticated %}
+                        <a class="btn btn-secondary" href="{{ url_for('main.home') }}">Dashboard</a>
+                        <a class="btn btn-primary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+                    {% else %}
+                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login</a>
+                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                    {% endif %}
+>>>>>>> GCP
                 </div>
             </div>
         </div>
 
         <section class="hero">
             <div>
+<<<<<<< HEAD
                 <h1>Stop Guessing. Start Simulating.</h1>
                 <p>Econo-Forge is the first professional-grade economic engine built for TTRPG verisimilitude. Manage tens of thousands of market data points, automate scarcity, and keep your world’s commerce alive—without drowning in spreadsheets.</p>
                 <div class="hero-ctas">
@@ -318,6 +409,26 @@
                     1) fast access to Login/Search on mobile<br>
                     2) world-consistent prices—without spreadsheet fatigue
                 </div>
+=======
+                <h1>Stop Stressing. Start Simulating.</h1>
+                <p>Shops that restock. Prices that move when supply runs thin. Econo-Forge runs your campaign’s economy in the background—so the table stays believable and you stay out of the spreadsheet.</p>
+                <div class="hero-ctas">
+                    {% if current_user.is_authenticated %}
+                        <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+                    {% else %}
+                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login to Dashboard</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hero-media">
+                <video autoplay muted loop playsinline poster="{{ url_for('static', filename='media/banner-poster.svg') }}" aria-label="Econo-Forge marketing banner">
+                    <source src="{{ url_for('static', filename='media/banner.mp4') }}" type="video/mp4">
+                    <p>Your browser does not support embedded video. Econo-Forge models reactive shop economies for tabletop campaigns—prices, stock, and market days from one GM hub.</p>
+                </video>
+>>>>>>> GCP
             </div>
         </section>
 
@@ -326,13 +437,21 @@
                 <div class="panel">
                     <h2>The Problem</h2>
                     <p style="color: var(--color-muted); margin: 0; line-height: 1.55;">
+<<<<<<< HEAD
                         Most fantasy economies collapse the moment a player tests them. Static magic-shop lists, flat prices, and hand-waved scarcity break immersion and put all the burden on the GM.
+=======
+                        Players always test the economy—buying in bulk, selling loot, asking what’s actually on the shelf. Static shop lists and flat prices fall apart fast, and you’re left making up numbers mid-session.
+>>>>>>> GCP
                     </p>
                 </div>
                 <div class="panel">
                     <h2>The Forge</h2>
                     <p style="color: var(--color-muted); margin: 0; line-height: 1.55;">
+<<<<<<< HEAD
                         Econo-Forge replaces brittle tables with a living simulation. It tracks supply, demand, and regional variance in real time so you can focus on the story while the engine handles the numbers.
+=======
+                        Econo-Forge models shops, stock, and prices as one system. When the party clears a market or a war cuts supply, the world responds—and you don’t have to track every change yourself.
+>>>>>>> GCP
                     </p>
                 </div>
             </div>
@@ -341,6 +460,7 @@
                 <h2>Core Features</h2>
                 <div class="feature-grid">
                     <div class="feature">
+<<<<<<< HEAD
                         <strong>Algorithmic Pricing</strong>
                         Dynamic price scaling from regional scarcity and history; no flat-rate longswords.
                     </div>
@@ -351,6 +471,18 @@
                     <div class="feature">
                         <strong>GM Management Hub</strong>
                         Create items, manage players, and run the table from one place.
+=======
+                        <strong>Prices that react</strong>
+                        Costs rise when stock runs low or a region is strained. A sword in the capital shouldn’t price like one hauled through a famine—unless you want it to.
+                    </div>
+                    <div class="feature">
+                        <strong>Inventories that stick</strong>
+                        Shops, stashes, and character gear share the same counts. Sell the last potion in town and it’s gone until restock—not “wait, did we have more?”
+                    </div>
+                    <div class="feature">
+                        <strong>GM hub</strong>
+                        Add items, invite players, and advance the simulation between sessions—all from one place.
+>>>>>>> GCP
                     </div>
                 </div>
             </div>
@@ -358,9 +490,15 @@
 
         <section class="section" style="padding-top:0;">
             <div class="panel">
+<<<<<<< HEAD
                 <h2>Built for Systems-Heavy Narratives</h2>
                 <p style="color: var(--color-muted); margin: 0; line-height: 1.65;">
                     Econo-Forge isn’t a random loot table. It’s a simulation engine informed by systems like Pathfinder and D&D 5E, tuned for GMs who treat economies as first-class. Whether you’re running a long campaign or a sandbox of competing factions, Econo-Forge keeps the numbers consistent so your players can take the fiction seriously.
+=======
+                <h2>Built for long campaigns</h2>
+                <p style="color: var(--color-muted); margin: 0; line-height: 1.65;">
+                    This isn’t a loot roller—it’s a campaign economy. Designed with Pathfinder and D&D 5E in mind, for tables where trade and scarcity matter. Whether you run a sandbox or a year-long arc, stock and prices stay consistent so players trust what they see at the shop.
+>>>>>>> GCP
                 </p>
 
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px;">
@@ -369,6 +507,7 @@
                     <span style="padding:8px 12px; border-radius: 999px; background: rgba(148, 163, 184, 0.12); border: 1px solid rgba(148, 163, 184, 0.25); font-weight: 800;">More systems soon</span>
                 </div>
 
+<<<<<<< HEAD
                 <div style="margin-top: 18px; display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                     <div class="hero-card" style="padding:16px; background: rgba(30, 41, 59, 0.35);">
                         <div style="font-weight:900; margin-bottom: 6px;">Testimonial (placeholder)</div>
@@ -379,15 +518,29 @@
                         <div style="color: var(--color-muted); line-height: 1.6;">“The prices feel alive. Players buy in harder.”</div>
                     </div>
                 </div>
+=======
+>>>>>>> GCP
             </div>
         </section>
 
         <div class="cta-band">
             <div class="cta-band-inner">
+<<<<<<< HEAD
                 <div style="color: var(--color-muted); font-weight: 650;">Ready when you are.</div>
                 <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
                     <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
                     <a class="btn btn-secondary" href="{{ url_for('auth.login') }}" style="background:transparent;">Or go straight to Login</a>
+=======
+                <div class="cta-band-tagline">Ready when you are.</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                    {% if current_user.is_authenticated %}
+                        <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+                    {% else %}
+                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Or go straight to Login</a>
+                    {% endif %}
+>>>>>>> GCP
                 </div>
             </div>
         </div>
@@ -397,13 +550,21 @@
                 <div class="footer-col">
                     <div style="font-weight:800;">Product</div>
                     <a href="{{ url_for('main.docs') }}">Overview</a>
+<<<<<<< HEAD
                     <a href="{{ url_for('main.docs') }}">Changelog</a>
                     <a href="{{ url_for('main.docs') }}">Roadmap</a>
+=======
+                    <a href="{{ url_for('main.docs', section='changelog') }}#changelog">Changelog</a>
+                    <a href="{{ url_for('main.docs', section='roadmap') }}#roadmap">Roadmap</a>
+>>>>>>> GCP
                 </div>
                 <div class="footer-col">
                     <div style="font-weight:800;">Resources</div>
                     <a href="{{ url_for('main.docs') }}">Documentation</a>
+<<<<<<< HEAD
                     <a href="{{ url_for('main.docs') }}">API</a>
+=======
+>>>>>>> GCP
                     <a href="{{ url_for('main.docs') }}">Guides</a>
                 </div>
                 <div class="footer-col">
@@ -412,8 +573,13 @@
                 </div>
                 <div class="footer-col">
                     <div style="font-weight:800;">Legal</div>
+<<<<<<< HEAD
                     <a href="{{ url_for('main.docs') }}">Terms of Service</a>
                     <a href="{{ url_for('main.docs') }}">Privacy Policy</a>
+=======
+                    <a href="{{ url_for('main.docs', section='terms') }}#terms">Terms of Service</a>
+                    <a href="{{ url_for('main.docs', section='privacy') }}#privacy">Privacy Policy</a>
+>>>>>>> GCP
                 </div>
             </div>
 

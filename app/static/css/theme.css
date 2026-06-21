@@ -230,6 +230,14 @@ html.dark-mode .flash-message.info {
   background-color: #38bdf8;
 }
 
+<<<<<<< HEAD
+=======
+html.dark-mode .flash-message.warning {
+  background-color: var(--color-warning);
+  color: #0f172a;
+}
+
+>>>>>>> GCP
 /* GM Dashboard: header and simulation control legibility in dark mode */
 html.dark-mode .gm-dashboard h1,
 html.dark-mode .gm-dashboard h2,
@@ -237,6 +245,61 @@ html.dark-mode .gm-dashboard .simulation-panel h2 {
   color: #F8F9FA !important;
 }
 
+<<<<<<< HEAD
+=======
+html.dark-mode .simulation-panel .gm-panel-tab {
+  color: var(--color-text-muted);
+}
+html.dark-mode .simulation-panel .gm-panel-tab:hover,
+html.dark-mode .simulation-panel .gm-panel-tab.active {
+  color: var(--color-text);
+}
+html.dark-mode .simulation-panel .gm-panel-tabs {
+  border-bottom-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .market-table-wrapper {
+  border-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .market-overview-table th {
+  background-color: var(--color-table-stripe);
+  color: var(--color-text);
+  border-bottom-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .market-overview-table td {
+  border-bottom-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .map-stage {
+  border-color: var(--color-border);
+}
+html.dark-mode .simulation-panel .map-hint,
+html.dark-mode .simulation-panel .map-feedback {
+  color: var(--color-text-muted);
+}
+html.dark-mode .simulation-panel .map-poi-popout,
+html.dark-mode .simulation-panel .map-entity-popout,
+html.dark-mode .simulation-panel .map-poi-dialog form {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+html.dark-mode .simulation-panel .map-entity-popout h3,
+html.dark-mode .simulation-panel .map-entity-popout p,
+html.dark-mode .simulation-panel .map-city-summary-meta,
+html.dark-mode .simulation-panel .map-city-species-list,
+html.dark-mode .simulation-panel .map-city-goods-list {
+  color: var(--color-text) !important;
+}
+
+html.dark-mode .simulation-panel .map-city-summary-section h4 {
+  color: var(--color-text-muted) !important;
+}
+
+html.dark-mode .simulation-panel .map-city-goods-list li {
+  border-bottom-color: rgba(226, 232, 240, 0.18);
+}
+
+>>>>>>> GCP
 /* Character panel: make class/level and stat section headers white in dark mode */
 html.dark-mode .character-class-level,
 html.dark-mode .stat-section-title {
@@ -312,9 +375,18 @@ html.dark-mode .gm-list-page table tbody td:nth-child(2) {
   color: #A0A0A0 !important;
 }
 
+<<<<<<< HEAD
 /* GM player manager: ensure character links match high-contrast row text */
 html.dark-mode .gm-list-page .character-link {
   color: #FFFFFF !important;
+=======
+/* GM player manager: character links read as links, hint stays muted */
+html.dark-mode .gm-list-page .character-link {
+  color: var(--color-accent) !important;
+}
+html.dark-mode .gm-list-page .character-sheet-hint {
+  color: var(--color-muted) !important;
+>>>>>>> GCP
 }
 
 /* GM item detail page: same table-like colors for detail rows and sections */
@@ -473,13 +545,24 @@ html.dark-mode #playerCurrency.currency-negative {
 }
 
 .gm-calendar-header {
+<<<<<<< HEAD
   display: flex;
   justify-content: space-between;
+=======
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+>>>>>>> GCP
   align-items: center;
   margin-bottom: 0.5rem;
   font-weight: 600;
   color: var(--color-text);
 }
+<<<<<<< HEAD
+=======
+.gm-calendar-header > :nth-child(1) { text-align: left; }
+.gm-calendar-header > :nth-child(2) { text-align: center; }
+.gm-calendar-header > :nth-child(3) { text-align: right; }
+>>>>>>> GCP
 
 .gm-calendar-weekdays {
   display: grid;

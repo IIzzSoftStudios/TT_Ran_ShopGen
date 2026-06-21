@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,38 @@
     <title>Documentation (WIP) — Econo-Forge</title>
     {% include 'partials/theme_head.html' %}
     <style>
+=======
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Documentation — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        .docs-skip {
+            position: absolute;
+            left: -9999px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+
+        .docs-skip:focus {
+            position: static;
+            width: auto;
+            height: auto;
+            display: inline-block;
+            margin: 12px 18px 0;
+            padding: 8px 12px;
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+>>>>>>> GCP
         .docs-wrap {
             max-width: 1100px;
             margin: 0 auto;
@@ -20,12 +53,23 @@
             margin-bottom: 18px;
         }
 
+<<<<<<< HEAD
+=======
+        .docs-top-actions {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+>>>>>>> GCP
         .docs-back {
             text-decoration: none;
             font-weight: 700;
             color: var(--color-accent);
         }
 
+<<<<<<< HEAD
         .docs-card {
             border: 1px solid rgba(148, 163, 184, 0.25);
             background: rgba(30, 41, 59, 0.25);
@@ -34,6 +78,8 @@
             margin-bottom: 14px;
         }
 
+=======
+>>>>>>> GCP
         .docs-search {
             display: flex;
             gap: 10px;
@@ -41,17 +87,26 @@
         }
 
         .docs-search input {
+<<<<<<< HEAD
             width: 280px;
+=======
+            width: min(280px, 100%);
+>>>>>>> GCP
             padding: 10px 12px;
             border-radius: 12px;
         }
 
+<<<<<<< HEAD
         .coming {
+=======
+        .docs-badge {
+>>>>>>> GCP
             display: inline-block;
             font-weight: 800;
             font-size: 0.75rem;
             padding: 4px 10px;
             border-radius: 999px;
+<<<<<<< HEAD
             border: 1px solid rgba(148, 163, 184, 0.25);
             color: var(--color-muted);
             margin-left: 10px;
@@ -67,6 +122,238 @@
         .conversion-callout {
             border-top: 1px solid rgba(148, 163, 184, 0.25);
             margin-top: 22px;
+=======
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            background: rgba(124, 58, 237, 0.18);
+            color: var(--color-accent);
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .docs-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .docs-sidebar-backdrop {
+            display: none;
+        }
+
+        .docs-sidebar-toggle {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            background: transparent;
+            color: var(--color-accent);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .docs-sidebar {
+            position: sticky;
+            top: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            padding: 14px;
+        }
+
+        .docs-sidebar-label {
+            margin: 0 0 10px;
+            padding: 0 10px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--color-muted);
+        }
+
+        .docs-nav {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .docs-nav a {
+            display: block;
+            padding: 10px 12px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 650;
+            color: var(--color-text);
+            border: 1px solid transparent;
+        }
+
+        .docs-nav a:hover {
+            background: rgba(124, 58, 237, 0.12);
+        }
+
+        .docs-nav a:focus-visible {
+            outline: 2px solid var(--color-accent);
+            outline-offset: 2px;
+        }
+
+        .docs-nav a.active {
+            background: rgba(124, 58, 237, 0.18);
+            border-color: rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+
+        .docs-nav-heading {
+            margin: 12px 0 2px;
+            padding: 0 12px;
+            font-size: 0.68rem;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-muted);
+        }
+
+        .docs-nav-heading:first-child {
+            margin-top: 0;
+        }
+
+        .docs-main {
+            min-width: 0;
+        }
+
+        .docs-panel {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px;
+            padding: 22px 24px;
+        }
+
+        .docs-panel[hidden] {
+            display: none !important;
+        }
+
+        .docs-panel h1,
+        .docs-panel h2 {
+            margin: 0 0 12px;
+        }
+
+        .docs-panel h3 {
+            margin: 20px 0 8px;
+            font-size: 1.05rem;
+        }
+
+        .docs-panel p,
+        .docs-panel li {
+            color: var(--color-muted);
+            line-height: 1.65;
+        }
+
+        .docs-panel p {
+            margin: 0 0 12px;
+        }
+
+        .docs-panel ul,
+        .docs-panel ol {
+            margin: 0 0 14px;
+            padding-left: 1.35rem;
+        }
+
+        .docs-panel li {
+            margin-bottom: 6px;
+        }
+
+        .docs-panel a {
+            color: var(--color-accent);
+            font-weight: 650;
+        }
+
+        .changelog-layout {
+            display: grid;
+            grid-template-columns: minmax(180px, 220px) 1fr;
+            gap: 20px;
+            align-items: start;
+            margin-top: 18px;
+        }
+
+        .changelog-index {
+            position: sticky;
+            top: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.18);
+        }
+
+        .changelog-index-title {
+            margin: 0 0 10px;
+            font-size: 0.72rem;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-muted);
+        }
+
+        .changelog-index a {
+            display: block;
+            padding: 9px 10px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--color-text);
+        }
+
+        .changelog-index a:hover,
+        .changelog-index a:focus-visible {
+            background: rgba(124, 58, 237, 0.12);
+            color: var(--color-accent);
+        }
+
+        .changelog-patches {
+            min-width: 0;
+        }
+
+        .changelog-patch {
+            scroll-margin-top: 24px;
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+            padding-top: 18px;
+            margin-top: 18px;
+        }
+
+        .changelog-patch:first-child {
+            border-top: 0;
+            padding-top: 0;
+            margin-top: 0;
+        }
+
+        .docs-panel mark {
+            background: rgba(250, 204, 21, 0.35);
+            color: var(--color-text);
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+
+        .docs-search-hint {
+            margin: 0 0 14px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(124, 58, 237, 0.12);
+            border: 1px solid rgba(124, 58, 237, 0.25);
+            color: var(--color-muted);
+            font-weight: 650;
+            font-size: 0.95rem;
+        }
+
+        .docs-search-hint[hidden] {
+            display: none !important;
+        }
+
+        .conversion-callout {
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+            margin-top: 28px;
+>>>>>>> GCP
             padding-top: 18px;
             display: flex;
             align-items: center;
@@ -104,6 +391,7 @@
             cursor: pointer;
             white-space: nowrap;
         }
+<<<<<<< HEAD
     </style>
 </head>
 
@@ -115,12 +403,82 @@
                 <div class="docs-search">
                     <form method="GET" action="{{ url_for('main.docs') }}" style="display:flex; gap:10px; align-items:center;">
                         <input type="search" name="q" placeholder="Search docs..." value="{{ q or '' }}">
+=======
+
+        @media (max-width: 768px) {
+            .docs-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .changelog-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .changelog-index {
+                position: static;
+            }
+
+            .docs-sidebar-toggle {
+                display: inline-flex;
+            }
+
+            .docs-sidebar-backdrop {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.55);
+                z-index: 40;
+            }
+
+            .docs-layout.docs-sidebar-open .docs-sidebar-backdrop {
+                display: block;
+            }
+
+            .docs-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: min(280px, 88vw);
+                z-index: 50;
+                border-radius: 0 16px 16px 0;
+                overflow-y: auto;
+                transform: translateX(-105%);
+                transition: transform 0.2s ease;
+            }
+
+            .docs-layout.docs-sidebar-open .docs-sidebar {
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+
+<body data-initial-section="{{ section }}" data-initial-q="{{ q or '' }}">
+    <a class="docs-skip" href="#docs-main">Skip to content</a>
+
+    <div class="docs-wrap">
+        <div class="docs-top">
+            <a class="docs-back" href="{{ url_for('main.index') }}">← Back to Home</a>
+            <div class="docs-top-actions">
+                <button type="button" class="docs-sidebar-toggle" id="docs-sidebar-toggle"
+                    aria-expanded="false" aria-controls="docs-sidebar">
+                    Sections
+                </button>
+                <div class="docs-search">
+                    <form method="GET" action="{{ url_for('main.docs') }}" id="docs-search-form"
+                        style="display:flex; gap:10px; align-items:center;">
+                        <input type="hidden" name="section" id="docs-search-section" value="{{ section }}">
+                        <input type="search" name="q" id="docs-search-input" placeholder="Search docs..."
+                            value="{{ q or '' }}" aria-label="Search documentation">
+>>>>>>> GCP
                         <button type="submit" class="btn btn-secondary" style="padding:10px 12px;">Search</button>
                     </form>
                 </div>
             </div>
         </div>
 
+<<<<<<< HEAD
         <div class="docs-card">
             <div class="docs-section-title">
                 <h1 style="margin:0;">Documentation (WIP)</h1>
@@ -186,13 +544,701 @@
             <p style="margin:0; color: var(--color-muted); line-height: 1.65;">
                 WIP — performance, supported rulesets, and what is still evolving.
             </p>
+=======
+        <div class="docs-layout" id="docs-layout">
+            <div class="docs-sidebar-backdrop" id="docs-sidebar-backdrop" hidden aria-hidden="true"></div>
+
+            <aside class="docs-sidebar" id="docs-sidebar" aria-label="Documentation sections">
+                <nav>
+                    <ul class="docs-nav" id="docs-nav">
+                        <li class="docs-nav-heading" aria-hidden="true">Product Guide</li>
+                        <li><a href="#overview" data-section="overview">Overview</a></li>
+                        <li><a href="#getting-started" data-section="getting-started">Getting Started</a></li>
+                        <li><a href="#gm-hub" data-section="gm-hub">GM Management Hub</a></li>
+                        <li><a href="#player" data-section="player">Player Use</a></li>
+                        <li><a href="#items" data-section="items">Item &amp; Inventory Concepts</a></li>
+                        <li class="docs-nav-heading" aria-hidden="true">Updates</li>
+                        <li><a href="#roadmap" data-section="roadmap">Roadmap</a></li>
+                        <li><a href="#changelog" data-section="changelog">Changelog</a></li>
+                        <li class="docs-nav-heading" aria-hidden="true">Policies</li>
+                        <li><a href="#terms" data-section="terms">Terms of Service</a></li>
+                        <li><a href="#privacy" data-section="privacy">Privacy Policy</a></li>
+                        <li><a href="#faq" data-section="faq">FAQ / Known Limitations</a></li>
+                        <li class="docs-nav-heading" aria-hidden="true">Community</li>
+                        <li>
+                            <a href="https://discord.gg/dkNVnBXMMB" target="_blank" rel="noreferrer">
+                                Discord
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <main class="docs-main" id="docs-main">
+                <p class="docs-search-hint" id="docs-search-hint" hidden></p>
+
+                <article id="section-overview" class="docs-panel" role="region"
+                    aria-labelledby="heading-overview" hidden>
+                    <h1 id="heading-overview">Documentation <span class="docs-badge">Expanding</span></h1>
+                    <p>
+                        <strong>Econo-Forge</strong> is a campaign economy tool for tabletop GMs running
+                        systems-heavy tables—especially Pathfinder and D&amp;D 5E. It replaces spreadsheet
+                        shop tracking with a database-backed world: shops, stock, and prices that move when
+                        supply runs thin or the party clears a shelf.
+                    </p>
+                    <p>
+                        This documentation explains how to get access, what GMs and players can do today, and
+                        how items, inventory, market volatility, compendiums, population, species, character creation, encounter prep, and simulation ticks
+                        fit together. Sections are updated as features ship; see the
+                        <a href="{{ url_for('main.docs', section='changelog') }}#changelog">changelog</a> for release notes.
+                    </p>
+                    <h3>What you will find here</h3>
+                    <ul>
+                        <li><strong>Getting Started</strong> — access request, registration, and first login paths</li>
+                        <li><strong>GM Management Hub</strong> — campaigns, world generation, population, compendiums, maps, encounters, simulation, and players</li>
+                        <li><strong>Player Use</strong> — joining a campaign, creating D&amp;D 5e characters, using dashboard tabs, viewing class spell options, shared maps, shops, and inventory</li>
+                        <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, folders, templates, compendiums, and game-day ticks</li>
+                        <li><strong>Roadmap</strong> — what we are improving next for GMs and players</li>
+                        <li><strong>Changelog</strong> — release notes for Alpha and earlier demo milestones</li>
+                        <li><strong>Terms &amp; Privacy</strong> — general site rules and privacy notes</li>
+                        <li><strong>FAQ</strong> — limitations, map visibility, rulesets, and infrastructure expectations</li>
+                    </ul>
+                    <p>
+                        Use the sidebar to jump between sections, or search above to jump to the best match.
+                    </p>
+                </article>
+
+                <article id="section-getting-started" class="docs-panel" role="region"
+                    aria-labelledby="heading-getting-started" hidden>
+                    <h2 id="heading-getting-started">Getting Started</h2>
+                    <p>
+                        Econo-Forge is in early access. Submit the access form to receive a registration key and
+                        continue straight to account creation.
+                    </p>
+                    <h3>1. Get your registration key</h3>
+                    <p>
+                        From the landing page, choose <strong>Register For Access</strong> and submit the form at
+                        <a href="{{ url_for('main.access_request') }}">Register For Access</a>. Tell us whether you are a
+                        GM, player, or both, and which ruleset you run. Your registration key is issued immediately
+                        and you are redirected straight to account creation—no waiting for approval email.
+                    </p>
+                    <h3>2. Register with your registration key</h3>
+                    <p>
+                        After you submit the form, you are redirected to registration with your key pre-filled.
+                        Finish account setup, then log in.
+                    </p>
+                    <h3>3. Log in</h3>
+                    <p>
+                        Use <a href="{{ url_for('auth.login') }}">Login</a>. After authentication, the app routes you
+                        to the right home screen—GM dashboard or player view—based on your role and campaign membership.
+                    </p>
+                    <h3>4. GM path: campaign and world</h3>
+                    <ol>
+                        <li>Create or select a campaign from your campaigns list.</li>
+                        <li>Optional: run the world generation wizard to seed regions, cities, shops, starter inventory, and species population assumptions.</li>
+                        <li>You can also skip generation and build regions, cities, shops, species entries, monsters, and map details manually over time.</li>
+                        <li>Land on the <strong>Game Master Dashboard</strong> to manage the economy, map, encounters, player access, and simulation between sessions.</li>
+                    </ol>
+                    <h3>5. Player path: join a campaign</h3>
+                    <p>
+                        Ask your GM for a <strong>campaign join code</strong>. The GM reveals it from dashboard join
+                        tools. Redeem the code on the player side to attach your character to that campaign. In D&amp;D 5e
+                        campaigns, new players can use the character creation wizard before browsing shared maps, cities,
+                        shops, and visible encounters from the player home screen.
+                    </p>
+                    <p>
+                        Without an active campaign, you can still use a solo <strong>character vault</strong> to manage
+                        a character sheet; full world browsing requires joining a campaign.
+                    </p>
+                </article>
+
+                <article id="section-gm-hub" class="docs-panel" role="region"
+                    aria-labelledby="heading-gm-hub" hidden>
+                    <h2 id="heading-gm-hub">GM Management Hub</h2>
+                    <p>
+                        The GM dashboard is your control center for one active campaign at a time. Everything below
+                        assumes you have selected that campaign in session.
+                    </p>
+                    <h3>Dashboard and simulation</h3>
+                    <p>
+                        From the Game Master Dashboard you can advance the economy by <strong>game-day ticks</strong>—not
+                        in real time during play, but between sessions when you choose to run a period (day, week, month,
+                        or year) or pause the world.
+                    </p>
+                    <ul>
+                        <li><strong>Supply On</strong> — each tick applies simulated daily sales and periodic shop restocks, then recalculates prices from updated stock.</li>
+                        <li><strong>Supply Off</strong> — ticks update prices only; no simulated sales or restock on that path.</li>
+                        <li><strong>Volatility</strong> — campaign market volatility runs from 0 to 10 and scales price/demand randomness on future simulation ticks.</li>
+                    </ul>
+                    <p>
+                        The Market Overview panel includes the same day/week/month/year/pause controls as the Simulation
+                        panel. Quick-nav form actions such as Volatility, Supply, and Debt return to the Market Overview
+                        tab instead of dropping you back on the map.
+                    </p>
+                    <p>
+                        Long simulation periods run as <strong>background jobs</strong> (worker + Redis). If the
+                        simulation service is unavailable, you may see a user-safe offline message rather than partial
+                        updates—wait and retry rather than clicking repeatedly.
+                    </p>
+                    <h3>World setup</h3>
+                    <ul>
+                        <li><strong>World generation</strong> — the world generation wizard creates campaign structure, regions, cities, shops, inventory, and species population assumptions from your chosen settings and seed.</li>
+                        <li><strong>Regions and cities</strong> — edit regions, add cities, set settlement population, and review the Region and City Compendiums from the dashboard.</li>
+                        <li><strong>Shops and markets</strong> — view grouped shops, adjust shop details, review the Shop Compendium, and use market overview tools to see how stock and prices are distributed.</li>
+                    </ul>
+                    <h3>Species and monster compendiums</h3>
+                    <ul>
+                        <li><strong>Species Compendium</strong> — D&amp;D 5e GMs can review base species, add custom species, and maintain population percentages, traits, stat modifiers, and notes.</li>
+                        <li><strong>Monster Compendium</strong> — D&amp;D 5e GMs can maintain campaign-scoped monster templates for encounter prep.</li>
+                        <li><strong>Population by species</strong> — city summaries and player map popouts can show settlement population context when the GM has configured it.</li>
+                    </ul>
+                    <h3>Campaign compendiums</h3>
+                    <ul>
+                        <li><strong>Class and Spell Compendiums</strong> — D&amp;D 5e GMs can inspect campaign class and spell data used by character and player spell views.</li>
+                        <li><strong>Region, City, Shop, and Item Compendiums</strong> — dashboard tables centralize search and review for core world and catalog records.</li>
+                    </ul>
+                    <h3>Maps and player visibility</h3>
+                    <ul>
+                        <li><strong>World and city maps</strong> — place cities, shops, points of interest, and existing encounters on the correct canvas.</li>
+                        <li><strong>Show to players</strong> controls whether a point of interest or encounter appears on the player map and player encounter tools.</li>
+                        <li><strong>Encounter placement</strong> drops an existing encounter marker where you click without opening the battle tab or creating a duplicate encounter.</li>
+                    </ul>
+                    <h3>D&amp;D 5e encounter tools</h3>
+                    <p>
+                        D&amp;D 5e campaigns include a battle board for GM-managed encounters. GMs can use the Monster
+                        Compendium while preparing combat, share selected encounters with players, allow player token
+                        placement, and use the radial action menu for turn actions. The encounter list also supports
+                        permanent removal with a confirmation step.
+                    </p>
+                    <h3>Catalog and items</h3>
+                    <p>
+                        Maintain the shared <strong>item catalog</strong> (name, type, rarity, base price) and per-shop
+                        inventory rows. Manual edits apply immediately; simulation ticks then move stock and prices
+                        according to supply and demand rules.
+                    </p>
+                    <ul>
+                        <li>Manually stock already-created catalog items into one or more shops.</li>
+                        <li>Select multiple items for bulk stock, delete, rename, move-to-folder, or shop-removal actions.</li>
+                        <li>Organize catalog rows with item folders and import OGL-safe D&amp;D 5e item templates as a starter library.</li>
+                    </ul>
+                    <h3>Players and join codes</h3>
+                    <p>
+                        Invite players with campaign join codes, manage NPCs, and open character sheets from the players
+                        area. You can redeem player codes when moving characters between campaigns if your table uses
+                        that workflow.
+                    </p>
+                </article>
+
+                <article id="section-player" class="docs-panel" role="region"
+                    aria-labelledby="heading-player" hidden>
+                    <h2 id="heading-player">Player Use</h2>
+                    <p>
+                        Players interact with the same economic ledger the GM simulates—what you see at the shop should
+                        match what the GM sees after the last tick.
+                    </p>
+                    <h3>Join a campaign</h3>
+                    <p>
+                        Redeem the join code your GM provides. For D&amp;D 5e campaigns, the character creation wizard can
+                        walk you through identity, species, class, background, abilities, and review before the character
+                        joins the campaign. Once linked, your player home screen opens a tabbed dashboard for your
+                        character, inventory, campaign map, market overview, and any visible D&amp;D 5e encounters.
+                    </p>
+                    <h3>Dashboard tabs</h3>
+                    <ul>
+                        <li><strong>Character</strong> keeps character sheet details close to the campaign tools.</li>
+                        <li><strong>Spells</strong> shows selected cantrips/prepared/known spells and a class-filtered list of visible campaign spells available to your character.</li>
+                        <li><strong>Inventory</strong> lists owned items and equipment.</li>
+                        <li><strong>Map</strong> shows the GM-provided world or city map in a read-only view.</li>
+                        <li><strong>Market Overview</strong> summarizes campaign-wide shop prices and stock.</li>
+                        <li><strong>Encounters</strong> appears in D&amp;D 5e campaigns when the GM has shared at least one encounter.</li>
+                    </ul>
+                    <h3>Browse, buy, and review the market</h3>
+                    <ul>
+                        <li>Navigate by city and shop to see what is on the shelf.</li>
+                        <li>Prices and stock reflect the campaign’s current world state after simulation has run.</li>
+                        <li>Purchases spend your character’s <strong>currency</strong> and add items to your inventory when stock allows.</li>
+                    </ul>
+                    <h3>Shared maps and encounters</h3>
+                    <p>
+                        Player maps use the same background and marker layout as the GM map, but remain read-only. Cities
+                        and shops open summary popouts, including population and species breakdowns when the GM has set
+                        them. Points of interest and encounters appear only when the GM marks them
+                        <strong>Show to players</strong>. Visible encounter popouts can take you to the Encounters tab.
+                    </p>
+                    <p>
+                        On a shared battle board, your own character is highlighted. You can place your token on an empty
+                        tile when allowed and use available turn actions such as Move, Attack, or Wait.
+                    </p>
+                    <h3>Inventory and equipment</h3>
+                    <p>
+                        Your personal inventory lists owned items; equipment slots (weapon, armor, accessory) track what
+                        your character has equipped. Selling or buying updates both your ledger and the shop in one flow
+                        so counts stay consistent.
+                    </p>
+                    <h3>D&amp;D 5e spells</h3>
+                    <p>
+                        In D&amp;D 5e campaigns, the Spells tab resolves selected cantrips, prepared spells, and known spells
+                        from the campaign Spell Compendium. If your sheet does not have selected spells yet, it still shows
+                        visible spells available to your class so the tab is useful while spell selection workflows mature.
+                    </p>
+                    <h3>Solo character vault</h3>
+                    <p>
+                        If you are not in a campaign yet, you can still open your character vault to edit a sheet. Join
+                        a campaign when you are ready to browse the shared world and shop in play.
+                    </p>
+                    <h3>What is still evolving</h3>
+                    <p>
+                        Core browsing, buying, map review, and shared encounter play are available, but the player
+                        experience continues to improve—filters, polish, and table-side workflows may change between
+                        releases. Check the changelog for player-facing updates.
+                    </p>
+                </article>
+
+                <article id="section-items" class="docs-panel" role="region"
+                    aria-labelledby="heading-items" hidden>
+                    <h2 id="heading-items">Item &amp; Inventory Concepts</h2>
+                    <p>
+                        Econo-Forge treats items, shop stock, and player gear as one system so scarcity and price moves
+                        stay believable across a long campaign.
+                    </p>
+                    <h3>Items</h3>
+                    <p>
+                        Each <strong>item</strong> in the catalog has a name, category/type, rarity, description, and
+                        <strong>base price</strong>. GMs can add or edit items; shops reference the same catalog entries.
+                    </p>
+                    <h3>Compendiums</h3>
+                    <p>
+                        D&amp;D 5e campaigns can also use campaign-scoped compendiums for species and monsters. Species
+                        entries help drive character creation choices and population context; monster templates support
+                        encounter prep without changing shop inventory or item pricing.
+                    </p>
+                    <h3>Shop inventory</h3>
+                    <p>
+                        Every shop holds <strong>inventory rows</strong>: how many units are on hand and how price
+                        modifiers apply. After simulation runs, the app reads <strong>effective price</strong> and
+                        <strong>effective stock</strong> from world state so GM and player views agree.
+                    </p>
+                    <h3>Game-day ticks</h3>
+                    <ul>
+                        <li>One tick advances the campaign by one <strong>game day</strong>.</li>
+                        <li>With supply enabled, ticks apply bounded daily sales, then recalculate prices from remaining stock.</li>
+                        <li>Shops <strong>restock on a schedule</strong> (typically every 15–30 game days per shop), scaled by settlement size.</li>
+                    </ul>
+                    <p>
+                        Running a week or month of game time is a batch operation—useful between sessions, not something
+                        the table waits on mid-combat.
+                    </p>
+                    <h3>Transactional integrity</h3>
+                    <p>
+                        Buys and sells update player currency, player inventory, and shop stock together. If a purchase
+                        fails (insufficient funds, out of stock), you should see a clear message and no partial change.
+                    </p>
+                    <h3>Maps and encounters are separate state</h3>
+                    <p>
+                        Map markers, points of interest, population details, species compendium entries, monster templates,
+                        encounter visibility, and combat board state do not change shop inventory by themselves. They are
+                        campaign tools layered beside the economy so the GM can reveal locations and encounters without
+                        altering stock or prices.
+                    </p>
+                </article>
+
+                <article id="section-roadmap" class="docs-panel" role="region"
+                    aria-labelledby="heading-roadmap" hidden>
+                    <h2 id="heading-roadmap">Product Roadmap</h2>
+                    <p>
+                        Econo-Forge is now in Alpha. This page summarizes what the team is prioritizing next.
+                        It is product-facing guidance—not a delivery schedule or contract.
+                    </p>
+                    <h3>Now: player map, population, and encounter parity</h3>
+                    <ul>
+                        <li>GM dashboard compendiums now cover regions, cities, shops, items, species, classes, spells, and monsters.</li>
+                        <li>Item management now supports folders, bulk actions, manual stocking into shops, and OGL-safe starter item templates.</li>
+                        <li>Market Overview now includes simulation controls, active volatility context, and clearer last-run market deltas.</li>
+                        <li>Player dashboard tabs now include class-filtered spell availability for D&amp;D 5e characters.</li>
+                    </ul>
+                    <h3>Next: polish and reliability</h3>
+                    <ul>
+                        <li>Continue replacing older standalone list pages with dashboard panes where it improves flow.</li>
+                        <li>Simulation performance and predictable game-day ticks between sessions.</li>
+                        <li>Stronger automated tests for readiness, locks, visibility filtering, combat routes, and regression-prone flows.</li>
+                    </ul>
+                    <h3>Later: scale and depth</h3>
+                    <ul>
+                        <li>Runtime configuration documentation for self-hosted and production deployments.</li>
+                        <li>Deeper economy and encounter features once state authority and tick safety are fully documented.</li>
+                    </ul>
+                    <p>
+                        For shipped changes, see the <a href="{{ url_for('main.docs', section='changelog') }}#changelog">changelog</a>.
+                        For setup help, start with <a href="{{ url_for('main.docs', section='getting-started') }}#getting-started">Getting Started</a>.
+                    </p>
+                </article>
+
+                <article id="section-changelog" class="docs-panel" role="region"
+                    aria-labelledby="heading-changelog" hidden>
+                    <h2 id="heading-changelog">Changelog</h2>
+                    <p>
+                        Release notes for Econo-Forge Alpha. Entries are listed newest first.
+                    </p>
+
+                    <div class="changelog-layout">
+                        <aside class="changelog-index" aria-label="Patch notes">
+                            <p class="changelog-index-title">Patch Notes</p>
+                            <a href="#patch-1-2-5">Alpha 1.2 GM Workspace Update</a>
+                            <a href="#patch-1-2-4">Alpha 1.1 Map and Encounter Update</a>
+                            <a href="#patch-1-2-3">Alpha 1.0</a>
+                            <a href="#patch-1-2-2">Tech Demo Hotfix 1.2.2</a>
+                            <a href="#patch-1-2-1">Tech Demo Hotfix 1.2.1</a>
+                            <a href="#patch-1-2">Tech Demo Patch 1.2</a>
+                            <a href="#patch-1-1">Tech Demo Patch 1.1</a>
+                        </aside>
+
+                        <div class="changelog-patches">
+                            <section class="changelog-patch" id="patch-1-2-5" aria-labelledby="heading-patch-1-2-5">
+                                <h3 id="heading-patch-1-2-5">Alpha 1.2 GM Workspace Update <span class="docs-badge">Latest</span></h3>
+                                <p>
+                                    <strong>June 14, 2026.</strong> GM dashboard compendiums, bulk item management, item folders, OGL-safe item templates, campaign market volatility controls, Market Overview simulation controls, and clearer player spell visibility.
+                                </p>
+                                <h3>GM item and catalog workflow</h3>
+                                <ul>
+                                    <li>GMs can manually add existing catalog items to shops without creating duplicate item rows.</li>
+                                    <li>Item lists now support multi-select bulk actions for stocking, deletion, renaming, moving to folders, and removing rows from shop inventory.</li>
+                                    <li>Item folders help organize catalog rows, and the first D&amp;D 5e item template import flow seeds OGL-safe starter content while preserving GM edits.</li>
+                                </ul>
+                                <h3>Dashboard compendiums</h3>
+                                <ul>
+                                    <li>Region, City, and Shop Compendiums now sit beside the Item Compendium in the GM dashboard.</li>
+                                    <li>Legacy Players/NPCs and Cities list URLs now redirect into the relevant dashboard panes instead of opening obsolete standalone views.</li>
+                                    <li>Market quick-nav POST actions return to the Market Overview pane after submit.</li>
+                                </ul>
+                                <h3>Market overview and simulation</h3>
+                                <ul>
+                                    <li>Campaign-level market volatility now scales demand and price event randomness on future ticks, with the active value shown in the Market Overview metadata.</li>
+                                    <li>Market Overview includes day/week/month/year/pause controls and refreshes after simulation runs so price and stock deltas are visible in place.</li>
+                                    <li>Empty market states now explain that volatility applies to stocked shop inventory on the next simulation tick.</li>
+                                </ul>
+                                <h3>Player spells</h3>
+                                <ul>
+                                    <li>The player Spells tab now shows selected cantrips, prepared spells, and known spells when saved on the character sheet.</li>
+                                    <li>When no spells are selected yet, D&amp;D 5e players still see visible campaign spells available to their class.</li>
+                                </ul>
+                            </section>
+
+                            <section class="changelog-patch" id="patch-1-2-4" aria-labelledby="heading-patch-1-2-4">
+                                <h3 id="heading-patch-1-2-4">Alpha 1.1 Map and Encounter Update</h3>
+                                <p>
+                                    <strong>June 10, 2026.</strong> Player dashboard tabs, campaign map parity with the GM map, population and species visibility, D&amp;D 5e encounter visibility, GM species and monster compendium tools, the character creation wizard, and GM map tools for placing and managing encounters and points of interest.
+                                </p>
+                                <h3>Player dashboard</h3>
+                                <ul>
+                                    <li>The player home screen now uses tabs for Character, Inventory, Map, Market Overview, and (in D&amp;D 5e campaigns) Encounters.</li>
+                                    <li>Market Overview shows campaign-wide item prices and stock; Shops by city browsing remains on the same page.</li>
+                                    <li>The Encounters tab loads the live battle board when the GM has shared an encounter with players.</li>
+                                </ul>
+                                <h3>Player map</h3>
+                                <ul>
+                                    <li>Campaign maps use the same backgrounds, markers, and popouts as the GM map, in a read-only view.</li>
+                                    <li>City and shop markers open summary popouts; city popouts include population details and species breakdowns when the GM has configured them.</li>
+                                    <li>Encounters and points of interest marked <strong>Show to players</strong> appear on the player map with the same marker styles as on the GM side.</li>
+                                    <li>Visible encounter markers open a compact popout with a shortcut to the Encounters tab.</li>
+                                </ul>
+                                <h3>Worldbuilding and character tools</h3>
+                                <ul>
+                                    <li>GMs can manage a campaign-scoped <strong>Species Compendium</strong>, including custom species, population percentages, traits, stat modifiers, and notes.</li>
+                                    <li>World generation and city editing now support population by species so campaign maps can surface richer settlement context.</li>
+                                    <li>The <strong>Monster Compendium</strong> gives D&amp;D 5e GMs campaign-scoped monster templates for encounter prep.</li>
+                                    <li>The D&amp;D 5e character creation wizard walks players through identity, species, class, background, abilities, and review before creating the character.</li>
+                                </ul>
+                                <h3>D&amp;D 5e encounters</h3>
+                                <ul>
+                                    <li>GMs control whether players can see an encounter with <strong>Show to players</strong> in battle settings (saved with other encounter settings).</li>
+                                    <li>Players only see encounters the GM has shared; hidden encounters stay off the player map and Encounters tab.</li>
+                                    <li>On the battle board, a player&apos;s own character is highlighted in yellow; players can place their token once on an empty tile and use Move, Attack, or Wait on their turn.</li>
+                                    <li>Fixed the action radial menu on GM and player battle boards so Close dismisses it and actions reset cleanly after use.</li>
+                                </ul>
+                                <h3>GM map and encounters</h3>
+                                <ul>
+                                    <li>Place existing encounters on the world or city map from the encounter dropdown—click the map to drop the marker without opening the battle tab or creating a duplicate encounter.</li>
+                                    <li>Multiple encounter markers can appear on the same canvas; the encounter list includes <strong>Remove</strong> with a confirmation before permanent deletion.</li>
+                                    <li>Points of interest now have a <strong>Show to players</strong> checkbox when adding or editing; unchecked POIs stay GM-only.</li>
+                                    <li>Encounter picker refreshes when switching to the Map tab so newly created encounters appear in the dropdown.</li>
+                                </ul>
+                                <h3>Reliability</h3>
+                                <ul>
+                                    <li>Added regression tests for player map and market APIs, encounter placement and deletion, POI and encounter visibility filtering, and dashboard markup.</li>
+                                </ul>
+                            </section>
+
+                            <section class="changelog-patch" id="patch-1-2-3" aria-labelledby="heading-patch-1-2-3">
+                                <h3 id="heading-patch-1-2-3">Alpha 1.0</h3>
+                                <p>
+                                    <strong>June 2, 2026.</strong> Alpha 1.0 carries forward what we learned from the tech demo: clearer first-run guidance, cleaner campaign selection, and room for larger test worlds.
+                                </p>
+                                <h3>Onboarding and campaign flow</h3>
+                                <ul>
+                                    <li>The GM onboarding player step now routes to the campaign player tools and highlights the Reveal and Add controls in sequence.</li>
+                                    <li>Campaign selection now separates GM campaigns from Player campaigns so mixed accounts can choose the right mode faster.</li>
+                                    <li>The landing page topbar is easier to read in light mode while keeping the dark-mode glass styling.</li>
+                                </ul>
+                                <h3>Simulation and access limits</h3>
+                                <ul>
+                                    <li>The GM dashboard keeps day, week, month, year, and pause controls available before the first simulation run.</li>
+                                    <li>Auto-issued access keys now use the Alpha phase, and Alpha keys use the restored legacy limits.</li>
+                                </ul>
+                            </section>
+
+                            <section class="changelog-patch" id="patch-1-2-2" aria-labelledby="heading-patch-1-2-2">
+                                <h3 id="heading-patch-1-2-2">Tech Demo Hotfix 1.2.2</h3>
+                                <p>
+                                    <strong>June 2, 2026.</strong> Simulation pause reliability and worker deployment alignment.
+                                </p>
+                                <h3>Simulation controls</h3>
+                                <ul>
+                                    <li>Pause now stays clickable while a day, week, month, or year simulation run is in progress.</li>
+                                    <li>Pause requests now reach the Celery worker, which stops the run after the current tick finishes instead of ignoring the click.</li>
+                                    <li>The dashboard now recognizes paused simulation jobs as complete, unlocks the run controls, and reports how many days completed before the pause.</li>
+                                </ul>
+                                <h3>Operations</h3>
+                                <ul>
+                                    <li>Added regression coverage for paused job polling and worker-side pause behavior.</li>
+                                    <li>Confirmed the Celery worker redeploy flow: web and worker must run the same digest-pinned image for new simulation controls to take effect.</li>
+                                </ul>
+                            </section>
+
+                            <section class="changelog-patch" id="patch-1-2-1" aria-labelledby="heading-patch-1-2-1">
+                                <h3 id="heading-patch-1-2-1">Tech Demo Hotfix 1.2.1</h3>
+                                <p>
+                                    <strong>May 22, 2026.</strong> GM dashboard deletion fixes and region management updates.
+                                </p>
+                                <h3>Bug fixes</h3>
+                                <ul>
+                                    <li>Fixed a bug reported by Domi where deleting regions or cities could fail because of a non-null foreign key cascade.</li>
+                                    <li>Regions and cities can now be deleted successfully, with remaining records moved to safe fallback groups.</li>
+                                    <li>Fixed shop and item deletes redirecting to the wrong page after completion.</li>
+                                    <li>Deleting shops or items now keeps GMs on the GM dashboard.</li>
+                                </ul>
+                                <h3>UI and dashboard flow</h3>
+                                <ul>
+                                    <li>Added delete buttons for regions.</li>
+                                    <li>Moved Regions, Cities, and Shops into the GM dashboard so core management actions are in one place.</li>
+                                    <li>When a region is deleted, its cities remain available under Unspecified Cities.</li>
+                                    <li>When a city is deleted, its shops remain available under Shops Without a City.</li>
+                                </ul>
+                            </section>
+
+                            <section class="changelog-patch" id="patch-1-2" aria-labelledby="heading-patch-1-2">
+                                <h3 id="heading-patch-1-2">Tech Demo Patch 1.2</h3>
+                                <p>
+                                    <strong>May 20, 2026.</strong> Public docs cleanup and production reliability fixes.
+                                </p>
+                                <h3>Documentation and footer links</h3>
+                                <ul>
+                                    <li>Moved changelog content into the Documentation page so release notes live beside guides, Terms, and Privacy.</li>
+                                    <li>Footer links now open the correct Documentation sections for Changelog, Terms of Service, and Privacy Policy.</li>
+                                </ul>
+                                <h3>Production reliability</h3>
+                                <ul>
+                                    <li>Fixed the Create character page failing on Linux/GCP because of a template filename casing mismatch.</li>
+                                    <li>Improved campaign delete handling for campaigns with simulation state so deleted campaigns can archive metrics and clean up safely.</li>
+                                </ul>
+                            </section>
+
+                            <section class="changelog-patch" id="patch-1-1" aria-labelledby="heading-patch-1-1">
+                                <h3 id="heading-patch-1-1">Tech Demo Patch 1.1</h3>
+                                <p>
+                                    <strong>May 19, 2026.</strong> Account experience and in-app feedback for the live tech demo.
+                                </p>
+                                <h3>Account menu</h3>
+                                <ul>
+                                    <li>Global account menu on authenticated GM, player, and campaign pages — avatar trigger, greeting, and sign out in one place.</li>
+                                    <li>Live GM and Player campaign counts in the menu for quick context.</li>
+                                    <li>One-click link to switch campaigns from any supported screen.</li>
+                                </ul>
+                                <h3>Profile avatars</h3>
+                                <ul>
+                                    <li>Upload a profile image (JPEG, PNG, WebP, or GIF) from the account menu.</li>
+                                    <li>Username initials shown when no avatar is set; cache-busted URLs after upload.</li>
+                                </ul>
+                                <h3>Help &amp; feedback</h3>
+                                <ul>
+                                    <li>In-app bug reports with category, severity, reproduction steps, and expected behavior.</li>
+                                    <li>Feedback and suggestion forms with structured categories for the demo team.</li>
+                                    <li>Submissions capture session mode, account role, and page context so the team can follow up faster.</li>
+                                </ul>
+                                <h3>Economy</h3>
+                                <ul>
+                                    <li>GMs can now choose whether to use Supply and Demand mechanics for a campaign.</li>
+                                    <li>When Supply and Demand is enabled, shops sell items each game day and restock on a 15- to 30-day cadence.</li>
+                                    <li>Prices update based on available supply and related shop/economy factors.</li>
+                                </ul>
+                                <h3>Debt</h3>
+                                <ul>
+                                    <li>GMs can now choose whether players are allowed to buy items when the purchase would make their currency go negative.</li>
+                                </ul>
+                            </section>
+                        </div>
+                    </div>
+                </article>
+
+                <article id="section-terms" class="docs-panel" role="region"
+                    aria-labelledby="heading-terms" hidden>
+                    <h2 id="heading-terms">Terms of Service</h2>
+                    <p>
+                        These general terms apply to Econo-Forge Alpha. They are written for clarity and are
+                        not a substitute for formal legal advice.
+                    </p>
+                    <h3>Use of the service</h3>
+                    <ul>
+                        <li>Use Econo-Forge for lawful tabletop campaign planning, economy simulation, inventory tracking, and related play support.</li>
+                        <li>Do not attempt to bypass authentication, access another table's campaign, scrape private data, or disrupt the service.</li>
+                        <li>Accounts, access keys, join codes, and campaign content may be limited, revoked, or removed if abuse, security risk, or operational harm is detected.</li>
+                    </ul>
+                    <h3>Alpha status</h3>
+                    <p>
+                        Econo-Forge is evolving from tech demo findings into Alpha. Features, limits, copy, pricing
+                        assumptions, and data shape may change as the product matures. Avoid relying on Alpha behavior
+                        as a permanent contract.
+                    </p>
+                    <h3>Your content</h3>
+                    <p>
+                        You are responsible for campaign names, item text, character information, feedback, and other
+                        content you submit. Do not upload content you do not have permission to use.
+                    </p>
+                    <h3>No guarantee of uninterrupted service</h3>
+                    <p>
+                        The app may be unavailable during maintenance, deployment, infrastructure failure, or demo
+                        testing. Use exports or table notes for anything you need outside the app during a session.
+                    </p>
+                </article>
+
+                <article id="section-privacy" class="docs-panel" role="region"
+                    aria-labelledby="heading-privacy" hidden>
+                    <h2 id="heading-privacy">Privacy Policy</h2>
+                    <p>
+                        This general privacy policy describes the data Econo-Forge may process during Alpha.
+                        It is intentionally plain-language and should be revisited before a commercial launch.
+                    </p>
+                    <h3>Information you provide</h3>
+                    <ul>
+                        <li>Account details such as username, email, role, password hash, and registration key status.</li>
+                        <li>Campaign and gameplay data such as campaigns, worlds, maps, points of interest, encounters, species, monsters, settlement populations, shops, items, inventory, character sheets, join codes, and simulation activity.</li>
+                        <li>Support and feedback data such as bug reports, suggestions, severity, reproduction steps, page context, and uploaded avatar images.</li>
+                    </ul>
+                    <h3>How data is used</h3>
+                    <ul>
+                        <li>To authenticate users, route them to GM or player tools, and enforce campaign access.</li>
+                        <li>To run campaign tools including world generation, population summaries, species and monster compendiums, maps, encounters, market views, stock, pricing, character creation, and simulation jobs.</li>
+                        <li>To process access-form submissions, issue registration keys, diagnose bugs, improve Alpha, and respond to feedback.</li>
+                    </ul>
+                    <h3>Sharing and retention</h3>
+                    <p>
+                        Alpha data is not presented as a public dataset. Access is limited to the app flows and authorized
+                        admin/support review. Retention and deletion rules may evolve as formal account controls are added.
+                    </p>
+                    <h3>Your choices</h3>
+                    <p>
+                        Avoid entering sensitive personal data into campaign content or feedback forms. If you need help
+                        with account data, submit a feedback request from inside the app or use the listed community/contact channel.
+                    </p>
+                </article>
+
+                <article id="section-faq" class="docs-panel" role="region"
+                    aria-labelledby="heading-faq" hidden>
+                    <h2 id="heading-faq">FAQ / Known Limitations</h2>
+
+                    <h3>Do I need a key to register?</h3>
+                    <p>
+                        In most early-access deployments, yes. The access request form records your details and
+                        issues a registration key automatically. If your group runs a private instance with keys
+                        disabled, your admin can confirm local policy.
+                    </p>
+
+                    <h3>Is access request approval manual?</h3>
+                    <p>
+                        On the public site, <strong>Register For Access</strong> auto-issues your registration key and
+                        sends you to account creation. Admin triage is a separate backoffice path for held or legacy
+                        pending rows—approving there emails a registration link with the same key model.
+                    </p>
+
+                    <h3>Which rulesets are supported?</h3>
+                    <p>
+                        World generation defaults to <strong>D&amp;D 5E</strong> item assumptions. Pathfinder-style tables
+                        are a common fit for the economy model, but Econo-Forge is not a licensed rules product—treat
+                        stats and pricing as table aids you can adjust.
+                    </p>
+
+                    <h3>What are the Species and Monster Compendiums?</h3>
+                    <p>
+                        In D&amp;D 5e campaigns, GMs can use the Species Compendium to manage base and custom species,
+                        population percentages, traits, stat modifiers, and notes. The Monster Compendium stores
+                        campaign-scoped monster templates for encounter prep.
+                    </p>
+
+                    <h3>Where does city population by species appear?</h3>
+                    <p>
+                        GMs can set population and species breakdowns during world setup or city editing. When configured,
+                        those details appear in city summaries and player map popouts so players can understand settlement
+                        context without seeing GM-only notes.
+                    </p>
+
+                    <h3>How does D&amp;D 5e character creation work?</h3>
+                    <p>
+                        The character creation wizard walks players through identity, species, class, background, abilities,
+                        and review. Other rulesets can still use simpler character creation while D&amp;D 5e gets the guided flow.
+                    </p>
+
+                    <h3>Why can't players see a map point or encounter?</h3>
+                    <p>
+                        Player maps only show campaign content the GM has revealed. For points of interest and D&amp;D 5e
+                        encounters, the GM must turn on <strong>Show to players</strong>; hidden content remains GM-only
+                        even if it has already been placed on the GM map.
+                    </p>
+
+                    <h3>Can players use the battle board?</h3>
+                    <p>
+                        In D&amp;D 5e campaigns, players can open shared encounters from the Encounters tab. They can place
+                        their own character token when allowed, see their character highlighted, and use the available radial
+                        actions on their turn. GM-only encounter setup controls remain hidden from the player view.
+                    </p>
+
+                    <h3>Why did simulation say the service is offline?</h3>
+                    <p>
+                        Background simulation depends on Redis and worker processes. If that stack is down, period runs
+                        return an offline response instead of half-updating your campaign. Retry after a few minutes;
+                        contact your host if it persists.
+                    </p>
+
+                    <h3>How fast are ticks?</h3>
+                    <p>
+                        A single game-day tick is designed to stay lightweight, but running a full in-game year is a
+                        large batch—expect progress feedback rather than instant completion. Do not assume sub-second
+                        world updates.
+                    </p>
+
+                    <h3>Are Terms and Privacy formal legal documents?</h3>
+                    <p>
+                        The Terms of Service and Privacy Policy sections are general demo-facing pages. They should be
+                        reviewed before any commercial launch or broader public rollout.
+                    </p>
+
+                    <h3>Where do I report bugs or ask for features?</h3>
+                    <p>
+                        Use in-app feedback channels if you are logged in, or reach out through the community links on
+                        the landing page footer when available.
+                    </p>
+                </article>
+            </main>
+>>>>>>> GCP
         </div>
 
         <div class="conversion-callout">
             <div>
                 <div style="font-weight: 900; font-size: 1.05rem;">Bring your world’s economy to life.</div>
                 <div style="color: var(--color-muted); margin-top: 6px;">
+<<<<<<< HEAD
                     Register to request early access, then track updates in Discord.
+=======
+                    Submit the access form to receive a registration key immediately, then finish account setup.
+>>>>>>> GCP
                 </div>
             </div>
             <div class="btn-row">
@@ -201,6 +1247,240 @@
             </div>
         </div>
     </div>
+<<<<<<< HEAD
 </body>
 </html>
 
+=======
+
+    <script>
+        (function () {
+            var ALLOWED = [
+                'overview',
+                'getting-started',
+                'gm-hub',
+                'player',
+                'items',
+                'roadmap',
+                'changelog',
+                'terms',
+                'privacy',
+                'faq'
+            ];
+            var layout = document.getElementById('docs-layout');
+            var nav = document.getElementById('docs-nav');
+            var panels = document.querySelectorAll('.docs-panel');
+            var searchInput = document.getElementById('docs-search-input');
+            var searchSection = document.getElementById('docs-search-section');
+            var searchHint = document.getElementById('docs-search-hint');
+            var sidebarToggle = document.getElementById('docs-sidebar-toggle');
+            var sidebarBackdrop = document.getElementById('docs-sidebar-backdrop');
+            var currentSection = null;
+            var highlightMarks = [];
+
+            function normalizeSection(id) {
+                if (!id) return null;
+                var s = String(id).replace(/^#/, '').trim();
+                if (s.indexOf('section-') === 0) s = s.slice('section-'.length);
+                return ALLOWED.indexOf(s) >= 0 ? s : null;
+            }
+
+            function panelForSection(sectionId) {
+                return document.getElementById('section-' + sectionId);
+            }
+
+            function clearHighlights() {
+                highlightMarks.forEach(function (mark) {
+                    var parent = mark.parentNode;
+                    if (!parent) return;
+                    parent.replaceChild(document.createTextNode(mark.textContent), mark);
+                    parent.normalize();
+                });
+                highlightMarks = [];
+            }
+
+            function closeSidebar() {
+                layout.classList.remove('docs-sidebar-open');
+                sidebarToggle.setAttribute('aria-expanded', 'false');
+                if (sidebarBackdrop) sidebarBackdrop.hidden = true;
+            }
+
+            function openSidebar() {
+                layout.classList.add('docs-sidebar-open');
+                sidebarToggle.setAttribute('aria-expanded', 'true');
+                if (sidebarBackdrop) sidebarBackdrop.hidden = false;
+            }
+
+            function showSection(sectionId, options) {
+                options = options || {};
+                sectionId = normalizeSection(sectionId) || 'getting-started';
+                if (currentSection === sectionId && !options.force) {
+                    return;
+                }
+                clearHighlights();
+                currentSection = sectionId;
+
+                panels.forEach(function (panel) {
+                    var pid = panel.id.replace('section-', '');
+                    panel.hidden = pid !== sectionId;
+                });
+
+                nav.querySelectorAll('a').forEach(function (link) {
+                    var active = link.getAttribute('data-section') === sectionId;
+                    link.classList.toggle('active', active);
+                    if (active) {
+                        link.setAttribute('aria-current', 'page');
+                    } else {
+                        link.removeAttribute('aria-current');
+                    }
+                });
+
+                if (searchSection) searchSection.value = sectionId;
+
+                if (!options.skipHash) {
+                    var newUrl = window.location.pathname + '?section=' + encodeURIComponent(sectionId);
+                    var q = searchInput && searchInput.value.trim();
+                    if (q) newUrl += '&q=' + encodeURIComponent(q);
+                    newUrl += '#' + sectionId;
+                    history.replaceState({ section: sectionId }, '', newUrl);
+                }
+
+                if (window.matchMedia('(max-width: 768px)').matches) {
+                    closeSidebar();
+                }
+            }
+
+            function scorePanel(panel, query) {
+                var text = (panel.getAttribute('data-search-text') || panel.textContent || '').toLowerCase();
+                var q = query.toLowerCase();
+                if (!q) return 0;
+                var count = 0;
+                var idx = 0;
+                while ((idx = text.indexOf(q, idx)) !== -1) {
+                    count++;
+                    idx += q.length;
+                }
+                return count;
+            }
+
+            function highlightQuery(panel, query) {
+                clearHighlights();
+                if (!query || query.length < 2) return;
+
+                var q = query.toLowerCase();
+                var walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT);
+                var node;
+                while ((node = walker.nextNode())) {
+                    if (!node.nodeValue || !node.parentElement) continue;
+                    var tag = node.parentElement.tagName;
+                    if (tag === 'SCRIPT' || tag === 'STYLE') continue;
+
+                    var val = node.nodeValue;
+                    var lower = val.toLowerCase();
+                    var start = lower.indexOf(q);
+                    if (start < 0) continue;
+
+                    var frag = document.createDocumentFragment();
+                    var cursor = 0;
+                    while (start >= 0) {
+                        if (start > cursor) {
+                            frag.appendChild(document.createTextNode(val.slice(cursor, start)));
+                        }
+                        var mark = document.createElement('mark');
+                        mark.textContent = val.slice(start, start + q.length);
+                        frag.appendChild(mark);
+                        highlightMarks.push(mark);
+                        cursor = start + q.length;
+                        start = lower.indexOf(q, cursor);
+                    }
+                    if (cursor < val.length) {
+                        frag.appendChild(document.createTextNode(val.slice(cursor)));
+                    }
+                    node.parentNode.replaceChild(frag, node);
+                }
+            }
+
+            function applySearch(query) {
+                query = (query || '').trim();
+                if (!query) {
+                    if (searchHint) {
+                        searchHint.hidden = true;
+                        searchHint.textContent = '';
+                    }
+                    clearHighlights();
+                    return;
+                }
+
+                var best = null;
+                var bestScore = 0;
+                panels.forEach(function (panel) {
+                    var s = scorePanel(panel, query);
+                    if (s > bestScore) {
+                        bestScore = s;
+                        best = panel.id.replace('section-', '');
+                    }
+                });
+
+                if (best && bestScore > 0) {
+                    showSection(best, { force: true, skipHash: false });
+                    var panel = panelForSection(best);
+                    if (panel) highlightQuery(panel, query);
+                    if (searchHint) {
+                        searchHint.hidden = false;
+                        searchHint.textContent = 'Showing best match for “' + query + '” in ' +
+                            (panel && panel.querySelector('h1,h2') ? panel.querySelector('h1,h2').textContent : best) + '.';
+                    }
+                } else if (searchHint) {
+                    searchHint.hidden = false;
+                    searchHint.textContent = 'No matches for “' + query + '”. Try restock, access key, or simulation.';
+                }
+            }
+
+            panels.forEach(function (panel) {
+                panel.setAttribute('data-search-text', panel.textContent);
+            });
+
+            nav.addEventListener('click', function (e) {
+                var link = e.target.closest('a[data-section]');
+                if (!link) return;
+                e.preventDefault();
+                showSection(link.getAttribute('data-section'));
+            });
+
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function () {
+                    if (layout.classList.contains('docs-sidebar-open')) {
+                        closeSidebar();
+                    } else {
+                        openSidebar();
+                    }
+                });
+            }
+
+            if (sidebarBackdrop) {
+                sidebarBackdrop.addEventListener('click', closeSidebar);
+            }
+
+            window.addEventListener('hashchange', function () {
+                var fromHash = normalizeSection(window.location.hash);
+                if (fromHash) showSection(fromHash);
+            });
+
+            var params = new URLSearchParams(window.location.search);
+            var fromQuery = normalizeSection(params.get('section'));
+            var fromHash = normalizeSection(window.location.hash);
+            var initial = normalizeSection(document.body.getAttribute('data-initial-section')) ||
+                fromQuery || fromHash || 'getting-started';
+            showSection(initial, { force: true });
+
+            var initialQ = document.body.getAttribute('data-initial-q') || params.get('q') || '';
+            if (initialQ) applySearch(initialQ);
+
+            document.getElementById('docs-search-form').addEventListener('submit', function () {
+                if (searchSection && currentSection) searchSection.value = currentSection;
+            });
+        })();
+    </script>
+</body>
+</html>
+>>>>>>> GCP

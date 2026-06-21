@@ -1,0 +1,118 @@
+{% if show_account_menu %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<script type="application/json" id="tt-account-menu-config">{{ account_menu_config | tojson }}</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/account_menu.css') }}">
+<script defer src="{{ url_for('static', filename='js/account_menu.js') }}"></script>
+
+<div class="account-menu-wrapper" id="accountMenuWrapper">
+    <button type="button" class="account-avatar-trigger" id="accountAvatarBtn"
+            aria-label="Account menu for {{ current_user.username }}"
+            aria-haspopup="true" aria-expanded="false">
+        {% if current_user.avatar_updated_at %}
+        <img src="{{ url_for('auth.account_avatar') }}?t={{ current_user.avatar_updated_at.timestamp() | int }}"
+             alt="" class="avatar-img" id="avatarImageGlobalDisplay">
+        {% else %}
+        <span class="avatar-initials-fallback" id="avatarInitialsGlobalDisplay">{{ current_user.username[:2] | upper }}</span>
+        {% endif %}
+    </button>
+
+    <div class="account-popover-panel account-menu-hidden" id="accountPopoverPanel" role="dialog" aria-label="Account menu">
+        <div class="panel-slider-container" id="panelSliderContainer">
+
+            <div class="popover-frame" data-frame-id="main">
+                <div class="account-menu-header">
+                    <div class="avatar-upload-interaction-container" id="avatarUploadTriggerArea">
+                        {% if current_user.avatar_updated_at %}
+                        <img src="{{ url_for('auth.account_avatar') }}?t={{ current_user.avatar_updated_at.timestamp() | int }}"
+                             alt="" class="inner-popover-avatar-preview">
+                        {% else %}
+                        <span class="avatar-initials-fallback inner-popover-avatar-preview">{{ current_user.username[:2] | upper }}</span>
+                        {% endif %}
+                        <span class="avatar-upload-overlay">Upload</span>
+                    </div>
+                    <input type="file" id="silentAvatarFileEl" accept="image/jpeg,image/png,image/webp,image/gif" class="account-menu-hidden">
+                    <div class="account-menu-greeting">Hi, {{ current_user.username }}</div>
+                    {% if current_user.email %}
+                    <div class="account-menu-email">{{ current_user.email }}</div>
+                    {% endif %}
+                </div>
+                <div class="campaign-metrics-row-display">
+                    <div style="flex:1"><span class="metric-label">GM</span><strong>{{ account_menu_config.gm_count }}</strong></div>
+                    <div class="campaign-metrics-divider"></div>
+                    <div style="flex:1"><span class="metric-label">Player</span><strong>{{ account_menu_config.player_count }}</strong></div>
+                </div>
+                <a href="{{ account_menu_config.campaigns_url }}" class="account-menu-nav-link">Switch campaigns <span>&rarr;</span></a>
+                {% if not account_menu_config.is_vault_keeper %}
+                <div class="feedback-subtriage-routing-group">
+                    <span class="feedback-group-label">Help &amp; feedback</span>
+                    <button type="button" class="sub-frame-trigger-btn" data-target-frame="bug_report">Bug Report <span>&rsaquo;</span></button>
+                    <button type="button" class="sub-frame-trigger-btn" data-target-frame="feedback">Feedback <span>&rsaquo;</span></button>
+                    <button type="button" class="sub-frame-trigger-btn" data-target-frame="suggestion">Suggestions <span>&rsaquo;</span></button>
+                </div>
+                {% endif %}
+                <a href="{{ account_menu_config.logout_url }}" class="account-menu-btn menu-btn-danger-outline account-menu-full-width">Sign out</a>
+            </div>
+            <div class="popover-frame account-menu-hidden" data-frame-id="bug_report">
+                <div class="sub-frame-header-nav">
+                    <button type="button" class="back-to-main-popover-btn" aria-label="Back">&lsaquo; Back</button>
+                    <div class="sub-frame-title-label">Report a Bug</div>
+                </div>
+                <p class="account-menu-submitted-as">Submitting as: {{ account_menu_config.submitted_as }}</p>
+                <form class="popover-nested-submission-form-element" data-submission-kind="bug_report">
+                    <div class="form-input-field-block"><label class="field-label-text">Category *</label><select class="account-menu-select" name="category" required></select></div>
+                    <div class="form-input-field-block"><label class="field-label-text">Title *</label><input type="text" class="account-menu-input-el" name="title" maxlength="120" required></div>
+                    <div class="form-input-field-block"><label class="field-label-text">What happened? *</label><textarea class="account-menu-textarea-el" name="what_happened" rows="3" maxlength="4000" required></textarea></div>
+                    <div class="form-input-field-block"><label class="field-label-text">Steps to reproduce</label><textarea class="account-menu-textarea-el" name="steps_to_reproduce" rows="2" maxlength="4000"></textarea></div>
+                    <div class="form-input-field-block"><label class="field-label-text">Expected behavior</label><textarea class="account-menu-textarea-el" name="expected_behavior" rows="2" maxlength="2000"></textarea></div>
+                    <div class="form-input-field-block"><label class="field-label-text">Severity *</label>
+                        <select class="account-menu-select" name="severity" required>
+                            <option value="Minor">Minor</option><option value="Cosmetic">Cosmetic</option>
+                            <option value="Major">Major</option><option value="Blocker">Blocker</option>
+                        </select></div>
+                    <button type="submit" class="account-menu-btn menu-btn-primary account-menu-full-width submit-popover-form-action-btn">Submit Report</button>
+                </form>
+            </div>
+            <div class="popover-frame account-menu-hidden" data-frame-id="feedback">
+                <div class="sub-frame-header-nav">
+                    <button type="button" class="back-to-main-popover-btn" aria-label="Back">&lsaquo; Back</button>
+                    <div class="sub-frame-title-label">Share Feedback</div>
+                </div>
+                <p class="account-menu-submitted-as">Submitting as: {{ account_menu_config.submitted_as }}</p>
+                <form class="popover-nested-submission-form-element" data-submission-kind="feedback">
+                    <div class="form-input-field-block"><label class="field-label-text">Category *</label><select class="account-menu-select" name="category" required></select></div>
+                    <div class="form-input-field-block"><label class="field-label-text">Overall rating</label>
+                        <select class="account-menu-select" name="rating">
+                            <option value="">Optional</option>
+                            <option value="5">5</option><option value="4">4</option><option value="3">3</option>
+                            <option value="2">2</option><option value="1">1</option>
+                        </select></div>
+                    <div class="form-input-field-block"><label class="field-label-text">What were you trying to do? *</label><textarea class="account-menu-textarea-el" name="trying_to_do" rows="3" maxlength="2000" required></textarea></div>
+                    <div class="form-input-field-block"><label class="field-label-text">What worked well?</label><textarea class="account-menu-textarea-el" name="worked_well" rows="2" maxlength="2000"></textarea></div>
+                    <div class="form-input-field-block"><label class="field-label-text">What was frustrating?</label><textarea class="account-menu-textarea-el" name="frustrating" rows="2" maxlength="2000"></textarea></div>
+                    <button type="submit" class="account-menu-btn menu-btn-primary account-menu-full-width submit-popover-form-action-btn">Submit Feedback</button>
+                </form>
+            </div>
+            <div class="popover-frame account-menu-hidden" data-frame-id="suggestion">
+                <div class="sub-frame-header-nav">
+                    <button type="button" class="back-to-main-popover-btn" aria-label="Back">&lsaquo; Back</button>
+                    <div class="sub-frame-title-label">New Suggestion</div>
+                </div>
+                <p class="account-menu-submitted-as">Submitting as: {{ account_menu_config.submitted_as }}</p>
+                <form class="popover-nested-submission-form-element" data-submission-kind="suggestion">
+                    <div class="form-input-field-block"><label class="field-label-text">Category *</label><select class="account-menu-select" name="category" required></select></div>
+                    <div class="form-input-field-block"><label class="field-label-text">Title *</label><input type="text" class="account-menu-input-el" name="title" maxlength="120" required></div>
+                    <div class="form-input-field-block"><label class="field-label-text">Description *</label><textarea class="account-menu-textarea-el" name="description" rows="4" maxlength="4000" required></textarea></div>
+                    <div class="form-input-field-block"><label class="field-label-text">How often would you use this?</label>
+                        <select class="account-menu-select" name="frequency">
+                            <option value="">Optional</option>
+                            <option value="Once">Once</option><option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option><option value="Constantly">Constantly</option>
+                        </select></div>
+                    <label class="account-menu-checkbox-row"><input type="checkbox" name="beta_test" value="true"> Willing to beta test</label>
+                    <button type="submit" class="account-menu-btn menu-btn-primary account-menu-full-width submit-popover-form-action-btn">Submit Suggestion</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
