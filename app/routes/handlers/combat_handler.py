@@ -31,6 +31,11 @@ from app.services.combat import (
 )
 from app.services.combat.battle_map_service import BattleMapValidationError
 from app.services.combat import battle_map_service
+from app.services.combat.monster_catalog_service import (
+    MonsterCatalogError,
+    ensure_srd_monsters_for_campaign,
+    seed_srd_monsters_if_dnd5e,
+)
 from app.services.player_resolution import all_player_ids_for_user
 from app.services.rulesets import get_ruleset
 
@@ -614,6 +619,25 @@ def action(encounter_id):
                 combatant,
                 role=role,
             )
+        elif action_type == "disengage":
+            combatant = _actor_combatant(encounter, data, role, player_ids)
+            result = encounter_service.disengage_action(encounter, combatant)
+        elif action_type == "legendary_action":
+            if role != "gm":
+                raise CombatValidationError("Legendary actions are GM-only.")
+            actor = encounter_service.combatant_in_encounter(
+                encounter, data.get("actor_id")
+            )
+            if actor is None:
+                raise CombatValidationError("Combatant not found in this encounter.")
+            result = encounter_service.legendary_action(
+                encounter,
+                actor,
+                data.get("action_key"),
+                data.get("target_id"),
+                rng,
+                roll_mode=data.get("roll_mode", "normal"),
+            )
         else:
             raise CombatValidationError("Unknown action type.")
         db.session.commit()
@@ -713,6 +737,15 @@ def list_monsters():
     campaign, err = _gm_dnd5e_campaign_for_json()
     if err:
         return err
+    try:
+        seed_srd_monsters_if_dnd5e(campaign.id, campaign.system_type)
+        db.session.commit()
+    except MonsterCatalogError as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        return _error_response(exc)
     return jsonify(
         {
             "monsters": [
@@ -802,6 +835,31 @@ def generate_monster():
     return jsonify(
         {"success": True, "monster": monster_compendium_service.serialize_entry(entry)}
     ), 201
+
+
+@login_required
+def seed_srd_monsters():
+    campaign, err = _gm_dnd5e_campaign_for_json()
+    if err:
+        return err
+    try:
+        counts = ensure_srd_monsters_for_campaign(campaign.id)
+        db.session.commit()
+    except MonsterCatalogError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return _error_response(exc)
+    return jsonify(
+        {
+            "success": True,
+            "counts": counts,
+            "message": (
+                f"Imported SRD monsters: {counts['inserted']} new, "
+                f"{counts['updated']} updated, {counts['skipped']} skipped "
+                "(GM edits preserved)."
+            ),
+        }
+    )
 
 
 # --- Battle maps -------------------------------------------------------------

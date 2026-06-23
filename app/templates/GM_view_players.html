@@ -158,7 +158,7 @@
                         <tr>
                             <td>
                                 {% if player.is_npc %}<span class="tag tag-npc">NPC</span>{% endif %}
-                                {{ player.user.username if player.user else ('NPC' if player.is_npc else 'Unknown') }}
+                                {{ entry.player_label if entry.player_label is defined else (player.user.username if player.user else ('NPC' if player.is_npc else 'Unknown')) }}
                             </td>
                             <td>{{ player.currency }}</td>
                             <td>

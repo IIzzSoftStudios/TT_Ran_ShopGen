@@ -14,5 +14,9 @@
     </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     <script defer src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    {% if gm_panel_embed %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_embed.css') }}">
+    <script defer src="{{ url_for('static', filename='js/gm_embed.js') }}"></script>
+    {% endif %}
     {% include 'partials/account_menu_chrome.html' %}
 

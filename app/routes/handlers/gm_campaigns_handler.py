@@ -3,9 +3,7 @@
 import hashlib
 import json
 import logging
-import sys
 import time
-import traceback
 from datetime import datetime
 
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
@@ -31,6 +29,7 @@ from app.models import (
     DeletedCampaignSimSnapshot,
     ExpansionInterest,
     GMWorldState,
+    MapCanvas,
     PriceHistory,
     RegionalMarket,
     ResourceTransform,
@@ -48,6 +47,7 @@ from app.services.billing_rules import (
 )
 from app.services import gm_maps as gm_maps_service
 from app.services import species_compendium_service
+from app.services.combat.monster_catalog_service import seed_srd_monsters_if_dnd5e
 from app.services.world_generator import (
     defaults as wg_defaults,
     generator as wg_generator,
@@ -55,6 +55,7 @@ from app.services.world_generator import (
 )
 from app.services.world_generator.generator import GenerationTimeoutError
 from app.services.world_generator.validator import ValidationError
+from app.services import world_setup_state as setup_state
 from app.services.user_capabilities import has_gm_capability
 from app.services.join_codes import (
     reveal_campaign_code_for_gm,
@@ -483,18 +484,27 @@ _SETTING_HINTS = {
 }
 
 
-def _build_defaults_payload(form_override=None):
-    """Assemble the template context for `GM_generate_world.html`.
-
-    `form_override` (optional) is used when re-rendering after a
-    validation failure so the GM's previous entries are preserved.
-    """
+def _build_defaults_payload(form_override=None, *, wizard_step="identity"):
+    """Assemble template context for world-setup wizard steps."""
     override = form_override or {}
 
+    range_keys = list(wg_defaults.RANGE_SETTINGS.keys())
+    if wizard_step == "identity":
+        range_keys = []
+    elif wizard_step == "map":
+        range_keys = list(setup_state.MAP_VISUAL_RANGE_KEYS)
+    elif wizard_step == "economy":
+        range_keys = list(setup_state.ECONOMY_RANGE_KEYS)
+
     ranges = {}
-    for key, (floor, ceiling, d_min, d_max) in wg_defaults.RANGE_SETTINGS.items():
+    for key in range_keys:
+        floor, ceiling, d_min, d_max = wg_defaults.RANGE_SETTINGS[key]
         lo = override.get(f"{key}_min", d_min)
         hi = override.get(f"{key}_max", d_max)
+        stored = (override.get("ranges") or {}).get(key)
+        if stored:
+            lo = stored.get("min", lo)
+            hi = stored.get("max", hi)
         try:
             lo_i = int(lo)
             hi_i = int(hi)
@@ -527,6 +537,7 @@ def _build_defaults_payload(form_override=None):
         "max_shops_per_city": catalog.max_shops_per_city(),
         "defaults_json": defaults_json,
         "default_species_distribution": wg_defaults.DEFAULT_SPECIES_DISTRIBUTION,
+        "wizard_step": wizard_step,
         "form_values": {
             "campaign_name": override.get("campaign_name", ""),
             "system_type": override.get("system_type", "dnd5e"),
@@ -534,96 +545,104 @@ def _build_defaults_payload(form_override=None):
             "inventory_mode": override.get("inventory_mode", "axis"),
         },
     }
+    campaign = override.get("_campaign")
+    if campaign is not None:
+        ctx["campaign"] = campaign
+        ctx["form_values"]["campaign_name"] = campaign.name
+        ctx["form_values"]["system_type"] = campaign.system_type
     gm_profile = override.get("_gm_profile")
     if gm_profile is not None:
         ctx.update(_campaign_limit_context(gm_profile))
     return ctx
 
 
-@login_required
-def generate_world_form():
-    """GET handler for `/gm/generate_world`.
-
-    Only GMs may render this page. Anyone else is redirected to the
-    main campaign selection screen.
-    """
+def _require_gm_profile():
     if not has_gm_capability(current_user):
         flash("Only GMs can create campaigns.", "error")
-        return redirect(url_for("main.campaigns"))
-
+        return None, redirect(url_for("main.campaigns")), 403
     gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
     if not gm_profile:
         flash("GM profile not found.", "error")
-        return redirect(url_for("main.campaigns"))
-
-    ctx = _build_defaults_payload({"_gm_profile": gm_profile})
-    return render_template("GM_generate_world.html", **ctx)
+        return None, redirect(url_for("main.campaigns")), 403
+    return gm_profile, None, None
 
 
-# ---------------------------------------------------------------------------
-# World generation submit (POST)
-# ---------------------------------------------------------------------------
-def _flash_and_reshow(form, category, message, gm_profile=None):
+def _campaign_for_setup_step(gm_profile, required_stage: str):
+    """Load session campaign and verify it is at the expected setup stage."""
+    cid = session.get("campaign_id")
+    if not cid:
+        flash("Select a campaign to continue world setup.", "warning")
+        return None, None, redirect(url_for("gm.generate_world_form"))
+    campaign = Campaign.query.filter_by(id=cid, gm_profile_id=gm_profile.id).first()
+    if campaign is None:
+        flash("That campaign no longer exists.", "danger")
+        return None, None, redirect(url_for("main.campaigns"))
+    config = setup_state.get_world_config(campaign.id)
+    if config is None:
+        flash("World setup state not found for this campaign.", "error")
+        return None, None, redirect(url_for("gm.generate_world_form"))
+    settings = dict(config.settings_json or {})
+    if not setup_state.is_pending_setup(settings):
+        return campaign, config, redirect(url_for("gm.home"), code=303)
+    stage = setup_state.setup_stage(settings)
+    if stage != required_stage:
+        resume = setup_state.redirect_for_setup_stage(settings)
+        if resume is not None:
+            return campaign, config, resume
+    return campaign, config, None
+
+
+def _flash_and_reshow_identity(form, category, message, gm_profile=None):
     flash(message, category)
     to_dict = getattr(form, "to_dict", None)
     form_ctx = to_dict(flat=True) if callable(to_dict) else dict(form or {})
     if gm_profile is not None:
         form_ctx["_gm_profile"] = gm_profile
-    ctx = _build_defaults_payload(form_ctx)
+    ctx = _build_defaults_payload(form_ctx, wizard_step="identity")
+    return render_template("GM_generate_world.html", **ctx)
+
+
+def _flash_and_reshow_economy(form, category, message, gm_profile, campaign):
+    flash(message, category)
+    to_dict = getattr(form, "to_dict", None)
+    form_ctx = to_dict(flat=True) if callable(to_dict) else dict(form or {})
+    config = setup_state.get_world_config(campaign.id)
+    if config and config.settings_json:
+        form_ctx["ranges"] = config.settings_json.get("ranges")
+        form_ctx["campaign_name"] = campaign.name
+        form_ctx["system_type"] = campaign.system_type
+    form_ctx["_gm_profile"] = gm_profile
+    form_ctx["_campaign"] = campaign
+    ctx = _build_defaults_payload(form_ctx, wizard_step="economy")
+    return render_template("GM_generate_world_economy.html", **ctx)
+
+
+@login_required
+def generate_world_form():
+    """GET step 1 — identity (world name + system)."""
+    gm_profile, redirect_response, status = _require_gm_profile()
+    if redirect_response is not None:
+        return redirect_response, status
+
+    ctx = _build_defaults_payload({"_gm_profile": gm_profile}, wizard_step="identity")
     return render_template("GM_generate_world.html", **ctx)
 
 
 @login_required
-def generate_world_submit():
-    """POST handler for `/gm/generate_world`.
-
-    Pipeline:
-      1. Role + GM profile re-check.
-      2. Validate form -> normalized settings dict.
-      3. Billing: can_create_campaign.
-      4. Open transaction -> create Campaign + CampaignWorldConfig ->
-         generator.generate() -> commit.
-      5. Redirect to GM dashboard (`gm.home`) with session campaign set.
-
-    All failures roll back and re-render the form with a flash message.
-    """
-    if not has_gm_capability(current_user):
-        flash("Only GMs can create campaigns.", "error")
-        return redirect(url_for("main.campaigns")), 403
-
-    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
-    if not gm_profile:
-        flash("GM profile not found.", "error")
-        return redirect(url_for("main.campaigns")), 403
+def generate_world_start():
+    """POST step 1 — create draft campaign + world canvas, redirect to map builder."""
+    gm_profile, redirect_response, status = _require_gm_profile()
+    if redirect_response is not None:
+        return redirect_response, status
 
     form = request.form
-    log.info(
-        "world_generation_post_received user_id=%s gm_profile_id=%s",
-        current_user.id,
-        gm_profile.id,
-    )
-    print(
-        f"[Econo-Forge] world_generation POST started user_id={current_user.id} "
-        f"gm_profile_id={gm_profile.id} (this line means the server is handling your click)",
-        file=sys.stderr,
-        flush=True,
-    )
-
-    # -- Step 1: Validate --------------------------------------------------
     try:
-        settings = wg_validator.validate(form)
+        identity = wg_validator.validate_identity(form)
     except ValidationError as exc:
-        return (
-            _flash_and_reshow(
-                form, "error", f"{exc.field}: {exc.message}", gm_profile
-            ),
-            400,
-        )
+        return _flash_and_reshow_identity(form, "error", f"{exc.field}: {exc.message}", gm_profile), 400
 
-    # -- Step 2: Transactional world build --------------------------------
-    campaign_name = settings["campaign_name"]
-    system_type = settings["system_type"]
-    started_at = time.monotonic()
+    campaign_name = identity["campaign_name"]
+    system_type = identity["system_type"]
 
     try:
         with db.session.no_autoflush:
@@ -635,74 +654,208 @@ def generate_world_submit():
                 is_active=True,
             )
             db.session.add(campaign)
-            db.session.flush()  # assign campaign.id
-
-            config = CampaignWorldConfig(
-                campaign_id=campaign.id,
-                settings_json=settings,
-                schema_version=settings.get("schema_version", 1),
-                world_seed=settings.get("world_seed"),
-            )
-            db.session.add(config)
             db.session.flush()
 
+            draft_settings = setup_state.build_draft_settings(campaign_name, system_type)
+            config = CampaignWorldConfig(
+                campaign_id=campaign.id,
+                settings_json=draft_settings,
+                schema_version=draft_settings.get("schema_version", 1),
+                world_seed=None,
+            )
+            db.session.add(config)
+            gm_maps_service.get_or_create_world_canvas(campaign.id, settings=draft_settings)
+
+        db.session.commit()
+    except CampaignLimitReached as exc:
+        db.session.rollback()
+        flash(exc.message, "system")
+        ctx = _build_defaults_payload(
+            {**form.to_dict(flat=True), "_gm_profile": gm_profile},
+            wizard_step="identity",
+        )
+        return render_template("GM_generate_world.html", **ctx), 402
+    except IntegrityError:
+        db.session.rollback()
+        return _flash_and_reshow_identity(
+            form,
+            "error",
+            "Name conflict detected, please choose a different campaign name.",
+            gm_profile,
+        ), 409
+    except Exception as exc:  # noqa: BLE001
+        db.session.rollback()
+        log.exception("world_setup_start_unexpected_error gm=%s", gm_profile.id)
+        return _flash_and_reshow_identity(
+            form, "error", f"Unexpected error while starting setup: {exc}", gm_profile
+        ), 500
+
+    session["campaign_id"] = campaign.id
+    session["system_type"] = campaign.system_type
+    session["session_mode"] = "gm"
+    session.permanent = True
+    session.modified = True
+
+    return redirect(url_for("gm.generate_world_map"), code=303)
+
+
+@login_required
+def generate_world_map():
+    """GET step 2 — full-screen map builder."""
+    gm_profile, redirect_response, status = _require_gm_profile()
+    if redirect_response is not None:
+        return redirect_response, status
+
+    campaign, config, stage_redirect = _campaign_for_setup_step(
+        gm_profile, setup_state.SETUP_STAGE_MAP
+    )
+    if stage_redirect is not None:
+        return stage_redirect
+
+    settings = dict(config.settings_json or {})
+    ctx = _build_defaults_payload(
+        {
+            "_gm_profile": gm_profile,
+            "_campaign": campaign,
+            "ranges": settings.get("ranges"),
+            "campaign_name": campaign.name,
+            "system_type": campaign.system_type,
+        },
+        wizard_step="map",
+    )
+    return render_template("GM_generate_world_map.html", **ctx)
+
+
+@login_required
+def generate_world_map_continue():
+    """POST step 2 — persist map profile ranges and advance to economy step."""
+    gm_profile, redirect_response, status = _require_gm_profile()
+    if redirect_response is not None:
+        return redirect_response, status
+
+    campaign, config, stage_redirect = _campaign_for_setup_step(
+        gm_profile, setup_state.SETUP_STAGE_MAP
+    )
+    if stage_redirect is not None:
+        return stage_redirect
+
+    form = request.form.to_dict(flat=True)
+    settings = dict(config.settings_json or {})
+    settings = setup_state.merge_map_ranges_from_form(settings, form)
+    settings = setup_state.mark_setup_economy(settings)
+    config.settings_json = settings
+    db.session.commit()
+
+    return redirect(url_for("gm.generate_world_economy_form"), code=303)
+
+
+@login_required
+def generate_world_economy_form():
+    """GET step 3 — economy/species/society settings before generation."""
+    gm_profile, redirect_response, status = _require_gm_profile()
+    if redirect_response is not None:
+        return redirect_response, status
+
+    campaign, config, stage_redirect = _campaign_for_setup_step(
+        gm_profile, setup_state.SETUP_STAGE_ECONOMY
+    )
+    if stage_redirect is not None:
+        return stage_redirect
+
+    settings = dict(config.settings_json or {})
+    ctx = _build_defaults_payload(
+        {
+            "_gm_profile": gm_profile,
+            "_campaign": campaign,
+            "ranges": settings.get("ranges"),
+            "campaign_name": campaign.name,
+            "system_type": campaign.system_type,
+            "world_seed": settings.get("world_seed") or "",
+        },
+        wizard_step="economy",
+    )
+    return render_template("GM_generate_world_economy.html", **ctx)
+
+
+@login_required
+def generate_world_economy_submit():
+    """POST step 3 — run procedural world generation on the existing campaign."""
+    gm_profile, redirect_response, status = _require_gm_profile()
+    if redirect_response is not None:
+        return redirect_response, status
+
+    campaign, config, stage_redirect = _campaign_for_setup_step(
+        gm_profile, setup_state.SETUP_STAGE_ECONOMY
+    )
+    if stage_redirect is not None:
+        return stage_redirect
+
+    form = request.form
+    existing_settings = dict(config.settings_json or {})
+    log.info(
+        "world_generation_post_received user_id=%s gm_profile_id=%s campaign_id=%s",
+        current_user.id,
+        gm_profile.id,
+        campaign.id,
+    )
+
+    try:
+        settings = wg_validator.validate_economy(form, existing_settings)
+    except ValidationError as exc:
+        return (
+            _flash_and_reshow_economy(
+                form, "error", f"{exc.field}: {exc.message}", gm_profile, campaign
+            ),
+            400,
+        )
+
+    settings = setup_state.mark_setup_complete(settings)
+    campaign_name = settings["campaign_name"]
+    started_at = time.monotonic()
+
+    try:
+        with db.session.no_autoflush:
             result = wg_generator.generate(
                 campaign_id=campaign.id,
                 settings=settings,
             )
 
-            # Persist resolved seed back onto the config row.
             config.world_seed = result.effective_seed
-            # Update settings_json with the resolved seed so round-trips reflect it.
             settings["world_seed"] = result.effective_seed
             config.settings_json = settings
 
-            # Map metadata is generated with the campaign; uploads can replace
-            # it later from the dashboard Map tab.
-            gm_maps_service.get_or_create_world_canvas(
-                campaign.id, seed=result.effective_seed, settings=settings
-            )
+            existing_canvas = MapCanvas.query.filter_by(
+                campaign_id=campaign.id, scope="world"
+            ).first()
+            if existing_canvas is None:
+                gm_maps_service.get_or_create_world_canvas(
+                    campaign.id, seed=result.effective_seed, settings=settings
+                )
+
+            seed_srd_monsters_if_dnd5e(campaign.id, campaign.system_type)
 
         db.session.commit()
 
-    except CampaignLimitReached as exc:
-        db.session.rollback()
-        log.info(
-            "world_generation_billing_denied gm_profile_id=%s reason=%s",
-            gm_profile.id,
-            exc.message[:200] if exc.message else "",
-        )
-        print(
-            "[Econo-Forge] world_generation blocked (HTTP 402): "
-            + (exc.message or "billing"),
-            file=sys.stderr,
-            flush=True,
-        )
-        flash(exc.message, "system")
-        ctx = _build_defaults_payload({**form.to_dict(flat=True), "_gm_profile": gm_profile})
-        return render_template("GM_generate_world.html", **ctx), 402
     except ValidationError as exc:
         db.session.rollback()
         return (
-            _flash_and_reshow(
-                form, "error", f"{exc.field}: {exc.message}", gm_profile
+            _flash_and_reshow_economy(
+                form, "error", f"{exc.field}: {exc.message}", gm_profile, campaign
             ),
             400,
         )
     except GenerationTimeoutError as exc:
         db.session.rollback()
         log.warning("world_generation_timeout gm=%s err=%s", gm_profile.id, exc)
-        return _flash_and_reshow(
+        return _flash_and_reshow_economy(
             form,
             "error",
             "Generation timed out. Try a smaller world (reduce cities, shops, or items).",
             gm_profile,
+            campaign,
         ), 503
     except IntegrityError as exc:
         db.session.rollback()
-        # psycopg2 attaches diagnostic data to exc.orig.diag — surfacing the
-        # constraint name + table makes future "name conflict" reports
-        # actionable without needing a debugger.
         diag = getattr(getattr(exc, "orig", None), "diag", None)
         constraint_name = getattr(diag, "constraint_name", None) if diag else None
         table_name = getattr(diag, "table_name", None) if diag else None
@@ -715,29 +868,27 @@ def generate_world_submit():
             constraint_name,
             exc,
         )
-        return _flash_and_reshow(
+        return _flash_and_reshow_economy(
             form,
             "error",
             "Name conflict detected, please retry with a different seed or name.",
             gm_profile,
+            campaign,
         ), 409
     except OperationalError as exc:
         db.session.rollback()
         log.error("world_generation_operational_error gm=%s err=%s", gm_profile.id, exc)
-        return _flash_and_reshow(
-            form, "error", "Database temporarily unavailable. Please try again.", gm_profile
+        return _flash_and_reshow_economy(
+            form, "error", "Database temporarily unavailable. Please try again.", gm_profile, campaign
         ), 503
     except Exception as exc:  # noqa: BLE001
         db.session.rollback()
         log.exception("world_generation_unexpected_error gm=%s", gm_profile.id)
-        _ = traceback.format_exc()
-        return _flash_and_reshow(
-            form, "error", f"Unexpected error during world generation: {exc}", gm_profile
+        return _flash_and_reshow_economy(
+            form, "error", f"Unexpected error during world generation: {exc}", gm_profile, campaign
         ), 500
 
     elapsed = time.monotonic() - started_at
-
-    # Audit log (no PII).
     settings_digest = hashlib.sha256(
         json.dumps(settings, sort_keys=True, default=str).encode("utf-8")
     ).hexdigest()[:12]
@@ -774,17 +925,16 @@ def generate_world_submit():
     return redirect(url_for("gm.home"), code=303)
 
 
+# Backward-compatible alias for imports/tests
+generate_world_submit = generate_world_economy_submit
+
+
 @login_required
 def skip_world_generation_submit():
     """Create a campaign without running procedural world generation."""
-    if not has_gm_capability(current_user):
-        flash("Only GMs can create campaigns.", "error")
-        return redirect(url_for("main.campaigns")), 403
-
-    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
-    if not gm_profile:
-        flash("GM profile not found.", "error")
-        return redirect(url_for("main.campaigns")), 403
+    gm_profile, redirect_response, status = _require_gm_profile()
+    if redirect_response is not None:
+        return redirect_response, status
 
     form = request.form.to_dict(flat=True)
     campaign_name = (form.get("campaign_name") or "").strip()
@@ -792,13 +942,13 @@ def skip_world_generation_submit():
 
     if not campaign_name:
         return (
-            _flash_and_reshow(
+            _flash_and_reshow_identity(
                 form, "error", "campaign_name: is required", gm_profile
             ),
             400,
         )
     if len(campaign_name) > 120:
-        return _flash_and_reshow(
+        return _flash_and_reshow_identity(
             form,
             "error",
             "campaign_name: must be 120 characters or fewer",
@@ -806,7 +956,7 @@ def skip_world_generation_submit():
         ), 400
     if system_type not in wg_defaults.SYSTEM_TYPES:
         return (
-            _flash_and_reshow(form, "error", "system_type: is invalid", gm_profile),
+            _flash_and_reshow_identity(form, "error", "system_type: is invalid", gm_profile),
             400,
         )
 
@@ -821,41 +971,43 @@ def skip_world_generation_submit():
         db.session.add(campaign)
         db.session.flush()
 
-        # Keep a config row so downstream tooling can detect this was intentionally skipped.
+        skipped_settings = {
+            "generation_skipped": True,
+            "campaign_name": campaign_name,
+            "system_type": system_type,
+            "schema_version": wg_defaults.SCHEMA_VERSION,
+            "setup_stage": setup_state.SETUP_STAGE_COMPLETE,
+            "pending_generation": False,
+            "ranges": setup_state.default_draft_ranges(),
+            "species_distribution": [
+                {"name": name, "percent": percent, "source": "default"}
+                for name, percent in wg_defaults.DEFAULT_SPECIES_DISTRIBUTION
+            ],
+        }
         config = CampaignWorldConfig(
             campaign_id=campaign.id,
-            settings_json={
-                "generation_skipped": True,
-                "campaign_name": campaign_name,
-                "system_type": system_type,
-                "schema_version": wg_defaults.SCHEMA_VERSION,
-                "ranges": {
-                    key: {"min": d_min, "max": d_max}
-                    for key, (_floor, _ceiling, d_min, d_max) in wg_defaults.RANGE_SETTINGS.items()
-                },
-                "species_distribution": [
-                    {"name": name, "percent": percent, "source": "default"}
-                    for name, percent in wg_defaults.DEFAULT_SPECIES_DISTRIBUTION
-                ],
-            },
+            settings_json=skipped_settings,
             schema_version=wg_defaults.SCHEMA_VERSION,
             world_seed=None,
         )
         db.session.add(config)
 
-        # A skipped world still gets a world canvas so the GM can upload or
-        # edit a map from the dashboard right away.
         gm_maps_service.get_or_create_world_canvas(campaign.id)
+
+        seed_srd_monsters_if_dnd5e(campaign.id, system_type)
 
         db.session.commit()
     except CampaignLimitReached as exc:
         db.session.rollback()
         flash(exc.message, "system")
-        ctx = _build_defaults_payload({**form, "_gm_profile": gm_profile})
+        ctx = _build_defaults_payload(
+            {**form, "_gm_profile": gm_profile},
+            wizard_step="identity",
+        )
         return render_template("GM_generate_world.html", **ctx), 402
     except IntegrityError:
         db.session.rollback()
-        return _flash_and_reshow(
+        return _flash_and_reshow_identity(
             form,
             "error",
             "Name conflict detected, please choose a different campaign name.",
@@ -864,7 +1016,7 @@ def skip_world_generation_submit():
     except Exception as exc:  # noqa: BLE001
         db.session.rollback()
         log.exception("skip_world_generation_unexpected_error gm=%s", gm_profile.id)
-        return _flash_and_reshow(
+        return _flash_and_reshow_identity(
             form, "error", f"Unexpected error while skipping generation: {exc}", gm_profile
         ), 500
 

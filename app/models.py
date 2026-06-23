@@ -37,6 +37,12 @@ class City(db.Model):
     region_id = db.Column(
         db.Integer, db.ForeignKey("region.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    owner_player_id = db.Column(
+        db.Integer,
+        db.ForeignKey("player.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     campaign_id = db.Column(
         db.Integer,
         db.ForeignKey("campaign.id", ondelete="CASCADE"),
@@ -46,6 +52,11 @@ class City(db.Model):
 
     # Many-to-Many relationship with Shop
     shops = db.relationship("Shop", secondary=shop_cities, back_populates="cities")
+    owner = db.relationship(
+        "Player",
+        foreign_keys=[owner_player_id],
+        backref=db.backref("owned_cities", lazy="dynamic"),
+    )
     # One-to-Many relationship with RegionalMarket
     regional_market = db.relationship("RegionalMarket", back_populates="city")
     region_obj = db.relationship("Region", backref=db.backref("cities", lazy="dynamic"))
@@ -76,6 +87,14 @@ class Region(db.Model):
         index=True,
     )
     local_flavor = db.Column(_json_with_jsonb(), nullable=True)
+    main_color = db.Column(db.String(7), nullable=True)
+    secondary_color = db.Column(db.String(7), nullable=True)
+    ruler_player_id = db.Column(
+        db.Integer,
+        db.ForeignKey("player.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at = db.Column(db.DateTime, server_default=func.now(), nullable=False)
 
     campaign = db.relationship(
@@ -83,6 +102,11 @@ class Region(db.Model):
         backref=db.backref(
             "regions", cascade="all, delete-orphan", passive_deletes=True
         ),
+    )
+    ruler = db.relationship(
+        "Player",
+        foreign_keys=[ruler_player_id],
+        backref=db.backref("ruled_regions", lazy="dynamic"),
     )
 
     def __repr__(self):
@@ -101,9 +125,20 @@ class Shop(db.Model):
     )
     preferred_region = db.Column(db.String(100), nullable=True)  # Preferred region for sourcing
     next_restock_day = db.Column(db.Integer, nullable=True)
+    owner_player_id = db.Column(
+        db.Integer,
+        db.ForeignKey("player.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # Many-to-Many relationship with City
     cities = db.relationship("City", secondary=shop_cities, back_populates="shops")
+    owner = db.relationship(
+        "Player",
+        foreign_keys=[owner_player_id],
+        backref=db.backref("owned_shops", lazy="dynamic"),
+    )
     # Many-to-Many relationship with Item through ShopInventory
     inventory = db.relationship("ShopInventory", back_populates="shop")
 
@@ -715,6 +750,8 @@ class Player(db.Model):
     )
     currency = db.Column(db.Integer, default=0)
     is_npc = db.Column(db.Boolean, default=False, nullable=False)
+    gm_notes = db.Column(db.Text, nullable=True)
+    known_to_players = db.Column(db.Boolean, default=False, nullable=False)
     join_code = db.Column(db.String(32), unique=True, nullable=True, index=True)
 
     campaign = db.relationship("Campaign", backref="players")
@@ -809,6 +846,63 @@ class PlayerCharacterSheet(db.Model):
         return (
             f"<PlayerCharacterSheet player={self.player_id} "
             f"campaign={self.campaign_id}>"
+        )
+
+
+class PlayerNpcNote(db.Model):
+    """Personal notes a PC keeps about a known NPC (per viewer character)."""
+
+    __tablename__ = "player_npc_note"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "viewer_player_id",
+            "npc_player_id",
+            name="uq_player_npc_note_viewer_npc",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    viewer_player_id = db.Column(
+        db.Integer,
+        db.ForeignKey("player.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    npc_player_id = db.Column(
+        db.Integer,
+        db.ForeignKey("player.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    notes = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    viewer = db.relationship(
+        "Player",
+        foreign_keys=[viewer_player_id],
+        backref=db.backref("npc_notes_written", lazy="dynamic"),
+    )
+    npc = db.relationship(
+        "Player",
+        foreign_keys=[npc_player_id],
+        backref=db.backref("npc_notes_about", lazy="dynamic"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<PlayerNpcNote viewer={self.viewer_player_id} "
+            f"npc={self.npc_player_id}>"
         )
 
 
@@ -990,12 +1084,13 @@ class CampaignWorldConfig(db.Model):
 
 
 class MapCanvas(db.Model):
-    """Campaign-scoped map background: either the world map or one city map.
+    """Campaign-scoped map background: world, city, or shop interior.
 
     GM presentation/editor state only -- never read or written by the
-    simulation tick path. `scope` is ``world`` (city_id NULL) or ``city``
-    (city_id set). `source_type` is ``generated`` (procedural metadata in
-    `generation_json`) or ``uploaded`` (web-safe image at `image_path`).
+    simulation tick path. `scope` is ``world`` (city_id NULL), ``city``
+    (city_id set), or ``shop`` (shop_id set). `source_type` is ``generated``
+    (procedural metadata in `generation_json`) or ``uploaded`` (web-safe
+    image at `image_path`).
     """
 
     __tablename__ = "map_canvas"
@@ -1011,6 +1106,7 @@ class MapCanvas(db.Model):
         # One canvas per city. NULL city_id (world rows) are distinct, so
         # this never collides with world canvases.
         UniqueConstraint("campaign_id", "city_id", name="uq_map_canvas_city"),
+        UniqueConstraint("campaign_id", "shop_id", name="uq_map_canvas_shop"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -1026,9 +1122,16 @@ class MapCanvas(db.Model):
         nullable=True,
         index=True,
     )
+    shop_id = db.Column(
+        db.Integer,
+        db.ForeignKey("shops.shop_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     scope = db.Column(db.String(10), nullable=False, default="world")
     source_type = db.Column(db.String(20), nullable=False, default="generated")
     image_path = db.Column(db.String(255), nullable=True)
+    underlay_path = db.Column(db.String(255), nullable=True)
     generation_json = db.Column(_json_with_jsonb(), nullable=True)
     width = db.Column(db.Integer, nullable=False, default=1024)
     height = db.Column(db.Integer, nullable=False, default=1024)
@@ -1049,9 +1152,18 @@ class MapCanvas(db.Model):
             "map_canvases", cascade="all, delete-orphan", passive_deletes=True
         ),
     )
+    shop = db.relationship(
+        "Shop",
+        backref=db.backref(
+            "map_canvases", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
 
     def __repr__(self):
-        return f"<MapCanvas campaign={self.campaign_id} scope={self.scope} city={self.city_id}>"
+        return (
+            f"<MapCanvas campaign={self.campaign_id} scope={self.scope} "
+            f"city={self.city_id} shop={self.shop_id}>"
+        )
 
 
 class MapMarker(db.Model):
@@ -1232,6 +1344,7 @@ class MonsterCompendiumEntry(db.Model):
     )
     name = db.Column(db.String(120), nullable=False)
     source = db.Column(db.String(16), nullable=False, default="custom")
+    origin_srd_key = db.Column(db.String(80), nullable=True, index=True)
     generation_seed = db.Column(db.String(64), nullable=True)
     challenge_rating = db.Column(db.Float, nullable=True)
     stat_json = db.Column(_json_with_jsonb(), nullable=False, default=dict)

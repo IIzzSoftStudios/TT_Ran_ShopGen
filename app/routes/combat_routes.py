@@ -204,3 +204,9 @@ def combat_monsters_delete(entry_id):
 @login_required
 def combat_monsters_generate():
     return combat_handler.generate_monster()
+
+
+@combat_bp.route("/monsters/srd/seed", methods=["POST"])
+@login_required
+def combat_monsters_seed_srd():
+    return combat_handler.seed_srd_monsters()

@@ -8,6 +8,7 @@ campaigns.
 from __future__ import annotations
 
 from random import Random
+from typing import Any
 
 from app.extensions import db
 from app.models import MonsterCompendiumEntry
@@ -15,7 +16,7 @@ from app.services.combat import CombatValidationError
 from app.services.combat import dnd5e_rules, monster_generator
 
 _MAX_NAME_LEN = 120
-_ALLOWED_SOURCES = ("custom", "generated")
+_ALLOWED_SOURCES = ("custom", "generated", "srd_5_1")
 
 
 def list_entries(campaign_id: int) -> list[MonsterCompendiumEntry]:
@@ -160,12 +161,44 @@ def _validated_stats(stat_json) -> dict:
             }
         )
     stats["legendary_actions"] = clean_legendary
+    stats["trait_keys"] = _clean_monster_trait_keys(stats.get("trait_keys"))
+    for text_key, max_len in (
+        ("size", 20),
+        ("creature_type", 30),
+        ("senses", 200),
+        ("skills", 200),
+        ("saving_throws", 120),
+        ("damage_resistances", 120),
+        ("damage_immunities", 120),
+        ("damage_vulnerabilities", 120),
+        ("condition_immunities", 120),
+    ):
+        if text_key in stats and stats[text_key] is not None:
+            stats[text_key] = str(stats[text_key] or "")[:max_len]
     return stats
 
 
-def create_entry(campaign_id: int, name, stat_json, challenge_rating=None,
-                 source: str = "custom", generation_seed: str | None = None
-                 ) -> MonsterCompendiumEntry:
+def _clean_monster_trait_keys(raw: Any) -> list[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        keys = [part.strip().lower() for part in raw.split(",") if part.strip()]
+    elif isinstance(raw, list):
+        keys = [str(part or "").strip().lower() for part in raw if str(part or "").strip()]
+    else:
+        raise CombatValidationError("trait_keys must be a list or comma-separated string.")
+    return keys[:24]
+
+
+def create_entry(
+    campaign_id: int,
+    name,
+    stat_json,
+    challenge_rating=None,
+    source: str = "custom",
+    generation_seed: str | None = None,
+    origin_srd_key: str | None = None,
+) -> MonsterCompendiumEntry:
     name = (str(name or "")).strip()
     if not name:
         raise CombatValidationError("Monster name is required.")
@@ -186,6 +219,7 @@ def create_entry(campaign_id: int, name, stat_json, challenge_rating=None,
         campaign_id=campaign_id,
         name=name,
         source=source,
+        origin_srd_key=(str(origin_srd_key)[:80] if origin_srd_key else None),
         generation_seed=generation_seed,
         challenge_rating=cr,
         stat_json=_validated_stats(stat_json),
@@ -249,6 +283,7 @@ def serialize_entry(entry: MonsterCompendiumEntry) -> dict:
         "id": entry.id,
         "name": entry.name,
         "source": entry.source,
+        "origin_srd_key": entry.origin_srd_key,
         "generation_seed": entry.generation_seed,
         "challenge_rating": entry.challenge_rating,
         "stats": entry.stat_json or {},

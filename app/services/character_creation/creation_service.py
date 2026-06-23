@@ -39,6 +39,8 @@ POINT_BUY_COSTS = {
 }
 POINT_BUY_MIN = 8
 POINT_BUY_MAX = 15
+GM_ABILITY_MIN = 1
+GM_ABILITY_MAX = 999
 
 
 class CreationValidationError(ValueError):
@@ -47,6 +49,20 @@ class CreationValidationError(ValueError):
 
 def _ability_keys() -> tuple[str, ...]:
     return tuple(a.key for a in get_ruleset("dnd5e").abilities)
+
+
+def _clamp_ability_value(value: int, *, uncapped: bool = False) -> int:
+    if uncapped:
+        if value < GM_ABILITY_MIN:
+            return GM_ABILITY_MIN
+        if value > GM_ABILITY_MAX:
+            return GM_ABILITY_MAX
+        return value
+    ruleset = get_ruleset("dnd5e")
+    clamped = ruleset.clamp_ability(value)
+    if clamped is None:
+        raise CreationValidationError("Ability score is out of range.")
+    return clamped
 
 
 def roll_4d6_drop_lowest(rng: Optional[random.Random] = None) -> tuple[list[int], int]:
@@ -100,17 +116,14 @@ def apply_species_modifiers(
     species_entry: dict[str, Any],
     *,
     flex_assignments: Optional[dict[str, int]] = None,
+    uncapped: bool = False,
 ) -> dict[str, int]:
-    ruleset = get_ruleset("dnd5e")
     mods = _species_modifiers(species_entry, flex_assignments)
     final_scores = {}
     for key in _ability_keys():
-        base = int(base_scores.get(key, ruleset.ability_default))
+        base = int(base_scores.get(key, get_ruleset("dnd5e").ability_default))
         score = base + mods.get(key, 0)
-        clamped = ruleset.clamp_ability(score)
-        if clamped is None:
-            raise CreationValidationError(f"Invalid final score for {key.upper()}.")
-        final_scores[key] = clamped
+        final_scores[key] = _clamp_ability_value(score, uncapped=uncapped)
     return final_scores
 
 
@@ -218,9 +231,26 @@ def issue_random_roll(
     }
 
 
-def _parse_base_scores(payload: dict[str, Any], settings: dict[str, Any], draft: Optional[dict]) -> dict[str, int]:
-    method = settings.get("ability_method")
+def _parse_base_scores(
+    payload: dict[str, Any],
+    settings: dict[str, Any],
+    draft: Optional[dict],
+    *,
+    uncapped: bool = False,
+) -> dict[str, int]:
     keys = _ability_keys()
+    if uncapped:
+        raw = payload.get("base_abilities") or payload.get("abilities") or {}
+        if not isinstance(raw, dict):
+            raise CreationValidationError("Ability scores must be an object.")
+        scores = {}
+        for key in keys:
+            try:
+                scores[key] = _clamp_ability_value(int(raw.get(key)), uncapped=True)
+            except (TypeError, ValueError):
+                raise CreationValidationError(f"Missing or invalid score for {key.upper()}.")
+        return scores
+    method = settings.get("ability_method")
     if method == "point_buy":
         raw = payload.get("base_abilities") or payload.get("abilities") or {}
         if not isinstance(raw, dict):
@@ -336,6 +366,7 @@ def build_final_sheet_json(
     catalog: dict[str, Any],
     settings: dict[str, Any],
     roll_draft: Optional[dict[str, Any]] = None,
+    uncapped: bool = False,
 ) -> dict[str, Any]:
     name = str(payload.get("name") or "").strip()[:100] or None
     species_key = str(payload.get("species_key") or "").strip().lower()
@@ -360,11 +391,12 @@ def build_final_sheet_json(
         raise CreationValidationError("Class skill choices must be a list.")
     validated_skills = _validate_class_skills(class_entry, [str(s) for s in chosen_skills])
 
-    base_scores = _parse_base_scores(payload, settings, roll_draft)
+    base_scores = _parse_base_scores(payload, settings, roll_draft, uncapped=uncapped)
     final_abilities = apply_species_modifiers(
         base_scores,
         species_entry,
         flex_assignments=flex_assignments,
+        uncapped=uncapped,
     )
     save_flags, skill_tiers = _merge_proficiencies(
         class_entry, background_entry, validated_skills
@@ -386,10 +418,10 @@ def build_final_sheet_json(
         "class_key": class_key,
         "background_key": background_key,
         "class_skill_choices": validated_skills,
-        "ability_method": settings.get("ability_method"),
+        "ability_method": "gm_set" if uncapped else settings.get("ability_method"),
         "point_buy_budget_used": int(settings.get("point_buy_budget") or 27),
         "point_buy_spend": point_buy_spend(base_scores)
-        if settings.get("ability_method") == "point_buy"
+        if not uncapped and settings.get("ability_method") == "point_buy"
         else None,
         "base_abilities": base_scores,
         "species_flex_assignments": flex_assignments or {},

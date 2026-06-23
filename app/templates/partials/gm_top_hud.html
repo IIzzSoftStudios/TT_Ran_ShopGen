@@ -1,0 +1,78 @@
+{# Persistent top HUD — campaign left; sim/calendar right; nav actions far right #}
+<header id="gm-top-hud" class="gm-top-hud" aria-label="Campaign controls">
+    <div class="gm-hud-left">
+        {% if campaign %}
+        <span class="gm-hud-campaign" title="{{ campaign.name }}">{{ campaign.name }}</span>
+        {% else %}
+        <span class="gm-hud-campaign">{{ current_user.username }}</span>
+        {% endif %}
+    </div>
+    <div class="gm-hud-right">
+        <div class="gm-hud-controls" aria-label="Simulation and market controls">
+            <div class="gm-hud-calendar" aria-label="Game calendar">
+                <span id="cal-year-name">Year {{ cal.year }}</span>
+                <span aria-hidden="true">·</span>
+                <span id="cal-month-name">Month {{ cal.month_of_year }}</span>
+                <span aria-hidden="true">·</span>
+                <strong id="cal-total-days">Day: {{ campaign.current_game_day if campaign else 1 }}</strong>
+            </div>
+            <div id="simulation-controls" aria-label="Simulation controls">
+                <div class="sim-row">
+                    <button type="button" class="sim-action-btn" id="gm-run-first-day-btn" onclick="runSimulationPeriod('day', this)">Day</button>
+                    <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('week', this)">Week</button>
+                    <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('month', this)">Month</button>
+                    <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('year', this)">Year</button>
+                    <button type="button" class="sim-action-btn sim-pause-btn" onclick="pauseSimulation()">Pause</button>
+                </div>
+            </div>
+            {% if campaign %}
+            <div class="gm-hud-market-controls" aria-label="Market settings">
+                <form method="POST" action="{{ url_for('gm.toggle_campaign_supply_demand') }}" class="nav-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit"
+                            class="button"
+                            title="{% if supply_demand_enabled %}Each game-day tick simulates sales and periodic shop restocks{% else %}Ticks update prices only; no simulated sales or restock{% endif %}">
+                        {% if supply_demand_enabled %}Supply On{% else %}Supply Off{% endif %}
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('gm.update_campaign_market_volatility') }}" class="gm-hud-volatility-form" title="0 = stable prices, 10 = wild swings each tick">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <label>Vol
+                        <input type="number" name="market_volatility" min="0" max="10" value="{{ market_volatility }}" aria-label="Market volatility from 0 to 10">
+                    </label>
+                    <button type="submit">Set</button>
+                </form>
+            </div>
+            {% endif %}
+            <div class="gm-hud-sim-status" id="hud-sim-status" aria-live="polite">
+                <span><span class="status-label">Tick</span> <span class="status-value" id="current-tick">—</span></span>
+                <span><span class="status-label">Speed</span> <span class="status-value" id="current-speed">—</span></span>
+                <span><span class="status-label">Status</span> <span class="status-value" id="simulation-status">—</span></span>
+                <span class="gm-hud-last-tick" hidden aria-hidden="true"><span id="last-tick-time">—</span></span>
+            </div>
+        </div>
+        <div class="gm-hud-nav-actions gm-primary-actions" aria-label="Campaign navigation">
+            <a href="{{ url_for('gm.view_campaigns') }}" class="button">GM Campaign Overview</a>
+            <details class="gm-join-tools">
+                <summary class="button">GM Campaign Code</summary>
+                <div class="gm-join-popover">
+                    {% if session.get('campaign_id') %}
+                        {% set reveal_url = url_for('gm.reveal_campaign_join_code', campaign_id=session['campaign_id']) %}
+                        {% include 'partials/gm_campaign_invite_rows.html' %}
+                        <form class="gm-ply-redeem-form" method="POST" action="{{ url_for('gm.redeem_player_code_route', campaign_id=session['campaign_id']) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <label for="gm-home-ply-code">Add player by code</label>
+                            <div class="gm-ply-redeem-row">
+                                <input id="gm-home-ply-code" type="text" name="player_join_code" autocomplete="off" placeholder="PLY-XXXX-XXXX-XXXX"/>
+                                <button type="submit" class="button">Add</button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <p>Choose an active campaign first (open <strong>GM Campaign Overview</strong> and load a campaign, or create one).</p>
+                    {% endif %}
+                </div>
+            </details>
+            <a href="{{ url_for('main.campaigns') }}" class="button">Back to GM/Player Campaigns</a>
+        </div>
+    </div>
+</header>

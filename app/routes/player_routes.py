@@ -53,6 +53,12 @@ from app.routes.handlers.gm_shops_handler import (
     _city_region_label,
     _region_table_exists,
 )
+from app.routes.handlers.gm_players_handler import build_known_npc_entries
+from app.services.player_npc_service import (
+    build_npc_lore_profile,
+    get_player_npc_notes,
+    save_player_npc_notes,
+)
 
 player_bp = Blueprint("player", __name__)
 
@@ -686,6 +692,7 @@ def player_home():
         battle_encounter=battle_encounter,
         visible_battle_encounters=visible_battle_encounters,
         battle_own_player_ids=battle_own_player_ids,
+        known_npc_entries=build_known_npc_entries(active_campaign),
         cities=cities,
         shops=shops,
         items=shop_items,
@@ -1106,6 +1113,64 @@ def player_city_map(city_id):
     payload = gm_maps.build_city_map_payload(player.campaign_id, city, for_player=True)
     db.session.commit()
     return jsonify(payload)
+
+
+def _known_npc_for_player_view(campaign_id: int, npc_id: int) -> Player | None:
+    return Player.query.filter_by(
+        id=npc_id,
+        campaign_id=campaign_id,
+        is_npc=True,
+        known_to_players=True,
+    ).first()
+
+
+@player_bp.route("/npcs/<int:npc_id>/profile", methods=["GET"])
+@login_required
+def known_npc_profile(npc_id):
+    """Lore profile for a known NPC (no combat stats)."""
+    viewer, err = _active_campaign_player_for_json()
+    if err:
+        return err
+
+    npc = _known_npc_for_player_view(viewer.campaign_id, npc_id)
+    if npc is None:
+        return jsonify({"error": "That NPC is not available to your party."}), 404
+
+    campaign = _active_campaign_for_player(viewer)
+    profile = build_npc_lore_profile(npc, campaign)
+    profile["player_notes"] = get_player_npc_notes(viewer.id, npc.id)
+    return jsonify({"ok": True, "npc": profile})
+
+
+@player_bp.route("/npcs/<int:npc_id>/notes", methods=["POST"])
+@login_required
+def save_known_npc_notes(npc_id):
+    """Persist this character's personal notes about a known NPC."""
+    viewer, err = _active_campaign_player_for_json()
+    if err:
+        return err
+
+    npc = _known_npc_for_player_view(viewer.campaign_id, npc_id)
+    if npc is None:
+        return jsonify({"error": "That NPC is not available to your party."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    notes = payload.get("notes")
+    if notes is None:
+        notes = request.form.get("notes", "")
+    try:
+        saved = save_player_npc_notes(
+            campaign_id=viewer.campaign_id,
+            viewer_player_id=viewer.id,
+            npc_player_id=npc.id,
+            notes=str(notes or ""),
+        )
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Could not save notes: {exc}"}), 500
+
+    return jsonify({"ok": True, "notes": saved})
 
 
 @player_bp.route("/maps/image/<int:canvas_id>", methods=["GET"])
@@ -1739,6 +1804,33 @@ def character_data():
     except Exception as e:
         print(f"[ERROR] Error fetching character data: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@player_bp.route("/character/spells", methods=["POST"])
+@login_required
+def save_character_spells():
+    """Save cantrip / prepared / known spell selections for the active character."""
+    player = get_active_player(current_user)
+    if not player:
+        return jsonify({"ok": False, "errors": ["Player not found."]}), 404
+    if player.campaign_id is None:
+        return jsonify({"ok": False, "errors": ["Join a campaign to manage spells."]}), 403
+
+    payload = request.get_json(silent=True) or {}
+    campaign = _active_campaign_for_player(player)
+    ok, errors = character_sheet_service.apply_player_spell_selection(
+        player,
+        campaign,
+        cantrips=payload.get("cantrips"),
+        prepared=payload.get("prepared"),
+        known=payload.get("known"),
+    )
+    if not ok:
+        return jsonify({"ok": False, "errors": errors or ["Could not save spells."]}), 400
+
+    sheet = character_sheet_service.get_or_default_sheet(player, campaign)
+    spell_details = character_sheet_service._resolve_spell_details(campaign, sheet)
+    return jsonify({"ok": True, "spell_details": spell_details})
 
 
 @player_bp.route("/character/<int:player_id>/data")

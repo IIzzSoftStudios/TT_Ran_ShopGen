@@ -188,7 +188,7 @@ def test_gm_dashboard_has_world_item_compendium_tab(client):
     assert b"Item Compendium" in resp.data
     assert b'data-target="items-pane-content"' in resp.data
     assert b'id="items-compendium-body"' in resp.data
-    assert b"Region Compendium" in resp.data
+    assert b"Nation Compendium" in resp.data
     assert b'data-target="regions-pane-content"' in resp.data
     assert b'id="regions-compendium-body"' in resp.data
     assert b"City Compendium" in resp.data

@@ -5,75 +5,10 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Optional
 
-ABILITIES = ("str", "dex", "con", "int", "wis", "cha")
+from app.services.character_creation.dnd5e_species import ABILITIES, CORE_SPECIES
 
 # Mechanical shells only — original/minimal descriptions, no copied book text.
-CORE_SPECIES: tuple[dict[str, Any], ...] = (
-    {
-        "key": "human",
-        "name": "Human",
-        "summary": "Adaptable folk with balanced aptitude.",
-        "ability_modifiers": {a: 1 for a in ABILITIES},
-        "source": "core",
-    },
-    {
-        "key": "elf",
-        "name": "Elf",
-        "summary": "Graceful people with keen senses.",
-        "ability_modifiers": {"dex": 2},
-        "source": "core",
-    },
-    {
-        "key": "dwarf",
-        "name": "Dwarf",
-        "summary": "Sturdy folk known for resilience.",
-        "ability_modifiers": {"con": 2},
-        "source": "core",
-    },
-    {
-        "key": "halfling",
-        "name": "Halfling",
-        "summary": "Small, nimble, and lucky.",
-        "ability_modifiers": {"dex": 2},
-        "source": "core",
-    },
-    {
-        "key": "dragonborn",
-        "name": "Dragonborn",
-        "summary": "Draconic heritage with forceful presence.",
-        "ability_modifiers": {"str": 2, "cha": 1},
-        "source": "core",
-    },
-    {
-        "key": "gnome",
-        "name": "Gnome",
-        "summary": "Curious inventors with quick minds.",
-        "ability_modifiers": {"int": 2},
-        "source": "core",
-    },
-    {
-        "key": "half-elf",
-        "name": "Half-Elf",
-        "summary": "Charismatic blend of human and elven heritage.",
-        "ability_modifiers": {"cha": 2},
-        "flex_ability_bonuses": 2,
-        "source": "core",
-    },
-    {
-        "key": "half-orc",
-        "name": "Half-Orc",
-        "summary": "Powerful and enduring.",
-        "ability_modifiers": {"str": 2, "con": 1},
-        "source": "core",
-    },
-    {
-        "key": "tiefling",
-        "name": "Tiefling",
-        "summary": "Infernal legacy with force of personality.",
-        "ability_modifiers": {"cha": 2, "int": 1},
-        "source": "core",
-    },
-)
+# Full SRD 5.1 ability modifiers and traits live in dnd5e_species.py.
 
 CORE_CLASSES: tuple[dict[str, Any], ...] = (
     {
@@ -423,8 +358,9 @@ def _species_from_compendium(entries: list[dict[str, Any]]) -> list[dict[str, An
                 {
                     "key": key,
                     "name": name,
-                    "summary": row.get("notes") or row.get("stat_modifiers") or "",
+                    "summary": row.get("summary") or row.get("notes") or "",
                     "ability_modifiers": mods,
+                    "flex_ability_bonuses": row.get("flex_ability_bonuses") or 0,
                 },
                 source="species_compendium",
             )

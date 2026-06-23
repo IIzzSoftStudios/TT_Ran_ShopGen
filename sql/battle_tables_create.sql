@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS monster_compendium_entry (
     campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE,
     name VARCHAR(120) NOT NULL,
     source VARCHAR(16) NOT NULL DEFAULT 'custom',
+    origin_srd_key VARCHAR(80) NULL,
     generation_seed VARCHAR(64) NULL,
     challenge_rating DOUBLE PRECISION NULL,
     stat_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -28,6 +29,9 @@ CREATE TABLE IF NOT EXISTS monster_compendium_entry (
 
 CREATE INDEX IF NOT EXISTS ix_monster_compendium_entry_campaign_id
     ON monster_compendium_entry (campaign_id);
+
+CREATE INDEX IF NOT EXISTS ix_monster_compendium_entry_origin_srd_key
+    ON monster_compendium_entry (origin_srd_key);
 
 CREATE TABLE IF NOT EXISTS battle_encounter (
     id SERIAL PRIMARY KEY,

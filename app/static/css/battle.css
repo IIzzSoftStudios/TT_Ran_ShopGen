@@ -1,5 +1,199 @@
 /* D&D 5e Battle tab + player encounter panel styles (theme tokens only). */
 
+.battle-encounter-window {
+    position: fixed;
+    z-index: 1320;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(960px, 94vw);
+    height: min(720px, 90vh);
+    min-width: 520px;
+    min-height: 400px;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+}
+.battle-encounter-window[hidden] {
+    display: none !important;
+}
+.battle-encounter-window-header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    padding: 0.55rem 0.65rem;
+    border-bottom: 1px solid var(--color-border, #ddd);
+    background: var(--color-bg, #f8fafc);
+    flex: 0 0 auto;
+}
+.battle-encounter-window-titlebar {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    position: relative;
+    padding-right: 2.25rem;
+    cursor: move;
+    user-select: none;
+}
+.battle-encounter-window-header .battle-encounter-menu {
+    min-width: 220px;
+    flex: 1 1 auto;
+}
+.battle-encounter-window-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+.battle-encounter-window-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    flex: 0 0 auto;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0;
+    margin: 0;
+    font-size: 1.35rem;
+    line-height: 1;
+    border: none;
+    background: transparent;
+    color: var(--color-text, #111);
+    cursor: pointer;
+    border-radius: 4px;
+}
+.battle-encounter-window-close:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+.battle-encounter-window-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0.5rem 0.65rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+}
+.battle-encounter-window .battle-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.battle-encounter-window .battle-stage {
+    height: auto;
+    min-height: 200px;
+    max-height: none;
+    flex: 1 1 auto;
+}
+.battle-encounter-window .battle-sidebar {
+    max-height: none;
+    height: auto;
+    align-self: stretch;
+    overflow-y: auto;
+}
+.battle-floating-popout {
+    position: fixed;
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    min-width: 320px;
+    min-height: 280px;
+}
+.battle-floating-popout-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.65rem;
+    padding-right: 2.25rem;
+    border-bottom: 1px solid var(--color-border, #ddd);
+    background: var(--color-bg, #f8fafc);
+    cursor: move;
+    user-select: none;
+    position: relative;
+    flex: 0 0 auto;
+}
+.battle-floating-popout-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+.battle-floating-popout-close {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    z-index: 2;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0;
+    margin: 0;
+    font-size: 1.35rem;
+    line-height: 1;
+    border: none;
+    background: transparent;
+    color: var(--color-text, #111);
+    cursor: pointer;
+    border-radius: 4px;
+}
+.battle-floating-popout-close:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+.battle-floating-resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    z-index: 5;
+    touch-action: none;
+}
+.battle-floating-resize-handle::after {
+    content: '';
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--color-text-muted, #888);
+    border-bottom: 2px solid var(--color-text-muted, #888);
+    opacity: 0.75;
+    pointer-events: none;
+}
+.battle-viewport-layer {
+    position: absolute;
+    inset: 0;
+    transform-origin: 0 0;
+}
+.battle-stage.map-stage .battle-viewport-hint {
+    z-index: 6;
+}
+.battle-stage.map-stage {
+    touch-action: none;
+}
+.battle-viewport-hint,
+.map-viewport-hint.battle-viewport-hint {
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0.35rem;
+    z-index: 6;
+    font-size: 0.72rem;
+    color: var(--color-text-muted, #666);
+    background: rgba(255, 255, 255, 0.82);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    pointer-events: none;
+}
 /* --- Battle tab (D&D 5e tactical combat) --- */
 .battle-toolbar {
     display: flex;
@@ -312,14 +506,15 @@
     box-sizing: border-box;
 }
 .battle-setup-popout {
-    position: fixed;
-    z-index: 70;
-    background: var(--color-surface, #fff);
-    border: 1px solid var(--color-border, #ddd);
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
     width: min(420px, calc(100vw - 2rem));
+    height: min(560px, calc(100vh - 4rem));
+}
+.battle-setup-popout form {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 1rem;
+    box-sizing: border-box;
 }
 .battle-setup-popout label {
     display: block;
@@ -620,16 +815,18 @@
     gap: 1rem;
     margin-bottom: 0.6rem;
 }
-.battle-compendium-generate, .battle-compendium-create {
+.battle-compendium-generate, .battle-compendium-create, .battle-compendium-source-filter {
     display: flex;
     gap: 0.4rem;
     flex-wrap: wrap;
     align-items: center;
 }
+.battle-compendium-source-filter .button[aria-pressed="true"] {
+    background: rgba(124, 58, 237, 0.22);
+    border-color: rgba(124, 58, 237, 0.55);
+}
 .battle-compendium-tools input[type="number"] { width: 70px; }
 .battle-compendium-table-wrapper {
-    max-height: 260px;
-    overflow-y: auto;
     border: 1px solid var(--color-border, #ddd);
     border-radius: 6px;
 }
@@ -714,4 +911,9 @@
     justify-content: flex-end;
     gap: 0.5rem;
     margin-top: 0.5rem;
+}
+
+/* Battle panel in slide-out shell (map stays visible behind backdrop) */
+.gm-slide-panel--battle .battle-layout {
+    min-height: 0;
 }

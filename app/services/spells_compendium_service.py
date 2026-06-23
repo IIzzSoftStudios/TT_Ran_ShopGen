@@ -356,6 +356,9 @@ def _ensure_compendium(settings: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def ensure_spells_compendium(campaign_id: int) -> list[dict[str, Any]]:
+    from app.services.traits_compendium_service import ensure_traits_compendium
+
+    ensure_traits_compendium(campaign_id)
     cfg = _config_for_campaign(campaign_id)
     settings = cfg.settings_json
     entries = _ensure_compendium(settings)

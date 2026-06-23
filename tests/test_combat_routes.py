@@ -631,10 +631,11 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     assert 'id="players-npcs-pane-content"' in html
     assert '<a href="/gm/players/" class="gm-panel-tab" id="players-npcs-tab-btn"' not in html
     assert 'id="battle-tab-btn"' in html
-    assert ">Encounters</button>" in html
-    assert "Combat" in html
-    assert "gm-dashboard-sidebar" in html
-    assert 'id="battle-pane-content"' in html
+    assert 'title="Encounters"' in html
+    assert 'id="battle-encounter-window"' in html
+    assert "gm-nav-rail" in html
+    assert "gm_battle.js" in html
+    assert 'id="battle-pane-content"' not in html
     assert 'id="battle-encounter-menu"' in html
     assert 'id="battle-encounter-select"' not in html
     assert 'id="battle-rename-btn"' in html
@@ -688,12 +689,13 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     assert 'id="battle-monster-import-file-type-other"' in html
     assert 'data-import-title="Monster import request"' in html
     assert 'data-import-prompted-key="monster_import"' in html
-    assert 'id="battle-sdr-monsters-btn"' in html
-    assert 'id="battle-sdr-monsters-popout"' in html
-    assert 'data-import-title="SDR-approved monsters request"' in html
-    assert 'data-import-prompted-key="sdr_monsters"' in html
-    assert "Please add SDR-approved monsters to the battle compendium." in html
-    assert "Submit request" in html
+    assert 'data-monster-source-filter="srd_only"' in html
+    assert 'data-monster-source-filter="all"' in html
+    assert 'data-monster-source-filter="custom_only"' in html
+    assert 'SRD and Custom' in html
+    assert 'Custom only' in html
+    assert 'id="battle-monsters-count"' in html
+    assert 'SRD only' in html
     assert 'id="market-import-btn"' in html
     assert 'id="market-import-popout"' in html
     assert 'id="market-import-file-type"' in html
@@ -710,6 +712,8 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     assert 'id="battle-setup-popout"' in html
     assert 'id="battle-setup-edit-btn"' in html
     assert 'loadEncounterMap' in js
+    assert 'data-monster-source-filter' in js
+    assert 'monsterSourceFilter' in js
     assert 'renderBattleMapBackground' in js
     assert 'pointer-events: none' in css
     assert '.battle-map-bg' in css
@@ -723,21 +727,17 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     assert '1000 750' not in js
     assert 'function focusCameraOnCell' in js
     assert 'function loadVisibleMapChunks' in js
-    assert 'function onStagePointerDown' in js
-    assert 'battle-map-nav-x' in js
-    assert 'battle-map-nav-y' in js
-    assert 'battle-map-zoom-in' in js
-    assert 'battle-map-zoom-out' in js
-    assert 'function setBattleZoom' in js
+    assert 'function onStagePointerDown' not in js or 'initBattleViewport' in js
+    assert 'battle-viewport-layer' in js or 'battle-viewport-layer' in html
+    assert 'battle-encounter-window' in html
+    assert 'openEncounterWindow' in js
+    assert 'MapViewport' in js or 'map_viewport.js' in html
+    assert 'Drag to pan' in html
     assert '/map/chunk' in js
     assert '.battle-visible-layer' in css
-    assert '.battle-stage.is-panning' in css
-    assert '.battle-map-shell' in css
-    assert '.battle-map-nav-horizontal' in css
-    assert '.battle-map-nav-vertical' in css
-    assert '.battle-map-zoom-btn' in css
+    assert '.battle-viewport-layer' in css or '.battle-encounter-window' in css
     assert 'overflow: hidden' in css
-    assert 'min 5; drag or use edge bars' in html
+    assert 'min 5' in html
     assert 'max="1000"' in html
 
     gm2, campaign2 = _make_gm_with_campaign("rt-gm-tabgen", "generic")

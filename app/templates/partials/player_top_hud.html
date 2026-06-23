@@ -1,0 +1,40 @@
+{# Player top HUD — character left; campaign nav right #}
+<header id="player-top-hud" class="gm-top-hud player-top-hud" aria-label="Player dashboard">
+    <div class="gm-hud-left">
+        <span class="gm-hud-campaign" title="{{ character.name|default('Character') }}">{{ character.name|default('Your Character') }}</span>
+        {% if character.class_name or character.level %}
+        <span class="gm-hud-calendar">
+            {% if character.class_name %}{{ character.class_name }}{% endif %}
+            {% if character.level %} · Lv {{ character.level }}{% endif %}
+        </span>
+        {% endif %}
+        {% if player.campaign %}
+        <span class="gm-hud-calendar">{{ player.campaign.name }}</span>
+        {% elif not player_has_active_campaign %}
+        <span class="gm-hud-calendar">No active campaign</span>
+        {% endif %}
+    </div>
+    <div class="gm-hud-right">
+        <div class="gm-hud-nav-actions player-hud-nav-actions" aria-label="Player navigation">
+            <button type="button" class="nav-button" onclick="navigateTo('{{ url_for('main.campaigns') }}')">Select Campaign</button>
+            <details class="nav-code-panel">
+                <summary class="nav-button">Player Code</summary>
+                <div class="join-code-popover">
+                    {% set reveal_url = player_join_code_reveal_url|default(url_for('player.reveal_player_join_code')) %}
+                    {% include 'partials/player_join_code_reveal.html' %}
+                    {% if not player_has_active_campaign %}
+                    <form method="post" action="{{ url_for('player.redeem_campaign_code_route') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        {% if character and character.id %}
+                        <input type="hidden" name="player_id" value="{{ character.id }}"/>
+                        {% endif %}
+                        <label for="player-home-camp-code">Join a campaign</label>
+                        <input id="player-home-camp-code" name="campaign_code" type="text" autocomplete="off" placeholder="CAMP-XXXX-XXXX-XXXX"/>
+                        <button type="submit" class="nav-button" style="margin-top:10px;width:100%;">Join campaign</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </details>
+        </div>
+    </div>
+</header>

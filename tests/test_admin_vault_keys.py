@@ -472,9 +472,9 @@ def test_keys_template_shows_compact_expansion_interest_badges_for_used_keys():
                 "prompt": "Which monster file type should import support prepare for?",
             },
             {
-                "key": "sdr_monsters",
-                "label": "SDR-approved monsters",
-                "prompt": "Should SDR-approved monsters be added to the battle compendium?",
+                "key": "srd_monsters",
+                "label": "SRD monsters",
+                "prompt": "Should SRD 5.1 monsters be added to the battle compendium?",
             },
             {
                 "key": "market_import",
@@ -508,11 +508,11 @@ def test_keys_template_shows_compact_expansion_interest_badges_for_used_keys():
     assert "Yes, express interest" in html
     assert "No, stay base tier" in html
     assert "Import monsters" in html
-    assert "SDR-approved monsters" in html
+    assert "SRD monsters" in html
     assert "Import market data" in html
     assert "Setup tutorial" in html
     assert "Which monster file type should import support prepare for?" not in html
-    assert "Should SDR-approved monsters be added to the battle compendium?" not in html
+    assert "Should SRD 5.1 monsters be added to the battle compendium?" not in html
     assert "Which market file type should import support prepare for?" not in html
     assert "CSV" in html
     assert "JSON" in html

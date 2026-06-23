@@ -120,12 +120,11 @@ def test_player_home_uses_browse_shops_not_market_route(client):
     assert b'id="player-character-tab"' in resp.data
     assert b'id="player-spells-tab"' in resp.data
     assert b'id="player-inventory-tab"' in resp.data
-    assert b'id="player-map-tab"' in resp.data
+    assert b'>Inventory<' in resp.data
     assert b'id="player-market-tab"' in resp.data
     assert b'id="player-character-panel"' in resp.data
     assert b'id="player-spells-panel"' in resp.data
     assert b'id="player-inventory-panel"' in resp.data
-    assert b'id="player-map-panel"' in resp.data
     assert b'id="player-market-panel"' in resp.data
     assert b'id="player-map-stage"' in resp.data
     assert b'class="map-stage"' in resp.data
@@ -144,7 +143,9 @@ def test_player_home_uses_browse_shops_not_market_route(client):
     assert b'className = "map-encounter-popout"' in resp.data
     assert b".map-encounter-popout {" in resp.data
     assert b'id="playerSpellsContent"' in resp.data
-    assert b"renderPlayerSpellsPanel(data.spell_details || {})" in resp.data
+    assert b"setupPlayerSpellDragDrop()" in resp.data
+    assert b"savePlayerSpellSelection" in resp.data
+    assert b"Full Character Sheet" in resp.data
     assert b"showPurchaseToast(data.message || \"Purchase complete.\", \"success\")" in resp.data
     assert b"setTimeout(function () { location.reload(); }, 3000)" in resp.data
     assert b"Add Region" not in resp.data
@@ -191,6 +192,56 @@ def test_player_character_data_includes_class_available_spells(client):
     assert "magic_missile" in by_key
 
 
+def test_player_save_character_spells(client):
+    user, player, campaign = _player_with_campaign()
+    campaign.system_type = "dnd5e"
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=campaign.id,
+            sheet_json={
+                "system_type": "dnd5e",
+                "name": "Spell Saver",
+                "class_name": "Wizard",
+                "level": 1,
+                "creation": {"class_key": "wizard"},
+                "abilities": {"int": 16},
+                "defenses": {"hp_max": 8, "hp_current": 8, "ac": 12},
+                "spells": {},
+            },
+        )
+    )
+    db.session.commit()
+    seed_client_session(
+        client,
+        user,
+        campaign_id=player.campaign_id,
+        player_id=player.id,
+        session_mode="player",
+    )
+
+    resp = client.post(
+        "/player/character/spells",
+        json={
+            "cantrips": ["fire_bolt"],
+            "prepared": ["magic_missile"],
+            "known": [],
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload["ok"] is True
+    spell_details = payload["spell_details"]
+    assert {row["key"] for row in spell_details["spells"]["cantrips"]} == {"fire_bolt"}
+    assert {row["key"] for row in spell_details["spells"]["prepared"]} == {"magic_missile"}
+
+    sheet = PlayerCharacterSheet.query.filter_by(
+        player_id=player.id, campaign_id=campaign.id
+    ).one()
+    assert sheet.sheet_json["spells"]["cantrips"] == ["fire_bolt"]
+    assert sheet.sheet_json["spells"]["prepared"] == ["magic_missile"]
+
+
 def test_player_home_shows_encounter_tab_for_dnd5e_campaign(client):
     user, player, campaign = _player_with_campaign()
     campaign.system_type = "dnd5e"
@@ -218,7 +269,8 @@ def test_player_home_shows_encounter_tab_for_dnd5e_campaign(client):
     resp = client.get("/player/home")
     assert resp.status_code == 200
     assert b'id="player-encounter-tab"' in resp.data
-    assert b">Encounters</button>" in resp.data
+    assert b'data-target="player-encounter-panel"' in resp.data
+    assert b'title="Encounters"' in resp.data
     assert b'id="player-encounter-panel"' in resp.data
     assert b"Encounters: Road Ambush" in resp.data
     assert b"Hidden Ambush" not in resp.data

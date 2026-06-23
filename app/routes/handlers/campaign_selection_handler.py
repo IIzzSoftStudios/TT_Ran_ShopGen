@@ -15,6 +15,12 @@ from app.models import (
     PlayerEquipment,
     PlayerInventory,
 )
+from app.services.world_setup_state import (
+    is_pending_setup,
+    redirect_for_setup_stage,
+    settings_for_campaign,
+    setup_resume_url,
+)
 from app.services.join_codes import (
     redeem_campaign_code,
     InvalidCodeError,
@@ -137,6 +143,8 @@ def select_campaign():
                 player_count = Player.query.filter_by(
                     campaign_id=campaign.id, is_npc=False
                 ).count()
+                settings = settings_for_campaign(campaign)
+                pending_setup = is_pending_setup(settings)
                 campaigns.append(
                     {
                         "id": campaign.id,
@@ -145,6 +153,10 @@ def select_campaign():
                         "system_type": campaign.system_type,
                         "gm_username": current_user.username,
                         "player_count": player_count,
+                        "pending_setup": pending_setup,
+                        "resume_setup_url": setup_resume_url(settings)
+                        if pending_setup
+                        else None,
                     }
                 )
         campaign_char_map = {}
@@ -287,6 +299,9 @@ def load_campaign(campaign_id):
                 abort(403)
             session["session_mode"] = "gm"
             _commit_active_session(campaign, None)
+            setup_redirect = redirect_for_setup_stage(settings_for_campaign(campaign))
+            if setup_redirect is not None:
+                return setup_redirect
             return redirect(url_for("gm.home"), code=303)
 
         if requested_mode == "player":

@@ -249,40 +249,69 @@ def _enforce_caps(ranges: Dict[str, Dict[str, int]]) -> None:
         )
 
 
-# -----------------------------------------------------------------------------
-# Public entry point
-# -----------------------------------------------------------------------------
-def validate(form: Mapping[str, Any]) -> Dict[str, Any]:
-    """Return a normalized settings dict ready for persistence.
+MAP_VISUAL_RANGE_KEYS = (
+    "map_landmass_scale",
+    "map_waterways",
+    "map_terrain_roughness",
+)
 
-    Shape:
-        {
-            "schema_version": 1,
-            "campaign_name": str,
-            "system_type": str,
-            "world_seed": int | None,
-            "ranges": {
-                "num_cities":             {"min": int, "max": int},
-                ...
-                "tech_magic_balance":     {"min": int, "max": int},
-            },
-        }
-    """
+ECONOMY_RANGE_KEYS = (
+    "num_regions",
+    "num_cities",
+    "population_scale",
+    "global_item_pool_size",
+    "city_size_variation",
+    "items_per_shop",
+    "tech_magic_balance",
+)
+
+
+def validate_identity(form: Mapping[str, Any]) -> Dict[str, Any]:
+    """Step 1: campaign name and system only."""
     campaign_name = _parse_name(form)
     system_type = _parse_enum(form, "system_type", SYSTEM_TYPES)
+    return {
+        "campaign_name": campaign_name,
+        "system_type": system_type,
+    }
 
+
+def validate_economy(
+    form: Mapping[str, Any],
+    existing_settings: Mapping[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """Step 3: economy/species/seed; map-visual ranges come from draft settings."""
+    existing = dict(existing_settings or {})
+    campaign_name = existing.get("campaign_name") or _parse_name(form)
+    system_type = existing.get("system_type") or _parse_enum(
+        form, "system_type", SYSTEM_TYPES
+    )
+
+    existing_ranges = dict(existing.get("ranges") or {})
     ranges: Dict[str, Dict[str, int]] = {}
-    for key, (floor, ceiling, _default_min, _default_max) in RANGE_SETTINGS.items():
-        ranges[key] = _parse_range(form, key, floor, ceiling)
+    for key in ECONOMY_RANGE_KEYS:
+        floor, ceiling, _default_min, _default_max = RANGE_SETTINGS[key]
+        if f"{key}_min" in form or f"{key}_max" in form or key in form:
+            ranges[key] = _parse_range(form, key, floor, ceiling)
+        elif key in existing_ranges:
+            ranges[key] = dict(existing_ranges[key])
+        else:
+            ranges[key] = {"min": _default_min, "max": _default_max}
+
+    for key in MAP_VISUAL_RANGE_KEYS:
+        if key in existing_ranges:
+            ranges[key] = dict(existing_ranges[key])
+        else:
+            floor, ceiling, d_min, d_max = RANGE_SETTINGS[key]
+            ranges[key] = {"min": d_min, "max": d_max}
 
     _enforce_caps(ranges)
 
     world_seed = _parse_seed(form)
 
-    # Controlled from GM dashboard after creation; new worlds default to enabled.
     supply_raw = form.get("supply_demand_enabled")
     if supply_raw is None:
-        supply_demand_enabled_flag = True
+        supply_demand_enabled_flag = existing.get("supply_demand_enabled", True)
     elif isinstance(supply_raw, str):
         supply_demand_enabled_flag = supply_raw.strip().lower() in (
             "1",
@@ -304,6 +333,32 @@ def validate(form: Mapping[str, Any]) -> Dict[str, Any]:
         "supply_demand_enabled": supply_demand_enabled_flag,
         "market_volatility": _parse_market_volatility(form),
     }
+
+
+# -----------------------------------------------------------------------------
+# Public entry point
+# -----------------------------------------------------------------------------
+def validate(form: Mapping[str, Any]) -> Dict[str, Any]:
+    """Return a normalized settings dict ready for persistence.
+
+    Shape:
+        {
+            "schema_version": 1,
+            "campaign_name": str,
+            "system_type": str,
+            "world_seed": int | None,
+            "ranges": {
+                "num_cities":             {"min": int, "max": int},
+                ...
+                "tech_magic_balance":     {"min": int, "max": int},
+            },
+        }
+    """
+    economy = validate_economy(form, None)
+    identity = validate_identity(form)
+    economy["campaign_name"] = identity["campaign_name"]
+    economy["system_type"] = identity["system_type"]
+    return economy
 
 
 def _parse_market_volatility(form: Mapping[str, Any]) -> int:

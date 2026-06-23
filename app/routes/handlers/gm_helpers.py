@@ -30,6 +30,11 @@ def city_for_campaign_optional(city_id: int, campaign_id: int) -> City | None:
     return City.query.filter_by(city_id=city_id, campaign_id=campaign_id).first()
 
 
+def shop_for_campaign_optional(shop_id: int, campaign_id: int) -> Shop | None:
+    """Same scope as ``shop_for_campaign_or_404`` but returns ``None``."""
+    return Shop.query.filter_by(shop_id=shop_id, campaign_id=campaign_id).first()
+
+
 def purge_shop_dependencies(shop_id: int) -> None:
     """Remove rows that block shop delete on legacy Postgres (no ON DELETE CASCADE).
 
@@ -92,8 +97,24 @@ def region_for_campaign_or_404(region_id: int, campaign_id: int) -> Region:
 _GM_SESSION_ALLOWLIST = frozenset(
     {
         "gm.generate_world_form",
+        "gm.generate_world_start",
+        "gm.generate_world_map",
+        "gm.generate_world_map_continue",
+        "gm.generate_world_economy_form",
+        "gm.generate_world_economy_submit",
+        "gm.skip_world_generation_submit",
     }
 )
+
+
+def redirect_if_pending_setup(campaign):
+    """If campaign world setup is incomplete, redirect to the wizard step."""
+    from app.services.world_setup_state import (
+        redirect_for_setup_stage,
+        settings_for_campaign,
+    )
+
+    return redirect_for_setup_stage(settings_for_campaign(campaign))
 
 
 def get_current_gm_profile():

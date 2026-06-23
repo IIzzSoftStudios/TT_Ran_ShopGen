@@ -9,12 +9,13 @@ import pytest
 from app import app as flask_app
 from app.extensions import db
 import app.models  # noqa: F401
-from app.models import Campaign, CampaignWorldConfig, Player, PlayerCharacterSheet, User
+from app.models import Campaign, CampaignWorldConfig, Player, PlayerCharacterSheet, Region, User
 from app.services.character_creation.campaign_settings import get_creation_settings
 from app.services.character_creation.creation_service import (
     build_final_sheet_json,
     point_buy_spend,
 )
+from app.services import character_sheet_service
 from app.services.join_codes import redeem_campaign_code
 from app.services.user_capabilities import ensure_gm_profile
 from tests.session_helpers import seed_client_session
@@ -497,3 +498,140 @@ def test_solo_defaults_never_use_campaign_settings():
     solo = get_creation_settings(None)
     assert solo["scope"] == "solo"
     assert solo["point_buy_budget"] == 27
+
+
+def test_build_final_sheet_uncapped_accepts_high_abilities():
+    from app.services.character_creation.dnd5e_catalog import merged_creation_catalog as catalog_merge
+
+    catalog = catalog_merge()
+    settings = get_creation_settings(None)
+    payload = _valid_wizard_payload(
+        base_abilities={
+            "str": 22,
+            "dex": 18,
+            "con": 20,
+            "int": 14,
+            "wis": 12,
+            "cha": 10,
+        }
+    )
+    sheet = build_final_sheet_json(
+        payload,
+        catalog=catalog,
+        settings=settings,
+        uncapped=True,
+    )
+    assert sheet["creation"]["base_abilities"]["str"] == 22
+    assert sheet["abilities"]["str"] == 23  # human +1 to all
+    assert sheet["creation"]["ability_method"] == "gm_set"
+
+
+def test_gm_create_npc_get_shows_dnd5e_wizard(client):
+    with flask_app.app_context():
+        gm = _make_user("gm-npc-wizard", role="GM")
+        camp = _make_dnd_campaign(gm)
+        seed_client_session(client, gm, campaign_id=camp.id, session_mode="gm")
+        resp = client.get("/gm/npcs/create")
+        assert resp.status_code == 200
+        body = resp.data
+        assert b"id=\"dnd5e-wizard\"" in body
+        assert b"character_create_wizard.js" in body
+        assert b'"gm_npc_mode": true' in body or b'"gm_npc_mode":true' in body
+        assert b"Create NPC" in body
+
+
+def test_gm_create_npc_dnd5e_finalize_creates_npc_with_high_abilities(client):
+    with flask_app.app_context():
+        gm = _make_user("gm-npc-finalize", role="GM")
+        camp = _make_dnd_campaign(gm)
+        seed_client_session(client, gm, campaign_id=camp.id, session_mode="gm")
+        payload = _valid_wizard_payload(
+            name="Ancient Dragon Knight",
+            base_abilities={
+                "str": 24,
+                "dex": 14,
+                "con": 22,
+                "int": 10,
+                "wis": 12,
+                "cha": 16,
+            },
+        )
+        resp = client.post(
+            "/gm/npcs/create/dnd5e/finalize",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is True
+        player = Player.query.get(data["player_id"])
+        assert player is not None
+        assert player.is_npc is True
+        sheet = PlayerCharacterSheet.query.filter_by(
+            player_id=player.id, campaign_id=camp.id
+        ).one()
+        assert sheet.sheet_json["name"] == "Ancient Dragon Knight"
+        assert sheet.sheet_json["creation"]["base_abilities"]["str"] == 24
+        assert sheet.sheet_json["abilities"]["str"] == 25  # human +1 to all
+        assert sheet.sheet_json["creation"]["ability_method"] == "gm_set"
+
+
+def test_gm_create_ruler_npc_assigns_region_and_redirects_to_edit(client):
+    with flask_app.app_context():
+        gm = _make_user("gm-ruler-npc", role="GM")
+        camp = _make_dnd_campaign(gm)
+        region = Region(campaign_id=camp.id, name="Northreach")
+        db.session.add(region)
+        db.session.commit()
+        seed_client_session(client, gm, campaign_id=camp.id, session_mode="gm")
+        payload = _valid_wizard_payload(name="Queen Aria")
+        payload["region_id"] = region.id
+        payload["assign_ruler"] = True
+        resp = client.post(
+            "/gm/npcs/create/dnd5e/finalize",
+            data=json.dumps(payload),
+            content_type="application/json",
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is True
+        db.session.refresh(region)
+        assert region.ruler_player_id == data["player_id"]
+        assert f"/gm/regions/edit/{region.id}" in data["redirect_url"]
+
+
+def test_apply_sheet_update_npc_keeps_high_abilities():
+    gm = _make_user("gm-npc-sheet", role="GM")
+    camp = _make_dnd_campaign(gm)
+    player = Player(is_npc=True, user_id=None, campaign_id=camp.id, currency=0)
+    db.session.add(player)
+    db.session.flush()
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=camp.id,
+            sheet_json={
+                "schema_version": 1,
+                "system_type": "dnd5e",
+                "name": "Boss NPC",
+                "abilities": {"str": 24, "dex": 14, "con": 20, "int": 10, "wis": 12, "cha": 8},
+                "defenses": {},
+                "save_prof_flags": {},
+                "skill_prof_tiers": {},
+            },
+        )
+    )
+    db.session.commit()
+
+    ok, errors = character_sheet_service.apply_sheet_update(
+        player=player,
+        campaign=camp,
+        form={"stat_ability_str": "50", "stat_ability_dex": "18"},
+    )
+    assert ok is True
+    assert not errors
+    updated = PlayerCharacterSheet.query.filter_by(
+        player_id=player.id, campaign_id=camp.id
+    ).one()
+    assert updated.sheet_json["abilities"]["str"] == 50

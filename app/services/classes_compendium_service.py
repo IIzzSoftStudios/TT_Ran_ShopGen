@@ -54,6 +54,7 @@ def _default_progression_row(level: int) -> dict[str, Any]:
         "level": level,
         "proficiency_bonus": _proficiency_bonus(level),
         "features": [],
+        "trait_keys": [],
         "spell_slots": {},
         "resources": {},
         "notes": "",
@@ -70,6 +71,7 @@ def _default_class_entry(raw: dict[str, Any], *, source: str = "base") -> dict[s
         "hit_die": int(raw.get("hit_die") or 8),
         "save_proficiencies": list(raw.get("save_proficiencies") or []),
         "skill_choices": deepcopy(skill_choices),
+        "trait_keys": list(raw.get("trait_keys") or []),
         "level_progression": [_default_progression_row(level) for level in _LEVELS],
         "is_hidden": bool(raw.get("is_hidden")),
         "secret": bool(raw.get("secret")),
@@ -106,6 +108,7 @@ def _normalize_entry(raw: dict[str, Any]) -> dict[str, Any]:
         base.get("save_proficiencies") or []
     )
     base["skill_choices"] = _clean_skill_choices(base.get("skill_choices") or {})
+    base["trait_keys"] = _clean_trait_keys(base.get("trait_keys") or [])
     base["level_progression"] = _clean_level_progression(
         base.get("level_progression") or []
     )
@@ -162,6 +165,9 @@ def _ensure_compendium(settings: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def ensure_classes_compendium(campaign_id: int) -> list[dict[str, Any]]:
+    from app.services.traits_compendium_service import ensure_traits_compendium
+
+    ensure_traits_compendium(campaign_id)
     cfg = _config_for_campaign(campaign_id)
     settings = cfg.settings_json
     entries = _ensure_compendium(settings)
@@ -283,6 +289,18 @@ def _clean_slot_map(raw: Any, *, label: str, max_keys: int) -> dict[str, int]:
     return clean
 
 
+def _clean_trait_keys(raw: Any) -> list[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        keys = [part.strip().lower() for part in raw.split(",") if part.strip()]
+    elif isinstance(raw, list):
+        keys = [str(part or "").strip().lower() for part in raw if str(part or "").strip()]
+    else:
+        raise ClassesValidationError("trait_keys must be a list or comma-separated string.")
+    return keys[:24]
+
+
 def _clean_progression_row(raw: Any, expected_level: int) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ClassesValidationError(f"Level {expected_level} progression must be an object.")
@@ -308,6 +326,7 @@ def _clean_progression_row(raw: Any, expected_level: int) -> dict[str, Any]:
         "level": level,
         "proficiency_bonus": prof,
         "features": _clean_features(raw.get("features") or []),
+        "trait_keys": _clean_trait_keys(raw.get("trait_keys") or []),
         "spell_slots": _clean_slot_map(
             raw.get("spell_slots") or {}, label="spell_slots", max_keys=_MAX_SPELL_SLOT_KEYS
         ),
@@ -355,6 +374,7 @@ def _clean_class_patch(raw: dict[str, Any]) -> dict[str, Any]:
         "hit_die": hit_die,
         "save_proficiencies": _clean_save_proficiencies(raw.get("save_proficiencies") or []),
         "skill_choices": _clean_skill_choices(raw.get("skill_choices") or {}),
+        "trait_keys": _clean_trait_keys(raw.get("trait_keys") or []),
         "level_progression": _clean_level_progression(raw.get("level_progression") or []),
         "is_hidden": bool(raw.get("is_hidden")),
         "secret": bool(raw.get("secret")),

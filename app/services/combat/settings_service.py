@@ -24,7 +24,7 @@ DEFAULT_SETTINGS = {
     # Automation toggles
     "opportunity_attacks": True,
     "flanking": False,
-    "cover": False,
+    "cover": True,
     "death_saves": True,
     "concentration_checks": True,
     "conditions_enabled": True,

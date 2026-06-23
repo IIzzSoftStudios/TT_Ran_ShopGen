@@ -35,9 +35,11 @@
     </p>
     <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
     <div class="battle-layout">
-        <div id="battle-stage" class="battle-stage">
-            <div id="battle-map-bg" class="battle-map-bg" aria-hidden="true"></div>
-            <div id="battle-grid" class="battle-grid"></div>
+        <div id="battle-stage" class="battle-stage map-stage">
+            <div id="battle-viewport-layer" class="map-viewport-layer battle-viewport-layer">
+                <div id="battle-map-bg" class="battle-map-bg" aria-hidden="true"></div>
+                <div id="battle-grid" class="battle-grid"></div>
+            </div>
             <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
                 <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"
                       marker-end="url(#battle-arrowhead)"></line>
@@ -48,6 +50,7 @@
                     </marker>
                 </defs>
             </svg>
+            <span class="map-viewport-hint battle-viewport-hint">Drag to pan · Wheel to zoom</span>
             <div id="battle-radial" class="battle-radial" hidden>
                 <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
                 <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
@@ -79,6 +82,7 @@
             autoStart: true
         };
     </script>
+    <script src="{{ url_for('static', filename='js/map_viewport.js') }}"></script>
     <script src="{{ url_for('static', filename='js/gm_battle.js') }}"></script>
     {% else %}
     <p>No active battle right now. Your GM will start one from their dashboard.</p>

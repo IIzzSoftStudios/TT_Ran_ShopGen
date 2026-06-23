@@ -530,7 +530,10 @@ def apply_sheet_update(player, campaign, form):
         if kind == "ability" and key in ability_keys:
             if value is None:
                 continue
-            clamped = ruleset.clamp_ability(value)
+            if getattr(player, "is_npc", False):
+                clamped = max(1, min(int(value), 999))
+            else:
+                clamped = ruleset.clamp_ability(value)
             if clamped is None:
                 continue
             new_abilities[key] = clamped
@@ -638,3 +641,97 @@ def apply_sheet_update(player, campaign, form):
         return False, [f"Failed to save character sheet: {exc}"]
 
     return (len(errors) == 0), errors
+
+
+def apply_player_spell_selection(
+    player,
+    campaign,
+    *,
+    cantrips: list[str] | None = None,
+    prepared: list[str] | None = None,
+    known: list[str] | None = None,
+) -> tuple[bool, list[str]]:
+    """Persist player-selected cantrips / prepared / known spell keys."""
+    errors: list[str] = []
+    if campaign is None:
+        return False, ["Join a campaign to manage spells."]
+    if (_system_type_of(campaign) or "").lower() != "dnd5e":
+        return False, ["Spell selection is only available in D&D 5e campaigns."]
+
+    sheet = get_or_default_sheet(player, campaign)
+    spell_details = _resolve_spell_details(campaign, sheet)
+    catalog = spell_details.get("class_available") or []
+    catalog_by_key = {
+        str(entry.get("key") or "").strip().lower(): entry
+        for entry in catalog
+        if str(entry.get("key") or "").strip()
+    }
+    if not catalog_by_key:
+        return False, ["No spells are available for your class in this campaign."]
+
+    def _clean_keys(raw_keys: list[str] | None, *, level: int | None) -> list[str]:
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for raw in raw_keys or []:
+            key = str(raw or "").strip().lower()
+            if not key or key in seen:
+                continue
+            entry = catalog_by_key.get(key)
+            if entry is None:
+                errors.append(f"Spell '{key}' is not on your class list.")
+                continue
+            spell_level = int(entry.get("level") or 0)
+            if level == 0 and spell_level != 0:
+                errors.append(f"'{entry.get('name') or key}' is not a cantrip.")
+                continue
+            if level == 1 and spell_level < 1:
+                errors.append(f"'{entry.get('name') or key}' must be a leveled spell.")
+                continue
+            seen.add(key)
+            cleaned.append(key)
+            if len(cleaned) >= 64:
+                break
+        return cleaned
+
+    cantrip_keys = _clean_keys(cantrips, level=0)
+    prepared_keys = _clean_keys(prepared, level=1)
+    known_keys = _clean_keys(known, level=1)
+
+    if errors:
+        return False, errors
+
+    prepared_keys = [k for k in prepared_keys if k not in cantrip_keys]
+    known_keys = [
+        k for k in known_keys if k not in cantrip_keys and k not in prepared_keys
+    ]
+
+    current = dict(sheet)
+    spells_state = dict(current.get("spells") or {})
+    spells_state["cantrips"] = cantrip_keys
+    spells_state["prepared"] = prepared_keys
+    spells_state["known"] = known_keys
+    current["spells"] = spells_state
+    current["schema_version"] = SHEET_SCHEMA_VERSION
+    current["system_type"] = "dnd5e"
+
+    row = PlayerCharacterSheet.query.filter_by(
+        player_id=player.id, campaign_id=campaign.id
+    ).first()
+    if row is None:
+        row = PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=campaign.id,
+            sheet_json=current,
+        )
+        db.session.add(row)
+    else:
+        row.sheet_json = current
+        row.updated_at = datetime.utcnow()
+
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return False, [f"Failed to save spells: {exc}"]
+
+    return True, []

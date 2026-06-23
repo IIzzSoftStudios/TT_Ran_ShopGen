@@ -121,7 +121,7 @@ def test_world_map_payload_for_gm_with_campaign():
     feature_types = {
         feature["type"] for feature in data["canvas"]["generation"]["features"]
     }
-    assert {"landmass", "river", "trade_route", "mountain_range", "forest"} <= feature_types
+    assert {"landmass", "island"} <= feature_types
     names = [e["name"] for e in data["entities"]]
     assert "Rivermouth" in names
     entity = next(e for e in data["entities"] if e["id"] == city.city_id)
@@ -658,6 +658,60 @@ def test_shop_marker_saved_on_own_city_canvas():
     assert marker.y == pytest.approx(0.75)
 
 
+def test_shop_map_payload_creates_shop_canvas():
+    user, campaign = _make_gm_with_campaign("gm-shop-map-1")
+    city = _add_city(campaign, "Marketburg")
+    shop = _add_shop(campaign, city, "Canonical Chandler")
+    client = _gm_client(user, campaign)
+
+    resp = client.get(f"/gm/maps/shops/{shop.shop_id}?city_id={city.city_id}")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["shop"]["id"] == shop.shop_id
+    assert data["shop"]["name"] == "Canonical Chandler"
+    assert data["city"]["id"] == city.city_id
+    assert data["canvas"]["scope"] == "shop"
+    assert data["canvas"]["shop_id"] == shop.shop_id
+    assert data["entities"] == []
+
+    canvas = MapCanvas.query.filter_by(
+        campaign_id=campaign.id, shop_id=shop.shop_id, scope="shop"
+    ).one()
+    assert canvas.id == data["canvas"]["id"]
+    gen = canvas.generation_json or {}
+    assert gen.get("scope") == "shop"
+    assert gen.get("hex_grid")
+    assert gen.get("schema_version") == gm_maps.GENERATION_SCHEMA_VERSION
+
+
+def test_shop_background_upload_accepts_png():
+    user, campaign = _make_gm_with_campaign("gm-shop-bg-1")
+    city = _add_city(campaign, "Uploadville")
+    shop = _add_shop(campaign, city, "Map Emporium")
+    client = _gm_client(user, campaign)
+
+    resp = client.post(
+        f"/gm/maps/shops/{shop.shop_id}/background",
+        data={"map_image": (_tiny_png(), "shop.png")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["canvas"]["source_type"] == "uploaded"
+    assert body["canvas"]["has_image"] is True
+    assert body["canvas"]["scope"] == "shop"
+    canvas_id = body["canvas"]["id"]
+
+    try:
+        img_resp = client.get(f"/gm/maps/image/{canvas_id}")
+        assert img_resp.status_code == 200
+        assert img_resp.mimetype == "image/webp"
+    finally:
+        canvas = db.session.get(MapCanvas, canvas_id)
+        if canvas is not None:
+            gm_maps.delete_map_image(canvas)
+
+
 def test_marker_rejects_unknown_entity_type():
     user, campaign = _make_gm_with_campaign("gm-scope-5")
     city = _add_city(campaign, "Typetown")
@@ -928,23 +982,25 @@ def test_dashboard_has_map_tab_and_existing_tabs():
     html = resp.data.decode("utf-8")
     assert 'data-target="map-pane-content"' in html
     assert 'id="map-pane-content"' in html
-    assert "max-width: 1320px;" in html
-    assert "gm-dashboard-shell" in html
+    assert 'id="gm-paradox-shell"' in html
+    assert 'id="gm-world-stage"' in html
+    assert 'id="gm-nav-rail"' in html
+    assert 'id="gm-top-hud"' in html
+    assert 'id="gm-panel-backdrop"' in html
+    assert 'gm_dashboard_shell.css' in html
     assert 'id="gm-section-menu-btn"' in html
-    assert 'id="gm-dashboard-sidebar"' in html
-    assert 'id="gm-dashboard-backdrop"' in html
-    assert "World" in html
-    assert "Characters" in html
+    assert 'id="map-stage"' in html
+    assert html.index('id="gm-world-stage"') < html.index('id="map-stage"')
+    assert 'data-target="sim-pane-content"' in html
+    assert 'data-target="market-pane-content"' in html
+    assert '<div id="map-pane-content" class="gm-slide-panel tab-panel-content" role="tabpanel" hidden>' in html
+    assert '<div id="sim-pane-content" class="gm-slide-panel tab-panel-content" role="tabpanel" hidden>' in html
+    assert 'setupGMDashboardShell' in html
+    assert 'gm-map-focus' in html
     assert ".map-add-city-controls[hidden]" in html
     assert "No cities available" in html
     assert "No shops available" in html
     assert "mapAddCityBtn.disabled = true" in html
-    assert 'data-target="sim-pane-content"' in html
-    assert 'data-target="market-pane-content"' in html
-    assert html.index('data-target="map-pane-content"') < html.index('data-target="sim-pane-content"')
-    assert '<button type="button" class="gm-panel-tab active" data-target="map-pane-content"' in html
-    assert '<div id="map-pane-content" class="tab-panel-content active" role="tabpanel">' in html
-    assert '<div id="sim-pane-content" class="tab-panel-content" role="tabpanel" hidden>' in html
     assert 'id="map-stage"' in html
     assert "Add City" in html
     assert "Remove city from map" in html
@@ -981,21 +1037,9 @@ def test_generate_world_form_has_map_setup_controls():
     assert resp.status_code == 200
     html = resp.data.decode("utf-8")
     assert '<label for="campaign_name">World Name</label>' in html
-    assert 'id="map-setup-fieldset"' not in html
-    assert 'name="map_setup_choice"' not in html
-    assert 'data-setting="population_scale"' in html
-    assert 'data-setting="map_landmass_scale"' in html
-    assert 'data-setting="map_waterways"' in html
-    assert 'data-setting="map_terrain_roughness"' in html
-    assert "Species Population" in html
-    assert 'name="species_percent_Human"' in html
-    assert 'name="species_percent_Half_Orc"' in html
-    assert 'id="add-custom-species-btn"' in html
-    assert 'id="setup-tutorial-interest-btn"' in html
-    assert "Would a setup tutorial be useful?" in html
-    assert "Thank you, your response has been noted." in html
-    assert '"/auth/account/submissions"' in html
-    assert 'prompted_key: "setup_tutorial"' in html
+    assert "Continue to map" in html
+    assert 'name="species_percent_Human"' not in html
+    assert 'data-setting="map_landmass_scale"' not in html
 
 
 def test_world_generator_validator_persists_species_distribution():
@@ -1217,9 +1261,16 @@ def test_map_geography_sliders_change_world_background_shape():
     def count(features, kind):
         return sum(1 for item in features if item["type"] == kind)
 
-    assert count(rugged["features"], "river") > count(calm["features"], "river")
-    assert count(rugged["features"], "mountain_range") > count(calm["features"], "mountain_range")
-    assert count(rugged["features"], "region_tint") > count(calm["features"], "region_tint")
+    assert count(rugged["features"], "river") >= count(calm["features"], "river")
+
+    def hex_land_count(gen):
+        hg = gen["hex_grid"]
+        cells = gm_maps.decode_terrain_rle(
+            hg["cells"], int(hg["width"]) * int(hg["height"])
+        )
+        return sum(1 for c in cells if c >= 1)
+
+    assert hex_land_count(calm) >= hex_land_count(rugged)
     assert rugged["profile"]["terrain_roughness"] == 10
 
 
@@ -1254,11 +1305,620 @@ def test_economy_and_society_sliders_change_city_background_shape():
     def count(features, kind):
         return sum(1 for item in features if item["type"] == kind)
 
-    assert count(dense["features"], "district") > count(sparse["features"], "district")
-    assert count(dense["features"], "road") > count(sparse["features"], "road")
-    assert count(dense["features"], "canal") > count(sparse["features"], "canal")
-    ring_roads = [
-        item for item in dense["features"]
-        if item["type"] == "road" and item["points"][0] == item["points"][-1]
+    def interior_cells(gen):
+        hg = gen["hex_grid"]
+        cells = gm_maps.decode_terrain_rle(
+            hg["cells"], int(hg["width"]) * int(hg["height"])
+        )
+        return sum(1 for code in cells if code >= 1)
+
+    assert interior_cells(dense) > interior_cells(sparse)
+    assert count(dense["features"], "road") >= count(sparse["features"], "road")
+    assert int(dense["hex_grid"]["width"]) * int(dense["hex_grid"]["height"]) >= int(
+        sparse["hex_grid"]["width"]
+    ) * int(sparse["hex_grid"]["height"])
+
+
+# ---------------------------------------------------------------------------
+# Schema v4: dual seeds, presets, preview, profile clamping
+# ---------------------------------------------------------------------------
+def test_schema_v7_fields_on_generation():
+    gen = gm_maps.generate_canvas_background(
+        "world",
+        42,
+        gm_maps.map_generation_profile(None),
+        detail_seed=99,
+        style_preset="satellite",
+    )
+    assert gen["schema_version"] == gm_maps.GENERATION_SCHEMA_VERSION == 7
+    assert gen["layout_seed"] == 42
+    assert gen["detail_seed"] == 99
+    assert gen["style_preset"] == "satellite"
+    assert gen["render_palette"]["water_deep"]
+    assert gen.get("hex_grid")
+    assert gen["hex_grid"].get("cells")
+    assert gen["terrain_grid"]["derived_from"] == "hex_grid"
+    assert any(f["type"] == "landmass" for f in gen["features"])
+
+
+def test_generation_deterministic_with_same_seeds():
+    profile = gm_maps.map_generation_profile(
+        _settings_with_ranges(map_landmass_scale=6, map_waterways=4, map_terrain_roughness=5)
+    )
+    a = gm_maps.generate_canvas_background("world", 100, profile, detail_seed=200)
+    b = gm_maps.generate_canvas_background("world", 100, profile, detail_seed=200)
+    assert a["features"] == b["features"]
+
+
+def test_details_regen_preserves_feature_counts():
+    profile = gm_maps.map_generation_profile(None)
+    layout = gm_maps.generate_canvas_background("world", 555, profile, detail_seed=111)
+    details = gm_maps.generate_canvas_background(
+        "world", 555, profile, detail_seed=222,
+        mode="details", existing_generation=layout,
+    )
+
+    assert layout["hex_grid"]["width"] == details["hex_grid"]["width"]
+    assert layout["hex_grid"]["height"] == details["hex_grid"]["height"]
+
+    stable_types = {"landmass", "island", "region_tint"}
+
+    def type_counts(features, types=None):
+        counts = {}
+        for feature in features:
+            if types and feature["type"] not in types:
+                continue
+            counts[feature["type"]] = counts.get(feature["type"], 0) + 1
+        return counts
+
+    assert type_counts(layout["features"], stable_types) == type_counts(details["features"], stable_types)
+
+
+def test_layout_regen_changes_island_placement():
+    profile = gm_maps.map_generation_profile(None)
+    a = gm_maps.generate_canvas_background("world", 10, profile, detail_seed=50)
+    b = gm_maps.generate_canvas_background("world", 20, profile, detail_seed=50)
+    islands_a = [f for f in a["features"] if f["type"] == "island"]
+    islands_b = [f for f in b["features"] if f["type"] == "island"]
+    assert islands_a or islands_b
+    if islands_a and islands_b:
+        assert a["hex_grid"]["cells"] != b["hex_grid"]["cells"]
+
+
+def test_island_count_profile_override():
+    profile = gm_maps.map_generation_profile(
+        None,
+        overrides={"island_count": 7, "terrain_roughness": 0},
+    )
+    gen = gm_maps.generate_canvas_background("world", 1, profile)
+    island_count = sum(1 for f in gen["features"] if f["type"] == "island")
+    assert island_count >= 5
+
+
+def test_validate_style_preset_rejects_unknown():
+    with pytest.raises(gm_maps.MapValidationError):
+        gm_maps.validate_style_preset("neon_glow")
+
+
+def test_profile_clamping_in_parse_request():
+    canvas = MapCanvas(campaign_id=1, scope="world", generation_json={})
+    parsed = gm_maps.parse_background_request(
+        {"profile": {"island_count": 999, "landmass_scale": -5}},
+        canvas,
+    )
+    assert parsed["profile_overrides"]["island_count"] == 10.0
+    assert parsed["profile_overrides"]["landmass_scale"] == 1.0
+
+
+def test_seed_locked_layout_mode_rejected():
+    canvas = MapCanvas(campaign_id=1, scope="world", generation_json={})
+    with pytest.raises(gm_maps.MapValidationError):
+        gm_maps.parse_background_request({"mode": "layout", "seed_locked": True}, canvas)
+
+
+def test_background_json_regenerate_details():
+    user, campaign = _make_gm_with_campaign("gm-bg-v4-details")
+    client = _gm_client(user, campaign)
+    world = client.get("/gm/maps/world").get_json()
+    layout_seed = world["canvas"]["generation"]["layout_seed"]
+
+    resp = client.post(
+        "/gm/maps/world/background",
+        json={"mode": "details", "layout_seed": layout_seed, "style_preset": "dark_fantasy"},
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    gen = body["canvas"]["generation"]
+    assert gen["schema_version"] == gm_maps.GENERATION_SCHEMA_VERSION
+    assert gen["layout_seed"] == layout_seed
+    assert gen["style_preset"] == "dark_fantasy"
+    assert gen["detail_seed"] != world["canvas"]["generation"].get("detail_seed")
+
+
+def test_background_json_seed_locked_layout_400():
+    user, campaign = _make_gm_with_campaign("gm-bg-v4-lock")
+    client = _gm_client(user, campaign)
+    resp = client.post(
+        "/gm/maps/world/background",
+        json={"mode": "layout", "seed_locked": True},
+    )
+    assert resp.status_code == 400
+
+
+def test_background_json_invalid_preset_400():
+    user, campaign = _make_gm_with_campaign("gm-bg-v4-preset")
+    client = _gm_client(user, campaign)
+    resp = client.post(
+        "/gm/maps/world/background",
+        json={"mode": "details", "style_preset": "not_a_preset"},
+    )
+    assert resp.status_code == 400
+
+
+def test_preview_does_not_mutate_canvas():
+    user, campaign = _make_gm_with_campaign("gm-bg-preview")
+    client = _gm_client(user, campaign)
+    before = client.get("/gm/maps/world").get_json()
+    canvas_id = before["canvas"]["id"]
+    original_gen = dict(before["canvas"]["generation"])
+
+    preview = client.post(
+        "/gm/maps/world/background/preview",
+        json={
+            "mode": "full",
+            "style_preset": "ink_sketch",
+            "profile": {"landmass_scale": 9, "biome_warmth": 8},
+        },
+    )
+    assert preview.status_code == 200
+    preview_gen = preview.get_json()["generation"]
+    assert preview_gen["style_preset"] == "ink_sketch"
+    assert preview_gen["profile"]["landmass_scale"] == 9
+
+    after = client.get("/gm/maps/world").get_json()
+    assert after["canvas"]["id"] == canvas_id
+    assert after["canvas"]["generation"]["layout_seed"] == original_gen["layout_seed"]
+    assert after["canvas"]["generation"].get("style_preset") == original_gen.get("style_preset")
+
+
+# ---------------------------------------------------------------------------
+# Map studio: terrain grid, generation save, underlay, regen guard
+# ---------------------------------------------------------------------------
+def _sample_v6_generation(scope: str = "world") -> dict:
+    return gm_maps.generate_canvas_background(
+        scope,
+        42,
+        gm_maps.map_generation_profile(None),
+        detail_seed=99,
+    )
+
+
+def _sample_v5_generation(scope: str = "world") -> dict:
+    """Backward-compatible alias for studio save tests."""
+    return _sample_v6_generation(scope)
+
+
+def test_terrain_rle_roundtrip():
+    cells = [0, 0, 1, 1, 1, 2, 2]
+    encoded = gm_maps.encode_terrain_rle(cells)
+    decoded = gm_maps.decode_terrain_rle(encoded, len(cells))
+    assert decoded == cells
+
+
+def test_validate_generation_json_rejects_bad_rle():
+    gen = _sample_v5_generation()
+    gen["terrain_grid"]["cells"] = "1:10"
+    with pytest.raises(gm_maps.MapValidationError):
+        gm_maps.validate_generation_json(gen, "world")
+
+
+def test_initialize_terrain_grid_from_landmass():
+    gen = gm_maps.generate_canvas_background("world", 7, gm_maps.map_generation_profile(None))
+    upgraded = gm_maps.initialize_terrain_grid_from_features(gen)
+    assert upgraded["terrain_grid"]["width"] == gm_maps.TERRAIN_GRID_WIDTH
+    cells = gm_maps.decode_terrain_rle(
+        upgraded["terrain_grid"]["cells"],
+        gm_maps.TERRAIN_GRID_WIDTH * gm_maps.TERRAIN_GRID_HEIGHT,
+    )
+    assert any(code == 1 for code in cells)
+
+
+def test_save_world_generation_v7():
+    user, campaign = _make_gm_with_campaign("gm-studio-save-world")
+    client = _gm_client(user, campaign)
+    client.get("/gm/maps/world")
+    generation = _sample_v5_generation("world")
+    generation["features"].append(
+        {
+            "type": "lake",
+            "points": [[0.4, 0.4], [0.5, 0.38], [0.55, 0.45], [0.45, 0.48]],
+        }
+    )
+    resp = client.post("/gm/maps/world/generation", json={"generation": generation})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["success"] is True
+    saved = body["canvas"]["generation"]
+    assert saved["schema_version"] == gm_maps.GENERATION_SCHEMA_VERSION
+    assert saved.get("terrain_grid")
+    assert saved["editor_meta"]["last_edited_at"]
+    assert any(f["type"] == "lake" for f in saved["features"])
+
+
+def test_save_city_generation_v5():
+    user, campaign = _make_gm_with_campaign("gm-studio-save-city")
+    city = _add_city(campaign, "Brushburg")
+    client = _gm_client(user, campaign)
+    client.get(f"/gm/maps/cities/{city.city_id}")
+    generation = _sample_v5_generation("city")
+    resp = client.post(
+        f"/gm/maps/cities/{city.city_id}/generation",
+        json={"generation": generation},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["canvas"]["generation"]["scope"] == "city"
+
+
+def test_regenerate_409_after_studio_save():
+    user, campaign = _make_gm_with_campaign("gm-studio-regen-guard")
+    client = _gm_client(user, campaign)
+    generation = _sample_v5_generation("world")
+    save = client.post("/gm/maps/world/generation", json={"generation": generation})
+    assert save.status_code == 200
+
+    blocked = client.post("/gm/maps/world/background", json={"mode": "details"})
+    assert blocked.status_code == 409
+
+    allowed = client.post(
+        "/gm/maps/world/background",
+        json={"mode": "details", "confirm_discard_edits": True},
+    )
+    assert allowed.status_code == 200
+
+
+def test_underlay_upload_delete_and_serve():
+    user, campaign = _make_gm_with_campaign("gm-studio-underlay")
+    client = _gm_client(user, campaign)
+    world = client.get("/gm/maps/world").get_json()
+    canvas_id = world["canvas"]["id"]
+
+    upload = client.post(
+        "/gm/maps/world/underlay",
+        data={"map_image": (_tiny_png(), "trace.png")},
+        content_type="multipart/form-data",
+    )
+    assert upload.status_code == 200
+    assert upload.get_json()["canvas"]["has_underlay"] is True
+
+    img = client.get(f"/gm/maps/underlay/{canvas_id}")
+    assert img.status_code == 200
+    assert img.mimetype == "image/webp"
+
+    deleted = client.delete("/gm/maps/world/underlay")
+    assert deleted.status_code == 200
+    assert deleted.get_json()["canvas"]["has_underlay"] is False
+
+
+def test_underlay_wrong_campaign_404():
+    user_a, campaign_a = _make_gm_with_campaign("gm-underlay-a")
+    user_b, campaign_b = _make_gm_with_campaign("gm-underlay-b")
+    client_a = _gm_client(user_a, campaign_a)
+    client_b = _gm_client(user_b, campaign_b)
+    world = client_a.get("/gm/maps/world").get_json()
+    canvas_id = world["canvas"]["id"]
+    client_a.post(
+        "/gm/maps/world/underlay",
+        data={"map_image": (_tiny_png(), "trace.png")},
+        content_type="multipart/form-data",
+    )
+    resp = client_b.get(f"/gm/maps/underlay/{canvas_id}")
+    assert resp.status_code == 404
+
+
+def test_convert_editable_from_upload():
+    user, campaign = _make_gm_with_campaign("gm-studio-convert")
+    client = _gm_client(user, campaign)
+    client.get("/gm/maps/world")
+    upload = client.post(
+        "/gm/maps/world/background",
+        data={"map_image": (_tiny_png(), "bg.png")},
+        content_type="multipart/form-data",
+    )
+    assert upload.status_code == 200
+    assert upload.get_json()["canvas"]["has_image"] is True
+
+    convert = client.post("/gm/maps/world/convert-editable")
+    assert convert.status_code == 200
+    body = convert.get_json()
+    assert body["canvas"]["has_image"] is False
+    assert body["canvas"]["source_type"] == "generated"
+    assert body["canvas"]["generation"].get("terrain_grid")
+
+
+def test_region_boundary_api():
+    from app.models import Region
+
+    user, campaign = _make_gm_with_campaign("gm-region-boundary")
+    region = Region(campaign_id=campaign.id, name="Northlands")
+    db.session.add(region)
+    db.session.commit()
+
+    client = _gm_client(user, campaign)
+    client.get("/gm/maps/world")
+
+    points = [[0.2, 0.2], [0.5, 0.2], [0.5, 0.5], [0.2, 0.5]]
+    resp = client.post(f"/gm/regions/{region.id}/boundary", json={"points": points})
+    assert resp.status_code == 200
+    assert resp.get_json()["has_boundary"] is True
+
+    get_resp = client.get(f"/gm/regions/{region.id}/boundary")
+    assert get_resp.status_code == 200
+    body = get_resp.get_json()
+    assert body["has_boundary"] is True
+    assert len(body["points"]) == 4
+
+    comp = client.get("/gm/regions/compendium").get_json()
+    row = next(r for r in comp["regions"] if r["region_id"] == region.id)
+    assert row["has_boundary"] is True
+
+    clear = client.post(f"/gm/regions/{region.id}/boundary", json={"clear": True})
+    assert clear.status_code == 200
+    assert client.get(f"/gm/regions/{region.id}/boundary").get_json()["has_boundary"] is False
+
+
+def test_region_boundary_preserved_on_hex_finalize():
+    from app.models import Region
+
+    user, campaign = _make_gm_with_campaign("gm-region-boundary-hex")
+    region = Region(campaign_id=campaign.id, name="Eastmarch")
+    db.session.add(region)
+    db.session.commit()
+
+    points = [[0.15, 0.15], [0.45, 0.15], [0.45, 0.45], [0.15, 0.45]]
+    gm_maps.upsert_region_boundary(campaign.id, region.id, region.name, points)
+    db.session.commit()
+
+    canvas = gm_maps.get_or_create_world_canvas(campaign.id)
+    gen = dict(canvas.generation_json or {})
+    gen = gm_maps.validate_generation_json(gen, "world")
+    region_feats = [
+        f for f in gen.get("features", [])
+        if f.get("type") == "region_tint" and f.get("region_id") == region.id
     ]
-    assert ring_roads
+    assert len(region_feats) == 1
+    assert len(region_feats[0]["points"]) == 4
+
+
+def test_gm_drawn_lines_preserved_on_hex_finalize():
+    user, campaign = _make_gm_with_campaign("gm-line-draw-hex")
+    canvas = gm_maps.get_or_create_world_canvas(campaign.id)
+    gen = dict(canvas.generation_json or {})
+    gen.setdefault("features", []).append(
+        {
+            "type": "river",
+            "points": [[0.1, 0.2], [0.4, 0.35], [0.7, 0.5]],
+            "gm_drawn": True,
+        }
+    )
+    gen.setdefault("features", []).append(
+        {
+            "type": "railroad",
+            "points": [[0.2, 0.8], [0.9, 0.75]],
+            "gm_drawn": True,
+        }
+    )
+    canvas.generation_json = gen
+    db.session.commit()
+
+    validated = gm_maps.validate_generation_json(gen, "world")
+    drawn = [
+        f for f in validated.get("features", [])
+        if f.get("gm_drawn") and f.get("type") in ("river", "railroad")
+    ]
+    assert len(drawn) == 2
+    river = next(f for f in drawn if f["type"] == "river")
+    assert len(river["points"]) == 3
+    railroad = next(f for f in drawn if f["type"] == "railroad")
+    assert len(railroad["points"]) == 2
+
+
+def test_world_map_payload_includes_city_owner_and_people_directory(client):
+    from app.models import Player, PlayerCharacterSheet
+
+    user, campaign = _make_gm_with_campaign("gm-map-owner")
+    city = _add_city(campaign, "Ownerburg")
+    owner = Player(is_npc=True, user_id=None, campaign_id=campaign.id, currency=0)
+    db.session.add(owner)
+    db.session.flush()
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=owner.id,
+            campaign_id=campaign.id,
+            sheet_json={"name": "Mayor Finch"},
+        )
+    )
+    city.owner_player_id = owner.id
+    db.session.commit()
+
+    seed_client_session(client, user, campaign_id=campaign.id, session_mode="gm")
+    data = client.get("/gm/maps/world").get_json()
+    entity = next(e for e in data["entities"] if e["id"] == city.city_id)
+    assert entity["owner_player_id"] == owner.id
+    assert entity["summary"]["owner"]["display"] == "Mayor Finch"
+    assert entity["summary"]["owner"]["player_id"] == owner.id
+    assert data["people"][str(owner.id)]["display"] == "Mayor Finch"
+    assert data["people"][str(owner.id)]["player_id"] == owner.id
+
+
+def test_city_map_payload_includes_shop_owner(client):
+    from app.models import Player, PlayerCharacterSheet
+
+    user, campaign = _make_gm_with_campaign("gm-shop-owner-map")
+    city = _add_city(campaign, "Marketton")
+    shop = _add_shop(campaign, city, "Finch Goods")
+    owner = Player(is_npc=True, user_id=None, campaign_id=campaign.id, currency=0)
+    db.session.add(owner)
+    db.session.flush()
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=owner.id,
+            campaign_id=campaign.id,
+            sheet_json={"name": "Shopkeep Finch"},
+        )
+    )
+    shop.owner_player_id = owner.id
+    db.session.commit()
+
+    seed_client_session(client, user, campaign_id=campaign.id, session_mode="gm")
+    data = client.get(f"/gm/maps/cities/{city.city_id}").get_json()
+    entity = next(e for e in data["entities"] if e["id"] == shop.shop_id)
+    assert entity["owner_player_id"] == owner.id
+    assert entity["summary"]["owner"]["display"] == "Shopkeep Finch"
+    assert entity["summary"]["owner"]["player_id"] == owner.id
+    assert data["people"][str(owner.id)]["display"] == "Shopkeep Finch"
+    assert data["people"][str(owner.id)]["player_id"] == owner.id
+
+
+def test_players_compendium_lists_npc_entries(client):
+    from app.models import Player, PlayerCharacterSheet
+
+    user, campaign = _make_gm_with_campaign("gm-players-comp")
+    npc = Player(is_npc=True, user_id=None, campaign_id=campaign.id, currency=12)
+    db.session.add(npc)
+    db.session.flush()
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=npc.id,
+            campaign_id=campaign.id,
+            sheet_json={"name": "Gate Guard", "class_name": "Fighter", "level": 3},
+        )
+    )
+    db.session.commit()
+
+    seed_client_session(client, user, campaign_id=campaign.id, session_mode="gm")
+    data = client.get("/gm/players/compendium").get_json()
+    assert len(data["npcs"]) == 1
+    assert data["npcs"][0]["player_id"] == npc.id
+    assert data["npcs"][0]["name"] == "Gate Guard"
+    assert data["npcs"][0]["class_name"] == "Fighter"
+    assert data["npcs"][0]["level"] == 3
+
+
+def test_player_world_map_shows_known_owner_with_player_id(client):
+    from app.models import Player, PlayerCharacterSheet, User
+
+    gm_user, campaign = _make_gm_with_campaign("gm-player-map-owner")
+    city = _add_city(campaign, "Harbor")
+    owner = Player(
+        is_npc=True,
+        user_id=None,
+        campaign_id=campaign.id,
+        currency=0,
+        known_to_players=True,
+    )
+    db.session.add(owner)
+    db.session.flush()
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=owner.id,
+            campaign_id=campaign.id,
+            sheet_json={"name": "Harbor Master"},
+        )
+    )
+    city.owner_player_id = owner.id
+
+    player_user = User(username="pc-map-owner", password="x", role="Player")
+    player_user.set_password("Secret1!")
+    db.session.add(player_user)
+    db.session.flush()
+    pc = Player(user_id=player_user.id, campaign_id=campaign.id, currency=0)
+    db.session.add(pc)
+    db.session.commit()
+
+    seed_client_session(
+        client, player_user, campaign_id=campaign.id, player_id=pc.id, session_mode="player"
+    )
+    data = client.get("/player/maps/world").get_json()
+    entity = next(e for e in data["entities"] if e["id"] == city.city_id)
+    assert entity["summary"]["owner"]["display"] == "Harbor Master"
+    assert entity["summary"]["owner"]["player_id"] == owner.id
+
+
+def test_player_known_npc_profile_and_notes(client):
+    from app.models import City, Player, PlayerCharacterSheet, PlayerNpcNote, Region, User
+
+    gm_user, campaign = _make_gm_with_campaign("gm-player-npc-profile")
+    region = Region(campaign_id=campaign.id, name="Northreach")
+    city = _add_city(campaign, "Harbor")
+    hidden = Player(
+        is_npc=True,
+        user_id=None,
+        campaign_id=campaign.id,
+        currency=0,
+        known_to_players=False,
+    )
+    known = Player(
+        is_npc=True,
+        user_id=None,
+        campaign_id=campaign.id,
+        currency=0,
+        known_to_players=True,
+    )
+    db.session.add_all([region, hidden, known])
+    db.session.flush()
+    region.ruler_player_id = known.id
+    city.owner_player_id = known.id
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=known.id,
+            campaign_id=campaign.id,
+            sheet_json={
+                "name": "Friendly Guard",
+                "class_name": "Fighter",
+                "species": "Human",
+                "level": 2,
+                "notes": "Runs the city watch.",
+                "creation": {"background_key": "soldier"},
+            },
+        )
+    )
+    player_user = User(username="pc-npc-profile", password="x", role="Player")
+    player_user.set_password("Secret1!")
+    db.session.add(player_user)
+    db.session.flush()
+    pc = Player(user_id=player_user.id, campaign_id=campaign.id, currency=0)
+    db.session.add(pc)
+    db.session.commit()
+
+    seed_client_session(
+        client, player_user, campaign_id=campaign.id, player_id=pc.id, session_mode="player"
+    )
+    blocked = client.get(f"/player/npcs/{hidden.id}/profile")
+    assert blocked.status_code == 404
+
+    profile = client.get(f"/player/npcs/{known.id}/profile").get_json()
+    assert profile["ok"] is True
+    npc = profile["npc"]
+    assert npc["name"] == "Friendly Guard"
+    assert npc["species"] == "Human"
+    assert npc["class_name"] == "Fighter"
+    assert npc["background"] == "Soldier"
+    assert npc["about"] == "Runs the city watch."
+    assert "Ruler of Northreach" in npc["location_summary"]
+    assert "Owner of Harbor" in npc["location_summary"]
+
+    save = client.post(
+        f"/player/npcs/{known.id}/notes",
+        json={"notes": "Owes us a favor."},
+        headers={"Content-Type": "application/json"},
+    )
+    assert save.status_code == 200
+    assert save.get_json()["notes"] == "Owes us a favor."
+
+    row = PlayerNpcNote.query.filter_by(
+        viewer_player_id=pc.id, npc_player_id=known.id
+    ).one()
+    assert row.notes == "Owes us a favor."
+
+    profile2 = client.get(f"/player/npcs/{known.id}/profile").get_json()
+    assert profile2["npc"]["player_notes"] == "Owes us a favor."

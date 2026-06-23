@@ -24,14 +24,19 @@ from app.services.schema_compat import (
     ensure_global_market_baseline_stock_column,
     ensure_item_folder_schema,
     ensure_item_srd_columns,
+    ensure_monster_srd_columns,
     ensure_join_codes_columns,
     ensure_campaign_code_redemption_table,
     ensure_expansion_interest_table,
     ensure_map_tables,
     ensure_phase_entitlement_columns,
     ensure_player_campaign_id,
+    ensure_player_gm_meta_columns,
     ensure_player_npc_columns,
+    ensure_city_shop_owner_columns,
+    ensure_player_npc_notes_table,
     ensure_region_campaign_only,
+    ensure_region_nation_columns,
     ensure_sim_rules_table,
     ensure_simulation_logs_table,
     ensure_simulation_state_campaign_id,
@@ -53,6 +58,7 @@ from app.services.schema_compat import (
     warn_if_global_market_baseline_stock_applied,
     warn_if_item_folder_compat_applied,
     warn_if_item_srd_compat_applied,
+    warn_if_monster_srd_compat_applied,
     warn_if_join_codes_compat_applied,
     warn_if_campaign_code_redemption_table_applied,
     warn_if_expansion_interest_table_applied,
@@ -63,8 +69,12 @@ from app.services.schema_compat import (
     warn_if_phase_compat_applied,
     warn_if_player_campaign_applied,
     warn_if_player_npc_compat_applied,
+    warn_if_player_gm_meta_columns_applied,
+    warn_if_city_shop_owner_columns_applied,
+    warn_if_player_npc_notes_table_applied,
     warn_if_preflight_applied,
     warn_if_region_campaign_only_applied,
+    warn_if_region_nation_columns_applied,
     warn_if_sim_rules_table_created,
     warn_if_simulation_logs_table_created,
     warn_if_simulation_state_campaign_applied,
@@ -426,6 +436,11 @@ def create_app():
                 warn_if_item_srd_compat_applied,
             )
             _safe_bootstrap(
+                "monster SRD lineage column compatibility bootstrap",
+                ensure_monster_srd_columns,
+                warn_if_monster_srd_compat_applied,
+            )
+            _safe_bootstrap(
                 "item folders schema compatibility bootstrap",
                 ensure_item_folder_schema,
                 warn_if_item_folder_compat_applied,
@@ -460,9 +475,28 @@ def create_app():
                 ensure_region_campaign_only,
                 warn_if_region_campaign_only_applied,
             )
+            _safe_bootstrap(
+                "ensure_region_nation_columns",
+                ensure_region_nation_columns,
+                warn_if_region_nation_columns_applied,
+            )
+            _safe_bootstrap(
+                "ensure_player_gm_meta_columns",
+                ensure_player_gm_meta_columns,
+                warn_if_player_gm_meta_columns_applied,
+            )
+            _safe_bootstrap(
+                "ensure_city_shop_owner_columns",
+                ensure_city_shop_owner_columns,
+                warn_if_city_shop_owner_columns_applied,
+            )
+            _safe_bootstrap(
+                "ensure_player_npc_notes_table",
+                ensure_player_npc_notes_table,
+                warn_if_player_npc_notes_table_applied,
+            )
 
-            # Stage B — campaign re-key migration. MUST run before ORM-querying helpers
-            # (ensure_join_codes_columns) because Campaign.current_game_day and
+            # Stage B — campaign re-key migration.
             # Player.campaign_id are now declared on the ORM models.
             _safe_bootstrap(
                 "preflight_campaign_rekey",
@@ -603,6 +637,8 @@ def create_app():
         return {
             "show_account_menu": show_account_menu,
             "account_menu_config": account_menu_config,
+            "gm_panel_embed": request.args.get("embed") == "1"
+            or (request.method == "POST" and request.form.get("embed") == "1"),
         }
 
     @app.after_request

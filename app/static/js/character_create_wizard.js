@@ -6,9 +6,15 @@
     const settings = cfg.settings || {};
     const pointBuyCosts = cfg.point_buy_costs || {};
     const canAdd = cfg.can_add !== false;
+    const gmNpcMode = !!cfg.gm_npc_mode;
     const draftToken = cfg.draft_token || "";
     const campaignPlayerId = cfg.campaign_player_id || null;
     const backUrl = cfg.back_url || "/campaigns";
+    const finalizeUrl = cfg.finalize_url || "/player/character/create/dnd5e/finalize";
+    const rollUrl = cfg.roll_url || "/player/character/create/dnd5e/roll";
+    const createButtonLabel = cfg.create_button_label || "Create character";
+    const abilityMin = cfg.ability_min || (gmNpcMode ? 1 : 1);
+    const abilityMax = cfg.ability_max || (gmNpcMode ? 999 : 30);
     const csrfToken =
         document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ||
         document.querySelector('input[name="csrf_token"]')?.value ||
@@ -73,10 +79,16 @@
         });
         const back = $("#wizard-back");
         if (back) {
-            back.textContent = state.step === 0 ? "Back to campaign menu" : "Back";
+            back.textContent = state.step === 0
+                ? (gmNpcMode ? "Back to People list" : "Back to campaign menu")
+                : "Back";
         }
         $("#wizard-next").hidden = state.step === steps.length - 1;
-        $("#wizard-create").hidden = state.step !== steps.length - 1;
+        const createBtn = $("#wizard-create");
+        if (createBtn) {
+            createBtn.hidden = state.step !== steps.length - 1;
+            createBtn.textContent = createButtonLabel;
+        }
         if (steps[state.step] === "review") renderReview();
     }
 
@@ -272,6 +284,12 @@
     function renderAbilitiesPanel() {
         const host = $("#abilities-panel");
         if (!host) return;
+        if (gmNpcMode) {
+            host.innerHTML =
+                "<p class='muted'>Set base ability scores for this NPC. There is no point-buy or level cap — species modifiers are still applied on finalize.</p>";
+            renderGmSet(host);
+            return;
+        }
         const method = settings.ability_method || "point_buy";
         host.innerHTML =
             "<p class='muted'>Stat method: <strong>" +
@@ -284,6 +302,33 @@
         } else {
             renderPlayerSet(host);
         }
+    }
+
+    function renderGmSet(parent) {
+        const grid = document.createElement("div");
+        grid.className = "ability-grid";
+        ABILITIES.forEach((ab) => {
+            const val = state.baseAbilities[ab] || 10;
+            const row = document.createElement("label");
+            row.innerHTML =
+                ABILITY_LABELS[ab] +
+                ' <input type="number" min="' +
+                abilityMin +
+                '" max="' +
+                abilityMax +
+                '" data-ability="' +
+                ab +
+                '" value="' +
+                val +
+                '">';
+            grid.appendChild(row);
+        });
+        grid.addEventListener("change", (ev) => {
+            const input = ev.target;
+            if (!input.matches("input[data-ability]")) return;
+            state.baseAbilities[input.dataset.ability] = parseInt(input.value, 10) || 10;
+        });
+        parent.appendChild(grid);
     }
 
     function renderPointBuy(parent) {
@@ -383,7 +428,7 @@
     async function requestRoll(abilityKey, reroll) {
         showError("");
         try {
-            const resp = await fetch("/player/character/create/dnd5e/roll", {
+            const resp = await fetch(rollUrl, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -448,6 +493,7 @@
         const step = steps[state.step];
         if (step === "identity") {
             state.name = ($("#character_name")?.value || "").trim();
+            if (gmNpcMode) return true;
             state.system = $("#system_type")?.value || state.system;
             if (state.system === "dnd5e") return true;
             return "simple";
@@ -479,7 +525,7 @@
     }
 
     async function finalizeWizard() {
-        if (!canAdd) return;
+        if (!canAdd && !gmNpcMode) return;
         const btn = $("#wizard-create");
         if (btn) btn.disabled = true;
         showError("");
@@ -493,9 +539,14 @@
             base_abilities: state.baseAbilities,
             species_flex_assignments: state.speciesFlex,
             campaign_player_id: campaignPlayerId,
+            region_id: cfg.region_id || null,
+            assign_ruler: !!cfg.assign_ruler,
+            city_id: cfg.city_id || null,
+            shop_id: cfg.shop_id || null,
+            assign_owner: !!cfg.assign_owner,
         };
         try {
-            const resp = await fetch("/player/character/create/dnd5e/finalize", {
+            const resp = await fetch(finalizeUrl, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -508,6 +559,12 @@
                 showError((data.errors || ["Could not create character."]).join(" "));
                 if (btn) btn.disabled = false;
                 return;
+            }
+            if (window.parent && window.parent !== window) {
+                try {
+                    window.parent.postMessage({ type: "gm-players-changed" }, window.location.origin);
+                    window.parent.postMessage({ type: "gm-map-changed" }, window.location.origin);
+                } catch (_notifyErr) { /* ignore */ }
             }
             window.location.href = data.redirect_url;
         } catch (_err) {
@@ -523,7 +580,11 @@
     function bindEvents() {
         $("#wizard-back")?.addEventListener("click", () => {
             if (state.step === 0) {
-                openExitModal();
+                if ($("#wizard-exit-modal")) {
+                    openExitModal();
+                } else {
+                    window.location.href = backUrl;
+                }
                 return;
             }
             setStep(state.step - 1);
@@ -556,16 +617,22 @@
 
     function init() {
         ABILITIES.forEach((ab) => {
-            state.baseAbilities[ab] = settings.ability_method === "player_set" ? 10 : 8;
+            if (gmNpcMode) {
+                state.baseAbilities[ab] = 10;
+            } else {
+                state.baseAbilities[ab] = settings.ability_method === "player_set" ? 10 : 8;
+            }
         });
         speciesCards();
         classCards();
         backgroundCards();
         renderAbilitiesPanel();
         bindEvents();
-        const sys = $("#system_type")?.value;
-        if ($("#dnd5e-wizard")) $("#dnd5e-wizard").hidden = sys !== "dnd5e";
-        if ($("#simple-create-actions")) $("#simple-create-actions").hidden = sys === "dnd5e";
+        if (!gmNpcMode) {
+            const sys = $("#system_type")?.value;
+            if ($("#dnd5e-wizard")) $("#dnd5e-wizard").hidden = sys !== "dnd5e";
+            if ($("#simple-create-actions")) $("#simple-create-actions").hidden = sys === "dnd5e";
+        }
         setStep(0);
     }
 

@@ -82,11 +82,10 @@
         pollTimer: null,
         busy: false,
         controlsBound: false,
+        monsterSourceFilter: 'all',
         mapData: null,
         mapVersionLoaded: null,
         mapChunks: {},
-        camera: { x: 0, y: 0 },
-        stagePan: null,
         suppressStageClick: false,
         renderPending: false,
         setupMode: 'create'
@@ -188,7 +187,6 @@
             state.data = await api('/encounters/' + id);
             state.encounterId = id;
             if (prevId !== id) {
-                state.camera = { x: 0, y: 0 };
                 state.mapChunks = {};
             }
             if (!state.data.map || Number(state.data.map.map_version) !== Number(prevMapVer)) {
@@ -196,6 +194,9 @@
                 state.mapChunks = {};
             }
             renderAll();
+            if (prevId !== id && battleViewport) {
+                battleViewport.fitToView();
+            }
         } catch (err) {
             feedback(err.message, true);
         }
@@ -268,6 +269,7 @@
     }
 
     function renderAll() {
+        syncBattleViewportWorldSize();
         ensureCurrentCombatantInView();
         renderGrid();
         renderTracker();
@@ -519,8 +521,8 @@
         var visH = (bounds.y1 - bounds.y0) * TILE;
         bg.style.position = 'absolute';
         bg.style.inset = 'auto';
-        bg.style.left = '0';
-        bg.style.top = '0';
+        bg.style.left = (bounds.x0 * TILE) + 'px';
+        bg.style.top = (bounds.y0 * TILE) + 'px';
         bg.style.width = visW + 'px';
         bg.style.height = visH + 'px';
         bg.style.pointerEvents = 'none';
@@ -628,91 +630,162 @@
     }
 
     var TILE = 34;
-    var TILE_MIN = 20;
-    var TILE_MAX = 56;
-    var TILE_STEP = 4;
     var OVERSCAN = 3;
     var CHUNK_THRESHOLD = 150;
+    var battleViewport = null;
 
-    function getStageViewportCells() {
+    function anchorFixedPanel(panel) {
+        if (!panel) return;
+        var rect = panel.getBoundingClientRect();
+        panel.style.transform = 'none';
+        panel.style.left = rect.left + 'px';
+        panel.style.top = rect.top + 'px';
+        if (!panel.style.width) panel.style.width = rect.width + 'px';
+        if (!panel.style.height) panel.style.height = rect.height + 'px';
+    }
+
+    function bindFixedPanelDrag(panel, dragHandle) {
+        if (!panel || !dragHandle || dragHandle.dataset.dragBound) return;
+        dragHandle.dataset.dragBound = '1';
+        var drag = null;
+        dragHandle.addEventListener('pointerdown', function (ev) {
+            if (ev.button !== 0) return;
+            if (ev.target.closest('button, input, select, summary, a, label')) return;
+            anchorFixedPanel(panel);
+            var rect = panel.getBoundingClientRect();
+            drag = {
+                pointerId: ev.pointerId,
+                startX: ev.clientX,
+                startY: ev.clientY,
+                left: rect.left,
+                top: rect.top
+            };
+            try { dragHandle.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+            ev.preventDefault();
+        });
+        dragHandle.addEventListener('pointermove', function (ev) {
+            if (!drag || drag.pointerId !== ev.pointerId) return;
+            panel.style.left = (drag.left + ev.clientX - drag.startX) + 'px';
+            panel.style.top = (drag.top + ev.clientY - drag.startY) + 'px';
+        });
+        function endDrag(ev) {
+            if (!drag || (ev && drag.pointerId !== ev.pointerId)) return;
+            drag = null;
+            try { dragHandle.releasePointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+        }
+        dragHandle.addEventListener('pointerup', endDrag);
+        dragHandle.addEventListener('pointercancel', endDrag);
+    }
+
+    function bindFixedPanelResize(panel, resizeHandle, minWidth, minHeight, onResize) {
+        if (!panel || !resizeHandle || resizeHandle.dataset.resizeBound) return;
+        resizeHandle.dataset.resizeBound = '1';
+        var resize = null;
+        resizeHandle.addEventListener('pointerdown', function (ev) {
+            if (ev.button !== 0) return;
+            ev.stopPropagation();
+            anchorFixedPanel(panel);
+            var rect = panel.getBoundingClientRect();
+            resize = {
+                pointerId: ev.pointerId,
+                startX: ev.clientX,
+                startY: ev.clientY,
+                width: rect.width,
+                height: rect.height
+            };
+            try { resizeHandle.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+            ev.preventDefault();
+        });
+        resizeHandle.addEventListener('pointermove', function (ev) {
+            if (!resize || resize.pointerId !== ev.pointerId) return;
+            panel.style.width = Math.max(minWidth, resize.width + ev.clientX - resize.startX) + 'px';
+            panel.style.height = Math.max(minHeight, resize.height + ev.clientY - resize.startY) + 'px';
+            if (typeof onResize === 'function') onResize();
+        });
+        function endResize(ev) {
+            if (!resize || (ev && resize.pointerId !== ev.pointerId)) return;
+            resize = null;
+            try { resizeHandle.releasePointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+            if (typeof onResize === 'function') onResize();
+        }
+        resizeHandle.addEventListener('pointerup', endResize);
+        resizeHandle.addEventListener('pointercancel', endResize);
+    }
+
+    function initBattleViewport() {
         var stage = $('battle-stage');
-        if (!stage) return { cols: 20, rows: 15 };
+        var layer = $('battle-viewport-layer');
+        if (!window.MapViewport || !stage || !layer || battleViewport) return;
+        battleViewport = window.MapViewport.create(stage, layer, {
+            paintActive: false,
+            autoFitOnResize: false,
+            shouldStartPan: function (ev) {
+                if (ev.button === 1 || ev.button === 2) return true;
+                if (state.placement ||
+                    state.mode === 'move' ||
+                    state.mode === 'attack' ||
+                    state.mode === 'cast_spell') {
+                    return false;
+                }
+                var target = ev.target;
+                if (!target || !target.closest) return true;
+                return !target.closest(
+                    '.battle-token, .battle-radial, .battle-attack-popout,' +
+                    '.battle-cast-popout, button, input, select, textarea, a'
+                );
+            },
+            onViewportChange: function () {
+                scheduleVirtualRender();
+            }
+        });
+    }
+
+    function syncBattleViewportWorldSize() {
+        if (!battleViewport || !state.data) return;
+        var gw = state.data.grid_width || 20;
+        var gh = state.data.grid_height || 20;
+        battleViewport.setWorldSize(gw * TILE, gh * TILE);
+    }
+
+    function worldTileCenterStagePx(tileX, tileY) {
+        if (!battleViewport) {
+            return {
+                x: (tileX + 0.5) * TILE,
+                y: (tileY + 0.5) * TILE
+            };
+        }
+        var wx = (tileX + 0.5) * TILE;
+        var wy = (tileY + 0.5) * TILE;
+        var vp = battleViewport.getState();
         return {
-            cols: Math.max(1, Math.ceil(stage.clientWidth / TILE)),
-            rows: Math.max(1, Math.ceil(stage.clientHeight / TILE))
+            x: wx * vp.scale + vp.panX,
+            y: wy * vp.scale + vp.panY
         };
     }
 
     function visibleCellBounds() {
         if (!state.data) return { x0: 0, y0: 0, x1: 0, y1: 0 };
-        var vp = getStageViewportCells();
         var gw = state.data.grid_width;
         var gh = state.data.grid_height;
-        var x0 = Math.max(0, state.camera.x - OVERSCAN);
-        var y0 = Math.max(0, state.camera.y - OVERSCAN);
-        var x1 = Math.min(gw, state.camera.x + vp.cols + OVERSCAN);
-        var y1 = Math.min(gh, state.camera.y + vp.rows + OVERSCAN);
-        return { x0: x0, y0: y0, x1: x1, y1: y1, vp: vp };
-    }
-
-    function clampCamera() {
-        if (!state.data) return;
-        var vp = getStageViewportCells();
-        var maxX = Math.max(0, state.data.grid_width - vp.cols);
-        var maxY = Math.max(0, state.data.grid_height - vp.rows);
-        state.camera.x = Math.max(0, Math.min(state.camera.x, maxX));
-        state.camera.y = Math.max(0, Math.min(state.camera.y, maxY));
-    }
-
-    function cameraLimits() {
-        if (!state.data) return { maxX: 0, maxY: 0 };
-        var vp = getStageViewportCells();
-        return {
-            maxX: Math.max(0, state.data.grid_width - vp.cols),
-            maxY: Math.max(0, state.data.grid_height - vp.rows)
-        };
-    }
-
-    function updateBattleNavControls() {
-        var h = $('battle-map-nav-x');
-        var v = $('battle-map-nav-y');
-        if (!h || !v) return;
-        if (!state.data) {
-            h.hidden = true;
-            v.hidden = true;
-            return;
+        if (!battleViewport) {
+            return { x0: 0, y0: 0, x1: gw, y1: gh };
         }
-        var limits = cameraLimits();
-        h.max = String(limits.maxX);
-        h.value = String(state.camera.x);
-        h.hidden = limits.maxX <= 0;
-        v.max = String(limits.maxY);
-        v.value = String(state.camera.y);
-        v.hidden = limits.maxY <= 0;
-    }
-
-    function syncStageScroll() {
         var stage = $('battle-stage');
-        if (stage) {
-            stage.scrollLeft = state.camera.x * TILE;
-            stage.scrollTop = state.camera.y * TILE;
-        }
-        updateBattleNavControls();
+        if (!stage) return { x0: 0, y0: 0, x1: gw, y1: gh };
+        var rect = stage.getBoundingClientRect();
+        var tl = battleViewport.screenToWorld(rect.left, rect.top);
+        var br = battleViewport.screenToWorld(rect.right, rect.bottom);
+        var x0 = Math.max(0, Math.floor(tl.x / TILE) - OVERSCAN);
+        var y0 = Math.max(0, Math.floor(tl.y / TILE) - OVERSCAN);
+        var x1 = Math.min(gw, Math.ceil(br.x / TILE) + OVERSCAN);
+        var y1 = Math.min(gh, Math.ceil(br.y / TILE) + OVERSCAN);
+        return { x0: x0, y0: y0, x1: x1, y1: y1 };
     }
 
     function focusCameraOnCell(x, y) {
-        if (!state.data) return;
-        var vp = getStageViewportCells();
-        state.camera.x = Math.max(
-            0,
-            Math.min(x - Math.floor(vp.cols / 2), state.data.grid_width - vp.cols)
-        );
-        state.camera.y = Math.max(
-            0,
-            Math.min(y - Math.floor(vp.rows / 2), state.data.grid_height - vp.rows)
-        );
-        clampCamera();
-        syncStageScroll();
+        if (!battleViewport || !state.data) return;
+        battleViewport.panToWorldPoint((x + 0.5) * TILE, (y + 0.5) * TILE);
+        scheduleVirtualRender();
     }
 
     function scheduleVirtualRender() {
@@ -723,223 +796,97 @@
             if (!state.data) return;
             renderGrid();
             renderBattleMapBackground();
-            updateBattleNavControls();
         });
-    }
-
-    function onStageScroll() {
-        var stage = $('battle-stage');
-        if (!stage || !state.data) return;
-        state.camera.x = Math.floor(stage.scrollLeft / TILE);
-        state.camera.y = Math.floor(stage.scrollTop / TILE);
-        clampCamera();
-        scheduleVirtualRender();
-    }
-
-    function onStageWheel(ev) {
-        if (!state.data) return;
-        var stage = $('battle-stage');
-        if (!stage) return;
-        if (!ev.deltaY && !ev.deltaX) return;
-        ev.preventDefault();
-        if (ev.deltaX) {
-            var dxLines = ev.deltaMode === 1 ? ev.deltaX : (ev.deltaX / 40);
-            state.camera.x = Math.max(0, state.camera.x + Math.round(dxLines));
-        }
-        if (ev.deltaY) {
-            var dyLines = ev.deltaMode === 1 ? ev.deltaY : (ev.deltaY / 40);
-            state.camera.y = Math.max(0, state.camera.y + Math.round(dyLines));
-        }
-        clampCamera();
-        syncStageScroll();
-        scheduleVirtualRender();
-    }
-
-    function isStagePanTarget(target) {
-        if (!target || !target.closest) return true;
-        return !target.closest(
-            '.battle-token, .battle-radial, .battle-attack-popout, .battle-cast-popout,' +
-            ' button, input, select, textarea, a'
-        );
-    }
-
-    function onStagePointerDown(ev) {
-        if (!state.data || ev.button !== 0 || !isStagePanTarget(ev.target)) return;
-        var stage = $('battle-stage');
-        if (!stage) return;
-        state.stagePan = {
-            pointerId: ev.pointerId,
-            startX: ev.clientX,
-            startY: ev.clientY,
-            cameraX: state.camera.x,
-            cameraY: state.camera.y,
-            moved: false
-        };
-        stage.classList.add('is-panning');
-        if (stage.setPointerCapture) stage.setPointerCapture(ev.pointerId);
-    }
-
-    function onStagePointerMove(ev) {
-        var pan = state.stagePan;
-        if (!pan || pan.pointerId !== ev.pointerId || !state.data) return;
-        var deltaX = ev.clientX - pan.startX;
-        var deltaY = ev.clientY - pan.startY;
-        if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
-            pan.moved = true;
-        }
-        state.camera.x = pan.cameraX - Math.round(deltaX / TILE);
-        state.camera.y = pan.cameraY - Math.round(deltaY / TILE);
-        clampCamera();
-        syncStageScroll();
-        scheduleVirtualRender();
-        ev.preventDefault();
-    }
-
-    function endStagePan(ev) {
-        var pan = state.stagePan;
-        if (!pan || (ev && pan.pointerId !== ev.pointerId)) return;
-        var stage = $('battle-stage');
-        if (stage) {
-            stage.classList.remove('is-panning');
-            if (ev && stage.releasePointerCapture) {
-                try { stage.releasePointerCapture(ev.pointerId); } catch (e) { /* already released */ }
-            }
-        }
-        if (pan.moved) {
-            state.suppressStageClick = true;
-            setTimeout(function () { state.suppressStageClick = false; }, 100);
-        }
-        state.stagePan = null;
-    }
-
-    function onStageClickCapture(ev) {
-        if (!state.suppressStageClick) return;
-        state.suppressStageClick = false;
-        ev.preventDefault();
-        ev.stopPropagation();
-    }
-
-    function setBattleZoom(delta) {
-        if (!state.data) return;
-        TILE = Math.max(TILE_MIN, Math.min(TILE + delta, TILE_MAX));
-        clampCamera();
-        syncStageScroll();
-        renderGrid();
-        renderBattleMapBackground();
-        updateBattleNavControls();
-        updateBattleZoomControls();
-    }
-
-    function createBattleNavControl(id, className, label) {
-        var input = document.createElement('input');
-        input.type = 'range';
-        input.id = id;
-        input.className = 'battle-map-nav ' + className;
-        input.min = '0';
-        input.max = '0';
-        input.value = '0';
-        input.step = '1';
-        input.hidden = true;
-        input.setAttribute('aria-label', label);
-        input.addEventListener('input', function () {
-            if (!state.data) return;
-            if (id === 'battle-map-nav-x') {
-                state.camera.x = parseInt(input.value, 10) || 0;
-            } else {
-                state.camera.y = parseInt(input.value, 10) || 0;
-            }
-            clampCamera();
-            syncStageScroll();
-            scheduleVirtualRender();
-        });
-        return input;
-    }
-
-    function createBattleZoomButton(id, label, text, delta) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.id = id;
-        btn.className = 'battle-map-zoom-btn';
-        btn.textContent = text;
-        btn.setAttribute('aria-label', label);
-        btn.addEventListener('click', function () {
-            setBattleZoom(delta);
-        });
-        return btn;
-    }
-
-    function updateBattleZoomControls() {
-        var out = $('battle-map-zoom-out');
-        var inn = $('battle-map-zoom-in');
-        if (out) out.disabled = TILE <= TILE_MIN;
-        if (inn) inn.disabled = TILE >= TILE_MAX;
-    }
-
-    function ensureBattleMapShell() {
-        var stage = $('battle-stage');
-        if (!stage) return null;
-        var existing = stage.parentElement && stage.parentElement.classList.contains('battle-map-shell')
-            ? stage.parentElement
-            : null;
-        if (existing) return existing;
-        var shell = document.createElement('div');
-        shell.className = 'battle-map-shell';
-        stage.parentNode.insertBefore(shell, stage);
-        shell.appendChild(stage);
-        return shell;
-    }
-
-    function ensureBattleNavControls() {
-        var stage = $('battle-stage');
-        var shell = ensureBattleMapShell();
-        if (!stage || $('battle-map-nav-x')) return;
-        shell.appendChild(createBattleNavControl(
-            'battle-map-nav-x',
-            'battle-map-nav-horizontal',
-            'Pan battle map left and right'
-        ));
-        shell.appendChild(createBattleNavControl(
-            'battle-map-nav-y',
-            'battle-map-nav-vertical',
-            'Pan battle map up and down'
-        ));
-        var zoom = document.createElement('div');
-        zoom.className = 'battle-map-zoom';
-        zoom.appendChild(createBattleZoomButton(
-            'battle-map-zoom-out',
-            'Zoom battle map out',
-            '-',
-            -TILE_STEP
-        ));
-        zoom.appendChild(createBattleZoomButton(
-            'battle-map-zoom-in',
-            'Zoom battle map in',
-            '+',
-            TILE_STEP
-        ));
-        shell.appendChild(zoom);
-        updateBattleNavControls();
-        updateBattleZoomControls();
     }
 
     function onStageKeyPan(ev) {
-        if (!state.data) return;
+        if (!state.data || !battleViewport) return;
         var target = ev.target;
         if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
             target.tagName === 'SELECT' || target.isContentEditable)) return;
         var dx = 0;
         var dy = 0;
-        if (ev.key === 'ArrowLeft') dx = -3;
-        else if (ev.key === 'ArrowRight') dx = 3;
-        else if (ev.key === 'ArrowUp') dy = -3;
-        else if (ev.key === 'ArrowDown') dy = 3;
+        if (ev.key === 'ArrowLeft') dx = 48;
+        else if (ev.key === 'ArrowRight') dx = -48;
+        else if (ev.key === 'ArrowUp') dy = 48;
+        else if (ev.key === 'ArrowDown') dy = -48;
         else return;
         ev.preventDefault();
-        state.camera.x = Math.max(0, state.camera.x + dx);
-        state.camera.y = Math.max(0, state.camera.y + dy);
-        clampCamera();
-        syncStageScroll();
-        scheduleVirtualRender();
+        battleViewport.panBy(dx, dy);
+    }
+
+    function bindEncounterWindowChrome() {
+        if (!IS_GM) return;
+        var win = $('battle-encounter-window');
+        var drag = $('battle-encounter-window-drag');
+        var closeBtn = $('battle-encounter-window-close');
+        var resizeHandle = $('battle-encounter-window-resize');
+        if (closeBtn && !closeBtn.dataset.bound) {
+            closeBtn.dataset.bound = '1';
+            closeBtn.addEventListener('click', function () {
+                closeEncounterWindow();
+            });
+        }
+        bindFixedPanelDrag(win, drag);
+        bindFixedPanelResize(win, resizeHandle, 520, 400, function () {
+            scheduleVirtualRender();
+        });
+    }
+
+    function bindSetupPopoutChrome() {
+        if (!IS_GM) return;
+        var popout = $('battle-setup-popout');
+        var drag = $('battle-setup-popout-drag');
+        var closeBtn = $('battle-setup-popout-close');
+        var resizeHandle = $('battle-setup-popout-resize');
+        if (closeBtn && !closeBtn.dataset.bound) {
+            closeBtn.dataset.bound = '1';
+            closeBtn.addEventListener('click', function () {
+                closeSetupPopout();
+            });
+        }
+        bindFixedPanelDrag(popout, drag);
+        bindFixedPanelResize(popout, resizeHandle, 320, 280);
+    }
+
+    function openEncounterWindow() {
+        if (!IS_GM) {
+            activateBattleTab();
+            return;
+        }
+        var win = $('battle-encounter-window');
+        if (!win) {
+            activateBattleTab();
+            return;
+        }
+        win.hidden = false;
+        if (!win.style.left) {
+            win.style.left = '50%';
+            win.style.top = '50%';
+            win.style.transform = 'translate(-50%, -50%)';
+        }
+        var tab = $('battle-tab-btn');
+        if (tab) {
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+        }
+        bindEncounterWindowChrome();
+        ensureLoaded();
+        requestAnimationFrame(function () {
+            syncBattleViewportWorldSize();
+            if (battleViewport) battleViewport.fitToView();
+        });
+    }
+
+    function closeEncounterWindow() {
+        var win = $('battle-encounter-window');
+        if (win) win.hidden = true;
+        stopPolling();
+        var tab = $('battle-tab-btn');
+        if (tab) {
+            tab.classList.remove('active');
+            tab.setAttribute('aria-selected', 'false');
+        }
     }
 
     function appendFeaturesToSvg(svg, features, palette, gw, gh) {
@@ -1090,29 +1037,31 @@
         return !!occupiedTiles()[x + ',' + y];
     }
 
-    /** Keep absolutely positioned popouts inside the scrollable battle stage. */
+    /** Keep absolutely positioned popouts inside the battle stage viewport. */
     function positionPopoutWithinStage(el, stage, anchorX, anchorY, opts) {
         opts = opts || {};
         var pad = opts.pad == null ? 6 : opts.pad;
         el.hidden = false;
         var w = el.offsetWidth;
         var h = el.offsetHeight;
-        var viewL = stage.scrollLeft + pad;
-        var viewT = stage.scrollTop + pad;
-        var viewR = stage.scrollLeft + stage.clientWidth - w - pad;
-        var viewB = stage.scrollTop + stage.clientHeight - h - pad;
+        var viewW = stage.clientWidth;
+        var viewH = stage.clientHeight;
         var left = anchorX - w / 2;
         var top = opts.preferBelow
             ? anchorY + TILE / 2 + 8
             : anchorY - h - 8;
-        if (top < viewT && !opts.preferBelow) {
+        if (top < pad && !opts.preferBelow) {
             top = anchorY + TILE / 2 + 8;
         }
-        el.style.left = Math.max(viewL, Math.min(left, viewR)) + 'px';
-        el.style.top = Math.max(viewT, Math.min(top, viewB)) + 'px';
+        el.style.left = Math.max(pad, Math.min(left, viewW - w - pad)) + 'px';
+        el.style.top = Math.max(pad, Math.min(top, viewH - h - pad)) + 'px';
     }
 
     function activateBattleTab() {
+        if (IS_GM) {
+            openEncounterWindow();
+            return;
+        }
         var btn = $('battle-tab-btn');
         if (btn && btn.getAttribute('aria-selected') !== 'true') {
             btn.click();
@@ -1236,7 +1185,7 @@
     }
 
     function renderGrid() {
-        ensureBattleNavControls();
+        initBattleViewport();
         var grid = $('battle-grid');
         if (!grid) return;
         grid.innerHTML = '';
@@ -1244,10 +1193,8 @@
         if (!state.data) {
             grid.innerHTML = '<p class="battle-empty">No encounter loaded.' +
                 (IS_GM ? ' Create one to begin.' : '') + '</p>';
-            updateBattleNavControls();
             return;
         }
-        clampCamera();
         var bounds = visibleCellBounds();
         var x0 = bounds.x0;
         var y0 = bounds.y0;
@@ -1255,6 +1202,12 @@
         var y1 = bounds.y1;
         var visW = (x1 - x0) * TILE;
         var visH = (y1 - y0) * TILE;
+
+        grid.style.position = 'absolute';
+        grid.style.left = (x0 * TILE) + 'px';
+        grid.style.top = (y0 * TILE) + 'px';
+        grid.style.width = visW + 'px';
+        grid.style.height = visH + 'px';
 
         var board = document.createElement('div');
         board.className = 'battle-board battle-board-virtual';
@@ -1375,6 +1328,9 @@
             }
             case 'batch_attack': return who + ' led a group attack.';
             case 'wait': return who + ' waits (drops to bottom of round).';
+            case 'disengage': return who + ' disengaged.';
+            case 'legendary_action': return who + ' used a legendary action.';
+            case 'opportunity_attack': return who + ' made an opportunity attack.';
             case 'turn_ended': return 'R' + (p.round || '?') + ': next turn.';
             case 'death_save': return who + ' rolled a death save.';
             case 'cast_spell': {
@@ -1495,6 +1451,8 @@
         }
         $('battle-radial-wait').hidden = isDown;
         $('battle-radial-wait').disabled = !!c.has_waited;
+        var disengageBtn = $('battle-radial-disengage');
+        if (disengageBtn) disengageBtn.hidden = isDown;
         var deathBtn = $('battle-radial-death-save');
         if (deathBtn) deathBtn.hidden = !isDown;
 
@@ -1538,9 +1496,10 @@
         var svg = $('battle-arrow'), stage = $('battle-stage');
         if (!actor || !svg || !stage) return;
         var rect = stage.getBoundingClientRect();
+        var anchor = worldTileCenterStagePx(actor.x, actor.y);
         var line = svg.querySelector('line');
-        line.setAttribute('x1', (actor.x - state.camera.x) * TILE + TILE / 2);
-        line.setAttribute('y1', (actor.y - state.camera.y) * TILE + TILE / 2);
+        line.setAttribute('x1', anchor.x);
+        line.setAttribute('y1', anchor.y);
         line.setAttribute('x2', ev.clientX - rect.left);
         line.setAttribute('y2', ev.clientY - rect.top);
     }
@@ -1700,6 +1659,23 @@
             });
             html += '</div>';
         }
+
+        var legendary = attacker.legendary_actions || [];
+        var currentId = state.data && state.data.current_combatant_id;
+        var legendaryMode = IS_GM && legendary.length && currentId !== attacker.id;
+        if (legendaryMode) {
+            var pts = attacker.legendary_points_remaining;
+            html += '<div class="battle-legendary-block"><span class="battle-batch-label">Legendary actions' +
+                (pts != null ? ' (' + pts + ' left)' : '') + ':</span>';
+            legendary.forEach(function (la) {
+                html += '<div class="battle-attack-row battle-legendary-row">' +
+                    '<span>' + esc(la.name) + ' (cost ' + esc(la.cost || 1) + ')</span>' +
+                    '<button type="button" class="button battle-legendary-roll-btn" data-action-key="' +
+                    esc(la.key) + '">Use</button></div>';
+            });
+            html += '</div>';
+        }
+
         html += '<div class="battle-attack-results" id="battle-attack-results"></div>' +
             '<button type="button" class="button" id="battle-attack-close">Close</button>';
         pop.innerHTML = html;
@@ -1736,6 +1712,17 @@
                 if (out) showAttackResults(out.result);
             });
         });
+        pop.querySelectorAll('.battle-legendary-roll-btn').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var out = await mutate('/encounters/' + state.encounterId + '/action', {
+                    type: 'legendary_action',
+                    actor_id: attacker.id,
+                    target_id: target.id,
+                    action_key: btn.dataset.actionKey
+                });
+                if (out) showAttackResults(out.result);
+            });
+        });
     }
 
     function showAttackResults(result) {
@@ -1744,12 +1731,20 @@
         var rows = Array.isArray(result) ? result : [result];
         box.innerHTML = rows.map(function (r) {
             if (r.skipped) return '<div>' + esc(r.skipped) + '</div>';
-            var who = combatantById(r.attacker_id);
+            var who = combatantById(r.attacker_id || r.reactor_id);
+            if (!r.to_hit) return '<div>' + esc(JSON.stringify(r)) + '</div>';
             var line = (who ? who.name : 'Attacker') + ': d20 &rarr; ' +
                 r.to_hit.natural + ' (total ' + r.to_hit.total + ') - ' +
                 (r.crit ? 'CRIT!' : (r.hit ? 'HIT' : 'MISS'));
             if (r.hit && r.damage_roll) {
                 line += ', ' + r.damage_roll.total + ' damage';
+                if (r.damage_roll.damage_modifiers && r.damage_roll.damage_modifiers.applied &&
+                        r.damage_roll.damage_modifiers.applied.length) {
+                    line += ' (' + r.damage_roll.damage_modifiers.applied.join(', ') + ')';
+                }
+            }
+            if (r.ac_detail && r.ac_detail.cover_bonus) {
+                line += ' [cover +' + r.ac_detail.cover_bonus + ']';
             }
             return '<div>' + esc(line) + '</div>';
         }).join('');
@@ -2010,11 +2005,27 @@
         });
         renderAttackEditRows(stats.attacks || []);
         renderLegendaryEditRows(stats.legendary_actions || []);
-        pop.hidden = false;
-        pop.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        var setVal = function (id, val) { var el = $(id); if (el) el.value = val == null ? '' : val; };
+        setVal('battle-monster-edit-resist', stats.damage_resistances);
+        setVal('battle-monster-edit-immune', stats.damage_immunities);
+        setVal('battle-monster-edit-vuln', stats.damage_vulnerabilities);
+        setVal('battle-monster-edit-cond-immune', stats.condition_immunities);
+        setVal('battle-monster-edit-saves', stats.saving_throws);
+        setVal('battle-monster-edit-senses', stats.senses);
+        setVal('battle-monster-edit-trait-keys', (stats.trait_keys || []).join(', '));
+        if (window.gmCompendiumDetail) {
+            window.gmCompendiumDetail.open('monsters-pane-content', 'Edit ' + (monster.name || 'monster'));
+        } else {
+            pop.hidden = false;
+            pop.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
     }
 
     function closeMonsterEditor() {
+        if (window.gmCompendiumDetail) {
+            window.gmCompendiumDetail.close('monsters-pane-content');
+            return;
+        }
         var pop = $('battle-monster-edit-popout');
         if (pop) pop.hidden = true;
     }
@@ -2040,7 +2051,14 @@
                     cha: parseInt($('battle-monster-edit-cha').value, 10)
                 },
                 attacks: collectAttackEditRows(),
-                legendary_actions: collectLegendaryEditRows()
+                legendary_actions: collectLegendaryEditRows(),
+                damage_resistances: ($('battle-monster-edit-resist') || {}).value || '',
+                damage_immunities: ($('battle-monster-edit-immune') || {}).value || '',
+                damage_vulnerabilities: ($('battle-monster-edit-vuln') || {}).value || '',
+                condition_immunities: ($('battle-monster-edit-cond-immune') || {}).value || '',
+                saving_throws: ($('battle-monster-edit-saves') || {}).value || '',
+                senses: ($('battle-monster-edit-senses') || {}).value || '',
+                trait_keys: ($('battle-monster-edit-trait-keys') || {}).value || ''
             }
         };
         try {
@@ -2120,15 +2138,69 @@
         }) || null;
     }
 
+    function isSrdMonster(monster) {
+        return String(monster.source || '') === 'srd_5_1';
+    }
+
+    function isCustomMonster(monster) {
+        return !isSrdMonster(monster);
+    }
+
+    function compendiumMonsters() {
+        var rows = state.monsters || [];
+        var filter = state.monsterSourceFilter || 'all';
+        if (filter === 'srd_only') {
+            return rows.filter(isSrdMonster);
+        }
+        if (filter === 'custom_only') {
+            return rows.filter(isCustomMonster);
+        }
+        return rows;
+    }
+
+    function monsterSourceFilterLabel(filter) {
+        if (filter === 'srd_only') return 'SRD';
+        if (filter === 'custom_only') return 'custom';
+        return '';
+    }
+
+    function updateMonsterSourceFilterButtons() {
+        var filter = state.monsterSourceFilter || 'all';
+        document.querySelectorAll('[data-monster-source-filter]').forEach(function (btn) {
+            var active = btn.getAttribute('data-monster-source-filter') === filter;
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    }
+
     function renderMonsters() {
         var tbody = $('battle-monsters-body');
         if (!tbody) return;
         tbody.innerHTML = '';
-        if (!state.monsters.length) {
-            tbody.innerHTML = '<tr><td colspan="5">No monsters yet. Generate or create one.</td></tr>';
+        var monsters = compendiumMonsters();
+        var countEl = $('battle-monsters-count');
+        if (countEl) {
+            var total = (state.monsters || []).length;
+            var filter = state.monsterSourceFilter || 'all';
+            if (!total) {
+                countEl.textContent = '';
+            } else if (filter === 'all') {
+                countEl.textContent = total + ' monster' + (total === 1 ? '' : 's') + ' shown';
+            } else {
+                var label = monsterSourceFilterLabel(filter);
+                countEl.textContent = monsters.length + ' ' + label + ' monster' +
+                    (monsters.length === 1 ? '' : 's') + ' shown (' + total + ' total)';
+            }
+        }
+        if (!monsters.length) {
+            var filter = state.monsterSourceFilter || 'all';
+            tbody.innerHTML = filter === 'srd_only'
+                ? '<tr><td colspan="5">No SRD monsters match this filter.</td></tr>'
+                : filter === 'custom_only'
+                    ? '<tr><td colspan="5">No custom monsters yet. Generate or create one.</td></tr>'
+                    : '<tr><td colspan="5">No monsters yet. Generate or create one.</td></tr>';
             return;
         }
-        state.monsters.forEach(function (m) {
+        monsters.forEach(function (m) {
             var s = m.stats || {};
             var tr = document.createElement('tr');
             var legendaryCount = (s.legendary_actions || []).length;
@@ -2197,23 +2269,26 @@
         state.controlsBound = true;
         var stage = $('battle-stage');
         if (stage) {
-            ensureBattleNavControls();
+            initBattleViewport();
             stage.addEventListener('mousemove', onStageMouseMove);
-            stage.addEventListener('wheel', onStageWheel, { passive: false });
-            stage.addEventListener('pointerdown', onStagePointerDown);
-            stage.addEventListener('pointermove', onStagePointerMove);
-            stage.addEventListener('pointerup', endStagePan);
-            stage.addEventListener('pointercancel', endStagePan);
-            stage.addEventListener('click', onStageClickCapture, true);
         }
         document.addEventListener('keydown', onStageKeyPan);
         document.addEventListener('keydown', function (ev) {
-            if (ev.key === 'Escape') exitMode();
+            if (ev.key === 'Escape') {
+                if (IS_GM && $('battle-encounter-window') &&
+                    !$('battle-encounter-window').hidden && !state.mode && !state.placement) {
+                    closeEncounterWindow();
+                    ev.preventDefault();
+                    return;
+                }
+                exitMode();
+            }
         });
         window.addEventListener('resize', function () {
-            clampCamera();
             scheduleVirtualRender();
         });
+        bindEncounterWindowChrome();
+        bindSetupPopoutChrome();
 
         var createBtn = $('battle-create-btn');
         if (createBtn) {
@@ -2384,8 +2459,6 @@
                         map_x: state.data.map_x,
                         map_y: state.data.map_y
                     });
-                    var mapBtn = $('map-tab-btn');
-                    if (mapBtn) mapBtn.click();
                 } else {
                     feedback('Map is not ready yet.', true);
                 }
@@ -2459,6 +2532,17 @@
                 exitMode();
                 mutate('/encounters/' + state.encounterId + '/wait',
                     { combatant_id: actorId });
+            });
+        }
+        var radialDisengage = $('battle-radial-disengage');
+        if (radialDisengage) {
+            radialDisengage.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                var actorId = state.actorId;
+                exitMode();
+                mutate('/encounters/' + state.encounterId + '/action',
+                    { type: 'disengage', combatant_id: actorId });
             });
         }
         var radialDeath = $('battle-radial-death-save');
@@ -2588,6 +2672,17 @@
                 } catch (err) { feedback(err.message, true); }
             });
         }
+
+        document.querySelectorAll('[data-monster-source-filter]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var next = btn.getAttribute('data-monster-source-filter');
+                if (!next || next === state.monsterSourceFilter) return;
+                state.monsterSourceFilter = next;
+                updateMonsterSourceFilterButtons();
+                renderMonsters();
+            });
+        });
+        updateMonsterSourceFilterButtons();
     }
 
     async function ensureLoaded() {
@@ -2655,6 +2750,8 @@
         ensureLoaded: ensureLoaded,
         ensureMonstersLoaded: ensureMonstersLoaded,
         openEncounter: openEncounter,
+        openEncounterWindow: openEncounterWindow,
+        closeEncounterWindow: closeEncounterWindow,
         stopPolling: stopPolling,
         syncMapEncounterButton: syncMapEncounterButton,
         openEncounterForCanvas: openEncounterForCanvas

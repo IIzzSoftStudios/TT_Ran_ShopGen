@@ -491,6 +491,29 @@ def warn_if_item_srd_compat_applied(patched_any: bool) -> None:
         )
 
 
+def ensure_monster_srd_columns() -> bool:
+    """Add origin_srd_key to monster_compendium_entry when missing."""
+    if not _regclass_exists("monster_compendium_entry"):
+        return False
+    if _column_exists("monster_compendium_entry", "origin_srd_key"):
+        return False
+    db.session.execute(
+        text(
+            "ALTER TABLE monster_compendium_entry "
+            "ADD COLUMN origin_srd_key VARCHAR(80)"
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def warn_if_monster_srd_compat_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "monster_compendium_entry origin_srd_key column added via schema compat bootstrap."
+        )
+
+
 def ensure_join_codes_columns() -> bool:
     """Add campaign/player join_code columns and backfill missing codes.
 
@@ -1813,6 +1836,232 @@ def warn_if_region_campaign_only_applied(applied: bool) -> None:
         )
 
 
+def ensure_region_nation_columns() -> bool:
+    """Add nation color and ruler columns on region when missing."""
+    patched_any = False
+    if not _regclass_exists("region"):
+        return False
+
+    if not _column_exists("region", "main_color"):
+        patched_any = True
+        db.session.execute(text("ALTER TABLE region ADD COLUMN main_color VARCHAR(7)"))
+    if not _column_exists("region", "secondary_color"):
+        patched_any = True
+        db.session.execute(text("ALTER TABLE region ADD COLUMN secondary_color VARCHAR(7)"))
+    if not _column_exists("region", "ruler_player_id"):
+        patched_any = True
+        db.session.execute(text("ALTER TABLE region ADD COLUMN ruler_player_id INTEGER"))
+
+    if patched_any and db.engine.dialect.name == "postgresql":
+        if _column_exists("region", "ruler_player_id"):
+            row = db.session.execute(
+                text(
+                    "SELECT 1 FROM pg_constraint "
+                    "WHERE conname = 'region_ruler_player_id_fkey'"
+                )
+            ).first()
+            if not row:
+                db.session.execute(
+                    text(
+                        "ALTER TABLE region ADD CONSTRAINT region_ruler_player_id_fkey "
+                        "FOREIGN KEY (ruler_player_id) REFERENCES player(id) "
+                        "ON DELETE SET NULL"
+                    )
+                )
+
+    if patched_any:
+        db.session.commit()
+    return patched_any
+
+
+def warn_if_region_nation_columns_applied(applied: bool) -> None:
+    if applied:
+        log.warning(
+            "region table gained main_color, secondary_color, and ruler_player_id columns."
+        )
+
+
+def ensure_player_gm_meta_columns() -> bool:
+    """Add GM-only NPC metadata columns on player when missing."""
+    patched_any = False
+    dialect = db.engine.dialect.name
+
+    if dialect == "sqlite":
+        if not _sqlite_table_exists("player"):
+            return False
+        if not _sqlite_column_exists("player", "gm_notes"):
+            patched_any = True
+            db.session.execute(text("ALTER TABLE player ADD COLUMN gm_notes TEXT"))
+        if not _sqlite_column_exists("player", "known_to_players"):
+            patched_any = True
+            db.session.execute(
+                text(
+                    "ALTER TABLE player ADD COLUMN known_to_players BOOLEAN NOT NULL DEFAULT 0"
+                )
+            )
+    elif _regclass_exists("player"):
+        if not _column_exists("player", "gm_notes"):
+            patched_any = True
+            db.session.execute(text("ALTER TABLE player ADD COLUMN gm_notes TEXT"))
+        if not _column_exists("player", "known_to_players"):
+            patched_any = True
+            db.session.execute(
+                text(
+                    "ALTER TABLE player ADD COLUMN known_to_players BOOLEAN NOT NULL DEFAULT false"
+                )
+            )
+
+    if patched_any:
+        db.session.commit()
+    return patched_any
+
+
+def warn_if_player_gm_meta_columns_applied(applied: bool) -> None:
+    if applied:
+        log.warning(
+            "player table gained gm_notes and known_to_players columns."
+        )
+
+
+def ensure_city_shop_owner_columns() -> bool:
+    """Add owner_player_id on cities and shops when missing."""
+    patched_any = False
+    dialect = db.engine.dialect.name
+
+    if dialect == "sqlite":
+        if _sqlite_table_exists("cities") and not _sqlite_column_exists(
+            "cities", "owner_player_id"
+        ):
+            patched_any = True
+            db.session.execute(
+                text("ALTER TABLE cities ADD COLUMN owner_player_id INTEGER")
+            )
+        if _sqlite_table_exists("shops") and not _sqlite_column_exists(
+            "shops", "owner_player_id"
+        ):
+            patched_any = True
+            db.session.execute(
+                text("ALTER TABLE shops ADD COLUMN owner_player_id INTEGER")
+            )
+    else:
+        if _regclass_exists("cities") and not _column_exists("cities", "owner_player_id"):
+            patched_any = True
+            db.session.execute(text("ALTER TABLE cities ADD COLUMN owner_player_id INTEGER"))
+        if _regclass_exists("shops") and not _column_exists("shops", "owner_player_id"):
+            patched_any = True
+            db.session.execute(text("ALTER TABLE shops ADD COLUMN owner_player_id INTEGER"))
+
+    if patched_any and dialect == "postgresql":
+        if _column_exists("cities", "owner_player_id"):
+            row = db.session.execute(
+                text(
+                    "SELECT 1 FROM pg_constraint "
+                    "WHERE conname = 'cities_owner_player_id_fkey'"
+                )
+            ).first()
+            if not row:
+                db.session.execute(
+                    text(
+                        "ALTER TABLE cities ADD CONSTRAINT cities_owner_player_id_fkey "
+                        "FOREIGN KEY (owner_player_id) REFERENCES player(id) "
+                        "ON DELETE SET NULL"
+                    )
+                )
+        if _column_exists("shops", "owner_player_id"):
+            row = db.session.execute(
+                text(
+                    "SELECT 1 FROM pg_constraint "
+                    "WHERE conname = 'shops_owner_player_id_fkey'"
+                )
+            ).first()
+            if not row:
+                db.session.execute(
+                    text(
+                        "ALTER TABLE shops ADD CONSTRAINT shops_owner_player_id_fkey "
+                        "FOREIGN KEY (owner_player_id) REFERENCES player(id) "
+                        "ON DELETE SET NULL"
+                    )
+                )
+
+    if patched_any:
+        db.session.commit()
+    return patched_any
+
+
+def warn_if_city_shop_owner_columns_applied(applied: bool) -> None:
+    if applied:
+        log.warning(
+            "cities and shops tables gained owner_player_id columns."
+        )
+
+
+def ensure_player_npc_notes_table() -> bool:
+    """Create player_npc_note when missing."""
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        if _sqlite_table_exists("player_npc_note"):
+            return False
+        if not _sqlite_table_exists("player"):
+            return False
+        db.session.execute(
+            text(
+                """
+                CREATE TABLE player_npc_note (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id INTEGER NOT NULL,
+                    viewer_player_id INTEGER NOT NULL,
+                    npc_player_id INTEGER NOT NULL,
+                    notes TEXT,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (viewer_player_id, npc_player_id),
+                    FOREIGN KEY(campaign_id) REFERENCES campaign(id) ON DELETE CASCADE,
+                    FOREIGN KEY(viewer_player_id) REFERENCES player(id) ON DELETE CASCADE,
+                    FOREIGN KEY(npc_player_id) REFERENCES player(id) ON DELETE CASCADE
+                )
+                """
+            )
+        )
+        db.session.commit()
+        return True
+
+    if dialect != "postgresql":
+        return False
+    if _regclass_exists("player_npc_note"):
+        return False
+    if not _regclass_exists("player"):
+        return False
+    db.session.execute(
+        text(
+            """
+            CREATE TABLE player_npc_note (
+                id SERIAL PRIMARY KEY,
+                campaign_id INTEGER NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+                viewer_player_id INTEGER NOT NULL REFERENCES player(id) ON DELETE CASCADE,
+                npc_player_id INTEGER NOT NULL REFERENCES player(id) ON DELETE CASCADE,
+                notes TEXT,
+                updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                    DEFAULT (NOW() AT TIME ZONE 'utc'),
+                CONSTRAINT uq_player_npc_note_viewer_npc
+                    UNIQUE (viewer_player_id, npc_player_id)
+            )
+            """
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_player_npc_note_campaign "
+            "ON player_npc_note(campaign_id)"
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def warn_if_player_npc_notes_table_applied(applied: bool) -> None:
+    if applied:
+        log.warning("player_npc_note table created via compat bootstrap.")
+
+
 def ensure_shop_next_restock_day_column() -> bool:
     """Add shops.next_restock_day when missing (dev / pre-migration DBs)."""
     dialect = db.engine.dialect.name
@@ -1865,6 +2114,7 @@ def ensure_map_tables() -> bool:
                 "scope VARCHAR(10) NOT NULL DEFAULT 'world', "
                 "source_type VARCHAR(20) NOT NULL DEFAULT 'generated', "
                 "image_path VARCHAR(255) NULL, "
+                "underlay_path VARCHAR(255) NULL, "
                 "generation_json JSONB NULL, "
                 "width INTEGER NOT NULL DEFAULT 1024, "
                 "height INTEGER NOT NULL DEFAULT 1024, "
@@ -1964,6 +2214,34 @@ def ensure_map_tables() -> bool:
             )
             applied = True
 
+    if _regclass_exists("map_canvas") and not _column_exists("map_canvas", "underlay_path"):
+        db.session.execute(
+            text("ALTER TABLE map_canvas ADD COLUMN underlay_path VARCHAR(255) NULL")
+        )
+        applied = True
+
+    if _regclass_exists("map_canvas") and not _column_exists("map_canvas", "shop_id"):
+        db.session.execute(
+            text(
+                "ALTER TABLE map_canvas ADD COLUMN shop_id INTEGER NULL "
+                "REFERENCES shops (shop_id) ON DELETE CASCADE"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_map_canvas_shop_id "
+                "ON map_canvas (shop_id)"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_map_canvas_shop "
+                "ON map_canvas (campaign_id, shop_id) "
+                "WHERE scope = 'shop' AND shop_id IS NOT NULL"
+            )
+        )
+        applied = True
+
     if applied:
         db.session.commit()
     return applied
@@ -2019,6 +2297,7 @@ def ensure_battle_tables() -> bool:
                 "campaign_id INTEGER NOT NULL REFERENCES campaign (id) ON DELETE CASCADE, "
                 "name VARCHAR(120) NOT NULL, "
                 "source VARCHAR(16) NOT NULL DEFAULT 'custom', "
+                "origin_srd_key VARCHAR(80) NULL, "
                 "generation_seed VARCHAR(64) NULL, "
                 "challenge_rating DOUBLE PRECISION NULL, "
                 "stat_json JSONB NOT NULL DEFAULT '{}'::jsonb, "

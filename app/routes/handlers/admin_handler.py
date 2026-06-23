@@ -342,9 +342,9 @@ _PROMPTED_FEEDBACK_QUESTIONS = [
         "prompt": "Which monster file type should import support prepare for?",
     },
     {
-        "key": "sdr_monsters",
-        "label": "SDR-approved monsters",
-        "prompt": "Should SDR-approved monsters be added to the battle compendium?",
+        "key": "srd_monsters",
+        "label": "SRD monsters",
+        "prompt": "Should SRD 5.1 monsters be added to the battle compendium?",
     },
     {
         "key": "market_import",

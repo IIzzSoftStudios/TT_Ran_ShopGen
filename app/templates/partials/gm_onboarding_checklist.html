@@ -14,6 +14,8 @@
                 <span class="gm-onboarding-step-label">Generate your world</span>
                 {% if onboarding_checklist.steps.world %}
                 <span class="gm-onboarding-step-status">Done</span>
+                {% elif onboarding_checklist.pending_setup and onboarding_checklist.resume_setup_load_url %}
+                <a class="button gm-onboarding-cta" href="{{ onboarding_checklist.resume_setup_load_url }}">Continue world setup</a>
                 {% else %}
                 <a class="button gm-onboarding-cta" href="{{ onboarding_checklist.generate_world_url }}">Open world generator</a>
                 {% endif %}

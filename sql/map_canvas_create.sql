@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS map_canvas (
     scope VARCHAR(10) NOT NULL DEFAULT 'world',
     source_type VARCHAR(20) NOT NULL DEFAULT 'generated',
     image_path VARCHAR(255) NULL,
+    underlay_path VARCHAR(255) NULL,
     generation_json JSONB NULL,
     width INTEGER NOT NULL DEFAULT 1024,
     height INTEGER NOT NULL DEFAULT 1024,

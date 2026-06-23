@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sculpt Map &mdash; Step 2</title>
+    {% include 'partials/theme_head.html' %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--color-bg, #f4f4f4);
+            color: var(--color-text, #111827);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .world-map-page {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 0.75rem 1rem 1rem;
+            box-sizing: border-box;
+        }
+        .world-map-header {
+            flex: 0 0 auto;
+            margin-bottom: 0.5rem;
+        }
+        .wizard-steps {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--color-muted, #666);
+            margin: 0 0 0.35rem;
+        }
+        .wizard-steps strong { color: var(--color-accent, #7c3aed); }
+        .world-map-title {
+            margin: 0;
+            font-size: 1.35rem;
+            text-align: center;
+            color: var(--color-accent, #7c3aed);
+        }
+        .world-map-campaign {
+            text-align: center;
+            margin: 0.15rem 0 0.35rem;
+            font-size: 0.95rem;
+            color: var(--color-text, #111827);
+        }
+        .map-hint {
+            font-size: 0.85rem;
+            color: var(--color-text-muted, #666);
+            margin: 0 0 0.5rem;
+            text-align: center;
+        }
+        .world-map-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .map-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .map-toolbar-heading {
+            min-width: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1 1 auto;
+        }
+        .map-toolbar-title {
+            margin: 0;
+            font-size: 1.15rem;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .map-toolbar-actions {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 0 0 auto;
+            flex-wrap: nowrap;
+        }
+        .map-upload-label { margin: 0; }
+        .map-upload-note {
+            align-self: center;
+            font-size: 0.78rem;
+            color: var(--color-text-muted, #666);
+            white-space: nowrap;
+        }
+        .map-feedback {
+            min-height: 1.2rem;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+        .map-feedback.error { color: #c00; }
+        .map-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            max-height: calc(100vh - 280px);
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 6px;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            background: #ece3cd;
+            flex: 1 1 auto;
+            min-height: 200px;
+        }
+        .map-stage.map-palette-parchment_atlas { background: #ece3cd; }
+        .map-stage.map-palette-satellite { background: #ccd4dd; }
+        .map-stage.map-palette-dark_fantasy { background: #1a1818; color: #e8e4dc; }
+        .map-stage.map-palette-ink_sketch { background: #f4f0e8; }
+        .map-stage.map-palette-parchment { background: #ece3cd; }
+        .map-stage.map-palette-verdant { background: #d8e6d0; }
+        .map-stage.map-palette-ashen { background: #d9d9d9; }
+        .map-stage.map-palette-slate { background: #ccd4dd; }
+        .map-stage.map-palette-sandstone { background: #e8dcc4; }
+        .map-stage.map-palette-timber { background: #e0d3c0; }
+        .map-stage.map-studio-active {
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+        }
+        .map-stage.map-studio-paint {
+            cursor: crosshair;
+        }
+        .map-stage.map-viewport-panning {
+            cursor: grabbing;
+        }
+        .map-viewport-layer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform-origin: 0 0;
+            will-change: transform;
+            pointer-events: auto;
+        }
+        .map-viewport-hint {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            z-index: 5;
+            font-size: 0.75rem;
+            opacity: 0.75;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.45);
+            color: #fff;
+            padding: 0.2rem 0.45rem;
+            border-radius: 4px;
+        }
+        .map-world-nav {
+            position: absolute;
+            top: 0.75rem;
+            left: 0.75rem;
+            z-index: 40;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.45rem;
+            max-width: min(220px, 42%);
+            pointer-events: none;
+        }
+        .map-world-nav-btn {
+            pointer-events: auto;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+            font-size: 0.72rem;
+            padding: 0.35rem 0.65rem;
+            white-space: nowrap;
+        }
+        .map-world-nav-btn[hidden] {
+            display: none !important;
+        }
+        .map-world-nav-btn[aria-pressed="true"] {
+            background: #b45309;
+            color: #fff;
+            border-color: #92400e;
+            outline: 2px solid rgba(251, 191, 36, 0.95);
+            outline-offset: 1px;
+        }
+        .map-world-nav:not(:has(.map-world-nav-btn:not([hidden]))) {
+            display: none;
+        }
+        .map-studio-paint-row {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.45rem;
+            pointer-events: none;
+            max-width: min(96vw, 920px);
+        }
+        .map-studio-paint-tools {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.35rem;
+            pointer-events: auto;
+            padding: 0.35rem 0.5rem;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid var(--color-border, #ccc);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+        }
+        .map-studio-paint-tools[hidden] {
+            display: none !important;
+        }
+        .map-studio-brushes-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            align-items: center;
+        }
+        .map-studio-brush-size-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.72rem;
+            white-space: nowrap;
+            margin: 0;
+        }
+        .map-studio-brush-size-nav input[type="range"] {
+            width: 72px;
+        }
+        .map-stage.map-studio-painting .map-world-nav {
+            display: flex;
+        }
+        .map-appearance-panel {
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 8px;
+            padding: 0.65rem 0.85rem;
+            margin-bottom: 0.65rem;
+            background: var(--color-surface, #fff);
+        }
+        .map-appearance-panel summary {
+            cursor: pointer;
+            font-weight: 600;
+            user-select: none;
+        }
+        .map-appearance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 0.5rem 1rem;
+            margin-top: 0.65rem;
+        }
+        .map-appearance-grid label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            font-size: 0.85rem;
+        }
+        .map-appearance-grid input[type="range"] {
+            width: 100%;
+        }
+        .map-appearance-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+            margin-top: 0.65rem;
+        }
+        .map-seed-display {
+            font-size: 0.8rem;
+            color: var(--color-text-muted, #666);
+            font-family: monospace;
+        }
+        .map-appearance-panel[hidden] {
+            display: none !important;
+        }
+        .map-bg-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+        .map-gen-bg {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .map-gen-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            pointer-events: none;
+        }
+        .map-underlay-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            opacity: 0.45;
+            pointer-events: none;
+            z-index: 0.5;
+        }
+        .map-studio-canvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        .map-studio-panel {
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 8px;
+            padding: 0.65rem 0.85rem;
+            margin-bottom: 0.65rem;
+            background: var(--color-surface, #fff);
+        }
+        .map-studio-panel summary {
+            cursor: pointer;
+            font-weight: 600;
+            user-select: none;
+        }
+        .map-studio-panel[hidden] { display: none !important; }
+        .map-studio-panel-body {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: flex-start;
+            margin-top: 0.65rem;
+        }
+        .map-studio-tools {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            min-width: 120px;
+        }
+        .map-studio-tools-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        .map-studio-tool {
+            font-size: 0.78rem;
+            padding: 0.35rem 0.55rem;
+        }
+        .map-studio-tool[aria-pressed="true"] {
+            outline: 2px solid var(--color-accent, #6b21a8);
+            outline-offset: 1px;
+        }
+        .map-studio-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            align-items: center;
+            flex: 1 1 auto;
+        }
+        .map-studio-size {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            font-size: 0.8rem;
+            min-width: 140px;
+        }
+        .map-studio-dirty {
+            font-size: 0.8rem;
+            color: #b45309;
+            font-weight: 600;
+        }
+        .map-studio-dirty[hidden] { display: none !important; }
+        .map-studio-blocked {
+            font-size: 0.85rem;
+            color: var(--color-text-muted, #666);
+            margin-bottom: 0.5rem;
+        }
+        .map-studio-blocked[hidden] { display: none !important; }
+        .map-marker-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .world-map-footer {
+            flex: 0 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-top: 0.75rem;
+            padding-top: 0.5rem;
+        }
+        .btn {
+            padding: 10px 22px;
+            border-radius: 6px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.95rem;
+        }
+        .btn-primary { background: var(--color-accent, #9b59b6); color: #fff; }
+        .btn-secondary { background: #eee; color: #333; }
+        .flash-errors {
+            background: rgba(220, 38, 38, 0.12);
+            color: var(--color-danger, #a5322a);
+            border: 1px solid var(--color-danger, #f5c6c3);
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="world-map-page">
+        <header class="world-map-header">
+            <p class="wizard-steps">Step <strong>2</strong> of 3 &mdash; Sculpt your map</p>
+            <h1 class="world-map-title">World Map Builder</h1>
+            <p class="world-map-campaign">{{ campaign.name }}</p>
+            <p class="map-hint">
+                Sculpt your world map. Cities and shops appear after generation; place them on the map anytime.
+            </p>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-errors" role="alert">
+                        {% for category, message in messages %}
+                            <div>{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+        </header>
+
+        <div class="world-map-body">
+            <div class="map-toolbar">
+                <span class="map-toolbar-heading">
+                    <h2 class="map-toolbar-title">World Map</h2>
+                </span>
+                <span class="map-toolbar-actions">
+                    <label class="button map-upload-label">
+                        Upload image
+                        <input type="file" id="map-upload-input"
+                               accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                    </label>
+                    <span class="map-upload-note">Max 4 MB. PNG, JPEG, WebP, or GIF.</span>
+                </span>
+            </div>
+
+            <details class="map-appearance-panel" id="map-appearance-panel" open>
+                <summary>Map appearance</summary>
+                <div class="map-appearance-grid">
+                    <label>Style preset
+                        <select id="map-style-preset">
+                            <option value="parchment_atlas">Parchment atlas</option>
+                            <option value="satellite">Satellite</option>
+                            <option value="dark_fantasy">Dark fantasy</option>
+                            <option value="ink_sketch">Ink sketch</option>
+                        </select>
+                    </label>
+                    <label>Map width (hexes)
+                        <input type="range" id="map-ctrl-hex-width" min="48" max="500" step="4" value="200">
+                    </label>
+                    <label>Map height (hexes)
+                        <input type="range" id="map-ctrl-hex-height" min="32" max="500" step="4" value="125">
+                    </label>
+                    <label>Hex size
+                        <input type="range" id="map-ctrl-hex-size" min="6" max="20" step="1" value="12"
+                               title="Smaller = more hexes visible; larger = easier to paint">
+                    </label>
+                    <label>Land frequency %
+                        <input type="range" id="map-ctrl-land-freq" min="10" max="95" step="1" value="55">
+                    </label>
+                    <label>Vegetation %
+                        <input type="range" id="map-ctrl-vegetation" min="0" max="80" step="1" value="18">
+                    </label>
+                    <label>Grassland %
+                        <input type="range" id="map-ctrl-grassland" min="0" max="80" step="1" value="22">
+                    </label>
+                    <label>Hills %
+                        <input type="range" id="map-ctrl-hills" min="0" max="60" step="1" value="12">
+                    </label>
+                    <label>Desert %
+                        <input type="range" id="map-ctrl-desert" min="0" max="60" step="1" value="15">
+                    </label>
+                    <label>Cluster %
+                        <input type="range" id="map-ctrl-cluster" min="0" max="100" step="5" value="70">
+                    </label>
+                    <label>Land form
+                        <select id="map-ctrl-land-form">
+                            <option value="large_continents">Large continents</option>
+                            <option value="scattered">Scattered</option>
+                            <option value="archipelago">Archipelago</option>
+                        </select>
+                    </label>
+                    <label>Landmass scale (legacy)
+                        <input type="range" id="map-ctrl-landmass" min="1" max="10" step="1" value="6">
+                    </label>
+                    <label>Waterways
+                        <input type="range" id="map-ctrl-waterways" min="0" max="10" step="1" value="4">
+                    </label>
+                    <label>Terrain roughness
+                        <input type="range" id="map-ctrl-roughness" min="0" max="10" step="1" value="5">
+                    </label>
+                    <label>Coast detail
+                        <input type="range" id="map-ctrl-coast" min="0" max="10" step="1" value="5">
+                    </label>
+                    <label>Island count
+                        <input type="range" id="map-ctrl-islands" min="0" max="10" step="1" value="0"
+                               title="0 = automatic">
+                    </label>
+                    <label>Biome warmth
+                        <input type="range" id="map-ctrl-warmth" min="0" max="10" step="1" value="5">
+                    </label>
+                </div>
+                <div class="map-appearance-actions">
+                    <span class="map-seed-display" id="map-seed-display">Layout seed: —</span>
+                    <label><input type="checkbox" id="map-seed-lock"> Lock layout seed</label>
+                    <button type="button" class="button" id="map-regen-layout-btn">Regenerate layout</button>
+                    <button type="button" class="button" id="map-regen-details-btn">Regenerate details</button>
+                    <button type="button" class="button" id="map-apply-appearance-btn">Apply</button>
+                </div>
+            </details>
+
+            <p id="map-studio-blocked" class="map-studio-blocked" hidden>
+                Map studio edits procedural maps. Remove the uploaded background or
+                <button type="button" class="button" id="map-convert-editable-btn">convert to editable map</button>.
+            </p>
+            <details id="map-studio-panel" class="map-studio-panel" hidden>
+                <summary>Map studio</summary>
+                <div class="map-studio-panel-body">
+                    <label class="map-studio-size">
+                        <input type="checkbox" id="map-studio-grid-show" checked> Show hex grid
+                    </label>
+                    <div class="map-studio-actions">
+                        <button type="button" class="button" id="map-studio-toggle-btn" aria-pressed="false">Paint hexes</button>
+                        <button type="button" class="button" id="map-studio-undo-btn">Undo</button>
+                        <button type="button" class="button" id="map-studio-redo-btn">Redo</button>
+                        <button type="button" class="button" id="map-studio-save-btn">Save map</button>
+                        <span id="map-studio-dirty" class="map-studio-dirty" hidden>Unsaved changes</span>
+                        <label class="button map-upload-label">
+                            Import trace image
+                            <input type="file" id="map-underlay-input"
+                                   accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                        </label>
+                        <button type="button" class="button" id="map-underlay-clear-btn">Clear underlay</button>
+                    </div>
+                </div>
+            </details>
+
+            <div id="map-feedback" class="map-feedback" role="status" aria-live="polite"></div>
+            <div id="map-stage" class="map-stage">
+                <div class="map-world-nav" id="map-world-nav" aria-label="Map tools">
+                    <div id="map-studio-paint-row" class="map-studio-paint-row">
+                        <div id="map-studio-paint-tools" class="map-studio-paint-tools" hidden>
+                            <div id="map-studio-brushes" class="map-studio-brushes-row"></div>
+                            <label class="map-studio-brush-size-nav">Size
+                                <input type="range" id="map-studio-brush-size" min="1" max="48" value="12">
+                            </label>
+                        </div>
+                        <button type="button" class="button map-world-nav-btn" id="map-studio-map-toggle-btn" hidden>Paint hexes</button>
+                    </div>
+                    <button type="button" class="button map-world-nav-btn" id="map-studio-map-save-btn" hidden>Save map</button>
+                </div>
+                <img id="map-underlay-image" class="map-underlay-image" alt="" hidden aria-hidden="true">
+                <div id="map-viewport-layer" class="map-viewport-layer">
+                    <img id="map-bg-image" class="map-bg-image" alt="Map background" hidden>
+                    <div id="map-gen-bg" class="map-gen-bg" aria-hidden="true"></div>
+                    <canvas id="map-studio-canvas" class="map-studio-canvas" hidden aria-hidden="true"></canvas>
+                    <div id="map-marker-layer" class="map-marker-layer"></div>
+                </div>
+                <span class="map-viewport-hint" id="map-viewport-hint">Drag to pan · Wheel to zoom · Right-click ends paint stroke · Right-drag pans</span>
+            </div>
+        </div>
+
+        <form id="world-map-continue-form" class="world-map-footer" method="POST"
+              action="{{ url_for('gm.generate_world_map_continue') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% for key in ['map_landmass_scale', 'map_waterways', 'map_terrain_roughness'] %}
+                {% if ranges.get(key) %}
+            <input type="hidden" name="{{ key }}_min" value="{{ ranges[key].min }}">
+            <input type="hidden" name="{{ key }}_max" value="{{ ranges[key].max }}">
+                {% endif %}
+            {% endfor %}
+            <button type="submit" class="btn btn-primary" id="world-map-continue-btn">Continue to economy</button>
+            <a href="{{ url_for('gm.view_campaigns') }}" class="btn btn-secondary">Back to campaigns</a>
+        </form>
+    </div>
+
+    <script id="world-map-urls" type="application/json">
+    {
+        "mapWorld": {{ url_for('gm.gm_map_world') | tojson }},
+        "mapWorldGeneration": {{ url_for('gm.gm_map_world_generation') | tojson }},
+        "mapWorldBackground": {{ url_for('gm.gm_map_world_background') | tojson }},
+        "mapWorldBackgroundPreview": {{ url_for('gm.gm_map_world_background_preview') | tojson }},
+        "mapWorldConvertEditable": {{ url_for('gm.gm_map_world_convert_editable') | tojson }},
+        "mapWorldUnderlay": {{ url_for('gm.gm_map_world_underlay') | tojson }},
+        "mapUnderlayImage": {{ url_for('gm.gm_map_underlay', canvas_id=999999999) | tojson }},
+        "mapImage": {{ url_for('gm.gm_map_image', canvas_id=999999999) | tojson }}
+    }
+    </script>
+    <script src="{{ url_for('static', filename='js/map_viewport.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map_hex.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map_renderer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map_studio.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/world_map_setup.js') }}"></script>
+</body>
+</html>

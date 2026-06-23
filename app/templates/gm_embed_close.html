@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Saved</title>
+    {% include 'partials/theme_head.html' %}
+</head>
+<body>
+    <p role="status">Saved. Returning to compendium…</p>
+    <script>
+        (function () {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: "gm-compendium-embed-close",
+                    anchor: {{ anchor | tojson }},
+                    refreshMap: {{ refresh_map | default(false) | tojson }},
+                    refreshPlayers: {{ refresh_players | default(false) | tojson }}
+                }, window.location.origin);
+            }
+        })();
+    </script>
+</body>
+</html>

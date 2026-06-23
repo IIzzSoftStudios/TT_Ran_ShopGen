@@ -260,6 +260,9 @@
         <div id="tab-gm-sheet" class="tab-panel{% if character %} active{% endif %}">
         <section class="section">
             <h2>Character Sheet <small style="font-weight: normal; color: #666;">({{ character.ruleset_meta.display_name if character.ruleset_meta else character.system_type }})</small></h2>
+            {% if player.is_npc %}
+            <p style="color:#555; font-size:0.92rem;">NPC sheet — ability scores are not capped for GMs. Combat uses species/class compendium traits when the sheet was built through the creation wizard.</p>
+            {% endif %}
             <form method="post" action="{{ url_for('gm.gm_update_character', character_id=player.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="form_section" value="sheet"/>
@@ -282,13 +285,26 @@
                 <label>Notes</label>
                 <textarea name="notes" style="width: 100%; min-height: 60px;">{{ character.notes or '' }}</textarea>
 
+                {% if player.is_npc %}
+                <h3>GM only</h3>
+                <label for="gm_notes">GM notes</label>
+                <textarea id="gm_notes" name="gm_notes" style="width: 100%; min-height: 80px;">{{ player.gm_notes or '' }}</textarea>
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-weight: 600;">
+                    <input type="checkbox" name="known_to_players" value="1" {% if player.known_to_players %}checked{% endif %}>
+                    Known to players
+                </label>
+                <p style="font-size: 0.9rem; color: #666; margin-top: 0.35rem;">
+                    When checked, this NPC appears in the player NPC list and named rulers/owners show on map stat cards.
+                </p>
+                {% endif %}
+
                 {% if character.abilities_display %}
                 <h3>Abilities</h3>
                 <div class="row">
                     {% for stat in character.abilities_display %}
                     <div class="card" style="text-align: center;">
                         <div style="font-size: 0.85em; color: #555;">{{ stat.label }}</div>
-                        <input type="number" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" style="width: 70px; text-align: center;"/>
+                        <input type="number" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" {% if player.is_npc %}min="1" max="999"{% endif %} style="width: 70px; text-align: center;"/>
                         {% if stat.modifier is not none %}
                         <div style="font-weight: bold; margin-top: 4px;">{{ '%+d'|format(stat.modifier) }}</div>
                         {% endif %}

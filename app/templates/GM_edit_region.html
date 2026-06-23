@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{% if mode == 'create' %}Add Region{% else %}Edit Region{% endif %}</title>
+    <title>{% if mode == 'create' %}Add Nation{% else %}Edit Nation{% endif %}</title>
     {% include 'partials/theme_head.html' %}
 
     <style>
@@ -74,7 +74,7 @@
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 15px;
-            width: 400px;
+            width: 420px;
             max-width: 100%;
             box-sizing: border-box;
         }
@@ -114,6 +114,52 @@
         input[type="range"] {
             width: 100%;
             margin-bottom: 8px;
+        }
+
+        .color-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .color-row input[type="color"] {
+            width: 56px;
+            height: 40px;
+            padding: 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            background: none;
+        }
+
+        .color-row .color-label-wrap {
+            flex: 1;
+        }
+
+        .section-heading {
+            font-size: 1.05rem;
+            margin: 8px 0 12px;
+            color: #333;
+            border-bottom: 1px solid #e5e5e5;
+            padding-bottom: 6px;
+            width: 100%;
+        }
+
+        .ruler-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .ruler-name {
+            font-size: 14px;
+            color: #333;
         }
 
         .axis-hints {
@@ -165,7 +211,7 @@
     </style>
 </head>
 <body>
-    <h1>{% if mode == 'create' %}Add New Region{% else %}Edit Region{% endif %}</h1>
+    <h1>{% if mode == 'create' %}Add New Nation{% else %}Edit Nation{% endif %}</h1>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -183,11 +229,60 @@
         <a href="{{ url_for('gm.home') }}" class="button">Game Master Interface</a>
     </div>
 
+    {% set main_default = default_main_color if default_main_color is defined else '#c084fc' %}
+    {% set border_default = default_border_color if default_border_color is defined else '#7c3aed' %}
+    {% set main_val = form_main_color if form_main_color is defined else (region.main_color if region and region.main_color else main_default) %}
+    {% set border_val = form_secondary_color if form_secondary_color is defined else (region.secondary_color if region and region.secondary_color else border_default) %}
+
     <form method="POST" action="{% if mode == 'create' %}{{ url_for('gm.add_region') }}{% else %}{{ url_for('gm.edit_region', region_id=region.id) }}{% endif %}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {% if embed %}<input type="hidden" name="embed" value="1"/>{% endif %}
 
-        <label for="name">Region name</label>
+        <label for="name">Nation name</label>
         <input type="text" id="name" name="name" value="{{ form_name if form_name is defined else (region.name if region else '') }}" required>
+
+        {% if mode == 'edit' %}
+        <h2 class="section-heading">Ruler</h2>
+        <div class="ruler-row">
+            <span class="ruler-name">
+                {% if region.ruler_player_id %}
+                    {{ ruler_name or ('NPC #' ~ region.ruler_player_id) }}
+                {% else %}
+                    <span class="field-hint" style="margin:0;">No ruler assigned</span>
+                {% endif %}
+            </span>
+            <span>
+                {% if region.ruler_player_id and ruler_edit_url %}
+                <a href="{{ ruler_edit_url }}" class="button">Edit ruler</a>
+                {% elif add_ruler_url %}
+                <a href="{{ add_ruler_url }}" class="button">Add ruler</a>
+                {% endif %}
+            </span>
+        </div>
+        {% if region.ruler_player_id %}
+        <label style="font-weight:normal;display:flex;align-items:center;gap:8px;margin-bottom:15px;">
+            <input type="checkbox" name="clear_ruler" value="1">
+            Remove ruler from this nation
+        </label>
+        {% endif %}
+        {% endif %}
+
+        <h2 class="section-heading">Map colors</h2>
+        <p class="field-hint">Main color fills the nation boundary on the world map (semi-transparent). Secondary color is the border.</p>
+
+        <div class="color-row">
+            <input type="color" id="main_color" name="main_color" value="{{ main_val }}" aria-label="Main color">
+            <div class="color-label-wrap">
+                <label for="main_color">Main color</label>
+            </div>
+        </div>
+
+        <div class="color-row">
+            <input type="color" id="secondary_color" name="secondary_color" value="{{ border_val }}" aria-label="Secondary color">
+            <div class="color-label-wrap">
+                <label for="secondary_color">Secondary color (border)</label>
+            </div>
+        </div>
 
         <label for="axis_position">Magic ↔ Tech balance (0–10)</label>
         <input type="range" id="axis_position" name="axis_position" min="0" max="10" value="{{ form_axis if form_axis is defined else ((region.local_flavor or {}).get('axis_position', 5) if region else 5) }}">
@@ -198,8 +293,8 @@
         </div>
 
         {% if mode == 'edit' and unassigned_cities is defined and unassigned_cities %}
-        <label for="assign_city_ids">Add cities to this region</label>
-        <p class="field-hint">Only cities not yet assigned to a region. Hold Ctrl (Windows) or Cmd (Mac) to select multiple.</p>
+        <label for="assign_city_ids">Add cities to this nation</label>
+        <p class="field-hint">Only cities not yet assigned to a nation. Hold Ctrl (Windows) or Cmd (Mac) to select multiple.</p>
         <select id="assign_city_ids" name="assign_city_ids" multiple>
             {% for c in unassigned_cities %}
             <option value="{{ c.city_id }}">{{ c.name }}</option>
@@ -208,34 +303,34 @@
         {% endif %}
 
         <div class="button-row">
-            <button type="submit" class="button">{% if mode == 'create' %}Create region{% else %}Save changes{% endif %}</button>
+            <button type="submit" class="button">{% if mode == 'create' %}Create nation{% else %}Save changes{% endif %}</button>
             {% if mode == 'edit' %}
             <button type="submit" class="button"
                     formaction="{{ url_for('gm.generate_cities_for_region', region_id=region.id) }}"
                     formmethod="POST"
                     formnovalidate
-                    title="If this region has no cities yet, creates a batch from your world-config ranges. Does nothing if cities already exist.">
+                    title="If this nation has no cities yet, creates a batch from your world-config ranges. Does nothing if cities already exist.">
                 Generate cities
             </button>
             <button type="submit" class="button"
                     formaction="{{ url_for('gm.generate_shops_for_region', region_id=region.id) }}"
                     formmethod="POST"
                     formnovalidate
-                    title="Adds shops and stock to cities in this region that have no shops yet. Requires cities in the region and an item pool for the campaign.">
+                    title="Adds shops and stock to cities in this nation that have no shops yet. Requires cities in the nation and an item pool for the campaign.">
                 Generate shops
             </button>
             <button type="submit" class="delete-button"
                     formaction="{{ url_for('gm.delete_region', region_id=region.id) }}"
                     formmethod="POST"
                     formnovalidate
-                    onclick="return confirm('Delete this region? Cities in this region will remain but become unassigned.');">
-                Delete Region
+                    onclick="return confirm('Delete this nation? Cities in this nation will remain but become unassigned.');">
+                Delete nation
             </button>
             {% else %}
-            <button type="button" class="button" disabled title="Create the region first; then you can generate cities and shops.">
+            <button type="button" class="button" disabled title="Create the nation first; then you can generate cities and shops.">
                 Generate cities
             </button>
-            <button type="button" class="button" disabled title="Create the region first; then you can generate cities and shops.">
+            <button type="button" class="button" disabled title="Create the nation first; then you can generate cities and shops.">
                 Generate shops
             </button>
             {% endif %}

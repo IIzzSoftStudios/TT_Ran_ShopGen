@@ -90,8 +90,17 @@ def serialize_combatant(combatant: BattleCombatant, *, for_gm: bool,
                 "legendary_actions": list(
                     (combatant.action_data_json or {}).get("legendary_actions") or []
                 ),
+                "combat_profile": dict(
+                    (combatant.action_data_json or {}).get("combat_profile") or {}
+                ),
             }
         )
+        if for_gm or is_own:
+            resources = dict(combatant.resources_json or {})
+            if resources.get("legendary_points_remaining") is not None:
+                base["legendary_points_remaining"] = resources.get(
+                    "legendary_points_remaining"
+                )
         if is_own:
             base["spell_slots"] = dict(combatant.spell_slots_json or {})
     if for_gm:

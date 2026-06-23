@@ -13,7 +13,11 @@ from app.scripts.seeder import seed_gm_data
 from app.extensions import db
 from app.models import Campaign, City, Player, Shop, SimulationState
 from app.services.simulation_state_helpers import get_simulation_state_for_campaign
-from app.routes.handlers.gm_helpers import get_current_gm_profile, require_active_campaign
+from app.routes.handlers.gm_helpers import (
+    get_current_gm_profile,
+    require_active_campaign,
+    redirect_if_pending_setup,
+)
 from app.routes.handlers.gm_players_handler import build_player_entries
 from app.routes.handlers.gm_shops_handler import get_shop_city_panel_context
 from app.services.distributed_lock import get_redis_client
@@ -142,6 +146,21 @@ def build_gm_onboarding_context(gm_profile, campaign):
     current_day = int(campaign.current_game_day or 1)
     first_sim_done = current_day > 1
 
+    from app.services.world_setup_state import (
+        is_pending_setup,
+        settings_for_campaign,
+        setup_resume_url,
+    )
+
+    settings = settings_for_campaign(campaign)
+    pending_setup = is_pending_setup(settings)
+    resume_setup_url = setup_resume_url(settings) if pending_setup else None
+    resume_setup_load_url = (
+        url_for("main.load_campaign_route", campaign_id=cid, **{"as": "gm"})
+        if pending_setup
+        else None
+    )
+
     steps = {
         "world": has_world,
         "players": player_count > 0,
@@ -153,6 +172,9 @@ def build_gm_onboarding_context(gm_profile, campaign):
         "show": not all_complete,
         "all_complete": all_complete,
         "has_generated_world": has_world,
+        "pending_setup": pending_setup,
+        "resume_setup_url": resume_setup_url,
+        "resume_setup_load_url": resume_setup_load_url,
         "player_count": player_count,
         "join_code_ready": bool(campaign.join_code),
         "first_sim_completed": first_sim_done,
@@ -176,8 +198,14 @@ def home():
     if redirect_response is not None:
         return redirect_response
 
+    setup_redirect = redirect_if_pending_setup(campaign)
+    if setup_redirect is not None:
+        return setup_redirect
+
     shops_panel = get_shop_city_panel_context(gm_profile, include_nav_toggles=True)
     player_entries = build_player_entries(campaign)
+    pc_entries = [e for e in player_entries if not e["player"].is_npc]
+    npc_entries = [e for e in player_entries if e["player"].is_npc]
     onboarding_checklist = build_gm_onboarding_context(gm_profile, campaign)
     # Battle tab is D&D-5e-only: hidden entirely for other rulesets.
     from app.services.rulesets import get_ruleset
@@ -203,6 +231,8 @@ def home():
         onboarding_checklist=onboarding_checklist,
         combat_enabled=combat_enabled,
         player_entries=player_entries,
+        pc_entries=pc_entries,
+        npc_entries=npc_entries,
         character_creation_settings=character_creation_settings,
         species_compendium_preview=species_compendium_preview,
         **shops_panel,

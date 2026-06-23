@@ -17,6 +17,7 @@ from random import Random
 from app.extensions import db
 from app.models import BattleActionLog, BattleCombatant, BattleEncounter
 from app.services.combat import CombatValidationError, StaleTurnError
+from app.services.combat import dnd5e_combat_profile as combat_profile
 from app.services.combat import dnd5e_rules as rules
 from app.services.combat import settings_service
 from app.services.rulesets import get_ruleset
@@ -29,7 +30,7 @@ MAX_COMBATANTS = 60
 _SKIP_TURN_STATUSES = ("dead", "removed")
 
 
-def _fresh_resources() -> dict:
+def _fresh_resources(*, legendary_points_max: int = 0) -> dict:
     return {
         "action": True,
         "bonus_action": True,
@@ -37,7 +38,254 @@ def _fresh_resources() -> dict:
         "concentrating": False,
         "concentration": None,
         "death_saves": {"successes": 0, "failures": 0},
+        "legendary_points_remaining": legendary_points_max,
+        "relentless_endurance_used": False,
+        "disengage": False,
     }
+
+
+def _active_combatants(encounter: BattleEncounter) -> list[BattleCombatant]:
+    return [
+        c
+        for c in BattleCombatant.query.filter_by(encounter_id=encounter.id).all()
+        if c.status not in ("dead", "removed")
+    ]
+
+
+def _combat_profile(combatant: BattleCombatant) -> dict:
+    return combat_profile.profile_from_action_data(combatant.action_data_json)
+
+
+def _save_modifier(combatant: BattleCombatant, ability: str) -> int:
+    profile = _combat_profile(combatant)
+    action_data = combatant.action_data_json or {}
+    level = int(action_data.get("character_level") or profile.get("character_level") or 1)
+    abilities = combatant.ability_json or {}
+    score = abilities.get(str(ability or "dex"), 10)
+    return combat_profile.compute_save_modifier(
+        int(score),
+        ability,
+        profile,
+        level=level,
+        save_prof_flags=action_data.get("save_prof_flags"),
+    )
+
+
+def _resolve_save_roll(
+    combatant: BattleCombatant,
+    ability: str,
+    dc: int,
+    rng: Random,
+    *,
+    client_mode: str = "normal",
+    vs_condition: str | None = None,
+    is_magic: bool = False,
+) -> dict:
+    profile = _combat_profile(combatant)
+    cond_mode = combat_profile.condition_save_modifiers(
+        list(combatant.conditions_json or []),
+        ability,
+    )
+    if cond_mode == "auto_fail":
+        return {
+            "rolls": [],
+            "natural": 1,
+            "total": 0,
+            "mode": "auto_fail",
+            "is_nat20": False,
+            "is_nat1": True,
+            "dc": int(dc),
+            "success": False,
+            "auto_fail": True,
+        }
+    modes = [client_mode, cond_mode]
+    if combat_profile.save_advantage_for_profile(
+        profile,
+        ability=ability,
+        vs_condition=vs_condition,
+        is_magic=is_magic,
+    ):
+        modes.append("advantage")
+    mode = combat_profile.combine_roll_modes(*modes)
+    save_mod = _save_modifier(combatant, ability)
+    result = combat_profile.roll_d20_with_lucky(save_mod, rng, mode, profile)
+    result.update({"dc": int(dc), "success": result["total"] >= int(dc)})
+    return result
+
+
+def _effective_target_ac(
+    encounter: BattleEncounter,
+    attacker: BattleCombatant,
+    target: BattleCombatant,
+    settings: dict,
+    *,
+    attack_kind: str,
+) -> tuple[int, dict]:
+    ac = int(target.ac)
+    detail: dict = {"base_ac": ac, "cover_bonus": 0}
+    if not settings.get("cover"):
+        return ac, detail
+    blockers = [
+        (c.x, c.y)
+        for c in _active_combatants(encounter)
+        if c.id not in (attacker.id, target.id)
+    ]
+    bonus = combat_profile.cover_ac_bonus(attacker.x, attacker.y, target.x, target.y, blockers)
+    detail["cover_bonus"] = bonus
+    return ac + bonus, detail
+
+
+def _attack_roll_mode(
+    encounter: BattleEncounter,
+    attacker: BattleCombatant,
+    target: BattleCombatant,
+    attack: dict,
+    settings: dict,
+    client_mode: str,
+) -> tuple[str, dict]:
+    atk_conds = list(attacker.conditions_json or [])
+    tgt_conds = list(target.conditions_json or [])
+    kind = str(attack.get("kind") or "melee")
+    atk_part, tgt_part = combat_profile.condition_attack_modifiers(
+        atk_conds, tgt_conds, attack_kind=kind
+    )
+    modes = [client_mode, atk_part]
+    if tgt_part == "advantage":
+        modes.append("advantage")
+    elif tgt_part == "disadvantage":
+        modes.append("disadvantage")
+    if settings.get("flanking") and combat_profile.is_flanking(
+        attacker.x,
+        attacker.y,
+        target.x,
+        target.y,
+        [
+            (c.x, c.y)
+            for c in _active_combatants(encounter)
+            if c.side == attacker.side and c.id != attacker.id
+        ],
+        attack_kind=kind,
+    ):
+        modes.append("advantage")
+    detail = {
+        "attacker_conditions": atk_part,
+        "target_conditions": tgt_part,
+        "flanking": "advantage" in modes and settings.get("flanking"),
+    }
+    return combat_profile.combine_roll_modes(*modes), detail
+
+
+def _resolve_attack_to_hit(
+    attacker: BattleCombatant,
+    target_ac: int,
+    attack_mod: int,
+    rng: Random,
+    roll_mode: str,
+) -> dict:
+    profile = _combat_profile(attacker)
+    result = combat_profile.roll_d20_with_lucky(int(attack_mod), rng, roll_mode, profile)
+    crit = result["is_nat20"]
+    hit = crit or (not result["is_nat1"] and result["total"] >= int(target_ac))
+    result.update({"hit": hit, "crit": crit, "target_ac": int(target_ac)})
+    return result
+
+
+def _melee_reach_ft(combatant: BattleCombatant) -> int:
+    attacks = (combatant.action_data_json or {}).get("attacks") or []
+    reach = 5
+    for attack in attacks:
+        if str(attack.get("kind") or "melee").lower() == "melee":
+            try:
+                reach = max(reach, int(attack.get("range_ft") or 5))
+            except (TypeError, ValueError):
+                pass
+    return reach
+
+
+def _resolve_opportunity_attacks(
+    encounter: BattleEncounter,
+    mover: BattleCombatant,
+    from_x: int,
+    from_y: int,
+    to_x: int,
+    to_y: int,
+    settings: dict,
+    rng: Random,
+) -> list[dict]:
+    if not settings.get("opportunity_attacks"):
+        return []
+    if (mover.resources_json or {}).get("disengage"):
+        return []
+    reach_cells = max(1, _melee_reach_ft(mover) // rules.GRID_CELL_FT)
+    hostiles = [
+        (c.id, c.x, c.y)
+        for c in _active_combatants(encounter)
+        if c.id != mover.id and c.side != mover.side and c.status == "active"
+    ]
+    triggered_ids = combat_profile.leaving_melee_reach(
+        from_x, from_y, to_x, to_y, hostiles, reach_cells=reach_cells
+    )
+    results: list[dict] = []
+    for cid in triggered_ids:
+        reactor = combatant_in_encounter(encounter, cid)
+        if reactor is None or combat_profile.incapacitated(list(reactor.conditions_json or [])):
+            continue
+        resources = dict(reactor.resources_json or _fresh_resources())
+        if not resources.get("reaction", True):
+            results.append({"reactor_id": cid, "skipped": "No reaction available."})
+            continue
+        attacks = (reactor.action_data_json or {}).get("attacks") or []
+        melee = next(
+            (a for a in attacks if str(a.get("kind") or "melee").lower() == "melee"),
+            attacks[0] if attacks else None,
+        )
+        if not melee:
+            results.append({"reactor_id": cid, "skipped": "No melee attack available."})
+            continue
+        target_ac, ac_detail = _effective_target_ac(
+            encounter, reactor, mover, settings, attack_kind="melee"
+        )
+        roll_mode, _ = _attack_roll_mode(
+            encounter, reactor, mover, melee, settings, "normal"
+        )
+        to_hit = _resolve_attack_to_hit(
+            reactor, target_ac, int(melee.get("attack_mod") or 0), rng, roll_mode
+        )
+        entry = {
+            "type": "opportunity_attack",
+            "reactor_id": reactor.id,
+            "target_id": mover.id,
+            "attack": {"key": melee.get("key"), "name": melee.get("name")},
+            "to_hit": to_hit,
+            "ac_detail": ac_detail,
+            "hit": to_hit["hit"],
+            "crit": to_hit["crit"],
+        }
+        if to_hit["hit"]:
+            crit = to_hit["crit"] and settings["crit_mode"] == "double_dice"
+            damage = rules.roll_damage(str(melee.get("damage", "1d6")), rng, crit=crit)
+            profile = _combat_profile(mover)
+            modified = combat_profile.apply_damage_modifiers(
+                damage["total"], melee.get("damage_type"), profile
+            )
+            damage = dict(damage)
+            damage["total"] = modified["total"]
+            damage["damage_modifiers"] = modified
+            entry["damage_roll"] = damage
+            if settings["auto_apply_damage"]:
+                entry["outcome"] = _apply_outcome_to_target(
+                    encounter,
+                    mover,
+                    damage["total"],
+                    settings,
+                    rng,
+                    damage_type=melee.get("damage_type"),
+                )
+        resources["reaction"] = False
+        reactor.resources_json = resources
+        results.append(entry)
+        _log(encounter, reactor, "opportunity_attack", entry)
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -418,10 +666,22 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         char_level = 1
     prof = ruleset.proficiency_bonus(char_level)
 
-    from app.services.classes_compendium_service import resolve_character_class_details
-    from app.services.spells_compendium_service import combat_spell_snapshots
+    from app.services.classes_compendium_service import (
+        get_class_entry,
+        resolve_character_class_details,
+    )
+    from app.services.combat.combat_profile_builder import (
+        build_monster_combat_profile,
+        build_player_combat_profile,
+    )
+    from app.services.species_compendium_service import get_species_entry
+    from app.services.traits_compendium_service import ensure_traits_compendium
 
+    ensure_traits_compendium(encounter.campaign_id)
     creation = sheet.get("creation") if isinstance(sheet.get("creation"), dict) else {}
+    species_entry = get_species_entry(encounter.campaign_id, creation.get("species_key"))
+    class_entry = get_class_entry(encounter.campaign_id, creation.get("class_key"))
+
     class_details = resolve_character_class_details(
         encounter.campaign_id,
         class_key=creation.get("class_key"),
@@ -429,6 +689,8 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         class_name_fallback=sheet.get("class_name"),
         owner_class_key=creation.get("class_key"),
     )
+    from app.services.spells_compendium_service import combat_spell_snapshots
+
     spell_keys = _player_spell_keys(sheet)
     spell_snapshots = combat_spell_snapshots(encounter.campaign_id, spell_keys)
     spell_slots = _build_spell_slots_snapshot(class_details.get("current_level_row"))
@@ -463,6 +725,20 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         ]
     equipment_snapshot = combat_equipment_snapshots(player)
 
+    species_key = creation.get("species_key")
+    player_combat_profile = build_player_combat_profile(
+        encounter.campaign_id,
+        sheet,
+        species_entry=species_entry,
+        class_entry=class_entry,
+    )
+    speed_ft = max(5, int(player_combat_profile.get("speed_ft") or 30))
+
+    class_resources = dict((class_details.get("current_level_row") or {}).get("resources") or {})
+    resources = _fresh_resources()
+    if class_resources:
+        resources["class_resources"] = class_resources
+
     x, y = _free_tile(encounter, *_coerce_tile(encounter, x, y))
     combatant = BattleCombatant(
         encounter_id=encounter.id,
@@ -477,7 +753,7 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         hp_current=hp_current,
         temp_hp=0,
         ac=max(1, equipment_ac),
-        speed_ft=30,
+        speed_ft=speed_ft,
         dex_mod=dex_mod,
         ability_json=abilities,
         action_data_json={
@@ -486,8 +762,12 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
             "spell_attack_mod": spell_mod,
             "character_level": char_level,
             "equipment": equipment_snapshot,
+            "save_prof_flags": dict(sheet.get("save_prof_flags") or {}),
+            "combat_profile": player_combat_profile,
+            "species_key": species_key,
+            "class_key": creation.get("class_key"),
         },
-        resources_json=_fresh_resources(),
+        resources_json=resources,
         spell_slots_json=spell_slots,
         conditions_json=[],
     )
@@ -510,6 +790,12 @@ def add_monster_combatant(encounter: BattleEncounter, entry, x=0, y=0,
     ruleset = get_ruleset("dnd5e")
     dex_mod = ruleset.compute_ability_mod(abilities.get("dex", 10))
     hp_max = max(1, int(stats.get("hp_max", 1)))
+    from app.services.combat.combat_profile_builder import build_monster_combat_profile
+    from app.services.traits_compendium_service import ensure_traits_compendium
+
+    ensure_traits_compendium(encounter.campaign_id)
+    monster_combat_profile = build_monster_combat_profile(stats, encounter.campaign_id)
+    legendary_max = int(monster_combat_profile.get("legendary_points_max") or 0)
 
     x, y = _free_tile(encounter, *_coerce_tile(encounter, x, y))
     combatant = BattleCombatant(
@@ -531,8 +817,9 @@ def add_monster_combatant(encounter: BattleEncounter, entry, x=0, y=0,
         action_data_json={
             "attacks": list(stats.get("attacks") or []),
             "legendary_actions": list(stats.get("legendary_actions") or []),
+            "combat_profile": monster_combat_profile,
         },
-        resources_json=_fresh_resources(),
+        resources_json=_fresh_resources(legendary_points_max=legendary_max),
         spell_slots_json={},
         conditions_json=[],
     )
@@ -630,10 +917,18 @@ def _begin_turn(combatant: BattleCombatant) -> None:
     """Turn start: reset movement and action economy, clear the wait flag."""
     combatant.movement_used_ft = 0
     combatant.has_waited = False
+    action_data = combatant.action_data_json or {}
+    profile = combat_profile.profile_from_action_data(action_data)
+    legendary_max = int(profile.get("legendary_points_max") or 0)
+    if not legendary_max and (action_data.get("legendary_actions") or []):
+        legendary_max = 3
     resources = dict(combatant.resources_json or _fresh_resources())
     resources["action"] = True
     resources["bonus_action"] = True
     resources["reaction"] = True
+    resources["disengage"] = False
+    if legendary_max > 0:
+        resources["legendary_points_remaining"] = legendary_max
     combatant.resources_json = resources
 
 
@@ -719,11 +1014,14 @@ def move_action(encounter: BattleEncounter, combatant: BattleCombatant,
     _require_turn(encounter, combatant)
     if combatant.status != "active":
         raise CombatValidationError(f"{combatant.name} cannot move right now.")
+    if combat_profile.has_condition(list(combatant.conditions_json or []), "grappled"):
+        raise CombatValidationError(f"{combatant.name} is grappled and cannot move.")
 
     to_x, to_y = _coerce_tile(encounter, to_x, to_y)
     settings = settings_for(encounter)
+    from_x, from_y = combatant.x, combatant.y
     cost = rules.grid_distance_ft(
-        combatant.x, combatant.y, to_x, to_y, settings["diagonal_mode"]
+        from_x, from_y, to_x, to_y, settings["diagonal_mode"]
     )
     if cost == 0:
         raise CombatValidationError("Already on that tile.")
@@ -746,7 +1044,19 @@ def move_action(encounter: BattleEncounter, combatant: BattleCombatant,
             f"Not enough movement: {cost} ft needed, {remaining} ft remaining."
         )
 
-    from_pos = {"x": combatant.x, "y": combatant.y}
+    rng = Random()
+    opportunity_attacks = _resolve_opportunity_attacks(
+        encounter,
+        combatant,
+        from_x,
+        from_y,
+        to_x,
+        to_y,
+        settings,
+        rng,
+    )
+
+    from_pos = {"x": from_x, "y": from_y}
     combatant.x = to_x
     combatant.y = to_y
     combatant.movement_used_ft += cost
@@ -756,6 +1066,7 @@ def move_action(encounter: BattleEncounter, combatant: BattleCombatant,
         "to": {"x": to_x, "y": to_y},
         "cost_ft": cost,
         "movement_used_ft": combatant.movement_used_ft,
+        "opportunity_attacks": opportunity_attacks,
     }
     _log(encounter, combatant, "move", payload)
     db.session.flush()
@@ -924,8 +1235,7 @@ def _resolve_concentration_damage_check(
     *,
     gm_override=None,
 ) -> dict | None:
-    ruleset = get_ruleset("dnd5e")
-    con_mod = ruleset.compute_ability_mod((combatant.ability_json or {}).get("con", 10))
+    con_mod = _save_modifier(combatant, "con")
     dc = rules.concentration_dc(damage_taken)
     mode = settings.get("concentration_check_mode", "server_and_gm")
     if mode == "gm_entered":
@@ -954,7 +1264,7 @@ def _resolve_concentration_damage_check(
             "source": "gm_override",
             "ability_mod": con_mod,
         }
-    save = rules.saving_throw(con_mod, dc, rng)
+    save = _resolve_save_roll(combatant, "con", dc, rng, is_magic=True)
     save["source"] = "server_roll"
     return save
 
@@ -967,14 +1277,39 @@ def _apply_outcome_to_target(
     rng: Random,
     *,
     concentration_check_override=None,
+    damage_type: str | None = None,
 ) -> dict:
     """Apply damage temp-HP-first; handle down/dead and concentration."""
+    profile = _combat_profile(target)
+    modified = combat_profile.apply_damage_modifiers(damage_total, damage_type, profile)
+    damage_total = modified["total"]
+
     outcome = rules.apply_damage(target.hp_current, target.temp_hp, damage_total)
+    relentless = False
+    if (
+        outcome["hp_current"] <= 0
+        and target.status == "active"
+        and profile.get("relentless_endurance")
+    ):
+        resources = dict(target.resources_json or _fresh_resources())
+        if not resources.get("relentless_endurance_used"):
+            outcome["hp_current"] = 1
+            outcome["taken"] = max(0, target.hp_current - 1)
+            resources["relentless_endurance_used"] = True
+            target.resources_json = resources
+            relentless = True
+
     target.hp_current = outcome["hp_current"]
     target.temp_hp = outcome["temp_hp"]
 
-    result = {"damage": outcome, "target_status": target.status}
-    if target.hp_current <= 0 and target.status == "active":
+    result = {
+        "damage": outcome,
+        "damage_modifiers": modified,
+        "target_status": target.status,
+    }
+    if relentless:
+        result["relentless_endurance"] = True
+    if target.hp_current <= 0 and target.status == "active" and not relentless:
         if target.player_id is not None and settings["death_saves"]:
             target.status = "down"
         else:
@@ -1031,6 +1366,8 @@ def attack_action(encounter: BattleEncounter, attacker: BattleCombatant,
     _require_turn(encounter, attacker)
     if attacker.status != "active":
         raise CombatValidationError(f"{attacker.name} cannot act right now.")
+    if combat_profile.incapacitated(list(attacker.conditions_json or [])):
+        raise CombatValidationError(f"{attacker.name} is incapacitated.")
 
     target = combatant_in_encounter(encounter, target_id)
     if target is None or target.status in ("dead", "removed"):
@@ -1054,8 +1391,14 @@ def attack_action(encounter: BattleEncounter, attacker: BattleCombatant,
 
     if roll_mode not in rules.ROLL_MODES:
         raise CombatValidationError("Invalid roll mode.")
-    to_hit = rules.resolve_attack_roll(
-        int(attack.get("attack_mod", 0)), target.ac, rng, roll_mode
+    effective_ac, ac_detail = _effective_target_ac(
+        encounter, attacker, target, settings, attack_kind=str(attack.get("kind") or "melee")
+    )
+    resolved_mode, roll_detail = _attack_roll_mode(
+        encounter, attacker, target, attack, settings, roll_mode
+    )
+    to_hit = _resolve_attack_to_hit(
+        attacker, effective_ac, int(attack.get("attack_mod", 0)), rng, resolved_mode
     )
     result = {
         "attacker_id": attacker.id,
@@ -1063,16 +1406,42 @@ def attack_action(encounter: BattleEncounter, attacker: BattleCombatant,
         "attack": {"key": attack.get("key"), "name": attack.get("name")},
         "distance_ft": distance,
         "to_hit": to_hit,
+        "ac_detail": ac_detail,
+        "roll_detail": roll_detail,
         "hit": to_hit["hit"],
         "crit": to_hit["crit"],
     }
     if to_hit["hit"]:
         crit = to_hit["crit"] and settings["crit_mode"] == "double_dice"
         damage = rules.roll_damage(str(attack.get("damage", "1d6")), rng, crit=crit)
+        profile = _combat_profile(attacker)
+        extra = combat_profile.savage_attacks_extra_damage(
+            str(attack.get("damage", "1d6")),
+            rng,
+            enabled=bool(profile.get("savage_attacks")),
+            crit=to_hit["crit"],
+            melee=str(attack.get("kind") or "melee").lower() == "melee",
+        )
+        if extra:
+            damage = dict(damage)
+            damage["total"] += extra["total"]
+            damage["savage_attacks"] = extra
+        target_profile = _combat_profile(target)
+        modified = combat_profile.apply_damage_modifiers(
+            damage["total"], attack.get("damage_type"), target_profile
+        )
+        damage = dict(damage)
+        damage["total"] = modified["total"]
+        damage["damage_modifiers"] = modified
         result["damage_roll"] = damage
         if settings["auto_apply_damage"]:
             result["outcome"] = _apply_outcome_to_target(
-                encounter, target, damage["total"], settings, rng
+                encounter,
+                target,
+                damage["total"],
+                settings,
+                rng,
+                damage_type=attack.get("damage_type"),
             )
 
     if settings["track_action_economy"]:
@@ -1126,6 +1495,11 @@ def batch_attack_action(encounter: BattleEncounter, attacker_ids, target_id,
                 {"attacker_id": attacker.id, "skipped": "Target is already down."}
             )
             continue
+        if combatant.status != "active":
+            results.append(
+                {"attacker_id": attacker.id, "skipped": f"{combatant.name} cannot act."}
+            )
+            continue
         resources = dict(attacker.resources_json or _fresh_resources())
         attack = _attack_definition(attacker, attack_key)
         distance = rules.grid_distance_ft(
@@ -1136,23 +1510,43 @@ def batch_attack_action(encounter: BattleEncounter, attacker_ids, target_id,
                 {"attacker_id": attacker.id, "skipped": "Target out of range."}
             )
             continue
-        to_hit = rules.resolve_attack_roll(
-            int(attack.get("attack_mod", 0)), target.ac, rng, roll_mode
+        effective_ac, ac_detail = _effective_target_ac(
+            encounter, attacker, target, settings, attack_kind=str(attack.get("kind") or "melee")
+        )
+        resolved_mode, roll_detail = _attack_roll_mode(
+            encounter, attacker, target, attack, settings, roll_mode
+        )
+        to_hit = _resolve_attack_to_hit(
+            attacker, effective_ac, int(attack.get("attack_mod", 0)), rng, resolved_mode
         )
         entry = {
             "attacker_id": attacker.id,
             "target_id": target.id,
             "to_hit": to_hit,
+            "ac_detail": ac_detail,
+            "roll_detail": roll_detail,
             "hit": to_hit["hit"],
             "crit": to_hit["crit"],
         }
         if to_hit["hit"]:
             crit = to_hit["crit"] and settings["crit_mode"] == "double_dice"
             damage = rules.roll_damage(str(attack.get("damage", "1d6")), rng, crit=crit)
+            target_profile = _combat_profile(target)
+            modified = combat_profile.apply_damage_modifiers(
+                damage["total"], attack.get("damage_type"), target_profile
+            )
+            damage = dict(damage)
+            damage["total"] = modified["total"]
+            damage["damage_modifiers"] = modified
             entry["damage_roll"] = damage
             if settings["auto_apply_damage"]:
                 entry["outcome"] = _apply_outcome_to_target(
-                    encounter, target, damage["total"], settings, rng
+                    encounter,
+                    target,
+                    damage["total"],
+                    settings,
+                    rng,
+                    damage_type=attack.get("damage_type"),
                 )
         resources["action"] = False
         attacker.resources_json = resources
@@ -1171,12 +1565,6 @@ def _spell_definition(combatant: BattleCombatant, spell_key) -> dict:
         if str(spell.get("key") or "").lower() == needle:
             return spell
     raise CombatValidationError("Unknown spell for this combatant.")
-
-
-def _save_mod(combatant: BattleCombatant, ability: str) -> int:
-    ruleset = get_ruleset("dnd5e")
-    abilities = combatant.ability_json or {}
-    return ruleset.compute_ability_mod(abilities.get(str(ability or "dex"), 10))
 
 
 def _spell_uses_bonus_action(spell: dict) -> bool:
@@ -1324,16 +1712,49 @@ def cast_spell_action(
     }
 
     if auto_resolve:
+        spell_dtype = spell.get("damage_type")
         attack_type = spell.get("attack_type")
         if attack_type == "spell_attack" and spell.get("damage"):
             if roll_mode not in rules.ROLL_MODES:
                 raise CombatValidationError("Invalid roll mode.")
-            to_hit = rules.resolve_attack_roll(spell_mod, target.ac, rng, roll_mode)
+            effective_ac, ac_detail = _effective_target_ac(
+                encounter,
+                attacker,
+                target,
+                settings,
+                attack_kind="ranged",
+            )
+            atk_part, tgt_part = combat_profile.condition_attack_modifiers(
+                list(attacker.conditions_json or []),
+                list(target.conditions_json or []),
+                attack_kind="ranged",
+            )
+            modes = [roll_mode, atk_part]
+            if tgt_part == "advantage":
+                modes.append("advantage")
+            elif tgt_part == "disadvantage":
+                modes.append("disadvantage")
+            resolved_mode = combat_profile.combine_roll_modes(*modes)
+            profile = _combat_profile(attacker)
+            to_hit = combat_profile.roll_d20_with_lucky(
+                spell_mod, rng, resolved_mode, profile
+            )
+            crit = to_hit["is_nat20"]
+            hit = crit or (not to_hit["is_nat1"] and to_hit["total"] >= effective_ac)
+            to_hit.update({"hit": hit, "crit": crit, "target_ac": effective_ac})
             result["to_hit"] = to_hit
+            result["ac_detail"] = ac_detail
             result["hit"] = to_hit["hit"]
             if to_hit["hit"]:
                 crit = to_hit["crit"] and settings["crit_mode"] == "double_dice"
                 damage = _roll_spell_damage(spell, cast_level_int, rng, crit=crit)
+                if damage:
+                    modified = combat_profile.apply_damage_modifiers(
+                        damage["total"], spell_dtype, _combat_profile(target)
+                    )
+                    damage = dict(damage)
+                    damage["total"] = modified["total"]
+                    damage["damage_modifiers"] = modified
                 result["damage_roll"] = damage
                 if damage and settings["auto_apply_damage"]:
                     result["outcome"] = _apply_outcome_to_target(
@@ -1343,17 +1764,30 @@ def cast_spell_action(
                         settings,
                         rng,
                         concentration_check_override=concentration_check_override,
+                        damage_type=spell_dtype,
                     )
         elif attack_type == "save" and spell.get("damage"):
             save_ability = str(spell.get("save_ability") or "dex")
-            save = rules.saving_throw(
-                _save_mod(target, save_ability), 8 + spell_mod, rng, roll_mode
+            save = _resolve_save_roll(
+                target,
+                save_ability,
+                8 + spell_mod,
+                rng,
+                client_mode=roll_mode,
+                is_magic=True,
             )
             result["save"] = save
             damage = _roll_spell_damage(spell, cast_level_int, rng)
-            if damage and save["success"]:
+            if damage and save.get("success"):
                 damage = dict(damage)
                 damage["total"] = damage["total"] // 2
+            if damage:
+                modified = combat_profile.apply_damage_modifiers(
+                    damage["total"], spell_dtype, _combat_profile(target)
+                )
+                damage = dict(damage)
+                damage["total"] = modified["total"]
+                damage["damage_modifiers"] = modified
             result["damage_roll"] = damage
             if damage and settings["auto_apply_damage"] and damage["total"] > 0:
                 result["outcome"] = _apply_outcome_to_target(
@@ -1363,9 +1797,17 @@ def cast_spell_action(
                     settings,
                     rng,
                     concentration_check_override=concentration_check_override,
+                    damage_type=spell_dtype,
                 )
         elif spell.get("damage") and not attack_type:
             damage = _roll_spell_damage(spell, cast_level_int, rng)
+            if damage:
+                modified = combat_profile.apply_damage_modifiers(
+                    damage["total"], spell_dtype, _combat_profile(target)
+                )
+                damage = dict(damage)
+                damage["total"] = modified["total"]
+                damage["damage_modifiers"] = modified
             result["damage_roll"] = damage
             if damage and settings["auto_apply_damage"]:
                 result["outcome"] = _apply_outcome_to_target(
@@ -1375,6 +1817,7 @@ def cast_spell_action(
                     settings,
                     rng,
                     concentration_check_override=concentration_check_override,
+                    damage_type=spell_dtype,
                 )
         elif spell.get("healing"):
             healing = _roll_spell_healing(spell, cast_level_int, rng)
@@ -1400,6 +1843,152 @@ def cast_spell_action(
 
     encounter.turn_version += 1
     _log(encounter, attacker, "cast_spell", result)
+    db.session.flush()
+    return result
+
+
+def disengage_action(encounter: BattleEncounter, combatant: BattleCombatant) -> dict:
+    """Use an action to disengage — movement will not provoke opportunity attacks."""
+    _require_active(encounter)
+    _require_turn(encounter, combatant)
+    settings = settings_for(encounter)
+    resources = dict(combatant.resources_json or _fresh_resources())
+    if settings["track_action_economy"] and not resources.get("action", True):
+        raise CombatValidationError(f"{combatant.name} has already used their action.")
+    resources["disengage"] = True
+    if settings["track_action_economy"]:
+        resources["action"] = False
+    combatant.resources_json = resources
+    encounter.turn_version += 1
+    payload = {"disengage": True}
+    _log(encounter, combatant, "disengage", payload)
+    db.session.flush()
+    return payload
+
+
+def _legendary_action_definition(combatant: BattleCombatant, action_key: str) -> dict:
+    actions = (combatant.action_data_json or {}).get("legendary_actions") or []
+    needle = str(action_key or "").strip().lower()
+    for action in actions:
+        if str(action.get("key") or "").lower() == needle:
+            return action
+    raise CombatValidationError("Unknown legendary action for this combatant.")
+
+
+def legendary_action(
+    encounter: BattleEncounter,
+    actor: BattleCombatant,
+    action_key: str,
+    target_id,
+    rng: Random,
+    *,
+    roll_mode: str = "normal",
+) -> dict:
+    """Resolve a legendary action at the end of another creature's turn (SRD)."""
+    _require_active(encounter)
+    current = current_combatant(encounter)
+    if current is not None and current.id == actor.id:
+        raise CombatValidationError(
+            "Legendary actions are taken at the end of another creature's turn."
+        )
+    legendary_defs = (actor.action_data_json or {}).get("legendary_actions") or []
+    if not legendary_defs:
+        raise CombatValidationError(f"{actor.name} has no legendary actions.")
+    if actor.status != "active":
+        raise CombatValidationError(f"{actor.name} cannot take legendary actions.")
+
+    action = _legendary_action_definition(actor, action_key)
+    try:
+        cost = max(1, int(action.get("cost") or 1))
+    except (TypeError, ValueError):
+        cost = 1
+
+    profile = _combat_profile(actor)
+    legendary_max = int(profile.get("legendary_points_max") or 3)
+    resources = dict(actor.resources_json or _fresh_resources())
+    remaining = int(resources.get("legendary_points_remaining", legendary_max))
+    if remaining < cost:
+        raise CombatValidationError(
+            f"Not enough legendary action points ({remaining} remaining, {cost} required)."
+        )
+
+    target = combatant_in_encounter(encounter, target_id)
+    if target is None or target.status in ("dead", "removed"):
+        raise CombatValidationError("Target not found in this encounter.")
+
+    settings = settings_for(encounter)
+    distance = rules.grid_distance_ft(
+        actor.x, actor.y, target.x, target.y, settings["diagonal_mode"]
+    )
+    range_ft = int(action.get("range_ft") or 5)
+    if distance > range_ft:
+        raise CombatValidationError(
+            f"Target is out of range ({distance} ft > {range_ft} ft)."
+        )
+
+    result: dict = {
+        "actor_id": actor.id,
+        "target_id": target.id,
+        "legendary_action": {"key": action.get("key"), "name": action.get("name"), "cost": cost},
+        "distance_ft": distance,
+        "legendary_points_before": remaining,
+    }
+
+    attack_mod = action.get("attack_mod")
+    if attack_mod is not None:
+        if roll_mode not in rules.ROLL_MODES:
+            raise CombatValidationError("Invalid roll mode.")
+        effective_ac, ac_detail = _effective_target_ac(
+            encounter,
+            actor,
+            target,
+            settings,
+            attack_kind="melee" if range_ft <= 5 else "ranged",
+        )
+        pseudo_attack = {
+            "kind": "melee" if range_ft <= 5 else "ranged",
+            "range_ft": range_ft,
+        }
+        resolved_mode, roll_detail = _attack_roll_mode(
+            encounter, actor, target, pseudo_attack, settings, roll_mode
+        )
+        to_hit = _resolve_attack_to_hit(
+            actor, effective_ac, int(attack_mod), rng, resolved_mode
+        )
+        result.update(
+            {
+                "to_hit": to_hit,
+                "ac_detail": ac_detail,
+                "roll_detail": roll_detail,
+                "hit": to_hit["hit"],
+                "crit": to_hit["crit"],
+            }
+        )
+        if to_hit["hit"] and action.get("damage"):
+            crit = to_hit["crit"] and settings["crit_mode"] == "double_dice"
+            damage = rules.roll_damage(str(action.get("damage")), rng, crit=crit)
+            modified = combat_profile.apply_damage_modifiers(
+                damage["total"], action.get("damage_type"), _combat_profile(target)
+            )
+            damage = dict(damage)
+            damage["total"] = modified["total"]
+            damage["damage_modifiers"] = modified
+            result["damage_roll"] = damage
+            if settings["auto_apply_damage"]:
+                result["outcome"] = _apply_outcome_to_target(
+                    encounter,
+                    target,
+                    damage["total"],
+                    settings,
+                    rng,
+                    damage_type=action.get("damage_type"),
+                )
+
+    resources["legendary_points_remaining"] = remaining - cost
+    actor.resources_json = resources
+    result["legendary_points_remaining"] = resources["legendary_points_remaining"]
+    encounter.turn_version += 1
+    _log(encounter, actor, "legendary_action", result)
     db.session.flush()
     return result
 
@@ -1438,6 +2027,12 @@ def death_save_action(encounter: BattleEncounter, combatant: BattleCombatant,
         raise CombatValidationError(f"{combatant.name} is not dying.")
 
     roll = rules.roll_death_save(rng)
+    profile = _combat_profile(combatant)
+    if profile.get("lucky") and roll.get("natural") == 1:
+        reroll = rules.roll_death_save(rng)
+        reroll["lucky_reroll"] = True
+        reroll["discarded_natural"] = 1
+        roll = reroll
     resources = dict(combatant.resources_json or _fresh_resources())
     saves = dict(resources.get("death_saves") or {"successes": 0, "failures": 0})
     saves["successes"] = saves.get("successes", 0) + roll["successes"]

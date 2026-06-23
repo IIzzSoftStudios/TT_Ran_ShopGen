@@ -1,3 +1,4 @@
+import re
 import traceback
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
@@ -6,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from flask_login import login_required, current_user
 
 from app.extensions import db, limiter
-from app.models import City, Shop, Item, ShopInventory, Region, CampaignWorldConfig, ItemFolder
+from app.models import City, Shop, Item, ShopInventory, Region, CampaignWorldConfig, ItemFolder, Player
 from app.services import species_compendium_service
 from app.services.species_compendium_service import SpeciesValidationError
 from app.services.items_catalog_service import (
@@ -47,6 +48,7 @@ from app.routes.handlers.gm_helpers import (
 )
 from app.routes.handlers.gm_players_handler import (
     create_npc,
+    create_npc_dnd5e_finalize,
     view_character,
     update_character,
     equip_item,
@@ -54,18 +56,35 @@ from app.routes.handlers.gm_players_handler import (
     update_inventory,
     remove_player_from_campaign as remove_player_from_campaign_handler,
     delete_npc_player as delete_npc_player_handler,
+    players_compendium_json as players_compendium_json_handler,
 )
 from app.routes.handlers.gm_market_handler import get_market_overview_data
 from app.routes.handlers.gm_maps_handler import (
     get_world_map as get_world_map_handler,
     get_city_map as get_city_map_handler,
+    get_shop_map as get_shop_map_handler,
     post_marker as post_marker_handler,
     remove_marker as remove_marker_handler,
     post_poi as post_poi_handler,
     remove_poi as remove_poi_handler,
     post_world_background as post_world_background_handler,
     post_city_background as post_city_background_handler,
+    post_shop_background as post_shop_background_handler,
+    post_world_background_preview as post_world_background_preview_handler,
+    post_city_background_preview as post_city_background_preview_handler,
+    post_shop_background_preview as post_shop_background_preview_handler,
     get_map_image as get_map_image_handler,
+    post_world_generation as post_world_generation_handler,
+    post_city_generation as post_city_generation_handler,
+    post_world_generation_regen as post_world_generation_regen_handler,
+    post_city_generation_regen as post_city_generation_regen_handler,
+    post_world_convert_editable as post_world_convert_editable_handler,
+    post_city_convert_editable as post_city_convert_editable_handler,
+    post_world_underlay as post_world_underlay_handler,
+    post_city_underlay as post_city_underlay_handler,
+    delete_world_underlay as delete_world_underlay_handler,
+    delete_city_underlay as delete_city_underlay_handler,
+    get_map_underlay as get_map_underlay_handler,
 )
 from app.routes.handlers.gm_species_handler import (
     create_species_compendium as create_species_compendium_handler,
@@ -73,6 +92,11 @@ from app.routes.handlers.gm_species_handler import (
     save_species_builder as save_species_builder_handler,
     species_builder as species_builder_handler,
     update_species_compendium as update_species_compendium_handler,
+)
+from app.routes.handlers.gm_traits_handler import (
+    create_traits_compendium as create_traits_compendium_handler,
+    get_traits_compendium as get_traits_compendium_handler,
+    update_traits_compendium as update_traits_compendium_handler,
 )
 from app.routes.handlers.gm_classes_handler import (
     create_classes_compendium as create_classes_compendium_handler,
@@ -104,7 +128,11 @@ from app.routes.handlers.gm_campaigns_handler import (
     create_campaign,
     delete_campaign as delete_campaign_handler,
     generate_world_form as generate_world_form_handler,
-    generate_world_submit as generate_world_submit_handler,
+    generate_world_start as generate_world_start_handler,
+    generate_world_map as generate_world_map_handler,
+    generate_world_map_continue as generate_world_map_continue_handler,
+    generate_world_economy_form as generate_world_economy_form_handler,
+    generate_world_economy_submit as generate_world_economy_submit_handler,
     skip_world_generation_submit as skip_world_generation_submit_handler,
     reveal_campaign_join_code as reveal_campaign_join_code_handler,
     post_redeem_player_code as post_redeem_player_code_handler,
@@ -172,6 +200,43 @@ def _redirect_after_dashboard_action(default_endpoint: str = "gm.home"):
     if anchor in dashboard_panes:
         return redirect(url_for("gm.home", _anchor=anchor))
     return redirect(request.referrer or url_for(default_endpoint))
+
+
+def _gm_embed_mode() -> bool:
+    return request.args.get("embed") == "1" or request.form.get("embed") == "1"
+
+
+def _gm_embed_done(anchor: str, *, refresh_map: bool = False, refresh_players: bool = False):
+    if _gm_embed_mode():
+        return redirect(
+            url_for(
+                "gm.compendium_embed_close",
+                anchor=anchor,
+                refresh_map=1 if refresh_map else None,
+                refresh_players=1 if refresh_players else None,
+            )
+        )
+    return redirect(url_for("gm.home", _anchor=anchor))
+
+
+def _gm_redirect_with_embed(endpoint: str, **values):
+    if _gm_embed_mode():
+        values["embed"] = "1"
+    return redirect(url_for(endpoint, **values))
+
+
+@gm_bp.route("/compendium/embed-close")
+@login_required
+def compendium_embed_close():
+    anchor = (request.args.get("anchor") or "").strip().lstrip("#")
+    refresh_map = request.args.get("refresh_map") == "1"
+    refresh_players = request.args.get("refresh_players") == "1"
+    return render_template(
+        "gm_embed_close.html",
+        anchor=anchor,
+        refresh_map=refresh_map,
+        refresh_players=refresh_players,
+    )
 
 
 @gm_bp.route("/")
@@ -281,6 +346,24 @@ def create_species_compendium():
 @login_required
 def update_species_compendium(key):
     return update_species_compendium_handler(key)
+
+
+@gm_bp.route("/traits/compendium", methods=["GET"])
+@login_required
+def get_traits_compendium():
+    return get_traits_compendium_handler()
+
+
+@gm_bp.route("/traits/compendium", methods=["POST"])
+@login_required
+def create_traits_compendium():
+    return create_traits_compendium_handler()
+
+
+@gm_bp.route("/traits/compendium/<string:key>", methods=["POST"])
+@login_required
+def update_traits_compendium(key):
+    return update_traits_compendium_handler(key)
 
 
 @gm_bp.route("/classes/compendium", methods=["GET"])
@@ -393,7 +476,9 @@ def add_city():
             db.session.add(new_city)
             db.session.commit()
             flash(f"City '{name}' added successfully!", "success")
-            return redirect(url_for("gm.view_cities"))
+            return _gm_embed_done(
+                "cities-pane-content", refresh_map=True, refresh_players=True
+            )
         except Exception as e:
             db.session.rollback()
             flash(f"Error adding city: {e}", "danger")
@@ -475,7 +560,15 @@ def edit_city(city_id):
                     city=city,
                     campaign_regions=campaign_regions,
                     species_population_rows=species_population_rows,
+                    owner_name=_owner_display_name(city.owner, camp),
+                    owner_edit_url=None,
+                    add_owner_url=None,
+                    embed=request.args.get("embed") == "1",
                 )
+
+        clear_owner = request.form.get("clear_owner") == "1"
+        if clear_owner:
+            city.owner_player_id = None
 
         city.name = name
         city.size = size
@@ -484,16 +577,39 @@ def edit_city(city_id):
         try:
             db.session.commit()
             flash("City updated successfully!", "success")
-            return redirect(url_for("gm.view_cities"))
+            return _gm_embed_done(
+                "cities-pane-content", refresh_map=True, refresh_players=True
+            )
         except Exception as e:
             db.session.rollback()
             flash(f"Error updating city: {e}", "danger")
+
+    embed = request.args.get("embed") == "1" or request.form.get("embed") == "1"
+    owner_edit_url = None
+    add_owner_url = None
+    if city.owner_player_id:
+        owner_edit_url = url_for(
+            "gm.gm_view_character",
+            character_id=city.owner_player_id,
+            embed=1 if embed else None,
+        )
+    else:
+        add_owner_url = url_for(
+            "gm.gm_create_npc",
+            city_id=city.city_id,
+            assign_owner=1,
+            embed=1 if embed else None,
+        )
 
     return render_template(
         "GM_edit_city.html",
         city=city,
         campaign_regions=campaign_regions,
         species_population_rows=species_population_rows,
+        owner_name=_owner_display_name(city.owner, camp),
+        owner_edit_url=owner_edit_url,
+        add_owner_url=add_owner_url,
+        embed=embed,
     )
 
 @gm_bp.route("/cities/delete/<int:city_id>", methods=["POST"])
@@ -511,15 +627,11 @@ def delete_city(city_id):
     except Exception as e:
         db.session.rollback()
         flash(f"Error deleting city: {e}", "danger")
+    if _gm_embed_mode():
+        return _gm_embed_done(
+            "cities-pane-content", refresh_map=True, refresh_players=True
+        )
     return redirect(request.referrer or url_for("gm.home"))
-
-
-def _parse_region_axis(raw):
-    try:
-        v = int(raw)
-    except (TypeError, ValueError):
-        v = 5
-    return max(0, min(10, v))
 
 
 def _unassigned_cities_for_campaign(campaign_id: int):
@@ -560,6 +672,50 @@ def _validated_region_fk_from_form():
     return reg.id if reg else None
 
 
+DEFAULT_NATION_MAIN_COLOR = "#c084fc"
+DEFAULT_NATION_BORDER_COLOR = "#7c3aed"
+
+
+def _parse_region_axis(raw) -> int:
+    try:
+        value = int(float(raw))
+    except (TypeError, ValueError):
+        return 5
+    return max(0, min(10, value))
+
+
+def _parse_hex_color(raw, default: str) -> str:
+    if raw is None:
+        return default
+    cleaned = str(raw).strip()
+    if re.fullmatch(r"#[0-9A-Fa-f]{6}", cleaned):
+        return cleaned.lower()
+    return default
+
+
+def _ruler_display_name(region: Region) -> str | None:
+    if not region or not region.ruler_player_id:
+        return None
+    player = region.ruler
+    if player is None:
+        return None
+    from app.services import character_sheet_service
+
+    sheet = character_sheet_service.get_or_default_sheet(player, region.campaign)
+    name = (sheet.get("name") or "").strip()
+    return name or f"NPC #{player.id}"
+
+
+def _owner_display_name(owner, campaign) -> str | None:
+    if owner is None:
+        return None
+    from app.services import character_sheet_service
+
+    sheet = character_sheet_service.get_or_default_sheet(owner, campaign)
+    name = (sheet.get("name") or "").strip()
+    return name or f"NPC #{owner.id}"
+
+
 @gm_bp.route("/regions/add", methods=["GET", "POST"])
 @login_required
 def add_region():
@@ -575,39 +731,60 @@ def add_region():
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         axis = _parse_region_axis(request.form.get("axis_position"))
+        main_color = _parse_hex_color(
+            request.form.get("main_color"), DEFAULT_NATION_MAIN_COLOR
+        )
+        secondary_color = _parse_hex_color(
+            request.form.get("secondary_color"), DEFAULT_NATION_BORDER_COLOR
+        )
 
         if not name:
-            flash("Region name is required.", "danger")
+            flash("Nation name is required.", "danger")
             return render_template(
                 "GM_edit_region.html",
                 mode="create",
                 region=None,
                 form_name="",
                 form_axis=axis,
+                form_main_color=main_color,
+                form_secondary_color=secondary_color,
+                embed=request.args.get("embed") == "1",
             )
 
         new_region = Region(
             name=name,
             campaign_id=campaign_id,
             local_flavor={"axis_position": axis},
+            main_color=main_color,
+            secondary_color=secondary_color,
         )
         try:
             db.session.add(new_region)
             db.session.commit()
-            flash(f"Region '{name}' created.", "success")
-            return redirect(url_for("gm.edit_region", region_id=new_region.id))
+            flash(f"Nation '{name}' created.", "success")
+            return _gm_redirect_with_embed("gm.edit_region", region_id=new_region.id)
         except IntegrityError:
             db.session.rollback()
-            flash("A region with that name already exists in this campaign.", "danger")
+            flash("A nation with that name already exists in this campaign.", "danger")
             return render_template(
                 "GM_edit_region.html",
                 mode="create",
                 region=None,
                 form_name=name,
                 form_axis=axis,
+                form_main_color=main_color,
+                form_secondary_color=secondary_color,
+                embed=request.args.get("embed") == "1",
             )
 
-    return render_template("GM_edit_region.html", mode="create", region=None)
+    return render_template(
+        "GM_edit_region.html",
+        mode="create",
+        region=None,
+        embed=request.args.get("embed") == "1",
+        default_main_color=DEFAULT_NATION_MAIN_COLOR,
+        default_border_color=DEFAULT_NATION_BORDER_COLOR,
+    )
 
 
 @gm_bp.route("/regions/edit/<int:region_id>", methods=["GET", "POST"])
@@ -622,18 +799,33 @@ def edit_region(region_id):
         return redir
 
     region = region_for_campaign_or_404(region_id, camp.id)
+    db.session.refresh(region)
     unassigned_cities = _unassigned_cities_for_campaign(camp.id)
+    embed = request.args.get("embed") == "1" or request.form.get("embed") == "1"
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         axis = _parse_region_axis(request.form.get("axis_position"))
+        main_color = _parse_hex_color(
+            request.form.get("main_color"),
+            region.main_color or DEFAULT_NATION_MAIN_COLOR,
+        )
+        secondary_color = _parse_hex_color(
+            request.form.get("secondary_color"),
+            region.secondary_color or DEFAULT_NATION_BORDER_COLOR,
+        )
         assign_ids = request.form.getlist("assign_city_ids")
+        clear_ruler = request.form.get("clear_ruler") == "1"
 
         if not name:
             flash("Name cannot be empty.", "danger")
         else:
             region.name = name
             region.local_flavor = {"axis_position": axis}
+            region.main_color = main_color
+            region.secondary_color = secondary_color
+            if clear_ruler:
+                region.ruler_player_id = None
             try:
                 skipped_city_assignments = False
                 for raw_id in assign_ids:
@@ -651,24 +843,51 @@ def edit_region(region_id):
                     city.region_id = region.id
                     city.region = None
                 db.session.commit()
+                from app.services.gm_maps import sync_region_map_appearance
+
+                sync_region_map_appearance(camp.id, region)
+                db.session.commit()
                 if skipped_city_assignments:
                     flash(
-                        "Region updated. Some cities were skipped (invalid, unavailable, or already assigned to a region).",
+                        "Nation updated. Some cities were skipped (invalid, unavailable, or already assigned to a nation).",
                         "warning",
                     )
                 else:
-                    flash("Region updated successfully.", "success")
+                    flash("Nation updated successfully.", "success")
             except IntegrityError:
                 db.session.rollback()
                 flash("Update failed: name conflict within this campaign.", "danger")
 
         unassigned_cities = _unassigned_cities_for_campaign(camp.id)
 
+    ruler_name = _ruler_display_name(region)
+    ruler_edit_url = None
+    add_ruler_url = None
+    if region.ruler_player_id:
+        ruler_edit_url = url_for(
+            "gm.gm_view_character",
+            character_id=region.ruler_player_id,
+            embed=1 if embed else None,
+        )
+    else:
+        add_ruler_url = url_for(
+            "gm.gm_create_npc",
+            region_id=region.id,
+            assign_ruler=1,
+            embed=1 if embed else None,
+        )
+
     return render_template(
         "GM_edit_region.html",
         mode="edit",
         region=region,
         unassigned_cities=unassigned_cities,
+        embed=embed,
+        ruler_name=ruler_name,
+        ruler_edit_url=ruler_edit_url,
+        add_ruler_url=add_ruler_url,
+        default_main_color=DEFAULT_NATION_MAIN_COLOR,
+        default_border_color=DEFAULT_NATION_BORDER_COLOR,
     )
 
 
@@ -697,7 +916,7 @@ def delete_region(region_id):
         db.session.rollback()
         flash(f"Error deleting region: {exc}", "danger")
 
-    return redirect(url_for("gm.home"))
+    return _gm_embed_done("regions-pane-content")
 
 
 @gm_bp.route("/regions/<int:region_id>/generate_cities", methods=["POST"])
@@ -814,19 +1033,87 @@ def regions_compendium_api():
         .group_by(City.region_id)
         .all()
     }
+    from app.services.gm_maps import regions_with_boundaries
+
+    boundaries = regions_with_boundaries(camp.id)
     payload = []
     for region in rows:
         flavor = region.local_flavor if isinstance(region.local_flavor, dict) else {}
-        payload.append(
+        ruler_name = _ruler_display_name(region)
+        entry = {
+            "region_id": region.id,
+            "name": region.name,
+            "axis_position": flavor.get("axis_position"),
+            "city_count": int(city_counts.get(region.id, 0)),
+            "has_boundary": region.id in boundaries,
+            "main_color": region.main_color or DEFAULT_NATION_MAIN_COLOR,
+            "secondary_color": region.secondary_color or DEFAULT_NATION_BORDER_COLOR,
+            "ruler_name": ruler_name,
+            "ruler_player_id": region.ruler_player_id,
+            "edit_url": url_for("gm.edit_region", region_id=region.id),
+        }
+        if region.ruler_player_id:
+            entry["ruler_edit_url"] = url_for(
+                "gm.gm_view_character", character_id=region.ruler_player_id
+            )
+        else:
+            entry["add_ruler_url"] = url_for(
+                "gm.gm_create_npc", region_id=region.id, assign_ruler=1
+            )
+        payload.append(entry)
+    return jsonify({"regions": payload, "total": len(payload)})
+
+
+@gm_bp.route("/regions/<int:region_id>/boundary", methods=["GET", "POST"])
+@login_required
+def region_boundary_api(region_id):
+    """Read or save a GM-drawn region boundary on the world map."""
+    if not region_table_exists():
+        return jsonify({"error": "Region data is not available."}), 503
+    camp, redir = _active_campaign_or_redirect()
+    if redir:
+        return redir
+    region = region_for_campaign_or_404(region_id, camp.id)
+    from app.services.gm_maps import (
+        MapValidationError,
+        region_boundary_from_generation,
+        upsert_region_boundary,
+        get_or_create_world_canvas,
+    )
+
+    if request.method == "GET":
+        canvas = get_or_create_world_canvas(camp.id)
+        points = region_boundary_from_generation(
+            canvas.generation_json if canvas else None,
+            region.id,
+        )
+        return jsonify(
             {
                 "region_id": region.id,
                 "name": region.name,
-                "axis_position": flavor.get("axis_position"),
-                "city_count": int(city_counts.get(region.id, 0)),
-                "edit_url": url_for("gm.edit_region", region_id=region.id),
+                "points": points or [],
+                "has_boundary": bool(points),
             }
         )
-    return jsonify({"regions": payload, "total": len(payload)})
+
+    data = request.get_json(silent=True) or {}
+    clear = bool(data.get("clear"))
+    points = None if clear else data.get("points")
+    if points is not None and not isinstance(points, list):
+        return jsonify({"error": "points must be an array."}), 400
+    try:
+        upsert_region_boundary(camp.id, region.id, region.name, points)
+        from app.services.gm_maps import sync_region_map_appearance
+
+        sync_region_map_appearance(camp.id, region)
+        db.session.commit()
+    except MapValidationError as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Could not save region boundary."}), 500
+    return jsonify({"success": True, "region_id": region.id, "has_boundary": bool(points)})
 
 
 @gm_bp.route("/cities/compendium")
@@ -841,6 +1128,10 @@ def cities_compendium_api():
     if region_table_exists():
         query = query.options(subqueryload(City.region_obj))
     rows = query.all()
+    from app.services.gm_maps import compendium_map_status
+
+    map_flags = compendium_map_status(camp.id)
+    cities_on_world = map_flags["cities_on_world"]
     payload = []
     for city in rows:
         region_name = None
@@ -855,6 +1146,7 @@ def cities_compendium_api():
                 "population": city.population or 0,
                 "region": region_name,
                 "shop_count": len(city.shops or []),
+                "is_on_world_map": city.city_id in cities_on_world,
                 "edit_url": url_for("gm.edit_city", city_id=city.city_id),
             }
         )
@@ -875,14 +1167,28 @@ def shops_compendium_api():
         .order_by(Shop.name)
         .all()
     )
+    from app.services.gm_maps import compendium_map_status
+
+    map_flags = compendium_map_status(camp.id)
+    shops_on_city = map_flags["shops_on_city"]
     payload = []
     for shop in rows:
+        sorted_cities = sorted(shop.cities or [], key=lambda c: c.name or "")
+        city_links = [
+            {
+                "city_id": city.city_id,
+                "name": city.name,
+                "is_on_map": (shop.shop_id, city.city_id) in shops_on_city,
+            }
+            for city in sorted_cities
+        ]
         payload.append(
             {
                 "shop_id": shop.shop_id,
                 "name": shop.name,
                 "type": shop.type,
-                "cities": [city.name for city in sorted(shop.cities or [], key=lambda c: c.name or "")],
+                "cities": [city.name for city in sorted_cities],
+                "city_links": city_links,
                 "inventory_count": len(shop.inventory or []),
                 "next_restock_day": shop.next_restock_day,
                 "edit_url": url_for("gm.edit_shop", shop_id=shop.shop_id),
@@ -943,7 +1249,7 @@ def add_shop():
             traceback.print_exc()
             flash(f"Error adding shop: {e}", "danger")
 
-        return redirect(url_for("gm.view_shops"))
+        return _gm_embed_done("shops-pane-content")
 
     q = City.query.filter_by(campaign_id=campaign_id)
     if region_table_exists():
@@ -971,6 +1277,8 @@ def edit_shop(shop_id):
     if request.method == "POST":
         shop.name = request.form["name"]
         shop.type = request.form["type"]
+        if request.form.get("clear_owner") == "1":
+            shop.owner_player_id = None
         city_ids = request.form.getlist("city_ids")
         new_cities = []
         for city_id in city_ids:
@@ -985,7 +1293,7 @@ def edit_shop(shop_id):
         try:
             db.session.commit()
             flash("Shop updated successfully!", "success")
-            return redirect(url_for("gm.edit_shop", shop_id=shop.shop_id))
+            return _gm_redirect_with_embed("gm.edit_shop", shop_id=shop.shop_id)
         except Exception as e:
             db.session.rollback()
             db.session.refresh(shop)
@@ -998,6 +1306,22 @@ def edit_shop(shop_id):
     grouped_cities = build_grouped_cities_for_shop_form(cities)
     linked_city_ids = {c.city_id for c in shop.cities}
     panel_ctx = get_shop_city_panel_context(current_user.gm_profile)
+    embed = request.args.get("embed") == "1" or request.form.get("embed") == "1"
+    owner_edit_url = None
+    add_owner_url = None
+    if shop.owner_player_id:
+        owner_edit_url = url_for(
+            "gm.gm_view_character",
+            character_id=shop.owner_player_id,
+            embed=1 if embed else None,
+        )
+    else:
+        add_owner_url = url_for(
+            "gm.gm_create_npc",
+            shop_id=shop.shop_id,
+            assign_owner=1,
+            embed=1 if embed else None,
+        )
     return render_template(
         "GM_edit_shop.html",
         shop=shop,
@@ -1006,6 +1330,10 @@ def edit_shop(shop_id):
         linked_city_ids=linked_city_ids,
         campaign_regions=panel_ctx["campaign_regions"],
         region_labels=panel_ctx["region_labels"],
+        owner_name=_owner_display_name(shop.owner, camp),
+        owner_edit_url=owner_edit_url,
+        add_owner_url=add_owner_url,
+        embed=embed,
     )
 
 
@@ -1242,7 +1570,7 @@ def add_item():
             ).first()
             if not existing:
                 flash("Selected catalog item was not found.", "danger")
-                return redirect(url_for("gm.add_item"))
+                return _gm_redirect_with_embed("gm.add_item")
             shop_ids = request.form.getlist("shop_ids")
             stock = request.form.get("stock", type=int)
             if stock is None:
@@ -1284,7 +1612,7 @@ def add_item():
             except Exception as e:
                 db.session.rollback()
                 flash(f"Error linking catalog item: {e}", "danger")
-            return redirect(url_for("gm.view_items"))
+            return _gm_embed_done("items-pane-content")
 
         name = request.form.get("name")
         item_type = request.form.get("type")
@@ -1359,7 +1687,7 @@ def add_item():
             traceback.print_exc()
             flash(f"Error adding item: {e}", "danger")
 
-        return redirect(url_for("gm.view_items"))
+        return _gm_embed_done("items-pane-content")
 
     grouped_shops, city_shop_meta = get_grouped_shops(current_user.gm_profile)
     is_dnd5e = (getattr(camp, "system_type", None) or "").lower() == "dnd5e"
@@ -1403,7 +1731,7 @@ def edit_item(item_id):
         try:
             db.session.commit()
             flash("Item updated successfully!", "success")
-            return redirect(url_for("gm.view_items"))
+            return _gm_embed_done("items-pane-content")
         except Exception as e:
             db.session.rollback()
             flash(f"Error updating item: {e}", "danger")
@@ -1444,7 +1772,7 @@ def delete_item(item_id):
     blocked = items_blocked_from_delete(camp.id, [item_id])
     if item_id in blocked:
         flash(blocked[item_id], "danger")
-        return redirect(url_for("gm.view_items"))
+        return _gm_embed_done("items-pane-content")
     try:
         db.session.delete(item)
         db.session.commit()
@@ -1452,7 +1780,7 @@ def delete_item(item_id):
     except Exception as e:
         db.session.rollback()
         flash(f"Error deleting item: {e}", "danger")
-    return redirect(url_for("gm.view_items"))
+    return _gm_embed_done("items-pane-content")
 
 
 @gm_bp.route("/items/bulk/stock", methods=["POST"])
@@ -1709,7 +2037,7 @@ def import_item_template():
     except Exception as e:
         db.session.rollback()
         flash(f"Error importing template: {e}", "danger")
-    return redirect(url_for("gm.view_items"))
+    return _gm_embed_done("items-pane-content")
 
 @gm_bp.route("/debug/form", methods=["POST"])
 def gm_debug_form():
@@ -1778,8 +2106,33 @@ def generate_world_form():
 @gm_bp.route("/generate_world", methods=["POST"])
 @login_required
 @limiter.limit("3 per minute")
-def generate_world_submit():
-    return generate_world_submit_handler()
+def generate_world_start():
+    return generate_world_start_handler()
+
+
+@gm_bp.route("/generate_world/map", methods=["GET"])
+@login_required
+def generate_world_map():
+    return generate_world_map_handler()
+
+
+@gm_bp.route("/generate_world/map/continue", methods=["POST"])
+@login_required
+def generate_world_map_continue():
+    return generate_world_map_continue_handler()
+
+
+@gm_bp.route("/generate_world/economy", methods=["GET"])
+@login_required
+def generate_world_economy_form():
+    return generate_world_economy_form_handler()
+
+
+@gm_bp.route("/generate_world/economy", methods=["POST"])
+@login_required
+@limiter.limit("3 per minute")
+def generate_world_economy_submit():
+    return generate_world_economy_submit_handler()
 
 
 @gm_bp.route("/generate_world/skip", methods=["POST"])
@@ -1807,6 +2160,12 @@ def gm_map_world():
 @login_required
 def gm_map_city(city_id):
     return get_city_map_handler(city_id)
+
+
+@gm_bp.route("/maps/shops/<int:shop_id>", methods=["GET"])
+@login_required
+def gm_map_shop(shop_id):
+    return get_shop_map_handler(shop_id)
 
 
 @gm_bp.route("/maps/markers", methods=["POST"])
@@ -1847,10 +2206,104 @@ def gm_map_city_background(city_id):
     return post_city_background_handler(city_id)
 
 
+@gm_bp.route("/maps/shops/<int:shop_id>/background", methods=["POST"])
+@login_required
+@limiter.limit("10 per minute")
+def gm_map_shop_background(shop_id):
+    return post_shop_background_handler(shop_id)
+
+
+@gm_bp.route("/maps/world/background/preview", methods=["POST"])
+@login_required
+@limiter.limit("30 per minute")
+def gm_map_world_background_preview():
+    return post_world_background_preview_handler()
+
+
+@gm_bp.route("/maps/cities/<int:city_id>/background/preview", methods=["POST"])
+@login_required
+@limiter.limit("30 per minute")
+def gm_map_city_background_preview(city_id):
+    return post_city_background_preview_handler(city_id)
+
+
+@gm_bp.route("/maps/shops/<int:shop_id>/background/preview", methods=["POST"])
+@login_required
+@limiter.limit("30 per minute")
+def gm_map_shop_background_preview(shop_id):
+    return post_shop_background_preview_handler(shop_id)
+
+
 @gm_bp.route("/maps/image/<int:canvas_id>", methods=["GET"])
 @login_required
 def gm_map_image(canvas_id):
     return get_map_image_handler(canvas_id)
+
+
+@gm_bp.route("/maps/world/generation", methods=["POST"])
+@login_required
+@limiter.limit("30 per minute")
+def gm_map_world_generation():
+    return post_world_generation_handler()
+
+
+@gm_bp.route("/maps/cities/<int:city_id>/generation", methods=["POST"])
+@login_required
+@limiter.limit("30 per minute")
+def gm_map_city_generation(city_id):
+    return post_city_generation_handler(city_id)
+
+
+@gm_bp.route("/maps/world/generation/regen", methods=["POST"])
+@login_required
+@limiter.limit("30 per minute")
+def gm_map_world_generation_regen():
+    return post_world_generation_regen_handler()
+
+
+@gm_bp.route("/maps/cities/<int:city_id>/generation/regen", methods=["POST"])
+@login_required
+@limiter.limit("30 per minute")
+def gm_map_city_generation_regen(city_id):
+    return post_city_generation_regen_handler(city_id)
+
+
+@gm_bp.route("/maps/world/convert-editable", methods=["POST"])
+@login_required
+@limiter.limit("10 per minute")
+def gm_map_world_convert_editable():
+    return post_world_convert_editable_handler()
+
+
+@gm_bp.route("/maps/cities/<int:city_id>/convert-editable", methods=["POST"])
+@login_required
+@limiter.limit("10 per minute")
+def gm_map_city_convert_editable(city_id):
+    return post_city_convert_editable_handler(city_id)
+
+
+@gm_bp.route("/maps/world/underlay", methods=["POST", "DELETE"])
+@login_required
+@limiter.limit("10 per minute")
+def gm_map_world_underlay():
+    if request.method == "DELETE":
+        return delete_world_underlay_handler()
+    return post_world_underlay_handler()
+
+
+@gm_bp.route("/maps/cities/<int:city_id>/underlay", methods=["POST", "DELETE"])
+@login_required
+@limiter.limit("10 per minute")
+def gm_map_city_underlay(city_id):
+    if request.method == "DELETE":
+        return delete_city_underlay_handler(city_id)
+    return post_city_underlay_handler(city_id)
+
+
+@gm_bp.route("/maps/underlay/<int:canvas_id>", methods=["GET"])
+@login_required
+def gm_map_underlay(canvas_id):
+    return get_map_underlay_handler(canvas_id)
 
 
 # Simulation routes — Day/Week/Month/Year all flow through `run_period_stream`
@@ -1885,11 +2338,23 @@ def gm_view_players():
     return _dashboard_tab_redirect("players-npcs-pane-content")
 
 
+@gm_bp.route("/players/compendium")
+@login_required
+def gm_players_compendium():
+    return players_compendium_json_handler()
+
+
 @gm_bp.route("/npcs/create", methods=["GET", "POST"])
 @login_required
 def gm_create_npc():
     """Create a GM-only NPC (Player row with no User) in the active campaign."""
     return create_npc()
+
+
+@gm_bp.route("/npcs/create/dnd5e/finalize", methods=["POST"])
+@login_required
+def gm_create_npc_dnd5e_finalize():
+    return create_npc_dnd5e_finalize()
 
 
 @gm_bp.route("/characters/<int:character_id>")

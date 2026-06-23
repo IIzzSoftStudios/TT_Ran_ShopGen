@@ -6,6 +6,7 @@
     {% include 'partials/theme_head.html' %}
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_dashboard_shell.css') }}">
     {% if combat_enabled %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/battle.css') }}">
     {% endif %}
@@ -152,6 +153,95 @@
             margin: 0;
         }
 
+        .player-spell-workspace {
+            display: grid;
+            gap: 14px;
+        }
+
+        .player-spell-columns {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .player-spell-dropzone {
+            border: 2px dashed var(--color-border, #ccc);
+            border-radius: 10px;
+            padding: 10px;
+            min-height: 120px;
+            background: var(--color-surface, #fff);
+        }
+
+        .player-spell-dropzone.is-drag-over {
+            border-color: var(--color-link, #2563eb);
+            background: rgba(37, 99, 235, 0.06);
+        }
+
+        .player-spell-dropzone h3 {
+            margin: 0 0 8px;
+            font-size: 0.95rem;
+            color: var(--color-accent);
+        }
+
+        .player-spell-dropzone-hint {
+            font-size: 0.82rem;
+            color: var(--color-muted);
+            margin: 0 0 8px;
+        }
+
+        .player-spell-chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 48px;
+        }
+
+        .player-spell-chip {
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: var(--color-bg, #f8fafc);
+            font-size: 0.85rem;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .player-spell-chip:active {
+            cursor: grabbing;
+        }
+
+        .player-spell-chip-meta {
+            opacity: 0.75;
+            font-size: 0.78rem;
+        }
+
+        .player-spell-library {
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            padding: 12px;
+            background: var(--color-surface);
+        }
+
+        .player-spell-library h3 {
+            margin: 0 0 8px;
+        }
+
+        .player-spell-save-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .player-spell-save-status {
+            font-size: 0.85rem;
+            color: var(--color-muted);
+        }
+
+        .character-sheet-link-row {
+            margin: 12px 0 0;
+        }
+
         .player-map-toolbar {
             display: flex;
             align-items: center;
@@ -174,6 +264,37 @@
             background: #ece3cd;
         }
 
+        .map-stage.map-viewport-panning {
+            cursor: grabbing;
+        }
+
+        .map-viewport-layer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform-origin: 0 0;
+            will-change: transform;
+            pointer-events: auto;
+        }
+
+        .map-viewport-hint {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            z-index: 5;
+            font-size: 0.75rem;
+            opacity: 0.75;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.45);
+            color: #fff;
+            padding: 0.2rem 0.45rem;
+            border-radius: 4px;
+        }
+
+        .map-stage.map-palette-parchment_atlas { background: #ece3cd; }
+        .map-stage.map-palette-satellite { background: #ccd4dd; }
+        .map-stage.map-palette-dark_fantasy { background: #1a1818; }
+        .map-stage.map-palette-ink_sketch { background: #f4f0e8; }
         .map-stage.map-palette-parchment { background: #ece3cd; }
         .map-stage.map-palette-verdant { background: #d8e6d0; }
         .map-stage.map-palette-ashen { background: #d9d9d9; }
@@ -261,7 +382,7 @@
         .map-entity-popout,
         .map-encounter-popout {
             position: absolute;
-            z-index: 4;
+            z-index: 35;
             min-width: 220px;
             max-width: min(320px, 90%);
             transform: translate(12px, -12px);
@@ -336,6 +457,195 @@
             text-transform: uppercase;
             letter-spacing: 0.03em;
             color: var(--color-text-muted, #6b7280);
+        }
+
+        .map-stat-person-row {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.2rem;
+            margin: 0.35rem 0 0.5rem;
+            padding: 0.35rem 0.45rem;
+            border: 1px solid var(--color-border, #ddd);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.02);
+            font-size: 0.88rem;
+            grid-column: 1 / -1;
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .map-stat-person-label {
+            font-weight: 700;
+            color: var(--color-text-muted, #6b7280);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .map-stat-person-value {
+            font-weight: 600;
+            text-align: left;
+            width: 100%;
+            word-break: break-word;
+        }
+
+        .player-npc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.75rem;
+        }
+
+        .player-npc-table th,
+        .player-npc-table td {
+            border: 1px solid var(--color-border, #ddd);
+            padding: 0.5rem 0.65rem;
+            text-align: left;
+        }
+
+        .player-npc-table th {
+            background: var(--color-bg, #f8fafc);
+        }
+
+        .player-npc-empty {
+            color: var(--color-text-muted, #666);
+            margin-top: 0.5rem;
+        }
+
+        .player-npc-shell {
+            position: relative;
+            min-height: 200px;
+        }
+
+        .player-npc-shell.is-npc-detail-open .player-npc-list {
+            display: none;
+        }
+
+        .player-npc-detail[hidden] {
+            display: none !important;
+        }
+
+        .player-npc-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .player-npc-detail-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .player-npc-detail-name {
+            margin: 0;
+            font-size: 1.35rem;
+        }
+
+        .player-npc-detail-facts {
+            margin: 0;
+            display: grid;
+            gap: 10px;
+        }
+
+        .player-npc-detail-fact {
+            padding: 10px 12px;
+            border: 1px solid var(--color-border, #ddd);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .player-npc-detail-fact dt {
+            margin: 0 0 4px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--color-text-muted, #6b7280);
+        }
+
+        .player-npc-detail-fact dd {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .player-npc-detail-about {
+            margin: 0;
+            white-space: pre-wrap;
+            line-height: 1.45;
+            font-weight: 500;
+        }
+
+        .player-npc-notes-section h3 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+        }
+
+        .player-npc-notes-section textarea {
+            width: 100%;
+            min-height: 120px;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid var(--color-border, #ddd);
+            border-radius: 8px;
+            font: inherit;
+            resize: vertical;
+        }
+
+        .player-npc-notes-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .player-npc-notes-status {
+            font-size: 0.85rem;
+            color: var(--color-text-muted, #6b7280);
+        }
+
+        .player-npc-detail-loading,
+        .player-npc-detail-error {
+            color: var(--color-text-muted, #6b7280);
+            margin: 0;
+        }
+
+        .player-npc-name-link {
+            background: none;
+            border: none;
+            padding: 0;
+            font: inherit;
+            color: var(--color-link, #2563eb);
+            cursor: pointer;
+            text-decoration: underline;
+            text-align: left;
+        }
+
+        .player-npc-name-link:hover,
+        .player-npc-name-link:focus-visible {
+            color: var(--color-link-hover, #1d4ed8);
+        }
+
+        .map-stat-person-value-link {
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            font: inherit;
+            font-weight: 600;
+            color: var(--color-link, #2563eb);
+            cursor: pointer;
+            text-align: left;
+            text-decoration: underline;
+            max-width: 100%;
+            word-break: break-word;
+        }
+
+        .map-stat-person-value-link:hover,
+        .map-stat-person-value-link:focus-visible {
+            color: var(--color-link-hover, #1d4ed8);
         }
 
         .map-city-goods-list li {
@@ -1731,6 +2041,9 @@
             to { transform: translateX(100%); opacity: 0; }
         }
     </style>
+    <script src="{{ url_for('static', filename='js/map_renderer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map_hex.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map_viewport.js') }}"></script>
     <script>
         function navigateTo(url) {
             window.location.href = url;
@@ -1967,70 +2280,243 @@
         }
 
         function renderPlayerSpellsPanel(spellDetails) {
-            var panel = document.getElementById('playerSpellsContent');
-            if (!panel) return;
             spellDetails = spellDetails || {};
+            window.playerSpellDetails = spellDetails;
             if (!spellDetails.available) {
-                panel.innerHTML = '<p class="player-spell-empty">Spell compendium is not available for this campaign.</p>';
+                var unavailablePanel = document.getElementById("playerSpellsContent");
+                if (unavailablePanel) {
+                    unavailablePanel.innerHTML = '<p class="player-spell-empty">Spell compendium is not available for this campaign.</p>';
+                }
                 return;
             }
-            var spells = spellDetails.spells || {};
-            var buckets = [
-                ['cantrips', 'Cantrips'],
-                ['prepared', 'Prepared Spells'],
-                ['known', 'Known Spells']
-            ];
-            var html = '';
-            buckets.forEach(function (pair) {
-                var key = pair[0];
-                var label = pair[1];
-                var rows = spells[key] || [];
-                html += '<section class="player-spell-bucket"><h3>' + escapeHtml(label) + '</h3>';
-                if (!rows.length) {
-                    html += '<p class="player-spell-empty">No ' + escapeHtml(label.toLowerCase()) + ' selected.</p>';
-                } else {
-                    html += '<div class="player-spell-grid">';
-                    rows.forEach(function (spell) {
-                        var classes = (spell.classes || []).join(', ');
-                        html += '<article class="player-spell-card">' +
-                            '<h4>' + escapeHtml(spell.name || spell.key) + '</h4>' +
-                            '<p class="player-spell-meta">Level ' + escapeHtml(String(spell.level)) +
-                            ' · ' + escapeHtml(spell.school || 'Unknown school') +
-                            (spell.ritual ? ' · Ritual' : '') + '</p>';
-                        if (classes) {
-                            html += '<p class="player-spell-meta">Classes: ' + escapeHtml(classes) + '</p>';
-                        }
-                        if (spell.summary) {
-                            html += '<p>' + escapeHtml(spell.summary) + '</p>';
-                        }
-                        html += '</article>';
-                    });
-                    html += '</div>';
+            window.playerSpellCatalog = {};
+            (spellDetails.class_available || []).forEach(function (spell) {
+                if (spell && spell.key) {
+                    window.playerSpellCatalog[spell.key] = spell;
                 }
-                html += '</section>';
             });
-            var availableRows = spellDetails.class_available || [];
-            if (availableRows.length) {
-                html += '<section class="player-spell-bucket"><h3>Available for Your Class</h3>';
-                html += '<div class="player-spell-grid">';
-                availableRows.forEach(function (spell) {
-                    var classes = (spell.classes || []).join(', ');
-                    html += '<article class="player-spell-card">' +
-                        '<h4>' + escapeHtml(spell.name || spell.key) + '</h4>' +
-                        '<p class="player-spell-meta">Level ' + escapeHtml(String(spell.level)) +
-                        ' · ' + escapeHtml(spell.school || 'Unknown school') +
-                        (spell.ritual ? ' · Ritual' : '') + '</p>';
-                    if (classes) {
-                        html += '<p class="player-spell-meta">Classes: ' + escapeHtml(classes) + '</p>';
-                    }
-                    if (spell.summary) {
-                        html += '<p>' + escapeHtml(spell.summary) + '</p>';
-                    }
-                    html += '</article>';
+            var spells = spellDetails.spells || {};
+            window.playerSpellState = {
+                cantrips: (spells.cantrips || []).map(function (row) { return row.key; }).filter(Boolean),
+                prepared: (spells.prepared || []).map(function (row) { return row.key; }).filter(Boolean),
+                known: (spells.known || []).map(function (row) { return row.key; }).filter(Boolean)
+            };
+            renderPlayerSpellsWorkspace();
+        }
+
+        function playerSpellChipHtml(spell, bucket) {
+            var level = parseInt(spell.level, 10);
+            if (isNaN(level)) level = 0;
+            var meta = level === 0 ? "Cantrip" : ("Lvl " + level);
+            return (
+                '<span class="player-spell-chip" draggable="true" role="button" tabindex="0"' +
+                ' data-spell-key="' + escapeHtml(spell.key) + '"' +
+                ' data-spell-bucket="' + escapeHtml(bucket) + '"' +
+                ' title="Drag to move. Double-click to remove from lists.">' +
+                escapeHtml(spell.name || spell.key) +
+                ' <span class="player-spell-chip-meta">' + escapeHtml(meta) + "</span></span>"
+            );
+        }
+
+        function removePlayerSpellFromBuckets(key) {
+            if (!window.playerSpellState) return;
+            ["cantrips", "prepared", "known"].forEach(function (bucket) {
+                window.playerSpellState[bucket] = (window.playerSpellState[bucket] || []).filter(function (k) {
+                    return k !== key;
                 });
-                html += '</div></section>';
+            });
+        }
+
+        function addPlayerSpellToBucket(key, bucket) {
+            var catalog = window.playerSpellCatalog || {};
+            var spell = catalog[key];
+            if (!spell || !window.playerSpellState) return false;
+            var level = parseInt(spell.level, 10);
+            if (isNaN(level)) level = 0;
+            if (bucket === "cantrips" && level !== 0) return false;
+            if ((bucket === "prepared" || bucket === "known") && level < 1) return false;
+            removePlayerSpellFromBuckets(key);
+            if ((window.playerSpellState[bucket] || []).indexOf(key) === -1) {
+                window.playerSpellState[bucket].push(key);
             }
+            return true;
+        }
+
+        function renderPlayerSpellsWorkspace() {
+            var panel = document.getElementById("playerSpellsContent");
+            if (!panel || !window.playerSpellState) return;
+            var catalog = window.playerSpellCatalog || {};
+            var assigned = {};
+            ["cantrips", "prepared", "known"].forEach(function (bucket) {
+                (window.playerSpellState[bucket] || []).forEach(function (key) {
+                    assigned[key] = bucket;
+                });
+            });
+            var libraryKeys = Object.keys(catalog).filter(function (key) {
+                return !assigned[key];
+            }).sort(function (a, b) {
+                var sa = catalog[a];
+                var sb = catalog[b];
+                var la = parseInt(sa.level, 10) || 0;
+                var lb = parseInt(sb.level, 10) || 0;
+                if (la !== lb) return la - lb;
+                return String(sa.name || a).localeCompare(String(sb.name || b));
+            });
+
+            var buckets = [
+                ["cantrips", "Cantrips", "Drag cantrips here. Always available in encounters."],
+                ["prepared", "Prepared", "Prepared spells are castable during encounters."],
+                ["known", "Known", "Known spells your class can access outside the prepared list."]
+            ];
+            var html = '<div class="player-spell-workspace">';
+            html += '<div class="player-spell-columns">';
+            buckets.forEach(function (row) {
+                var bucket = row[0];
+                var label = row[1];
+                var hint = row[2];
+                html += '<div class="player-spell-dropzone" data-spell-dropzone="' + escapeHtml(bucket) + '">';
+                html += "<h3>" + escapeHtml(label) + "</h3>";
+                html += '<p class="player-spell-dropzone-hint">' + escapeHtml(hint) + "</p>";
+                html += '<div class="player-spell-chip-list">';
+                (window.playerSpellState[bucket] || []).forEach(function (key) {
+                    if (catalog[key]) {
+                        html += playerSpellChipHtml(catalog[key], bucket);
+                    }
+                });
+                html += "</div></div>";
+            });
+            html += "</div>";
+
+            html += '<section class="player-spell-library" data-spell-dropzone="library">';
+            html += "<h3>Class Spell List</h3>";
+            html += '<p class="player-spell-dropzone-hint">Drag spells into a list above. Drop here to remove from your selections.</p>';
+            html += '<div class="player-spell-chip-list">';
+            libraryKeys.forEach(function (key) {
+                html += playerSpellChipHtml(catalog[key], "library");
+            });
+            if (!libraryKeys.length) {
+                html += '<p class="player-spell-empty">All class spells are assigned to a list.</p>';
+            }
+            html += "</div></section>";
+
+            html += '<div class="player-spell-save-row">';
+            html += '<button type="button" class="button" id="player-spell-save-btn">Save Spells</button>';
+            html += '<span class="player-spell-save-status" id="playerSpellSaveStatus" role="status" aria-live="polite"></span>';
+            html += "</div></div>";
+
             panel.innerHTML = html;
+            setupPlayerSpellDragDrop();
+        }
+
+        function setupPlayerSpellDragDrop() {
+            var panel = document.getElementById("playerSpellsContent");
+            if (!panel) return;
+            var dragKey = null;
+            var dragSource = null;
+
+            function clearDragOver() {
+                panel.querySelectorAll(".player-spell-dropzone.is-drag-over").forEach(function (el) {
+                    el.classList.remove("is-drag-over");
+                });
+            }
+
+            panel.querySelectorAll(".player-spell-chip").forEach(function (chip) {
+                chip.addEventListener("dragstart", function (ev) {
+                    dragKey = chip.getAttribute("data-spell-key");
+                    dragSource = chip.getAttribute("data-spell-bucket") || "library";
+                    if (ev.dataTransfer) {
+                        ev.dataTransfer.setData("text/plain", dragKey);
+                        ev.dataTransfer.effectAllowed = "move";
+                    }
+                });
+                chip.addEventListener("dragend", function () {
+                    dragKey = null;
+                    dragSource = null;
+                    clearDragOver();
+                });
+                chip.addEventListener("dblclick", function () {
+                    var key = chip.getAttribute("data-spell-key");
+                    var bucket = chip.getAttribute("data-spell-bucket");
+                    if (!key || bucket === "library") return;
+                    removePlayerSpellFromBuckets(key);
+                    renderPlayerSpellsWorkspace();
+                });
+            });
+
+            panel.querySelectorAll("[data-spell-dropzone]").forEach(function (zone) {
+                zone.addEventListener("dragover", function (ev) {
+                    ev.preventDefault();
+                    zone.classList.add("is-drag-over");
+                    if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+                });
+                zone.addEventListener("dragleave", function () {
+                    zone.classList.remove("is-drag-over");
+                });
+                zone.addEventListener("drop", function (ev) {
+                    ev.preventDefault();
+                    zone.classList.remove("is-drag-over");
+                    var key = (ev.dataTransfer && ev.dataTransfer.getData("text/plain")) || dragKey;
+                    var target = zone.getAttribute("data-spell-dropzone");
+                    if (!key || !target) return;
+                    if (target === "library") {
+                        removePlayerSpellFromBuckets(key);
+                    } else {
+                        if (!addPlayerSpellToBucket(key, target)) {
+                            var status = document.getElementById("playerSpellSaveStatus");
+                            if (status) {
+                                status.textContent = "That spell cannot go in that list.";
+                            }
+                            return;
+                        }
+                    }
+                    var status = document.getElementById("playerSpellSaveStatus");
+                    if (status) status.textContent = "";
+                    renderPlayerSpellsWorkspace();
+                });
+            });
+
+            var saveBtn = document.getElementById("player-spell-save-btn");
+            if (saveBtn) {
+                saveBtn.addEventListener("click", savePlayerSpellSelection);
+            }
+        }
+
+        function savePlayerSpellSelection() {
+            var status = document.getElementById("playerSpellSaveStatus");
+            var state = window.playerSpellState || { cantrips: [], prepared: [], known: [] };
+            if (status) status.textContent = "Saving...";
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            var csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
+            fetch("{{ url_for('player.save_character_spells') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                },
+                body: JSON.stringify({
+                    cantrips: state.cantrips || [],
+                    prepared: state.prepared || [],
+                    known: state.known || []
+                })
+            })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    if (!result.ok || !result.data.ok) {
+                        var errors = (result.data && result.data.errors) || ["Could not save spells."];
+                        if (status) status.textContent = errors.join(" ");
+                        return;
+                    }
+                    if (status) status.textContent = "Spells saved.";
+                    renderSpellDetailsPopout(result.data.spell_details || {});
+                    renderPlayerSpellsPanel(result.data.spell_details || {});
+                })
+                .catch(function () {
+                    if (status) status.textContent = "Could not save spells.";
+                });
         }
 
         function setupSpellDetailsPopout() {
@@ -2277,9 +2763,7 @@
         }
     </script>
 </head>
-<body>
-    <h1>{{ player_name }} Dashboard</h1>
-
+<body class="player-dashboard">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="flash-stack">
@@ -2290,55 +2774,41 @@
         {% endif %}
     {% endwith %}
 
-    <!-- Navigation Buttons -->
-    <div class="nav-buttons">
-        <button class="nav-button" onclick="navigateTo('{{ url_for('main.campaigns') }}')">Select Campaign</button>
-        <details class="nav-code-panel">
-            <summary class="nav-button">Player Code</summary>
-            <div class="join-code-popover">
-                {% set reveal_url = player_join_code_reveal_url|default(url_for('player.reveal_player_join_code')) %}
-                {% include 'partials/player_join_code_reveal.html' %}
-                {% if not player_has_active_campaign %}
-                <form method="post" action="{{ url_for('player.redeem_campaign_code_route') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    {% if character and character.id %}
-                    <input type="hidden" name="player_id" value="{{ character.id }}"/>
-                    {% endif %}
-                    <label for="player-home-camp-code">Join a campaign</label>
-                    <input id="player-home-camp-code" name="campaign_code" type="text" autocomplete="off" placeholder="CAMP-XXXX-XXXX-XXXX"/>
-                    <button type="submit" class="nav-button" style="margin-top:10px;width:100%;">Join campaign</button>
-                </form>
-                {% endif %}
+    <!-- Paradox-style player workspace -->
+    <div id="player-paradox-shell" class="player-paradox-shell">
+        <button type="button" class="gm-section-menu-btn" id="player-section-menu-btn" aria-controls="player-nav-rail" aria-expanded="false">
+            Sections
+        </button>
+        {% include 'partials/player_top_hud.html' %}
+        {% if player_has_active_campaign %}
+        <div id="player-world-stage" aria-label="Campaign map">
+            <div id="player-map-world-nav" class="map-world-nav" aria-label="Map navigation">
+                <button type="button" class="button map-world-nav-btn" id="player-map-world-back-btn" hidden>Back to world map</button>
             </div>
-        </details>
-    </div>
-
-    <!-- Main Layout with GM-style player tabs -->
-    <div class="main-layout">
-        <div class="player-dashboard-shell">
-            <nav class="player-dashboard-sidebar" role="tablist" aria-label="Player dashboard panel">
-                <div class="player-panel-tabs-header" role="presentation">
-                    <span class="player-panel-tabs-title">Player Workspace</span>
-                    <span class="player-panel-tabs-subtitle">Character and world</span>
+            <p class="player-map-empty" id="player-map-status" hidden></p>
+            <div class="map-stage" id="player-map-stage" aria-label="Campaign map">
+                <div id="player-map-viewport-layer" class="map-viewport-layer">
+                    <img id="player-map-bg-image" class="map-bg-image" alt="Map background" hidden>
+                    <div id="player-map-gen-bg" class="map-gen-bg" aria-hidden="true"></div>
+                    <div id="player-map-markers" class="map-marker-layer"></div>
                 </div>
-                <div class="player-panel-tab-group" role="presentation">
-                    <span class="player-panel-tab-group-label">Character</span>
-                    <button type="button" class="player-panel-tab active" data-target="player-character-panel" id="player-character-tab" role="tab" aria-selected="true">Character Sheet</button>
-                    <button type="button" class="player-panel-tab" data-target="player-spells-panel" id="player-spells-tab" role="tab" aria-selected="false">Spells</button>
-                    <button type="button" class="player-panel-tab" data-target="player-inventory-panel" id="player-inventory-tab" role="tab" aria-selected="false">Inventory</button>
-                </div>
-                <div class="player-panel-tab-group" role="presentation">
-                    <span class="player-panel-tab-group-label">World</span>
-                    <button type="button" class="player-panel-tab" data-target="player-map-panel" id="player-map-tab" role="tab" aria-selected="false">Map</button>
-                    {% if combat_enabled %}
-                    <button type="button" class="player-panel-tab" data-target="player-encounter-panel" id="player-encounter-tab" role="tab" aria-selected="false">Encounters</button>
-                    {% endif %}
-                    <button type="button" class="player-panel-tab" data-target="player-market-panel" id="player-market-tab" role="tab" aria-selected="false">Market Overview</button>
-                </div>
-            </nav>
-
-            <div class="player-dashboard-content">
-            <section id="player-character-panel" class="player-tab-panel active" role="tabpanel" aria-labelledby="player-character-tab">
+                <span class="map-viewport-hint">Drag to pan · Wheel to zoom</span>
+            </div>
+        </div>
+        {% endif %}
+        <nav id="player-nav-rail" class="gm-nav-rail" role="tablist" aria-label="Player dashboard panel">
+            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-character-panel" id="player-character-tab" role="tab" aria-selected="false" title="Character Sheet"><span class="gm-nav-icon" aria-hidden="true">👤</span><span class="gm-nav-label">Sheet</span></button>
+            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-spells-panel" id="player-spells-tab" role="tab" aria-selected="false" title="Spells"><span class="gm-nav-icon" aria-hidden="true">✨</span><span class="gm-nav-label">Spells</span></button>
+            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-inventory-panel" id="player-inventory-tab" role="tab" aria-selected="false" title="Inventory"><span class="gm-nav-icon" aria-hidden="true">🎒</span><span class="gm-nav-label">Inventory</span></button>
+            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-npcs-panel" id="player-npcs-tab" role="tab" aria-selected="false" title="Known NPCs"><span class="gm-nav-icon" aria-hidden="true">🎭</span><span class="gm-nav-label">NPCs</span></button>
+            {% if combat_enabled %}
+            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-encounter-panel" id="player-encounter-tab" role="tab" aria-selected="false" title="Encounters"><span class="gm-nav-icon" aria-hidden="true">⚔️</span><span class="gm-nav-label">Fight</span></button>
+            {% endif %}
+            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-market-panel" id="player-market-tab" role="tab" aria-selected="false" title="Market Overview"><span class="gm-nav-icon" aria-hidden="true">📊</span><span class="gm-nav-label">Market</span></button>
+        </nav>
+        <div id="player-panel-backdrop" hidden></div>
+        <div id="player-slide-panels">
+            <section id="player-character-panel" class="player-tab-panel gm-slide-panel" role="tabpanel" aria-labelledby="player-character-tab" hidden>
             <div class="section">
                 <div class="character-header-row">
                     <div class="character-name-block">
@@ -2360,6 +2830,9 @@
                             {% if character.system_type %} · {{ character.system_type }}{% endif %}
                         </p>
                         <div id="headerDerivedStats" class="header-derived-stats" style="margin-top: 8px;"></div>
+                        <p class="character-sheet-link-row">
+                            <a href="{{ url_for('player.view_character_id', player_id=character.id) }}" class="button">Full Character Sheet</a>
+                        </p>
                     </div>
                     <div class="saving-throws-block">
                         <p class="stat-section-title">Saves</p>
@@ -2385,19 +2858,76 @@
             </div>
             </section>
 
-            <section id="player-spells-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-spells-tab" hidden>
+            <section id="player-spells-panel" class="player-tab-panel gm-slide-panel" role="tabpanel" aria-labelledby="player-spells-tab" hidden>
             <div class="section">
                 <h2>Your Spells</h2>
-                <p class="small-text">Prepared, known, and cantrip spell details are resolved from the campaign Spell Compendium.</p>
+                <p class="small-text">Drag spells into cantrips, prepared, or known lists. Prepared spells (and cantrips) are what you can cast during encounters.</p>
                 <div id="playerSpellsContent" class="player-spells-layout">
                     <p class="player-spell-empty">Loading spells...</p>
                 </div>
             </div>
             </section>
 
+            <section id="player-npcs-panel" class="player-tab-panel gm-slide-panel" role="tabpanel" aria-labelledby="player-npcs-tab" hidden>
+            <div class="player-npc-shell" id="player-npc-shell">
+            <div class="player-npc-list">
+            <div class="section">
+                <h2>Known NPCs</h2>
+                <p class="small-text">Characters your party has met. The GM controls who appears here.</p>
+                {% if known_npc_entries %}
+                <table class="player-npc-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Class</th>
+                            <th>Species</th>
+                            <th>Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for npc in known_npc_entries %}
+                        <tr>
+                            <td>
+                                <button type="button" class="player-npc-name-link" data-npc-id="{{ npc.id }}" data-npc-name="{{ npc.name }}">{{ npc.name }}</button>
+                            </td>
+                            <td>{{ npc.class_name or '—' }}</td>
+                            <td>{{ npc.species or '—' }}</td>
+                            <td>{{ npc.level if npc.level is not none else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="player-npc-empty">No NPCs your party knows yet.</p>
+                {% endif %}
+            </div>
+            </div>
+            <div class="player-npc-detail" id="player-npc-detail" hidden aria-label="NPC details">
+                <div class="player-npc-detail-toolbar">
+                    <button type="button" class="button player-npc-detail-close">Back to list</button>
+                </div>
+                <p class="player-npc-detail-loading" id="player-npc-detail-loading" hidden>Loading…</p>
+                <p class="player-npc-detail-error" id="player-npc-detail-error" hidden></p>
+                <div id="player-npc-detail-body" hidden>
+                    <h2 class="player-npc-detail-name" id="player-npc-detail-name"></h2>
+                    <dl class="player-npc-detail-facts" id="player-npc-detail-facts"></dl>
+                    <div class="player-npc-notes-section">
+                        <h3>Your notes</h3>
+                        <p class="small-text">Private to this character. Other players won't see these.</p>
+                        <textarea id="player-npc-notes-input" maxlength="4000" placeholder="Where you met them, rumors, promises…"></textarea>
+                        <div class="player-npc-notes-actions">
+                            <button type="button" class="button" id="player-npc-notes-save">Save notes</button>
+                            <span class="player-npc-notes-status" id="player-npc-notes-status" aria-live="polite"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+            </section>
+
             <!-- Right column: body model + equipment slot list stacked
                  above the inventory table. -->
-            <section id="player-inventory-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-inventory-tab" hidden>
+            <section id="player-inventory-panel" class="player-tab-panel gm-slide-panel" role="tabpanel" aria-labelledby="player-inventory-tab" hidden>
             <div class="inventory-column">
                 <div class="section">
                     <div class="body-equipment-row">
@@ -2449,7 +2979,6 @@
                                 </li>
                                 {% endfor %}
                             </ul>
-                            <a href="{{ url_for('player.view_character_id', player_id=character.id) }}" class="button" style="margin-top: 8px; display: inline-block; font-size: 0.85em;">Full Character Sheet</a>
                         </div>
                     </div><!-- /.body-equipment-row -->
                 </div><!-- /.section (body + equipment card) -->
@@ -2532,82 +3061,8 @@
             </div><!-- /.inventory-column -->
             </section>
 
-            <section id="player-map-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-map-tab" hidden>
-                <div class="section">
-                    <div class="player-map-toolbar">
-                        <h2 id="player-map-title" style="margin: 0;">World Map</h2>
-                        <button type="button" class="button" id="player-map-back-btn" hidden>Back to world map</button>
-                    </div>
-                    {% if player_has_active_campaign %}
-                    <p class="player-map-empty" id="player-map-status">Open this tab to load the campaign map.</p>
-                    <div class="map-stage" id="player-map-stage" aria-label="Campaign map">
-                        <img id="player-map-bg-image" class="map-bg-image" alt="Map background" hidden>
-                        <div id="player-map-gen-bg" class="map-gen-bg" aria-hidden="true"></div>
-                        <div id="player-map-markers" class="map-marker-layer"></div>
-                    </div>
-                    {% else %}
-                    <p class="player-map-empty">Join a campaign to view the world map.</p>
-                    {% endif %}
-                </div>
-            </section>
-
-            {% if combat_enabled %}
-            <section id="player-encounter-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-encounter-tab" hidden>
-                <div class="section player-encounter-panel">
-                    <div class="player-map-toolbar">
-                        <h2 style="margin: 0;">Encounters{% if battle_encounter %}: {{ battle_encounter.name }}{% endif %}</h2>
-                    </div>
-                    {% if battle_encounter %}
-                    <p class="player-map-empty">
-                        Click your highlighted character on its turn to move, attack, or wait. The board refreshes automatically.
-                    </p>
-                    <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
-                    <div class="battle-layout">
-                        <div id="battle-stage" class="battle-stage">
-                            <div id="battle-map-bg" class="battle-map-bg" aria-hidden="true"></div>
-                            <div id="battle-grid" class="battle-grid"></div>
-                            <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
-                                <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"
-                                      marker-end="url(#battle-arrowhead)"></line>
-                                <defs>
-                                    <marker id="battle-arrowhead" markerWidth="8" markerHeight="8"
-                                            refX="6" refY="4" orient="auto">
-                                        <path d="M0,0 L8,4 L0,8 z" fill="context-stroke"></path>
-                                    </marker>
-                                </defs>
-                            </svg>
-                            <div id="battle-radial" class="battle-radial" hidden>
-                                <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
-                                <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
-                                <button type="button" class="battle-radial-btn" id="battle-radial-wait">Wait</button>
-                                <button type="button" class="battle-radial-btn" id="battle-radial-death-save" hidden>Death save</button>
-                                <button type="button" class="battle-radial-btn battle-radial-close-btn" id="battle-radial-close" aria-label="Close">&times;</button>
-                            </div>
-                            <div id="battle-attack-popout" class="battle-attack-popout" hidden></div>
-                        </div>
-                        <aside class="battle-sidebar">
-                            <h3>Turn Tracker</h3>
-                            <ol id="battle-turn-tracker" class="battle-turn-tracker"></ol>
-                            <span class="battle-toolbar-actions">
-                                <button type="button" class="button" id="battle-place-own-character-btn">Place character</button>
-                                <button type="button" class="button" id="battle-end-turn-btn">End turn</button>
-                            </span>
-                            <h3>Battle Log</h3>
-                            <ul id="battle-log" class="battle-log"></ul>
-                        </aside>
-                    </div>
-                    {% else %}
-                    <p class="player-encounter-empty">No active encounter right now. Your GM will start one from their dashboard.</p>
-                    {% endif %}
-                </div>
-            </section>
-            {% endif %}
-
-            <!-- City -> Shop -> Items browse accordion (replaces the old
-                 filter-based Search Items / Search Results UI). Mirrors the
-                 GM Shops-by-city panel so players and GMs share the same
-                 mental model when browsing campaign inventory. -->
-            <section id="player-market-panel" class="player-tab-panel" role="tabpanel" aria-labelledby="player-market-tab" hidden>
+            <!-- City -> Shop -> Items browse accordion -->
+            <section id="player-market-panel" class="player-tab-panel gm-slide-panel" role="tabpanel" aria-labelledby="player-market-tab" hidden>
             <div class="section">
                 <h2>Market Overview</h2>
                 {% if player_has_active_campaign %}
@@ -2738,11 +3193,65 @@
                 {% endif %}
             </div>
             </section>
-            </div>
-        </div>
 
-        <!-- Market Prices panel moved to the Market Overview page. -->
-    </div>
+            {% if combat_enabled %}
+            <section id="player-encounter-panel" class="player-tab-panel gm-slide-panel gm-slide-panel--battle" role="tabpanel" aria-labelledby="player-encounter-tab" hidden>
+                <button type="button" class="button gm-slide-panel-close" data-player-close-panel aria-label="Close encounters">Close</button>
+                <div class="section player-encounter-panel">
+                    <div class="player-map-toolbar">
+                        <h2 style="margin: 0;">Encounters{% if battle_encounter %}: {{ battle_encounter.name }}{% endif %}</h2>
+                    </div>
+                    {% if battle_encounter %}
+                    <p class="player-map-empty">
+                        Click your highlighted character on its turn to move, attack, or wait. The board refreshes automatically.
+                    </p>
+                    <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
+                    <div class="battle-layout">
+                        <div id="battle-stage" class="battle-stage map-stage">
+                            <div id="battle-viewport-layer" class="map-viewport-layer battle-viewport-layer">
+                                <div id="battle-map-bg" class="battle-map-bg" aria-hidden="true"></div>
+                                <div id="battle-grid" class="battle-grid"></div>
+                            </div>
+                            <svg id="battle-arrow" class="battle-arrow" hidden aria-hidden="true">
+                                <line x1="0" y1="0" x2="0" y2="0" stroke-width="3"
+                                      marker-end="url(#battle-arrowhead)"></line>
+                                <defs>
+                                    <marker id="battle-arrowhead" markerWidth="8" markerHeight="8"
+                                            refX="6" refY="4" orient="auto">
+                                        <path d="M0,0 L8,4 L0,8 z" fill="context-stroke"></path>
+                                    </marker>
+                                </defs>
+                            </svg>
+                            <span class="map-viewport-hint battle-viewport-hint">Drag to pan · Wheel to zoom</span>
+                            <div id="battle-radial" class="battle-radial" hidden>
+                                <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
+                                <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
+                                <button type="button" class="battle-radial-btn" id="battle-radial-wait">Wait</button>
+                                <button type="button" class="battle-radial-btn" id="battle-radial-death-save" hidden>Death save</button>
+                                <button type="button" class="battle-radial-btn battle-radial-close-btn" id="battle-radial-close" aria-label="Close">&times;</button>
+                            </div>
+                            <div id="battle-attack-popout" class="battle-attack-popout" hidden></div>
+                        </div>
+                        <aside class="battle-sidebar">
+                            <h3>Turn Tracker</h3>
+                            <ol id="battle-turn-tracker" class="battle-turn-tracker"></ol>
+                            <span class="battle-toolbar-actions">
+                                <button type="button" class="button" id="battle-place-own-character-btn">Place character</button>
+                                <button type="button" class="button" id="battle-end-turn-btn">End turn</button>
+                            </span>
+                            <h3>Battle Log</h3>
+                            <ul id="battle-log" class="battle-log"></ul>
+                        </aside>
+                    </div>
+                    {% else %}
+                    <p class="player-encounter-empty">No active encounter right now. Your GM will start one from their dashboard.</p>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+
+        </div><!-- /player-slide-panels -->
+    </div><!-- /player-paradox-shell -->
 
     {% if combat_enabled and battle_encounter %}
     <script>
@@ -2787,8 +3296,193 @@
             mapWorld: "{{ url_for('player.player_world_map') }}",
             mapCity: "{{ url_for('player.player_city_map', city_id=999999999) }}",
             mapImage: "{{ url_for('player.player_map_image', canvas_id=999999999) }}",
-            shop: "{{ url_for('player.view_shop', shop_id=999999999) }}"
+            shop: "{{ url_for('player.view_shop', shop_id=999999999) }}",
+            knownNpcProfile: "{{ url_for('player.known_npc_profile', npc_id=999999999) }}",
+            knownNpcNotes: "{{ url_for('player.save_known_npc_notes', npc_id=999999999) }}"
         };
+
+        var playerNpcDetailState = { npcId: null };
+
+        function playerCsrfToken() {
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute("content") : "";
+        }
+
+        function playerUrl(template, id) {
+            return String(template).replace("999999999", String(id));
+        }
+
+        function playerNpcFact(label, value) {
+            if (value == null || value === "") return "";
+            return (
+                '<div class="player-npc-detail-fact"><dt>' +
+                playerEscapeHtml(label) +
+                "</dt><dd>" +
+                playerEscapeHtml(value) +
+                "</dd></div>"
+            );
+        }
+
+        function renderPlayerNpcDetail(npc) {
+            var body = document.getElementById("player-npc-detail-body");
+            var facts = document.getElementById("player-npc-detail-facts");
+            var nameEl = document.getElementById("player-npc-detail-name");
+            var notesInput = document.getElementById("player-npc-notes-input");
+            var status = document.getElementById("player-npc-notes-status");
+            if (!body || !facts || !nameEl || !notesInput) return;
+            nameEl.textContent = npc.name || "NPC";
+            var html = "";
+            html += playerNpcFact("Location", npc.location_summary);
+            html += playerNpcFact("Species", npc.species);
+            html += playerNpcFact("Class", npc.class_name);
+            html += playerNpcFact("Background", npc.background);
+            if (npc.level != null && npc.level !== "") {
+                html += playerNpcFact("Level", String(npc.level));
+            }
+            if (npc.about) {
+                html +=
+                    '<div class="player-npc-detail-fact"><dt>About</dt><dd class="player-npc-detail-about">' +
+                    playerEscapeHtml(npc.about) +
+                    "</dd></div>";
+            }
+            facts.innerHTML = html || '<p class="player-npc-detail-loading">No details yet for this NPC.</p>';
+            notesInput.value = npc.player_notes || "";
+            if (status) status.textContent = "";
+            body.hidden = false;
+        }
+
+        function openPlayerNpcDetail(npcId, displayName) {
+            if (!npcId) return;
+            var tab = document.getElementById("player-npcs-tab");
+            var panel = document.getElementById("player-npcs-panel");
+            var shell = document.getElementById("player-npc-shell");
+            var detail = document.getElementById("player-npc-detail");
+            var loading = document.getElementById("player-npc-detail-loading");
+            var error = document.getElementById("player-npc-detail-error");
+            var body = document.getElementById("player-npc-detail-body");
+            if (!panel || !detail) return;
+            playerNpcDetailState.npcId = Number(npcId);
+            if (window.playerDashboard && typeof window.playerDashboard.openPanel === "function") {
+                window.playerDashboard.openPanel("player-npcs-panel", tab);
+            }
+            if (shell) shell.classList.add("is-npc-detail-open");
+            detail.hidden = false;
+            if (loading) loading.hidden = false;
+            if (error) {
+                error.hidden = true;
+                error.textContent = "";
+            }
+            if (body) body.hidden = true;
+            if (displayName) {
+                var nameEl = document.getElementById("player-npc-detail-name");
+                if (nameEl) nameEl.textContent = displayName;
+            }
+            fetch(playerUrl(playerDashboardUrls.knownNpcProfile, npcId), {
+                credentials: "same-origin",
+                headers: { Accept: "application/json" }
+            }).then(function (resp) {
+                return resp.json().then(function (data) {
+                    if (!resp.ok) throw new Error((data && data.error) || "Could not load NPC.");
+                    return data;
+                });
+            }).then(function (data) {
+                if (loading) loading.hidden = true;
+                renderPlayerNpcDetail(data.npc || {});
+            }).catch(function (err) {
+                if (loading) loading.hidden = true;
+                if (error) {
+                    error.hidden = false;
+                    error.textContent = err.message || "Could not load NPC.";
+                }
+            });
+        }
+
+        function closePlayerNpcDetail() {
+            var shell = document.getElementById("player-npc-shell");
+            var detail = document.getElementById("player-npc-detail");
+            var body = document.getElementById("player-npc-detail-body");
+            var loading = document.getElementById("player-npc-detail-loading");
+            var error = document.getElementById("player-npc-detail-error");
+            var status = document.getElementById("player-npc-notes-status");
+            playerNpcDetailState.npcId = null;
+            if (shell) shell.classList.remove("is-npc-detail-open");
+            if (detail) detail.hidden = true;
+            if (body) body.hidden = true;
+            if (loading) loading.hidden = true;
+            if (error) {
+                error.hidden = true;
+                error.textContent = "";
+            }
+            if (status) status.textContent = "";
+        }
+
+        function savePlayerNpcNotes() {
+            var npcId = playerNpcDetailState.npcId;
+            var notesInput = document.getElementById("player-npc-notes-input");
+            var status = document.getElementById("player-npc-notes-status");
+            var saveBtn = document.getElementById("player-npc-notes-save");
+            if (!npcId || !notesInput) return;
+            if (saveBtn) saveBtn.disabled = true;
+            if (status) status.textContent = "Saving…";
+            fetch(playerUrl(playerDashboardUrls.knownNpcNotes, npcId), {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRFToken": playerCsrfToken()
+                },
+                body: JSON.stringify({ notes: notesInput.value })
+            }).then(function (resp) {
+                return resp.json().then(function (data) {
+                    if (!resp.ok || !data.ok) {
+                        throw new Error((data && data.error) || "Could not save notes.");
+                    }
+                    return data;
+                });
+            }).then(function () {
+                if (status) status.textContent = "Saved.";
+            }).catch(function (err) {
+                if (status) status.textContent = err.message || "Save failed.";
+            }).finally(function () {
+                if (saveBtn) saveBtn.disabled = false;
+            });
+        }
+
+        function setupPlayerNpcPanel() {
+            var panel = document.getElementById("player-npcs-panel");
+            if (!panel) return;
+            panel.addEventListener("click", function (event) {
+                var nameBtn = event.target.closest(".player-npc-name-link");
+                if (nameBtn) {
+                    event.preventDefault();
+                    openPlayerNpcDetail(
+                        nameBtn.getAttribute("data-npc-id"),
+                        nameBtn.getAttribute("data-npc-name")
+                    );
+                    return;
+                }
+                if (event.target.closest(".player-npc-detail-close")) {
+                    event.preventDefault();
+                    closePlayerNpcDetail();
+                }
+            });
+            var saveBtn = document.getElementById("player-npc-notes-save");
+            if (saveBtn) {
+                saveBtn.addEventListener("click", function () {
+                    savePlayerNpcNotes();
+                });
+            }
+        }
+
+        // Map popouts and NPC list share the same detail slide.
+        function openPlayerNpcSheet(npcId, displayName) {
+            openPlayerNpcDetail(npcId, displayName);
+        }
+
+        function closePlayerNpcEmbed() {
+            closePlayerNpcDetail();
+        }
 
         function playerEscapeHtml(text) {
             var d = document.createElement("div");
@@ -2796,35 +3490,129 @@
             return d.innerHTML;
         }
 
-        function setupPlayerTabs() {
+        function setupPlayerDashboardShell() {
             var tabs = document.querySelectorAll(".player-panel-tab");
-            var panels = document.querySelectorAll(".player-tab-panel");
-            tabs.forEach(function (btn) {
+            var slidePanels = document.querySelectorAll("#player-slide-panels .player-tab-panel");
+            var menuBtn = document.getElementById("player-section-menu-btn");
+            var navRail = document.getElementById("player-nav-rail");
+            var panelBackdrop = document.getElementById("player-panel-backdrop");
+            var activePanelId = null;
+
+            function setRailDrawer(open) {
+                if (!navRail || !menuBtn) return;
+                navRail.classList.toggle("is-open", !!open);
+                menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+                document.body.classList.toggle("player-dashboard-drawer-open", !!open);
+            }
+
+            function setPanelBackdrop(open) {
+                if (!panelBackdrop) return;
+                panelBackdrop.hidden = !open;
+                document.body.classList.toggle("player-panel-open", !!open);
+            }
+
+            function closeAllPanels() {
+                tabs.forEach(function (tab) {
+                    tab.classList.remove("active");
+                    tab.setAttribute("aria-selected", "false");
+                });
+                slidePanels.forEach(function (panel) {
+                    panel.classList.remove("active");
+                    panel.setAttribute("hidden", "");
+                });
+                activePanelId = null;
+                setPanelBackdrop(false);
+            }
+
+            function openPanel(targetId, triggerBtn) {
+                if (!targetId) return;
+                if (targetId === activePanelId) {
+                    closeAllPanels();
+                    return;
+                }
+                closeAllPanels();
+                if (triggerBtn) {
+                    triggerBtn.classList.add("active");
+                    triggerBtn.setAttribute("aria-selected", "true");
+                }
+                activePanelId = targetId;
+
+                var target = document.getElementById(targetId);
+                if (target) {
+                    target.classList.add("active");
+                    target.removeAttribute("hidden");
+                }
+                setPanelBackdrop(true);
+
+                if (targetId === "player-market-panel") {
+                    loadPlayerMarketOverview();
+                }
+                setRailDrawer(false);
+            }
+
+            if (menuBtn) {
+                menuBtn.addEventListener("click", function () {
+                    var open = menuBtn.getAttribute("aria-expanded") === "true";
+                    setRailDrawer(!open);
+                });
+            }
+            if (panelBackdrop) {
+                panelBackdrop.addEventListener("click", function () {
+                    closeAllPanels();
+                });
+            }
+            document.querySelectorAll("[data-player-close-panel]").forEach(function (btn) {
                 btn.addEventListener("click", function () {
-                    var targetId = btn.getAttribute("data-target");
-                    tabs.forEach(function (tab) {
-                        tab.classList.remove("active");
-                        tab.setAttribute("aria-selected", "false");
-                    });
-                    panels.forEach(function (panel) {
-                        panel.classList.remove("active");
-                        panel.setAttribute("hidden", "");
-                    });
-                    btn.classList.add("active");
-                    btn.setAttribute("aria-selected", "true");
-                    var target = document.getElementById(targetId);
-                    if (target) {
-                        target.classList.add("active");
-                        target.removeAttribute("hidden");
-                    }
-                    if (targetId === "player-market-panel") {
-                        loadPlayerMarketOverview();
-                    }
-                    if (targetId === "player-map-panel") {
-                        loadPlayerWorldMap(false);
-                    }
+                    closeAllPanels();
                 });
             });
+            document.addEventListener("keydown", function (ev) {
+                if (ev.key === "Escape") {
+                    if (activePanelId) {
+                        closeAllPanels();
+                        ev.preventDefault();
+                        return;
+                    }
+                    setRailDrawer(false);
+                    return;
+                }
+            });
+            tabs.forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    openPanel(btn.getAttribute("data-target"), btn);
+                });
+            });
+
+            function activatePlayerHash() {
+                var targetId = (window.location.hash || "").replace(/^#/, "");
+                if (!targetId) return false;
+                var matched = null;
+                tabs.forEach(function (btn) {
+                    if (btn.getAttribute("data-target") === targetId) {
+                        matched = btn;
+                    }
+                });
+                if (!matched) return false;
+                openPanel(targetId, matched);
+                return true;
+            }
+            window.addEventListener("hashchange", activatePlayerHash);
+            if (!activatePlayerHash()) {
+                closeAllPanels();
+                if (document.getElementById("player-map-stage")) {
+                    loadPlayerWorldMap(false);
+                } else {
+                    var characterBtn = document.getElementById("player-character-tab");
+                    if (characterBtn) {
+                        openPanel("player-character-panel", characterBtn);
+                    }
+                }
+            }
+
+            window.playerDashboard = {
+                openPanel: openPanel,
+                closeAllPanels: closeAllPanels
+            };
         }
 
         function marketTrendIcon(status) {
@@ -2882,7 +3670,73 @@
                 });
         }
 
-        var playerMapState = { loadedWorld: false, selectedId: null };
+        var playerMapState = {
+            loadedWorld: false,
+            selectedId: null,
+            mode: "world",
+            cityId: null,
+            regions: [],
+            canvas: null,
+            people: {}
+        };
+        var playerMapViewport = null;
+
+        function initPlayerMapViewport() {
+            var stage = document.getElementById("player-map-stage");
+            var layer = document.getElementById("player-map-viewport-layer");
+            if (!window.MapViewport || !stage || !layer || playerMapViewport) return;
+            playerMapViewport = window.MapViewport.create(stage, layer, {
+                paintActive: false,
+                autoFitOnResize: true
+            });
+        }
+
+        function resetPlayerMapViewport(canvas) {
+            initPlayerMapViewport();
+            if (!playerMapViewport) return;
+            var gen = (canvas && canvas.generation) || {};
+            if (canvas && canvas.has_image) {
+                playerMapViewport.setWorldSize(
+                    Number(canvas.width) || 1024,
+                    Number(canvas.height) || 1024
+                );
+            } else if (window.MapHex && gen.hex_grid) {
+                var ms = window.MapHex.mapWorldSize(gen.hex_grid);
+                playerMapViewport.setWorldSize(ms.width, ms.height);
+            } else {
+                playerMapViewport.setWorldSize(1000, 750);
+            }
+            requestAnimationFrame(function () {
+                playerMapViewport.fitToView();
+            });
+        }
+
+        function playerMapRenderOptions(canvas) {
+            var gen = (canvas && canvas.generation) || {};
+            var opts = {};
+            if (window.MapHex && gen.hex_grid && window.MapRenderer) {
+                var catalog = window.MapHex.buildCatalogFromHexGrid(gen.hex_grid);
+                var cellCount = window.MapHex.catalogCellCount(catalog);
+                if (cellCount <= window.MapHex.LARGE_GRID_CELLS) {
+                    opts.showHexGrid = true;
+                    opts.showGridLines = false;
+                    opts.hexCatalog = catalog;
+                    opts.hexCells = window.MapRenderer.decodeTerrainRle(
+                        gen.hex_grid.cells,
+                        catalog.width * catalog.height
+                    );
+                }
+            }
+            return opts;
+        }
+
+        function updatePlayerMapWorldNav() {
+            var inCity = playerMapState.mode === "city";
+            var mapBack = document.getElementById("player-map-back-btn");
+            var mapWorldBack = document.getElementById("player-map-world-back-btn");
+            if (mapBack) mapBack.hidden = !inCity;
+            if (mapWorldBack) mapWorldBack.hidden = !inCity;
+        }
 
         function playerUrl(template, id) {
             return template.replace("999999999", encodeURIComponent(id));
@@ -2899,10 +3753,194 @@
         }
 
         function playerCloseEntityPopout() {
-            var markers = document.getElementById("player-map-markers");
-            if (!markers) return;
-            markers.querySelectorAll(".map-entity-popout, .map-poi-popout, .map-encounter-popout").forEach(function (el) {
+            var stage = document.getElementById("player-map-stage");
+            if (!stage) return;
+            stage.querySelectorAll(".map-entity-popout, .map-poi-popout, .map-encounter-popout, .map-region-popout").forEach(function (el) {
                 el.remove();
+            });
+        }
+
+        function playerAppendMapPersonRow(card, personInfo) {
+            if (!personInfo) return;
+            var row = document.createElement("div");
+            row.className = "map-stat-person-row";
+            var label = document.createElement("span");
+            label.className = "map-stat-person-label";
+            label.textContent = personInfo.label || "Owner";
+            var value = document.createElement("div");
+            value.className = "map-stat-person-value";
+            var display = personInfo.display || "";
+            var playerId = personInfo.player_id != null ? Number(personInfo.player_id) : null;
+            if (playerId && display) {
+                var link = document.createElement("button");
+                link.type = "button";
+                link.className = "map-stat-person-value-link";
+                link.textContent = display;
+                link.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openPlayerNpcSheet(playerId, display);
+                });
+                value.appendChild(link);
+            } else if (display) {
+                value.textContent = display;
+            }
+            row.appendChild(label);
+            row.appendChild(value);
+            card.appendChild(row);
+        }
+
+        function playerResolveMapPerson(label, summaryField, playerId) {
+            var resolved = null;
+            if (summaryField && summaryField.display) {
+                resolved = {
+                    label: summaryField.label || label,
+                    display: summaryField.display,
+                    player_id: summaryField.player_id
+                };
+            }
+            var key = playerId != null ? String(playerId) : "";
+            if (key && playerMapState.people && playerMapState.people[key] && playerMapState.people[key].display) {
+                if (!resolved) {
+                    resolved = { label: label, display: playerMapState.people[key].display };
+                }
+                if (resolved.player_id == null) {
+                    resolved.player_id = playerMapState.people[key].player_id || Number(playerId);
+                }
+            }
+            if (!resolved && summaryField) {
+                resolved = {
+                    label: summaryField.label || label,
+                    display: summaryField.display,
+                    player_id: summaryField.player_id
+                };
+            }
+            if (!resolved) return null;
+            if (resolved.player_id == null && playerId != null) {
+                resolved.player_id = Number(playerId);
+            }
+            if (!resolved.label) resolved.label = label;
+            return resolved;
+        }
+
+        function playerMapClickNorm(clientX, clientY) {
+            var stage = document.getElementById("player-map-stage");
+            if (playerMapViewport && playerMapViewport.screenToWorld) {
+                var p = playerMapViewport.screenToWorld(clientX, clientY);
+                return {
+                    x: Math.max(0, Math.min(1, p.normX)),
+                    y: Math.max(0, Math.min(1, p.normY))
+                };
+            }
+            if (!stage) return { x: 0, y: 0 };
+            var rect = stage.getBoundingClientRect();
+            return {
+                x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+                y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+            };
+        }
+
+        function playerPointInPolygon(x, y, points) {
+            var inside = false;
+            for (var i = 0, j = points.length - 1; i < points.length; j = i++) {
+                var xi = Number(points[i][0]);
+                var yi = Number(points[i][1]);
+                var xj = Number(points[j][0]);
+                var yj = Number(points[j][1]);
+                var intersect = ((yi > y) !== (yj > y)) &&
+                    (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-9) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function playerFindRegionMeta(regionId) {
+            var list = playerMapState.regions || [];
+            for (var i = 0; i < list.length; i++) {
+                if (Number(list[i].id) === Number(regionId)) return list[i];
+            }
+            return null;
+        }
+
+        function playerRegionAtNorm(normX, normY) {
+            if (playerMapState.mode !== "world" || !playerMapState.canvas || !playerMapState.canvas.generation) return null;
+            var features = (playerMapState.canvas.generation.features || []).slice().reverse();
+            for (var i = 0; i < features.length; i++) {
+                var feat = features[i];
+                if (feat.type !== "region_tint" || feat.region_id == null || !feat.points || !feat.points.length) continue;
+                if (playerPointInPolygon(normX, normY, feat.points)) {
+                    return playerFindRegionMeta(feat.region_id);
+                }
+            }
+            return null;
+        }
+
+        function playerShowRegionPopout(region, clientX, clientY) {
+            var stage = document.getElementById("player-map-stage");
+            if (!stage || !region) return;
+            playerCloseEntityPopout();
+            var popout = document.createElement("div");
+            popout.className = "map-entity-popout map-region-popout";
+            popout.addEventListener("click", function (e) { e.stopPropagation(); });
+            var title = document.createElement("h3");
+            title.textContent = region.name || "Nation";
+            var desc = document.createElement("p");
+            desc.textContent = "Nation on this world map.";
+            popout.appendChild(title);
+            popout.appendChild(desc);
+            if (region.ruler || region.ruler_player_id) {
+                var card = document.createElement("div");
+                card.className = "map-city-summary-card map-shop-summary-card";
+                playerAppendMapPersonRow(
+                    card,
+                    playerResolveMapPerson("Ruler", region.ruler, region.ruler_player_id)
+                );
+                popout.appendChild(card);
+            }
+            stage.appendChild(popout);
+            var stageRect = stage.getBoundingClientRect();
+            var margin = 8;
+            var width = popout.offsetWidth || 220;
+            var height = popout.offsetHeight || 120;
+            var left = clientX - stageRect.left + 12;
+            var top = clientY - stageRect.top - 12;
+            left = Math.min(Math.max(margin, left), Math.max(margin, stageRect.width - width - margin));
+            top = Math.min(Math.max(margin, top), Math.max(margin, stageRect.height - height - margin));
+            popout.style.left = left + "px";
+            popout.style.top = top + "px";
+        }
+
+        function playerClampPopoutInsideStage(popout, wrap) {
+            var stage = document.getElementById("player-map-stage");
+            if (!popout || !wrap || !stage) return;
+            popout.style.transform = "none";
+            var stageRect = stage.getBoundingClientRect();
+            var wrapRect = wrap.getBoundingClientRect();
+            var margin = 8;
+            var width = popout.offsetWidth || 220;
+            var height = popout.offsetHeight || 160;
+            var anchorX = wrapRect.left + wrapRect.width / 2 - stageRect.left;
+            var anchorY = wrapRect.top + wrapRect.height / 2 - stageRect.top;
+            var desiredLeft = anchorX + 12;
+            var desiredTop = anchorY - 12;
+            if (desiredLeft + width + margin > stageRect.width) {
+                desiredLeft = anchorX - width - 12;
+            }
+            if (desiredTop + height + margin > stageRect.height) {
+                desiredTop = anchorY - height - 12;
+            }
+            var maxLeft = Math.max(margin, stageRect.width - width - margin);
+            var maxTop = Math.max(margin, stageRect.height - height - margin);
+            popout.style.left = Math.min(Math.max(desiredLeft, margin), maxLeft) + "px";
+            popout.style.top = Math.min(Math.max(desiredTop, margin), maxTop) + "px";
+        }
+
+        function playerMountMapPopout(popout, wrap) {
+            var stage = document.getElementById("player-map-stage");
+            if (!popout || !wrap || !stage) return;
+            stage.appendChild(popout);
+            requestAnimationFrame(function () {
+                playerClampPopoutInsideStage(popout, wrap);
             });
         }
 
@@ -2913,24 +3951,6 @@
             markers.querySelectorAll(".map-marker").forEach(function (m) {
                 m.classList.toggle("selected", Number(m.dataset.entityId) === Number(id));
             });
-        }
-
-        function playerClampPopoutInsideStage(popout, wrap) {
-            var stage = document.getElementById("player-map-stage");
-            if (!popout || !wrap || !stage) return;
-            popout.style.transform = "none";
-            var margin = 8;
-            var desiredLeft = wrap.offsetLeft + 12;
-            var desiredTop = wrap.offsetTop - 12;
-            var width = popout.offsetWidth || 220;
-            var height = popout.offsetHeight || 120;
-            if (desiredLeft + width + margin > stage.clientWidth) {
-                desiredLeft = wrap.offsetLeft - width - 12;
-            }
-            var maxLeft = Math.max(margin, stage.clientWidth - width - margin);
-            var maxTop = Math.max(margin, stage.clientHeight - height - margin);
-            popout.style.left = Math.min(Math.max(desiredLeft, margin), maxLeft) + "px";
-            popout.style.top = Math.min(Math.max(desiredTop, margin), maxTop) + "px";
         }
 
         function playerFormatNumber(value) {
@@ -2987,6 +4007,10 @@
             var speciesRows = summary.species_population || [];
             var card = document.createElement("div");
             card.className = "map-city-summary-card";
+            playerAppendMapPersonRow(
+                card,
+                playerResolveMapPerson("Owner", summary.owner, entity.owner_player_id)
+            );
             var pie = document.createElement("div");
             pie.className = "map-city-pop-pie";
             pie.style.background = playerCityPopulationPie(speciesRows);
@@ -3020,6 +4044,10 @@
             var summary = entity.summary || {};
             var card = document.createElement("div");
             card.className = "map-city-summary-card map-shop-summary-card";
+            playerAppendMapPersonRow(
+                card,
+                playerResolveMapPerson("Owner", summary.owner, entity.owner_player_id)
+            );
             playerAppendGoodsList(card, "Top 5 goods by price", summary.top_goods_by_price, "average_price", " gp");
             playerAppendGoodsList(card, "Top 5 goods by avg volume", summary.top_goods_by_average_volume, "average_volume", "");
             return card;
@@ -3031,8 +4059,6 @@
             playerCloseEntityPopout();
             var popout = document.createElement("div");
             popout.className = "map-entity-popout";
-            popout.style.left = wrap.style.left;
-            popout.style.top = wrap.style.top;
             popout.addEventListener("click", function (e) { e.stopPropagation(); });
             var title = document.createElement("h3");
             title.textContent = entity.name;
@@ -3064,8 +4090,7 @@
                 popout.appendChild(playerBuildShopSummaryCard(entity));
             }
             popout.appendChild(actions);
-            markers.appendChild(popout);
-            playerClampPopoutInsideStage(popout, wrap);
+            playerMountMapPopout(popout, wrap);
         }
 
         function playerShowPoiPopout(poi, wrap) {
@@ -3074,8 +4099,6 @@
             playerCloseEntityPopout();
             var popout = document.createElement("div");
             popout.className = "map-poi-popout";
-            popout.style.left = wrap.style.left;
-            popout.style.top = wrap.style.top;
             popout.addEventListener("click", function (e) { e.stopPropagation(); });
             var title = document.createElement("h3");
             title.textContent = poi.label;
@@ -3083,8 +4106,7 @@
             note.textContent = poi.note || "No notes yet.";
             popout.appendChild(title);
             popout.appendChild(note);
-            markers.appendChild(popout);
-            playerClampPopoutInsideStage(popout, wrap);
+            playerMountMapPopout(popout, wrap);
         }
 
         function playerShowEncounterPopout(encounter, wrap) {
@@ -3093,8 +4115,6 @@
             playerCloseEntityPopout();
             var popout = document.createElement("div");
             popout.className = "map-encounter-popout";
-            popout.style.left = wrap.style.left;
-            popout.style.top = wrap.style.top;
             popout.addEventListener("click", function (e) { e.stopPropagation(); });
             var title = document.createElement("h3");
             title.textContent = encounter.name;
@@ -3118,8 +4138,7 @@
                 actions.appendChild(openBtn);
                 popout.appendChild(actions);
             }
-            markers.appendChild(popout);
-            playerClampPopoutInsideStage(popout, wrap);
+            playerMountMapPopout(popout, wrap);
         }
 
         function renderPlayerMapBackground(canvas) {
@@ -3127,113 +4146,38 @@
             var bgImage = document.getElementById("player-map-bg-image");
             var genBg = document.getElementById("player-map-gen-bg");
             if (!stage || !bgImage || !genBg) return;
-            var palettes = ["parchment", "verdant", "ashen", "slate", "sandstone", "timber"];
-            palettes.forEach(function (p) { stage.classList.remove("map-palette-" + p); });
-            genBg.innerHTML = "";
             if (canvas.has_image) {
+                genBg.innerHTML = "";
                 bgImage.src = playerUrl(playerDashboardUrls.mapImage, canvas.id) + "?v=" + Date.now();
                 bgImage.hidden = false;
                 return;
             }
             bgImage.hidden = true;
             bgImage.removeAttribute("src");
-            var gen = canvas.generation || {};
-            if (gen.palette) stage.classList.add("map-palette-" + gen.palette);
-            var ns = "http://www.w3.org/2000/svg";
-            var svg = document.createElementNS(ns, "svg");
-            svg.setAttribute("class", "map-gen-svg");
-            svg.setAttribute("viewBox", "0 0 1000 750");
-            svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-            function scaledPoint(p) { return [Number(p[0]) * 1000, Number(p[1]) * 750]; }
-            function pointsAttr(points) {
-                return (points || []).map(function (p) {
-                    var sp = scaledPoint(p);
-                    return sp[0].toFixed(1) + "," + sp[1].toFixed(1);
-                }).join(" ");
+            if (window.MapRenderer) {
+                MapRenderer.render(
+                    canvas.generation || {},
+                    genBg,
+                    stage,
+                    playerMapRenderOptions(canvas)
+                );
             }
-            function poly(points, fill, stroke, opacity, width) {
-                var el = document.createElementNS(ns, "polygon");
-                el.setAttribute("points", pointsAttr(points));
-                el.setAttribute("fill", fill);
-                el.setAttribute("stroke", stroke || "none");
-                el.setAttribute("stroke-width", width || "2");
-                el.setAttribute("opacity", opacity == null ? "1" : String(opacity));
-                svg.appendChild(el);
-            }
-            function line(points, stroke, width, dash, opacity) {
-                var el = document.createElementNS(ns, "polyline");
-                el.setAttribute("points", pointsAttr(points));
-                el.setAttribute("fill", "none");
-                el.setAttribute("stroke", stroke);
-                el.setAttribute("stroke-width", String(width || 4));
-                el.setAttribute("stroke-linecap", "round");
-                el.setAttribute("stroke-linejoin", "round");
-                if (dash) el.setAttribute("stroke-dasharray", dash);
-                el.setAttribute("opacity", opacity == null ? "1" : String(opacity));
-                svg.appendChild(el);
-            }
-            function circle(x, y, size, fill, stroke, opacity) {
-                var el = document.createElementNS(ns, "circle");
-                el.setAttribute("cx", String(Number(x) * 1000));
-                el.setAttribute("cy", String(Number(y) * 750));
-                el.setAttribute("r", String(Number(size || 0.05) * 500));
-                el.setAttribute("fill", fill);
-                el.setAttribute("stroke", stroke || "none");
-                el.setAttribute("stroke-width", "3");
-                el.setAttribute("opacity", opacity == null ? "1" : String(opacity));
-                svg.appendChild(el);
-            }
-            function mountains(points) {
-                (points || []).forEach(function (p) {
-                    var sp = scaledPoint(p);
-                    var tri = [
-                        [sp[0] - 16, sp[1] + 18],
-                        [sp[0], sp[1] - 18],
-                        [sp[0] + 16, sp[1] + 18]
-                    ].map(function (v) { return v[0].toFixed(1) + "," + v[1].toFixed(1); }).join(" ");
-                    var el = document.createElementNS(ns, "polygon");
-                    el.setAttribute("points", tri);
-                    el.setAttribute("fill", "#6b6256");
-                    el.setAttribute("stroke", "#403a33");
-                    el.setAttribute("stroke-width", "2");
-                    el.setAttribute("opacity", "0.82");
-                    svg.appendChild(el);
-                });
-            }
-            var base = document.createElementNS(ns, "rect");
-            base.setAttribute("width", "1000");
-            base.setAttribute("height", "750");
-            base.setAttribute("fill", gen.scope === "world" ? "#9fc9c5" : "#d8d1c3");
-            base.setAttribute("opacity", gen.scope === "world" ? "0.5" : "0.35");
-            svg.appendChild(base);
-            (gen.features || []).forEach(function (f) {
-                if (f.type === "landmass") poly(f.points, "#d8c690", "#8e7a4e", 0.96, 5);
-                else if (f.type === "island") poly(f.points, "#d7c88f", "#8e7a4e", 0.9, 3);
-                else if (f.type === "region_tint") poly(f.points, "#c084fc", "none", 0.12, 0);
-                else if (f.type === "forest") poly(f.points, "#477c45", "#315833", 0.48, 2);
-                else if (f.type === "river") line(f.points, "#317aa3", 7, null, 0.75);
-                else if (f.type === "trade_route") line(f.points, "#7c4a23", 4, "10 10", 0.7);
-                else if (f.type === "mountain_range") mountains(f.points);
-                else if (f.type === "city_wall") poly(f.points, "none", "#5b4b3c", 1, 8);
-                else if (f.type === "district") poly(f.points, "#b68a5f", "#7a5a3c", 0.42, 2);
-                else if (f.type === "road") line(f.points, "#8b6f4e", 8, null, 0.82);
-                else if (f.type === "canal") line(f.points, "#4f9ab8", 10, null, 0.68);
-                else if (f.type === "plaza") circle(f.x, f.y, f.size, "#c7b38a", "#80643c", 0.8);
-                else if (f.type === "park") poly(f.points, "#5f8c52", "#3f6838", 0.45, 2);
-            });
-            genBg.appendChild(svg);
         }
 
         function renderPlayerMap(data, mode) {
             var stage = document.getElementById("player-map-stage");
             var markers = document.getElementById("player-map-markers");
             var title = document.getElementById("player-map-title");
-            var back = document.getElementById("player-map-back-btn");
             if (!stage || !markers) return;
             markers.innerHTML = "";
             var canvas = data.canvas || {};
             if (title) title.textContent = mode === "city" && data.city ? data.city.name + " Map" : "World Map";
-            if (back) back.hidden = mode !== "city";
+            playerMapState.mode = mode || "world";
+            playerMapState.cityId = mode === "city" && data.city ? data.city.id : null;
+            playerMapState.regions = data.regions || [];
+            playerMapState.people = data.people || {};
+            playerMapState.canvas = canvas;
+            updatePlayerMapWorldNav();
             renderPlayerMapBackground(canvas);
             var placed = (data.entities || []).filter(function (entity) {
                 return entity.is_on_map && entity.x !== null && entity.y !== null;
@@ -3328,6 +4272,7 @@
                 markers.appendChild(wrap);
             });
             mapStatus(placed.length || pois.length || encounters.length ? "" : "No placed " + (mode === "world" ? "cities" : "shops") + " on this map yet.");
+            resetPlayerMapViewport(canvas);
         }
 
         function loadPlayerWorldMap(force) {
@@ -3374,16 +4319,35 @@
         }
 
         document.addEventListener("DOMContentLoaded", function () {
+            initPlayerMapViewport();
             loadCharacterData();
             stylePlayerCurrency();
-            setupPlayerTabs();
+            setupPlayerDashboardShell();
+            setupPlayerNpcPanel();
             var mapBack = document.getElementById("player-map-back-btn");
+            var mapWorldBack = document.getElementById("player-map-world-back-btn");
+            function returnToPlayerWorldMap() {
+                loadPlayerWorldMap(true);
+            }
             if (mapBack) {
-                mapBack.addEventListener("click", function () { loadPlayerWorldMap(true); });
+                mapBack.addEventListener("click", returnToPlayerWorldMap);
+            }
+            if (mapWorldBack) {
+                mapWorldBack.addEventListener("click", returnToPlayerWorldMap);
             }
             var mapStage = document.getElementById("player-map-stage");
             if (mapStage) {
-                mapStage.addEventListener("click", function () {
+                mapStage.addEventListener("click", function (e) {
+                    if (playerMapState.mode === "world" &&
+                            !e.target.closest(".map-marker, .map-entity-wrap, .map-poi-wrap, .map-encounter-wrap, .map-entity-popout, .map-poi-popout, .map-encounter-popout, .map-region-popout, button, input, select, textarea, a")) {
+                        var norm = playerMapClickNorm(e.clientX, e.clientY);
+                        var regionHit = playerRegionAtNorm(norm.x, norm.y);
+                        if (regionHit) {
+                            playerSetSelected(null);
+                            playerShowRegionPopout(regionHit, e.clientX, e.clientY);
+                            return;
+                        }
+                    }
                     playerSetSelected(null);
                     playerCloseEntityPopout();
                 });

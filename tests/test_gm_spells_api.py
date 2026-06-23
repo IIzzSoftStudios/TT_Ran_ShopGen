@@ -237,7 +237,8 @@ def test_dashboard_includes_spell_search_and_click_sort_controls():
     html = resp.data.decode("utf-8")
     assert 'id="spells-tab-btn"' in html
     assert 'id="spells-search-input"' in html
-    assert 'class="spell-hierarchy-list"' in html
+    assert 'class="species-compendium-table"' in html
+    assert 'id="spells-compendium-body"' in html
     assert 'data-spell-sort="name"' in html
     assert 'data-spell-sort="level"' in html
     assert 'data-spell-sort="school"' in html
