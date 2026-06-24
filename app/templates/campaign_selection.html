@@ -9,28 +9,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             min-height: 100vh;
             margin: 0;
+            padding: 24px 16px 40px;
             font-family: Arial, sans-serif;
             background-color: var(--color-bg);
             color: var(--color-text);
         }
 
-        .container {
-            background-color: var(--color-surface);
-            color: var(--color-text);
-            padding: 40px;
-            border-radius: 10px;
-            border: 1px solid var(--color-border);
-            box-shadow: var(--shadow-panel);
-            max-width: 800px;
-            width: 100%;
-        }
-
         h1 {
             font-size: 2.5rem;
-            margin-bottom: 10px;
+            margin: 12px 0 8px;
             text-align: center;
             color: var(--color-accent);
         }
@@ -38,74 +28,246 @@
         .subtitle {
             text-align: center;
             color: var(--color-muted);
-            margin-bottom: 30px;
+            margin: 0 0 24px;
         }
 
-        .campaigns-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 30px;
-        }
-
-        .campaign-card {
+        .content-container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto 28px;
             background-color: var(--color-surface);
-            border: 2px solid var(--color-border);
-            border-radius: 8px;
             padding: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            color: var(--color-text);
-            display: block;
-        }
-
-        .campaign-card:hover {
-            border-color: var(--color-accent);
-            transform: translateY(-5px);
+            border-radius: 5px;
+            border: 1px solid var(--color-border);
             box-shadow: var(--shadow-panel);
-        }
-
-        .campaign-card h3 {
-            margin-top: 0;
-            color: var(--color-accent);
-            font-size: 1.5rem;
-        }
-
-        .campaign-info {
-            color: var(--color-muted);
-            margin-top: 10px;
-        }
-
-        .campaign-info p {
-            margin: 5px 0;
-        }
-
-        .campaign-type {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-
-        .campaign-type.gm {
-            background-color: #9b59b6;
-            color: white;
-        }
-
-        .campaign-type.player {
-            background-color: #3498db;
-            color: white;
+            box-sizing: border-box;
         }
 
         .section-header {
-            margin: 32px 0 12px 0;
+            margin: 0 0 12px;
             font-size: 1.25rem;
             color: var(--color-text);
             border-bottom: 1px solid var(--color-border);
             padding-bottom: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        th {
+            background-color: purple;
+            color: white;
+        }
+
+        table.gm-list-table td:last-child {
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--color-table-stripe);
+        }
+
+        .campaign-row {
+            cursor: pointer;
+            transition: background-color 0.15s, box-shadow 0.15s;
+        }
+
+        .campaign-row:hover,
+        .campaign-row:focus-visible {
+            background-color: var(--color-table-stripe);
+            box-shadow: inset 3px 0 0 var(--color-accent);
+            outline: none;
+        }
+
+        .campaign-row-name {
+            font-weight: 700;
+            color: var(--color-accent);
+        }
+
+        .campaign-row-hint {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.85rem;
+            color: var(--color-muted);
+            font-weight: 400;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid var(--color-border);
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+        }
+
+        .status-pill.setup {
+            border-color: #f59e0b;
+            color: #b45309;
+        }
+
+        .status-pill.player {
+            border-color: #3498db;
+            color: #1d6fa5;
+        }
+
+        .active-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: var(--color-table-stripe);
+            color: var(--color-text);
+            border: 1px solid var(--color-accent);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: default;
+        }
+
+        .active-pill::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #28a745;
+            box-shadow: 0 0 6px rgba(40, 167, 69, 0.7);
+        }
+
+        .button {
+            background-color: purple;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 5px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.15s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.02);
+        }
+
+        .delete-button {
+            background-color: #dc3545;
+        }
+
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+
+        .switch-button {
+            background-color: #28a745;
+        }
+
+        .switch-button:hover {
+            background-color: #218838;
+        }
+
+        .campaign-actions-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+            width: 100%;
+            max-width: 420px;
+            box-sizing: border-box;
+            padding: 16px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            box-shadow: var(--shadow-panel);
+            color: var(--color-text);
+            font-size: 14px;
+        }
+
+        .campaign-actions-stack form {
+            margin: 0;
+        }
+
+        .campaign-actions-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .campaign-actions-stack .gm-campaign-invite-block {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .gm-ply-redeem-form {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        .gm-ply-redeem-form label {
+            display: block;
+            text-align: center;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--color-text);
+            margin-bottom: 6px;
+        }
+
+        .gm-ply-redeem-form .gm-ply-redeem-row {
+            display: flex;
+            gap: 6px;
+            align-items: stretch;
+            margin-top: 2px;
+        }
+
+        .gm-ply-redeem-form input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            font-family: ui-monospace, monospace;
+            font-size: 13px;
+            border: 1px solid var(--color-accent);
+            border-radius: 4px;
+            background-color: var(--color-input-bg);
+            color: var(--color-text);
+        }
+
+        .gm-ply-redeem-form button.button {
+            background-color: var(--color-accent);
+            color: var(--color-accent-contrast);
+            white-space: nowrap;
+            font-size: 13px;
+            padding: 8px 12px;
+            margin: 0;
+        }
+
+        .gm-ply-redeem-form button.button:hover {
+            background-color: var(--color-accent-hover);
+        }
+
+        .player-actions-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
         }
 
         .characters-grid {
@@ -144,17 +306,6 @@
             margin: 2px 0;
         }
 
-        .character-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            background: var(--color-table-stripe);
-            color: var(--color-text);
-            margin-top: 8px;
-        }
-
         .character-card-wrap {
             position: relative;
             display: block;
@@ -183,7 +334,6 @@
             font-size: 0.8rem;
             font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
         }
 
         .character-card-wrap .card-delete-btn:hover {
@@ -195,7 +345,7 @@
         .no-campaigns {
             text-align: center;
             color: var(--color-muted);
-            padding: 40px;
+            padding: 24px 0;
         }
 
         .no-campaigns code {
@@ -206,104 +356,69 @@
             border: 1px solid var(--color-border);
         }
 
-        .create-campaign-btn {
-            display: inline-block;
-            margin-top: 24px;
-            padding: 12px 28px;
-            background-color: var(--color-accent);
-            color: var(--color-accent-contrast);
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: bold;
-            transition: background-color 0.2s, transform 0.15s;
-        }
-
-        .create-campaign-btn:hover {
-            background-color: var(--color-accent-hover);
-            transform: translateY(-2px);
-        }
-
+        .create-campaign-btn,
         .create-character-btn {
             display: inline-block;
-            margin-top: 24px;
+            margin-top: 0;
             padding: 12px 28px;
             background-color: var(--color-accent);
             color: var(--color-accent-contrast);
             border-radius: 6px;
             text-decoration: none;
             font-weight: bold;
-            transition: background-color 0.2s, transform 0.15s;
         }
 
+        .create-campaign-btn:hover,
         .create-character-btn:hover {
             background-color: var(--color-accent-hover);
-            transform: translateY(-2px);
-        }
-
-        .actions-row {
-            text-align: center;
         }
 
         .campaign-footer {
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-top: 28px;
+            margin-top: 8px;
             width: 100%;
+            max-width: 900px;
             flex-wrap: wrap;
             gap: 12px;
         }
 
-        .footer-left {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .footer-cta {
-            margin-top: 0;
-        }
-
-        /* Match player shops city-row panel: surface card, clear type, theme inputs */
         .redeem-box {
-            margin-top: 28px;
+            margin: 0 auto 28px;
             padding: 20px;
             border-radius: 8px;
             border: 1px solid var(--color-border);
             background: var(--color-surface);
             color: var(--color-text);
-            max-width: 420px;
-            margin-left: auto;
-            margin-right: auto;
+            max-width: 900px;
+            width: 100%;
+            box-sizing: border-box;
             box-shadow: var(--shadow-panel);
         }
+
         .redeem-box h2 {
+            margin-top: 0;
+            font-size: 1.1rem;
             color: var(--color-text);
-            font-weight: 700;
         }
+
         .redeem-box label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            font-size: 0.95rem;
-            color: var(--color-text);
         }
+
         .redeem-box input[type="text"] {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid var(--color-input-border);
             border-radius: 6px;
             box-sizing: border-box;
-            font-size: 1rem;
             background-color: var(--color-input-bg);
             color: var(--color-text);
         }
-        .redeem-box input[type="text"]::placeholder {
-            color: var(--color-muted);
-            opacity: 1;
-        }
+
         .redeem-box button {
             margin-top: 12px;
             padding: 10px 20px;
@@ -314,143 +429,266 @@
             font-weight: bold;
             cursor: pointer;
         }
-        .redeem-box button:hover {
-            background: var(--color-accent-hover);
-        }
+
         .flash-stack {
             width: 100%;
-            max-width: 520px;
-            margin: 0 auto 16px auto;
+            max-width: 900px;
+            margin: 0 auto 16px;
         }
+
         .flash-stack div {
             padding: 10px 12px;
             border-radius: 8px;
             margin-bottom: 8px;
             border: 1px solid var(--color-border);
             background: var(--color-table-stripe);
-            color: var(--color-text);
+        }
+
+        .onboarding-pulse {
+            animation: onboardingPulse 1.2s ease-in-out 2;
+            box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.35);
+            outline: 2px solid #facc15;
+            outline-offset: 3px;
+        }
+
+        @keyframes onboardingPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Select Campaign</h1>
-        <p class="subtitle">Choose a campaign to load</p>
+    <h1>Select Campaign</h1>
+    <p class="subtitle">Choose a campaign to load</p>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-stack">
-                    {% for category, message in messages %}
-                        <div><strong>{{ category|capitalize }}:</strong> {{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-stack">
+                {% for category, message in messages %}
+                    <div><strong>{{ category|capitalize }}:</strong> {{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
 
-        {% if campaigns %}
-            {% if gm_campaigns %}
-            <h2 class="section-header">GM Campaigns</h2>
-            <div class="campaigns-grid">
+    {% if gm_campaigns %}
+    <div class="content-container">
+        <h2 class="section-header">GM Campaigns</h2>
+        <table class="gm-list-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>System</th>
+                    <th>Players</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
                 {% for campaign in gm_campaigns %}
-                    <a href="{{ url_for('main.load_campaign_route', campaign_id=campaign.id, as=campaign.type|lower) }}" class="campaign-card{% if campaign.pending_setup %} campaign-card-setup{% endif %}">
-                        <h3>{{ campaign.name }}</h3>
-                        <div class="campaign-info">
-                            {% if campaign.pending_setup %}
-                            <p><strong>Status:</strong> World setup in progress</p>
-                            {% else %}
-                            <p><strong>GM:</strong> {{ campaign.gm_username }}</p>
-                            <p><strong>Players:</strong> {{ campaign.player_count }}</p>
+                {% set load_url = campaign.resume_setup_url if campaign.pending_setup else url_for('main.load_campaign_route', campaign_id=campaign.id, as='gm') %}
+                <tr class="campaign-row"
+                    data-href="{{ load_url }}"
+                    tabindex="0"
+                    role="link"
+                    aria-label="Open {{ campaign.name|e }} as GM">
+                    <td>
+                        <span class="campaign-row-name">{{ campaign.name }}</span>
+                        {% if campaign.pending_setup %}
+                        <span class="campaign-row-hint">World setup in progress — click to continue</span>
+                        {% else %}
+                        <span class="campaign-row-hint">Click row to open as GM</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ campaign.system_type or 'generic' }}</td>
+                    <td>{{ campaign.player_count }}{% if campaign.seat_cap %} / {{ campaign.seat_cap }} seats{% endif %}</td>
+                    <td>
+                        <div class="campaign-actions-stack" data-stop-row-nav="1">
+                            <div class="campaign-actions-row">
+                                {% if active_campaign_id == campaign.id %}
+                                <span class="active-pill" title="This campaign is currently loaded">Active</span>
+                                {% else %}
+                                <a href="{{ load_url }}" class="button switch-button" title="Open this campaign">Open</a>
+                                {% endif %}
+                                {% if not campaign.pending_setup %}
+                                <form method="POST" action="{{ url_for('gm.delete_campaign', campaign_id=campaign.id) }}" data-confirm-delete="Are you sure you want to delete the campaign &quot;{{ campaign.name|e }}&quot;? This cannot be undone.">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="button delete-button">Delete</button>
+                                </form>
+                                {% else %}
+                                <span class="status-pill setup">Setup</span>
+                                {% endif %}
+                            </div>
+                            {% if not campaign.pending_setup %}
+                            <div class="campaign-actions-row">
+                                {% set reveal_url = url_for('gm.reveal_campaign_join_code', campaign_id=campaign.id) %}
+                                {% include 'partials/gm_campaign_invite_rows.html' %}
+                            </div>
+                            <form class="gm-ply-redeem-form" method="POST" action="{{ url_for('gm.redeem_player_code_route', campaign_id=campaign.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <label for="ply-code-{{ campaign.id }}">Add player by code</label>
+                                <div class="gm-ply-redeem-row">
+                                    <input id="ply-code-{{ campaign.id }}" type="text" name="player_join_code" autocomplete="off" placeholder="PLY-XXXX-XXXX-XXXX"/>
+                                    <button type="submit" class="button">Add</button>
+                                </div>
+                            </form>
                             {% endif %}
-                            {% if campaign.system_type %}
-                                <p><strong>System:</strong> {{ campaign.system_type }}</p>
-                            {% endif %}
-                            <span class="campaign-type {{ campaign.type|lower }}">{% if campaign.pending_setup %}Continue setup{% else %}{{ campaign.type }}{% endif %}</span>
                         </div>
-                    </a>
+                    </td>
+                </tr>
                 {% endfor %}
-            </div>
-            {% endif %}
-
-            {% if player_campaigns %}
-            <h2 class="section-header">Player Campaigns</h2>
-            <div class="campaigns-grid">
-                {% for campaign in player_campaigns %}
-                    <a href="{{ url_for('main.load_campaign_route', campaign_id=campaign.id, as=campaign.type|lower) }}" class="campaign-card">
-                        <h3>{{ campaign.name }}</h3>
-                        <div class="campaign-info">
-                            <p><strong>Player:</strong> {{ campaign.character_label }}</p>
-                            <p><strong>Players:</strong> {{ campaign.player_count }}</p>
-                            {% if campaign.system_type %}
-                                <p><strong>System:</strong> {{ campaign.system_type }}</p>
-                            {% endif %}
-                            <span class="campaign-type {{ campaign.type|lower }}">{{ campaign.type }}</span>
-                        </div>
-                    </a>
-                {% endfor %}
-            </div>
-            {% endif %}
-        {% elif not solo_characters %}
-            <div class="no-campaigns">
-                {% if show_redeem_only|default(false) %}
-                    <p>You are not in a campaign yet. Enter the <strong>campaign code</strong> your GM shared (starts with <code>CAMP-</code>), or create a character below to get started.</p>
-                {% else %}
-                    <p>No campaigns available. Create a campaign or character below to get started.</p>
-                {% endif %}
-            </div>
-        {% endif %}
-
-        <div class="redeem-box" style="margin-top: 28px;">
-            <h2 style="margin-top:0;font-size:1.1rem;">Join a campaign</h2>
-            <form action="{{ url_for('main.campaign_redeem') }}" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <label for="campaign_code">Campaign code</label>
-                <input type="text" id="campaign_code" name="campaign_code" placeholder="CAMP-XXXX-XXXX-XXXX" autocomplete="off" required>
-                <button type="submit">Redeem code</button>
-            </form>
-        </div>
-
-        {% if solo_characters %}
-            <h2 class="section-header">Characters (no campaign)</h2>
-            <p class="subtitle" style="margin-bottom: 16px;">Open one of your standalone characters without joining a campaign.</p>
-            <div class="characters-grid">
-                {% for ch in solo_characters %}
-                    <div class="character-card-wrap">
-                        <a href="{{ url_for('player.character_dashboard', player_id=ch.id) }}" class="character-card">
-                            <h3>{{ ch.name }}</h3>
-                            <div class="character-meta"><strong>System:</strong> {{ ch.system_type }}</div>
-                            {% if ch.level %}<div class="character-meta"><strong>Level:</strong> {{ ch.level }}</div>{% endif %}
-                        </a>
-                        <form method="POST"
-                              action="{{ url_for('player.delete_character', player_id=ch.id) }}"
-                              class="card-delete-form"
-                              data-confirm-delete="Are you sure you want to delete {{ ch.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <button type="submit" class="card-delete-btn" aria-label="Delete {{ ch.name|e }}">Delete character</button>
-                        </form>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
-        {% if current_user.is_authenticated %}
-        <div class="campaign-footer">
-            <div class="footer-left">
-                <a
-                    href="{{ url_for('gm.generate_world_form') }}"
-                    class="create-campaign-btn footer-cta"
-                    {% if campaign_limit_reached %}
-                    data-expansion-interest-trigger
-                    data-expansion-interest-source="campaign_selection_create"
-                    aria-haspopup="dialog"
-                    {% endif %}
-                >Create Campaign</a>
-                <a href="{{ url_for('player.create_character') }}" class="create-character-btn footer-cta">Create character</a>
-            </div>
-        </div>
-        {% endif %}
+            </tbody>
+        </table>
     </div>
+    {% endif %}
+
+    {% if player_campaigns %}
+    <div class="content-container">
+        <h2 class="section-header">Player Campaigns</h2>
+        <table class="gm-list-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Character</th>
+                    <th>System</th>
+                    <th>GM</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for campaign in player_campaigns %}
+                {% set load_url = url_for('main.load_campaign_route', campaign_id=campaign.id, as='player') %}
+                <tr class="campaign-row"
+                    data-href="{{ load_url }}"
+                    tabindex="0"
+                    role="link"
+                    aria-label="Open {{ campaign.name|e }} as player">
+                    <td>
+                        <span class="campaign-row-name">{{ campaign.name }}</span>
+                        <span class="campaign-row-hint">Click row to enter as player</span>
+                    </td>
+                    <td>{{ campaign.character_label }}</td>
+                    <td>{{ campaign.system_type or 'generic' }}</td>
+                    <td>{{ campaign.gm_username }}</td>
+                    <td>
+                        <div class="player-actions-stack" data-stop-row-nav="1">
+                            <span class="status-pill player">Player</span>
+                            <a href="{{ load_url }}" class="button switch-button">Enter</a>
+                            {% if campaign.character_count and campaign.character_count > 1 %}
+                            <span class="campaign-row-hint">{{ campaign.character_count }} characters — choose on enter</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if not gm_campaigns and not player_campaigns and not solo_characters %}
+    <div class="content-container">
+        <div class="no-campaigns">
+            {% if show_redeem_only|default(false) %}
+            <p>You are not in a campaign yet. Enter the <strong>campaign code</strong> your GM shared (starts with <code>CAMP-</code>), or create a character below to get started.</p>
+            {% else %}
+            <p>No campaigns available. Create a campaign or character below to get started.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="redeem-box">
+        <h2>Join a campaign</h2>
+        <form action="{{ url_for('main.campaign_redeem') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <label for="campaign_code">Campaign code</label>
+            <input type="text" id="campaign_code" name="campaign_code" placeholder="CAMP-XXXX-XXXX-XXXX" autocomplete="off" required>
+            <button type="submit">Redeem code</button>
+        </form>
+    </div>
+
+    {% if solo_characters %}
+    <div class="content-container">
+        <h2 class="section-header">Characters (no campaign)</h2>
+        <p class="subtitle" style="margin-bottom: 16px;">Open one of your standalone characters without joining a campaign.</p>
+        <div class="characters-grid">
+            {% for ch in solo_characters %}
+            <div class="character-card-wrap">
+                <a href="{{ url_for('player.character_dashboard', player_id=ch.id) }}" class="character-card">
+                    <h3>{{ ch.name }}</h3>
+                    <div class="character-meta"><strong>System:</strong> {{ ch.system_type }}</div>
+                    {% if ch.level %}<div class="character-meta"><strong>Level:</strong> {{ ch.level }}</div>{% endif %}
+                </a>
+                <form method="POST"
+                      action="{{ url_for('player.delete_character', player_id=ch.id) }}"
+                      class="card-delete-form"
+                      data-confirm-delete="Are you sure you want to delete {{ ch.name|e }}? This permanently removes the character, its sheet, inventory, and equipment.">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="card-delete-btn" aria-label="Delete {{ ch.name|e }}">Delete character</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if current_user.is_authenticated %}
+    <div class="campaign-footer">
+        <a href="{{ url_for('gm.generate_world_form') }}"
+           class="create-campaign-btn"
+           {% if campaign_limit_reached %}
+           data-expansion-interest-trigger
+           data-expansion-interest-source="campaign_selection_create"
+           aria-haspopup="dialog"
+           {% endif %}>Create Campaign</a>
+        <a href="{{ url_for('player.create_character') }}" class="create-character-btn">Create character</a>
+    </div>
+    {% endif %}
+
     {% include 'partials/expansion_interest_modal.html' %}
     {% include 'partials/confirm_delete_script.html' %}
+    <script>
+    (function () {
+        function shouldIgnoreRowClick(target) {
+            return !!target.closest(
+                'a, button, input, textarea, select, form, summary, details, label, [data-stop-row-nav]'
+            );
+        }
+
+        document.querySelectorAll('.campaign-row[data-href]').forEach(function (row) {
+            row.addEventListener('click', function (ev) {
+                if (shouldIgnoreRowClick(ev.target)) return;
+                window.location.href = row.getAttribute('data-href');
+            });
+            row.addEventListener('keydown', function (ev) {
+                if (ev.key !== 'Enter' && ev.key !== ' ') return;
+                if (shouldIgnoreRowClick(ev.target)) return;
+                ev.preventDefault();
+                window.location.href = row.getAttribute('data-href');
+            });
+        });
+
+        function pulse(el) {
+            if (!el) return;
+            el.classList.add('onboarding-pulse');
+            try {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.focus({ preventScroll: true });
+            } catch (e) { /* ignore */ }
+            setTimeout(function () {
+                el.classList.remove('onboarding-pulse');
+            }, 2800);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('onboarding') !== 'players') return;
+            pulse(document.querySelector('.invite-reveal-btn'));
+            setTimeout(function () {
+                pulse(document.querySelector('.gm-ply-redeem-form button[type="submit"]'));
+            }, 3000);
+        });
+    })();
+    </script>
 </body>
 </html>
-

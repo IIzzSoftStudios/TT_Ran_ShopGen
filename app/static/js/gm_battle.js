@@ -31,15 +31,28 @@
         return normalizeSpellAutomation(spell && spell.automation) === SPELL_AUTOMATION_DIRECT_NUMERIC;
     }
 
+    function castableSpells(spells) {
+        return (spells || []).filter(isDirectNumericSpell);
+    }
+
     function spellCastButtonLabel(spell) {
-        return isDirectNumericSpell(spell) ? 'Cast' : 'Log Cast';
+        return 'Cast';
     }
 
     function spellAutomationHint(spell) {
-        if (isDirectNumericSpell(spell)) {
-            return 'Auto-resolves direct damage/healing on one target.';
+        if (spell.area && spell.area.shape && spell.attack_type === 'save' && spell.damage) {
+            return 'Auto-resolves area save and damage on all targets in range.';
         }
-        return 'Manual resolution required — table effects are not auto-applied.';
+        if (spell.attack_type === 'spell_attack' && spell.damage) {
+            return 'Auto-resolves spell attack and damage.';
+        }
+        if (spell.save_ability && spell.damage) {
+            return 'Auto-resolves save and damage.';
+        }
+        if (spell.healing) {
+            return 'Auto-resolves healing.';
+        }
+        return 'Auto-resolves on the target.';
     }
 
     function spellManualMetadataLines(spell) {
@@ -47,15 +60,12 @@
         if (!spell) return lines;
         if (spell.area) {
             lines.push('Area: ' + esc(String(spell.area.shape || 'area')) +
-                ' ' + esc(String(spell.area.size_ft || '?')) + ' ft (display only)');
+                ' ' + esc(String(spell.area.size_ft || '?')) + ' ft');
         }
-        if (spell.ritual) lines.push('Ritual (display only)');
+        if (spell.ritual) lines.push('Ritual');
         if (spell.concentration) lines.push('Concentration');
         if (spell.conditions && spell.conditions.length) {
-            lines.push('Conditions: ' + spell.conditions.map(esc).join(', ') + ' (display only)');
-        }
-        if (spell.summary && !isDirectNumericSpell(spell)) {
-            lines.push(esc(spell.summary));
+            lines.push('Also applies: ' + spell.conditions.map(esc).join(', '));
         }
         return lines;
     }
@@ -285,34 +295,74 @@
         }
     }
 
+    function getFixedPanelRoot(panel) {
+        var node = panel ? panel.parentElement : null;
+        while (node && node !== document.documentElement) {
+            var style = window.getComputedStyle(node);
+            var transform = style.transform || style.webkitTransform;
+            if (transform && transform !== 'none') return node;
+            if (style.filter && style.filter !== 'none') return node;
+            if (style.perspective && style.perspective !== 'none') return node;
+            node = node.parentElement;
+        }
+        return null;
+    }
+
+    function viewportToPanelLocal(panel, viewportLeft, viewportTop) {
+        var root = getFixedPanelRoot(panel);
+        if (!root) return { left: viewportLeft, top: viewportTop };
+        var rootRect = root.getBoundingClientRect();
+        return {
+            left: viewportLeft - rootRect.left,
+            top: viewportTop - rootRect.top
+        };
+    }
+
     function positionBattleRenamePopout(popout, anchor) {
         if (!popout) return;
         var margin = 12;
-        var rect = anchor && anchor.getBoundingClientRect
-            ? anchor.getBoundingClientRect()
-            : null;
+        var root = getFixedPanelRoot(popout);
+        var boundsRect = root ? root.getBoundingClientRect() : {
+            left: margin,
+            top: margin,
+            right: (window.innerWidth || document.documentElement.clientWidth || 0) - margin,
+            bottom: (window.innerHeight || document.documentElement.clientHeight || 0) - margin,
+            width: (window.innerWidth || document.documentElement.clientWidth || 0) - 2 * margin,
+            height: (window.innerHeight || document.documentElement.clientHeight || 0) - 2 * margin
+        };
         var popRect = popout.getBoundingClientRect();
         var width = popRect.width || 320;
-        var height = popRect.height || 120;
-        var viewportW = window.innerWidth || document.documentElement.clientWidth || 0;
-        var viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
-        var left = rect
-            ? rect.left + (rect.width / 2) - (width / 2)
-            : (viewportW - width) / 2;
-        var top = rect
-            ? rect.bottom + margin
-            : (viewportH - height) / 2;
+        var height = popRect.height || 280;
+        var anchorRect = anchor && anchor.getBoundingClientRect
+            ? anchor.getBoundingClientRect()
+            : null;
+        var viewportLeft;
+        var viewportTop;
 
-        if (rect && top + height > viewportH - margin) {
-            top = rect.top - height - margin;
+        if (anchorRect) {
+            viewportLeft = anchorRect.left + (anchorRect.width / 2) - (width / 2);
+            viewportTop = anchorRect.bottom + margin;
+            if (viewportTop + height > boundsRect.bottom - margin) {
+                viewportTop = anchorRect.top - height - margin;
+            }
         }
-        if (!rect || top < margin) {
-            top = Math.max(margin, (viewportH - height) / 2);
+        if (!anchorRect || viewportTop < boundsRect.top + margin ||
+            viewportTop + height > boundsRect.bottom - margin) {
+            viewportLeft = boundsRect.left + (boundsRect.width - width) / 2;
+            viewportTop = boundsRect.top + (boundsRect.height - height) / 2;
         }
-        left = Math.min(Math.max(margin, left), Math.max(margin, viewportW - width - margin));
+        viewportLeft = Math.min(
+            Math.max(boundsRect.left + margin, viewportLeft),
+            boundsRect.right - width - margin
+        );
+        viewportTop = Math.min(
+            Math.max(boundsRect.top + margin, viewportTop),
+            boundsRect.bottom - height - margin
+        );
 
-        popout.style.left = left + 'px';
-        popout.style.top = top + 'px';
+        var local = viewportToPanelLocal(popout, viewportLeft, viewportTop);
+        popout.style.left = local.left + 'px';
+        popout.style.top = local.top + 'px';
         popout.style.transform = 'none';
     }
 
@@ -619,7 +669,9 @@
         updateSetupSourceVisibility();
         popout.hidden = false;
         var anchor = $('battle-create-btn') || $('battle-setup-edit-btn');
-        positionBattleRenamePopout(popout, anchor);
+        requestAnimationFrame(function () {
+            positionBattleRenamePopout(popout, anchor);
+        });
     }
 
     function closeSetupPopout() {
@@ -637,33 +689,56 @@
     function anchorFixedPanel(panel) {
         if (!panel) return;
         var rect = panel.getBoundingClientRect();
+        var local = viewportToPanelLocal(panel, rect.left, rect.top);
         panel.style.transform = 'none';
-        panel.style.left = rect.left + 'px';
-        panel.style.top = rect.top + 'px';
+        panel.style.left = local.left + 'px';
+        panel.style.top = local.top + 'px';
         if (!panel.style.width) panel.style.width = rect.width + 'px';
         if (!panel.style.height) panel.style.height = rect.height + 'px';
     }
 
-    function bindFixedPanelDrag(panel, dragHandle) {
-        if (!panel || !dragHandle || dragHandle.dataset.dragBound) return;
-        dragHandle.dataset.dragBound = '1';
+    function bindFixedPanelDrag(panel, dragHandle, options) {
+        if (!panel || panel.dataset.moveBound) return;
+        panel.dataset.moveBound = '1';
+        options = options || {};
+        var edgePx = options.edgePx || 10;
+        var edgeDrag = !!options.edgeDrag;
         var drag = null;
-        dragHandle.addEventListener('pointerdown', function (ev) {
+        var blockSel = 'button, input, select, summary, textarea, a, label, ' +
+            '.battle-floating-resize-handle, .battle-floating-popout-close, .battle-encounter-window-close';
+
+        panel.addEventListener('pointerdown', function (ev) {
             if (ev.button !== 0) return;
-            if (ev.target.closest('button, input, select, summary, a, label')) return;
+            var startDrag = false;
+            if (dragHandle && dragHandle.contains(ev.target) &&
+                !ev.target.closest(blockSel)) {
+                startDrag = true;
+            } else if (edgeDrag) {
+                var rect = panel.getBoundingClientRect();
+                var x = ev.clientX - rect.left;
+                var y = ev.clientY - rect.top;
+                var onEdge = x <= edgePx || y <= edgePx ||
+                    x >= rect.width - edgePx || y >= rect.height - edgePx;
+                if (onEdge && !ev.target.closest(blockSel) &&
+                    !ev.target.closest('.battle-encounter-window-body')) {
+                    startDrag = true;
+                }
+            }
+            if (!startDrag) return;
             anchorFixedPanel(panel);
-            var rect = panel.getBoundingClientRect();
+            var anchored = panel.getBoundingClientRect();
+            var local = viewportToPanelLocal(panel, anchored.left, anchored.top);
             drag = {
                 pointerId: ev.pointerId,
                 startX: ev.clientX,
                 startY: ev.clientY,
-                left: rect.left,
-                top: rect.top
+                left: local.left,
+                top: local.top
             };
-            try { dragHandle.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+            try { panel.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
             ev.preventDefault();
         });
-        dragHandle.addEventListener('pointermove', function (ev) {
+        panel.addEventListener('pointermove', function (ev) {
             if (!drag || drag.pointerId !== ev.pointerId) return;
             panel.style.left = (drag.left + ev.clientX - drag.startX) + 'px';
             panel.style.top = (drag.top + ev.clientY - drag.startY) + 'px';
@@ -671,10 +746,10 @@
         function endDrag(ev) {
             if (!drag || (ev && drag.pointerId !== ev.pointerId)) return;
             drag = null;
-            try { dragHandle.releasePointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+            try { panel.releasePointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
         }
-        dragHandle.addEventListener('pointerup', endDrag);
-        dragHandle.addEventListener('pointercancel', endDrag);
+        panel.addEventListener('pointerup', endDrag);
+        panel.addEventListener('pointercancel', endDrag);
     }
 
     function bindFixedPanelResize(panel, resizeHandle, minWidth, minHeight, onResize) {
@@ -827,7 +902,7 @@
                 closeEncounterWindow();
             });
         }
-        bindFixedPanelDrag(win, drag);
+        bindFixedPanelDrag(win, drag, { edgeDrag: true });
         bindFixedPanelResize(win, resizeHandle, 520, 400, function () {
             scheduleVirtualRender();
         });
@@ -841,11 +916,13 @@
         var resizeHandle = $('battle-setup-popout-resize');
         if (closeBtn && !closeBtn.dataset.bound) {
             closeBtn.dataset.bound = '1';
-            closeBtn.addEventListener('click', function () {
+            closeBtn.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
                 closeSetupPopout();
             });
         }
-        bindFixedPanelDrag(popout, drag);
+        bindFixedPanelDrag(popout, drag, { edgeDrag: true });
         bindFixedPanelResize(popout, resizeHandle, 320, 280);
     }
 
@@ -1303,9 +1380,116 @@
         if (!state.data) return;
         (state.data.log || []).forEach(function (entry) {
             var li = document.createElement('li');
-            li.textContent = describeLog(entry);
+            var text = describeLog(entry);
+            if (text.indexOf('\n') >= 0) {
+                li.style.whiteSpace = 'pre-wrap';
+            }
+            li.textContent = text;
             list.appendChild(li);
         });
+    }
+
+    function formatToHitRoll(toHit) {
+        if (!toHit) return '';
+        var kept = toHit.natural;
+        var parts = [];
+        if (toHit.rolls && toHit.rolls.length > 1) {
+            parts.push('attack d20 [' + toHit.rolls.join(', ') + '] → kept ' + kept);
+        } else {
+            parts.push('attack d20 ' + kept);
+        }
+        if (toHit.lucky_reroll) {
+            parts.push('Lucky reroll');
+        }
+        if (toHit.mode && toHit.mode !== 'normal') {
+            parts.push(toHit.mode);
+        }
+        var line = parts.join(', ') + ' → total ' + toHit.total;
+        if (toHit.target_ac != null) {
+            line += ' vs AC ' + toHit.target_ac;
+        }
+        if (toHit.crit || toHit.is_nat20) {
+            line += ' — CRIT';
+        } else if (toHit.is_nat1) {
+            line += ' — natural 1';
+        } else if (toHit.hit) {
+            line += ' — hit';
+        } else {
+            line += ' — miss';
+        }
+        return line;
+    }
+
+    function formatDamageRoll(damageRoll) {
+        if (!damageRoll) return '';
+        var dice = (damageRoll.rolls || []).join(' + ');
+        var mod = Number(damageRoll.modifier || 0);
+        var line = 'damage';
+        if (damageRoll.notation) {
+            line += ' ' + damageRoll.notation;
+        }
+        line += ':';
+        if (dice) {
+            line += ' [' + dice + ']';
+        }
+        if (mod) {
+            line += (mod > 0 ? ' + ' : ' ') + mod;
+        }
+        line += ' = ' + damageRoll.total;
+        if (damageRoll.crit) {
+            line += ' (crit)';
+        }
+        if (damageRoll.damage_modifiers && damageRoll.damage_modifiers.applied &&
+                damageRoll.damage_modifiers.applied.length) {
+            line += ' (' + damageRoll.damage_modifiers.applied.join(', ') + ')';
+        }
+        return line;
+    }
+
+    function formatSaveRoll(save) {
+        if (!save) return '';
+        var line = 'save d20 ' + save.natural + ' → total ' + save.total;
+        if (save.dc != null) {
+            line += ' vs DC ' + save.dc;
+        }
+        line += save.success ? ' — saved' : ' — failed';
+        return line;
+    }
+
+    function formatHealingRoll(healingRoll) {
+        if (!healingRoll) return '';
+        var dice = (healingRoll.rolls || []).join(' + ');
+        var mod = Number(healingRoll.modifier || 0);
+        var line = 'healing';
+        if (healingRoll.notation) {
+            line += ' ' + healingRoll.notation;
+        }
+        line += ':';
+        if (dice) {
+            line += ' [' + dice + ']';
+        }
+        if (mod) {
+            line += (mod > 0 ? ' + ' : ' ') + mod;
+        }
+        return line + ' = ' + healingRoll.total;
+    }
+
+    function describeAttackPayload(p, who, targetName) {
+        var tn = targetName || 'target';
+        var label = who;
+        if (p.attack && p.attack.name) {
+            label += ' — ' + p.attack.name;
+        } else if (p.legendary_action && p.legendary_action.name) {
+            label += ' — ' + p.legendary_action.name;
+        }
+        var parts = [label + ' → ' + tn];
+        if (p.to_hit) {
+            parts.push(formatToHitRoll(p.to_hit));
+        }
+        if (p.hit && p.damage_roll) {
+            parts.push(formatDamageRoll(p.damage_roll));
+        }
+        return parts.join(' · ');
     }
 
     function describeLog(entry) {
@@ -1322,15 +1506,56 @@
             case 'attack': {
                 var target = p.target_id ? combatantById(p.target_id) : null;
                 var tn = target ? target.name : 'target';
-                if (!p.hit) return who + ' missed ' + tn + '.';
-                var dmg = p.damage_roll ? (' for ' + p.damage_roll.total + ' damage') : '';
-                return who + (p.crit ? ' CRIT ' : ' hit ') + tn + dmg + '.';
+                return describeAttackPayload(p, who, tn);
             }
-            case 'batch_attack': return who + ' led a group attack.';
+            case 'multiattack': {
+                var maTarget = p.target_id ? combatantById(p.target_id) : null;
+                var maName = maTarget ? maTarget.name : 'target';
+                var maLabel = (p.multiattack && p.multiattack.name) || 'Multiattack';
+                var maResults = p.results || [];
+                if (!maResults.length) {
+                    return who + ' used ' + maLabel + ' on ' + maName + '.';
+                }
+                return maLabel + ' → ' + maName + ':\n' + maResults.map(function (r) {
+                    if (r.skipped) {
+                        var atkName = r.attack && r.attack.name ? r.attack.name + ': ' : '';
+                        return atkName + r.skipped;
+                    }
+                    return describeAttackPayload(r, who, maName);
+                }).join('\n');
+            }
+            case 'batch_attack': {
+                var results = p.results || [];
+                if (!results.length) {
+                    return who + ' led a group attack.';
+                }
+                var batchTarget = p.target_id ? combatantById(p.target_id) : null;
+                var batchTargetName = batchTarget ? batchTarget.name : 'target';
+                return results.map(function (r) {
+                    if (r.skipped) {
+                        var skippedWho = combatantById(r.attacker_id);
+                        return (skippedWho ? skippedWho.name : who) + ': ' + r.skipped;
+                    }
+                    var attacker = combatantById(r.attacker_id);
+                    return describeAttackPayload(
+                        r,
+                        attacker ? attacker.name : who,
+                        batchTargetName
+                    );
+                }).join('\n');
+            }
             case 'wait': return who + ' waits (drops to bottom of round).';
             case 'disengage': return who + ' disengaged.';
-            case 'legendary_action': return who + ' used a legendary action.';
-            case 'opportunity_attack': return who + ' made an opportunity attack.';
+            case 'legendary_action': {
+                var laTarget = p.target_id ? combatantById(p.target_id) : null;
+                var laName = laTarget ? laTarget.name : 'target';
+                return describeAttackPayload(p, who, laName);
+            }
+            case 'opportunity_attack': {
+                var oaTarget = p.target_id ? combatantById(p.target_id) : null;
+                var oaName = oaTarget ? oaTarget.name : 'target';
+                return describeAttackPayload(p, who + ' (opportunity attack)', oaName);
+            }
             case 'turn_ended': return 'R' + (p.round || '?') + ': next turn.';
             case 'death_save': return who + ' rolled a death save.';
             case 'cast_spell': {
@@ -1341,13 +1566,20 @@
                 if (p.manual_resolution) {
                     return who + ' logged ' + label + ' at ' + tn + ' (manual resolution).';
                 }
+                var parts = [who + ' cast ' + label + ' → ' + tn];
+                if (p.to_hit) {
+                    parts.push(formatToHitRoll(p.to_hit));
+                }
+                if (p.save) {
+                    parts.push(formatSaveRoll(p.save));
+                }
                 if (p.damage_roll) {
-                    return who + ' cast ' + label + ' at ' + tn + ' for ' + p.damage_roll.total + ' damage.';
+                    parts.push(formatDamageRoll(p.damage_roll));
                 }
                 if (p.healing_roll) {
-                    return who + ' cast ' + label + ' on ' + tn + ' for ' + p.healing_roll.total + ' healing.';
+                    parts.push(formatHealingRoll(p.healing_roll));
                 }
-                return who + ' cast ' + label + ' at ' + tn + '.';
+                return parts.join(' · ');
             }
             case 'concentration_start': {
                 var started = (p.spell && p.spell.name) || 'a spell';
@@ -1422,6 +1654,10 @@
             openCastPopout(combatantById(state.actorId), c, ev.currentTarget);
             return;
         }
+        if (!IS_GM && state.mode === 'idle' && c.side === 'foe' && c.compendium_entry_id) {
+            openPlayerMonsterInspectPopout(c, ev.currentTarget);
+            return;
+        }
         if (state.mode !== 'idle') { exitMode(); return; }
         if (!canAct(c)) {
             feedback(isCurrentTurn(c) ? 'You cannot control this combatant.'
@@ -1447,7 +1683,7 @@
         $('battle-radial-attack').hidden = isDown;
         var castBtn = $('battle-radial-cast');
         if (castBtn) {
-            castBtn.hidden = isDown || !(c.spells && c.spells.length);
+            castBtn.hidden = isDown || !castableSpells(c.spells).length;
         }
         $('battle-radial-wait').hidden = isDown;
         $('battle-radial-wait').disabled = !!c.has_waited;
@@ -1532,13 +1768,121 @@
         if (pop) pop.hidden = true;
     }
 
+    function closePlayerMonsterInspectPopout() {
+        var pop = $('battle-monster-inspect-popout');
+        if (pop) pop.hidden = true;
+    }
+
+    function playerMonsterApiUrl(configKey, entryId) {
+        var tpl = cfg[configKey] || '';
+        return String(tpl).replace('999999999', encodeURIComponent(entryId));
+    }
+
+    async function discoverMonsterFromEncounter(entryId, pop) {
+        var url = cfg.playerMonsterDiscoverUrl || '/player/monsters/discover';
+        try {
+            var resp = await fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRFToken': cfg.csrfToken || ''
+                },
+                body: JSON.stringify({ monster_entry_id: entryId })
+            });
+            var data = await resp.json();
+            if (!resp.ok) {
+                throw new Error((data && data.error) || 'Could not add monster.');
+            }
+            feedback('Added to your bestiary.');
+            if (pop) {
+                var addBtn = pop.querySelector('#battle-monster-inspect-journal');
+                var openBtn = pop.querySelector('#battle-monster-inspect-open');
+                if (addBtn) addBtn.hidden = true;
+                if (openBtn) openBtn.hidden = false;
+            }
+            if (typeof window.refreshPlayerMonsterList === 'function') {
+                window.refreshPlayerMonsterList();
+            }
+        } catch (err) {
+            feedback(err.message, true);
+        }
+    }
+
+    function openPlayerMonsterInspectPopout(combatant, tokenEl) {
+        var stage = $('battle-stage');
+        if (!stage || !combatant || !combatant.compendium_entry_id) return;
+        closePlayerMonsterInspectPopout();
+        closeAttackPopout();
+        closeCastPopout();
+        var pop = $('battle-monster-inspect-popout');
+        if (!pop) {
+            pop = document.createElement('div');
+            pop.id = 'battle-monster-inspect-popout';
+            pop.className = 'battle-attack-popout battle-monster-inspect-popout';
+            stage.appendChild(pop);
+        }
+        var entryId = combatant.compendium_entry_id;
+        var health = combatant.health_state || 'unknown';
+        pop.innerHTML =
+            '<h4>' + esc(combatant.name) + '</h4>' +
+            '<p class="battle-monster-inspect-health">Observed condition: ' + esc(health) + '</p>' +
+            '<p class="battle-monster-inspect-hint">Add this creature to your bestiary and record what you learn. GM stat blocks are never shown here.</p>' +
+            '<div class="battle-monster-inspect-actions">' +
+            '<button type="button" class="button" id="battle-monster-inspect-journal">Add to bestiary</button>' +
+            '<button type="button" class="button" id="battle-monster-inspect-open" hidden>Open bestiary</button>' +
+            '<button type="button" class="button" id="battle-monster-inspect-close">Close</button>' +
+            '</div>';
+        pop.hidden = false;
+        pop.addEventListener('click', function (e) { e.stopPropagation(); });
+        pop.querySelector('#battle-monster-inspect-close').addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closePlayerMonsterInspectPopout();
+        });
+        pop.querySelector('#battle-monster-inspect-journal').addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            discoverMonsterFromEncounter(entryId, pop);
+        });
+        pop.querySelector('#battle-monster-inspect-open').addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closePlayerMonsterInspectPopout();
+            if (typeof window.openPlayerMonsterDetail === 'function') {
+                window.openPlayerMonsterDetail(entryId, combatant.name);
+            }
+        });
+        var sRect = stage.getBoundingClientRect();
+        var tRect = tokenEl.getBoundingClientRect();
+        var anchorX = tRect.left - sRect.left + TILE / 2;
+        var anchorY = tRect.top - sRect.top + TILE / 2;
+        positionPopoutWithinStage(pop, stage, anchorX, anchorY, { preferBelow: true });
+
+        fetch(playerMonsterApiUrl('playerMonsterProfileUrl', entryId), {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' }
+        }).then(function (resp) {
+            return resp.json().then(function (data) {
+                return { ok: resp.ok, data: data };
+            });
+        }).then(function (result) {
+            if (!result.ok || !result.data || !result.data.monster) return;
+            var addBtn = pop.querySelector('#battle-monster-inspect-journal');
+            var openBtn = pop.querySelector('#battle-monster-inspect-open');
+            if (addBtn) addBtn.hidden = true;
+            if (openBtn) openBtn.hidden = false;
+        }).catch(function () {});
+    }
+
     function openCastPopout(caster, target, targetEl) {
         var pop = $('battle-cast-popout');
         if (!pop || !caster || !target) return;
         hideRadialMenu();
         clearTargetingModes();
 
-        var spells = caster.spells || [];
+        var spells = castableSpells(caster.spells || []);
         var slots = caster.spell_slots || {};
         var html = '<h4>' + esc(caster.name) + ' &rarr; ' + esc(target.name) + '</h4>';
         if (Object.keys(slots).length) {
@@ -1548,14 +1892,16 @@
             }).join(', ') + '</p>';
         }
         if (!spells.length) {
-            html += '<p>No spells available.</p>';
+            html += '<p>No castable spells with automated resolution for this combatant.</p>';
         }
         spells.forEach(function (spell) {
             var lvl = spell.level == null ? 0 : spell.level;
+            var bucket = spell.spell_bucket || (lvl === 0 ? 'cantrip' : 'prepared');
+            var bucketLabel = bucket === 'cantrip' ? 'Cantrip' : (bucket === 'known' ? 'Known' : 'Prepared');
             var meta = spellManualMetadataLines(spell);
             html += '<div class="battle-attack-row battle-cast-row">' +
                 '<div class="battle-cast-spell-head">' +
-                '<span>' + esc(spell.name) + ' (L' + esc(lvl) + ', ' + esc(spell.range_ft || 0) + ' ft)</span>' +
+                '<span>' + esc(spell.name) + ' (' + esc(bucketLabel) + ', L' + esc(lvl) + ', ' + esc(spell.range_ft || 0) + ' ft)</span>' +
                 '<span class="battle-cast-mode">' + esc(spellAutomationHint(spell)) + '</span>' +
                 (meta.length ? ('<ul class="battle-cast-meta">' +
                     meta.map(function (line) { return '<li>' + line + '</li>'; }).join('') +
@@ -1598,9 +1944,6 @@
         var box = $('battle-cast-results');
         if (!box) return;
         var html = '';
-        if (result.manual_resolution) {
-            html += '<div>Manual resolution required — effects were logged, not auto-applied.</div>';
-        }
         if (result.concentration && result.concentration.spell_name) {
             html += '<div>Concentration: ' + esc(result.concentration.spell_name) + '</div>';
         }
@@ -1617,6 +1960,28 @@
         }
         if (result.damage_roll) {
             html += '<div>Damage: ' + esc(result.damage_roll.total) + '</div>';
+            if (result.damage_roll.damage_modifiers && result.damage_roll.damage_modifiers.applied &&
+                result.damage_roll.damage_modifiers.applied.length) {
+                html += '<div>Modifiers: ' + esc(result.damage_roll.damage_modifiers.applied.join(', ')) + '</div>';
+            }
+        }
+        if (result.area_targets && result.area_targets.length) {
+            html += '<div class="battle-area-results"><strong>Area targets</strong><ul>';
+            result.area_targets.forEach(function (row) {
+                html += '<li>' + esc(row.target_name || row.target_id) + ': ';
+                if (row.save) {
+                    html += 'save ' + esc(row.save.total) + (row.save.success ? ' (saved)' : ' (failed)') + '; ';
+                }
+                if (row.damage_roll) {
+                    html += 'damage ' + esc(row.damage_roll.total);
+                    if (row.damage_roll.damage_modifiers && row.damage_roll.damage_modifiers.applied &&
+                        row.damage_roll.damage_modifiers.applied.length) {
+                        html += ' [' + esc(row.damage_roll.damage_modifiers.applied.join(', ')) + ']';
+                    }
+                }
+                html += '</li>';
+            });
+            html += '</ul></div>';
         }
         if (result.healing_roll) {
             html += '<div>Healing: ' + esc(result.healing_roll.total) + '</div>';
@@ -1631,16 +1996,59 @@
         clearTargetingModes();
 
         var attacks = attacker.attacks || [];
+        var multiattacks = attacker.multiattacks || [];
         var html = '<h4>' + esc(attacker.name) + ' &rarr; ' + esc(target.name) + '</h4>';
-        if (!attacks.length) {
+
+        if (multiattacks.length) {
+            html += '<div class="battle-multiattack-block">';
+            multiattacks.forEach(function (ma) {
+                var swingCount = ma.swing_count || (ma.attack_keys || []).length;
+                var label = esc(ma.name || 'Multiattack');
+                if (swingCount > 1) {
+                    label += ' (' + esc(String(swingCount)) + ' attacks)';
+                }
+                if (ma.uses_primary_attack) {
+                    html += '<p class="battle-multiattack-hint">Choose a weapon below, then roll Attack.</p>';
+                }
+                html += '<div class="battle-attack-row battle-multiattack-row">' +
+                    '<span>' + label + '</span>';
+                if (ma.uses_primary_attack) {
+                    html += '<span class="battle-multiattack-note">Uses selected weapon</span>';
+                }
+                html += '<button type="button" class="button battle-multiattack-roll-btn" ' +
+                    'data-multiattack-key="' + esc(ma.key) + '"' +
+                    (ma.uses_primary_attack ? ' data-uses-primary="1"' : '') +
+                    '>Roll</button></div>';
+            });
+            html += '</div>';
+        }
+
+        if (attacker.action_surge && attacker.action_surge_additional_actions > 0) {
+            html += '<p class="battle-class-ability-hint">Action Surge: take ' +
+                esc(String(attacker.action_surge_additional_actions)) +
+                ' additional action' + (attacker.action_surge_additional_actions === 1 ? '' : 's') +
+                ' this turn (track uses in class resources).</p>';
+        }
+
+        if (!attacks.length && !multiattacks.length) {
             html += '<p>No attacks available.</p>';
         }
-        attacks.forEach(function (atk, i) {
-            html += '<div class="battle-attack-row">' +
+        attacks.forEach(function (atk, atkIndex) {
+            var isPrimaryChoice = multiattacks.some(function (ma) { return ma.uses_primary_attack; });
+            html += '<div class="battle-attack-row' +
+                (isPrimaryChoice ? ' battle-primary-weapon-row' : '') + '">' +
                 '<span>' + esc(atk.name) + ' (+' + esc(atk.attack_mod) + ', ' +
-                esc(atk.damage) + ', ' + esc(atk.range_ft) + ' ft)</span>' +
-                '<button type="button" class="button battle-attack-roll-btn" data-attack-key="' +
-                esc(atk.key) + '">Roll</button></div>';
+                esc(atk.damage) + ', ' + esc(atk.range_ft) + ' ft)</span>';
+            if (!multiattacks.length) {
+                html += '<button type="button" class="button battle-attack-roll-btn" data-attack-key="' +
+                    esc(atk.key) + '">Roll</button>';
+            } else if (isPrimaryChoice) {
+                html += '<label class="battle-primary-weapon-choice">' +
+                    '<input type="radio" name="battle-primary-weapon" class="battle-primary-weapon-radio" ' +
+                    'value="' + esc(atk.key) + '"' +
+                    (atkIndex === 0 ? ' checked' : '') + '> Use</label>';
+            }
+            html += '</div>';
         });
 
         // GM batch roll: other active GM-controlled foes join the same roll.
@@ -1712,6 +2120,26 @@
                 if (out) showAttackResults(out.result);
             });
         });
+        pop.querySelectorAll('.battle-multiattack-roll-btn').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var payload = {
+                    type: 'multiattack',
+                    combatant_id: attacker.id,
+                    target_id: target.id,
+                    multiattack_key: btn.dataset.multiattackKey
+                };
+                if (btn.dataset.usesPrimary === '1') {
+                    var selected = pop.querySelector('.battle-primary-weapon-radio:checked');
+                    if (!selected) {
+                        alert('Choose a weapon for Attack.');
+                        return;
+                    }
+                    payload.primary_attack_key = selected.value;
+                }
+                var out = await mutate('/encounters/' + state.encounterId + '/action', payload);
+                if (out) showAttackResults(out.result);
+            });
+        });
         pop.querySelectorAll('.battle-legendary-roll-btn').forEach(function (btn) {
             btn.addEventListener('click', async function () {
                 var out = await mutate('/encounters/' + state.encounterId + '/action', {
@@ -1728,12 +2156,18 @@
     function showAttackResults(result) {
         var box = $('battle-attack-results');
         if (!box) return;
-        var rows = Array.isArray(result) ? result : [result];
+        var rows = [];
+        if (result && result.results && result.multiattack) {
+            rows = result.results;
+        } else {
+            rows = Array.isArray(result) ? result : [result];
+        }
         box.innerHTML = rows.map(function (r) {
             if (r.skipped) return '<div>' + esc(r.skipped) + '</div>';
             var who = combatantById(r.attacker_id || r.reactor_id);
             if (!r.to_hit) return '<div>' + esc(JSON.stringify(r)) + '</div>';
-            var line = (who ? who.name : 'Attacker') + ': d20 &rarr; ' +
+            var attackLabel = r.attack && r.attack.name ? r.attack.name + ': ' : '';
+            var line = attackLabel + (who ? who.name : 'Attacker') + ': d20 &rarr; ' +
                 r.to_hit.natural + ' (total ' + r.to_hit.total + ') - ' +
                 (r.crit ? 'CRIT!' : (r.hit ? 'HIT' : 'MISS'));
             if (r.hit && r.damage_roll) {
@@ -1996,6 +2430,8 @@
         $('battle-monster-edit-id').value = monster.id;
         $('battle-monster-edit-name').value = monster.name || '';
         $('battle-monster-edit-cr').value = monster.challenge_rating == null ? '' : monster.challenge_rating;
+        var knownEl = $('battle-monster-edit-known');
+        if (knownEl) knownEl.checked = !!monster.known_to_players;
         $('battle-monster-edit-hp').value = stats.hp_max == null ? 10 : stats.hp_max;
         $('battle-monster-edit-ac').value = stats.ac == null ? 10 : stats.ac;
         $('battle-monster-edit-speed').value = stats.speed_ft == null ? 30 : stats.speed_ft;
@@ -2005,20 +2441,30 @@
         });
         renderAttackEditRows(stats.attacks || []);
         renderLegendaryEditRows(stats.legendary_actions || []);
-        var setVal = function (id, val) { var el = $(id); if (el) el.value = val == null ? '' : val; };
-        setVal('battle-monster-edit-resist', stats.damage_resistances);
-        setVal('battle-monster-edit-immune', stats.damage_immunities);
-        setVal('battle-monster-edit-vuln', stats.damage_vulnerabilities);
-        setVal('battle-monster-edit-cond-immune', stats.condition_immunities);
-        setVal('battle-monster-edit-saves', stats.saving_throws);
-        setVal('battle-monster-edit-senses', stats.senses);
-        setVal('battle-monster-edit-trait-keys', (stats.trait_keys || []).join(', '));
-        if (window.gmCompendiumDetail) {
-            window.gmCompendiumDetail.open('monsters-pane-content', 'Edit ' + (monster.name || 'monster'));
-        } else {
-            pop.hidden = false;
-            pop.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+        function revealMonsterEditor() {
+            if (window.gmCompendiumDetail) {
+                window.gmCompendiumDetail.open('monsters-pane-content', 'Edit ' + (monster.name || 'monster'));
+            } else {
+                pop.hidden = false;
+                pop.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
         }
+
+        var pickers = window.gmTraitPickers;
+        if (pickers) {
+            pickers.initMonsterDefensePickers();
+            pickers.loadCombatEffectsIntoForm(
+                pickers.combatEffectsFormConfig('battle-monster-edit-', { includeFlags: false }),
+                pickers.monsterEffectsFromStats(stats)
+            );
+            pickers.refreshAttachedTraitPicker(
+                'battle-monster-edit-trait-keys-picker',
+                stats.trait_keys || []
+            ).then(revealMonsterEditor);
+            return;
+        }
+        revealMonsterEditor();
     }
 
     function closeMonsterEditor() {
@@ -2035,9 +2481,18 @@
         var entryId = parseInt($('battle-monster-edit-id').value, 10);
         if (isNaN(entryId)) return;
         var crRaw = $('battle-monster-edit-cr').value;
+        var pickers = window.gmTraitPickers;
+        var defenseEffects = pickers
+            ? pickers.combatEffectsFromForm(
+                pickers.combatEffectsFormConfig('battle-monster-edit-', { includeFlags: false })
+            )
+            : {};
         var payload = {
             name: $('battle-monster-edit-name').value.trim(),
             challenge_rating: crRaw === '' ? null : parseFloat(crRaw),
+            known_to_players: $('battle-monster-edit-known')
+                ? $('battle-monster-edit-known').checked
+                : false,
             stats: {
                 hp_max: parseInt($('battle-monster-edit-hp').value, 10),
                 ac: parseInt($('battle-monster-edit-ac').value, 10),
@@ -2052,13 +2507,27 @@
                 },
                 attacks: collectAttackEditRows(),
                 legendary_actions: collectLegendaryEditRows(),
-                damage_resistances: ($('battle-monster-edit-resist') || {}).value || '',
-                damage_immunities: ($('battle-monster-edit-immune') || {}).value || '',
-                damage_vulnerabilities: ($('battle-monster-edit-vuln') || {}).value || '',
-                condition_immunities: ($('battle-monster-edit-cond-immune') || {}).value || '',
-                saving_throws: ($('battle-monster-edit-saves') || {}).value || '',
-                senses: ($('battle-monster-edit-senses') || {}).value || '',
-                trait_keys: ($('battle-monster-edit-trait-keys') || {}).value || ''
+                damage_resistances: pickers
+                    ? pickers.formatTagList(defenseEffects.damage_resistances)
+                    : '',
+                damage_immunities: pickers
+                    ? pickers.formatTagList(defenseEffects.damage_immunities)
+                    : '',
+                damage_vulnerabilities: pickers
+                    ? pickers.formatTagList(defenseEffects.damage_vulnerabilities)
+                    : '',
+                condition_immunities: pickers
+                    ? pickers.formatTagList(defenseEffects.condition_immunities)
+                    : '',
+                saving_throws: pickers
+                    ? pickers.formatMonsterSaveBonuses(defenseEffects.save_bonuses)
+                    : '',
+                senses: pickers
+                    ? pickers.formatDarkvisionSenses(defenseEffects.darkvision_ft)
+                    : '',
+                trait_keys: pickers
+                    ? pickers.readTraitSearchPicker('battle-monster-edit-trait-keys-picker')
+                    : []
             }
         };
         try {
@@ -2275,6 +2744,12 @@
         document.addEventListener('keydown', onStageKeyPan);
         document.addEventListener('keydown', function (ev) {
             if (ev.key === 'Escape') {
+                var setupPopout = $('battle-setup-popout');
+                if (setupPopout && !setupPopout.hidden) {
+                    closeSetupPopout();
+                    ev.preventDefault();
+                    return;
+                }
                 if (IS_GM && $('battle-encounter-window') &&
                     !$('battle-encounter-window').hidden && !state.mode && !state.placement) {
                     closeEncounterWindow();
@@ -2289,6 +2764,10 @@
         });
         bindEncounterWindowChrome();
         bindSetupPopoutChrome();
+        if (IS_GM) {
+            bindFixedPanelDrag($('battle-rename-popout'), null, { edgeDrag: true });
+            bindFixedPanelDrag($('battle-delete-popout'), null, { edgeDrag: true });
+        }
 
         var createBtn = $('battle-create-btn');
         if (createBtn) {

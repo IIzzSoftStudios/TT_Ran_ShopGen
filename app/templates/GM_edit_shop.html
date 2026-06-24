@@ -78,6 +78,36 @@
             box-sizing: border-box;
         }
 
+        .owner-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .owner-name {
+            font-size: 1.05rem;
+            font-weight: 650;
+            color: var(--color-text, #111827);
+            background: var(--color-surface-muted, #f3f4f6);
+            border: 1px solid var(--color-border, #d1d5db);
+            border-radius: 6px;
+            padding: 0.45rem 0.65rem;
+            line-height: 1.35;
+            cursor: help;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        html.dark-mode .owner-name {
+            color: var(--color-text, #f3f4f6);
+            background: var(--color-surface-muted, #1f2937);
+            border-color: var(--color-border, #374151);
+        }
+
         .city-selector-container {
             width: 100%;
             margin-bottom: 15px;
@@ -227,20 +257,22 @@
         </div>
 
         <h2 style="font-size:1.1rem;margin:1rem 0 0.5rem;">Owner</h2>
-        <p style="font-size:12px;color:#555;margin:0 0 10px;">
-            {% if shop.owner_player_id %}
-                {{ owner_name or ('NPC #' ~ shop.owner_player_id) }}
-            {% else %}
-                No owner assigned
-            {% endif %}
-        </p>
-        <p style="margin:0 0 10px;">
-            {% if shop.owner_player_id and owner_edit_url %}
-            <a href="{{ owner_edit_url }}" class="button" style="display:inline-block;text-decoration:none;">Edit owner</a>
-            {% elif add_owner_url %}
-            <a href="{{ add_owner_url }}" class="button" style="display:inline-block;text-decoration:none;">Add owner</a>
-            {% endif %}
-        </p>
+        <div class="owner-row">
+            <span class="owner-name"{% if owner_details and owner_details.tooltip %} title="{{ owner_details.tooltip }}"{% endif %}>
+                {% if shop.owner_player_id %}
+                    {{ owner_name or ('NPC #' ~ shop.owner_player_id) }}
+                {% else %}
+                    <span style="font-size:12px;color:#555;font-weight:normal;">No owner assigned</span>
+                {% endif %}
+            </span>
+            <span>
+                {% if shop.owner_player_id %}
+                <a href="{{ owner_edit_url }}" class="button" style="display:inline-block;text-decoration:none;">Edit owner</a>
+                {% elif add_owner_url %}
+                <a href="{{ add_owner_url }}" class="button" style="display:inline-block;text-decoration:none;">Add owner</a>
+                {% endif %}
+            </span>
+        </div>
         {% if shop.owner_player_id %}
         <label style="font-weight:normal;display:flex;align-items:center;gap:8px;margin-bottom:15px;">
             <input type="checkbox" name="clear_owner" value="1">

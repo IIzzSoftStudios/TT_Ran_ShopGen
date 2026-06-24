@@ -59,6 +59,13 @@ from app.services.player_npc_service import (
     get_player_npc_notes,
     save_player_npc_notes,
 )
+from app.services.player_monster_service import (
+    add_monster_to_journal,
+    build_known_monster_entries,
+    build_monster_journal_profile,
+    entry_for_player_view,
+    save_player_monster_journal,
+)
 
 player_bp = Blueprint("player", __name__)
 
@@ -139,6 +146,20 @@ def _equipment_slot_views_for_player(player):
     ]
 
 
+def _pop_level_up_summary(player_id: int):
+    raw = session.pop("level_up_summary", None)
+    if isinstance(raw, dict) and raw.get("player_id") == player_id:
+        return raw
+    return None
+
+
+def _wants_json_response() -> bool:
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    best = request.accept_mimetypes.best_match(["application/json", "text/html"])
+    return best == "application/json"
+
+
 def _render_solo_character_dashboard(player):
     character_ctx = character_sheet_service.build_character_view(
         player,
@@ -167,6 +188,9 @@ def _render_solo_character_dashboard(player):
         city_browse=[],
         region_labels=[],
         campaign_regions=[],
+        player_market_item_catalog={},
+        level_up_summary=_pop_level_up_summary(player.id),
+        character_sheet_url=url_for("player.view_character_id", player_id=player.id),
     )
 
 
@@ -191,6 +215,8 @@ _CHARACTER_VAULT_ENDPOINTS = frozenset(
         "player.character_data_id",
         "player.reveal_character_join_code",
         "player.update_character",
+        "player.level_up_character",
+        "player.level_down_character",
         "player.delete_character",
     }
 )
@@ -557,10 +583,7 @@ def player_home():
             ShopInventory.inventory_id,
             ShopInventory.dynamic_price,
             ShopInventory.stock,
-            Item.item_id,
-            Item.name,
-            Item.type,
-            Item.rarity,
+            Item,
         )
         .join(Item, Item.item_id == ShopInventory.item_id)
         .join(Shop, Shop.shop_id == ShopInventory.shop_id)
@@ -569,16 +592,17 @@ def player_home():
         .all()
     )
 
+    from app.services.equipment.item_rules import player_item_tooltip_payload
+
     items_by_shop: dict[int, list[dict]] = {}
+    player_market_item_catalog: dict[str, dict] = {}
     for row in inv_rows:
         shop_id = row[0]
         inv_id = row[1]
         dyn_price = row[2]
         raw_stock = row[3]
-        it_id = row[4]
-        it_name = row[5]
-        it_type = row[6]
-        it_rarity = row[7]
+        item = row[4]
+        it_id = item.item_id
         if READ_PRICES_FROM_WORLD_STATE:
             price = get_effective_price(
                 campaign_id, inv_id, float(dyn_price or 0)
@@ -589,11 +613,13 @@ def player_home():
         else:
             price = float(dyn_price or 0)
             eff_stock = int(raw_stock or 0)
+        tooltip = player_item_tooltip_payload(item)
+        player_market_item_catalog[str(it_id)] = tooltip
         items_by_shop.setdefault(shop_id, []).append({
             "item_id": it_id,
-            "name": it_name,
-            "type": it_type,
-            "rarity": it_rarity,
+            "name": item.name,
+            "type": item.type,
+            "rarity": item.rarity,
             "price": price,
             "stock": eff_stock,
         })
@@ -693,6 +719,11 @@ def player_home():
         visible_battle_encounters=visible_battle_encounters,
         battle_own_player_ids=battle_own_player_ids,
         known_npc_entries=build_known_npc_entries(active_campaign),
+        known_monster_entries=(
+            build_known_monster_entries(active_campaign.id, player.id)
+            if combat_enabled and active_campaign
+            else []
+        ),
         cities=cities,
         shops=shops,
         items=shop_items,
@@ -701,6 +732,9 @@ def player_home():
         city_browse=city_browse,
         region_labels=region_labels,
         campaign_regions=campaign_regions,
+        player_market_item_catalog=player_market_item_catalog,
+        level_up_summary=_pop_level_up_summary(player.id),
+        character_sheet_url=url_for("player.view_character_id", player_id=player.id),
     )
 
 # Search route
@@ -867,9 +901,20 @@ def buy_item(shop_id, item_id):
 
         db.session.commit()
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': f'Successfully purchased {quantity} {inventory.item.name}',
-            'new_currency': player.currency
+            'new_currency': player.currency,
+            'shop_id': shop_id,
+            'item_id': item_id,
+            'new_stock': int(inventory.stock),
+            'player_quantity': int(player_inventory.quantity),
+            'item': {
+                'name': inventory.item.name,
+                'type': getattr(inventory.item, 'type', None) or '',
+                'rarity': getattr(inventory.item, 'rarity', None) or '',
+                'description': getattr(inventory.item, 'description', None) or '',
+                'base_price': int(getattr(inventory.item, 'base_price', 0) or 0),
+            },
         })
 
     except Exception as e:
@@ -956,8 +1001,10 @@ def sell_item(item_id):
         # Update inventory and currency
         player_inventory.quantity -= quantity
         player.currency += total_value
+        remaining_quantity = int(player_inventory.quantity)
 
-        if player_inventory.quantity <= 0:
+        if remaining_quantity <= 0:
+            remaining_quantity = 0
             # Clear any equipment slot still pointing at an item the player no
             # longer owns, otherwise the dashboard body-model and equipment
             # list keep rendering a phantom equipped item after a full sell.
@@ -973,7 +1020,11 @@ def sell_item(item_id):
         return _ajax_or_redirect(
             f'Successfully sold {quantity} {item.name} for {total_value} gold!',
             success=True,
-            extra={'new_currency': player.currency},
+            extra={
+                'new_currency': player.currency,
+                'item_id': item_id,
+                'remaining_quantity': remaining_quantity,
+            },
         )
 
     except Exception as e:
@@ -1171,6 +1222,103 @@ def save_known_npc_notes(npc_id):
         return jsonify({"ok": False, "error": f"Could not save notes: {exc}"}), 500
 
     return jsonify({"ok": True, "notes": saved})
+
+
+@player_bp.route("/monsters/<int:entry_id>/profile", methods=["GET"])
+@login_required
+def known_monster_profile(entry_id):
+    """Player bestiary entry — observed stats only, never GM stat block."""
+    viewer, err = _active_campaign_player_for_json()
+    if err:
+        return err
+
+    entry = entry_for_player_view(viewer.campaign_id, entry_id, viewer.id)
+    if entry is None:
+        return jsonify({"error": "That monster is not in your bestiary."}), 404
+
+    profile = build_monster_journal_profile(entry, viewer.id)
+    return jsonify({"ok": True, "monster": profile})
+
+
+@player_bp.route("/monsters/<int:entry_id>/journal", methods=["POST"])
+@login_required
+def save_known_monster_journal(entry_id):
+    """Save player-observed stats for a bestiary monster."""
+    viewer, err = _active_campaign_player_for_json()
+    if err:
+        return err
+
+    entry = entry_for_player_view(viewer.campaign_id, entry_id, viewer.id)
+    if entry is None:
+        return jsonify({"error": "That monster is not in your bestiary."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    stats = payload.get("stats")
+    if not isinstance(stats, dict):
+        return jsonify({"ok": False, "error": "stats object is required."}), 400
+    try:
+        save_player_monster_journal(
+            campaign_id=viewer.campaign_id,
+            viewer_player_id=viewer.id,
+            monster_entry_id=entry.id,
+            stat_json=stats,
+        )
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    profile = build_monster_journal_profile(entry, viewer.id)
+    return jsonify({"ok": True, "monster": profile})
+
+
+@player_bp.route("/monsters/discover", methods=["POST"])
+@login_required
+def discover_monster():
+    """Add a compendium monster to this character's bestiary (from encounter)."""
+    viewer, err = _active_campaign_player_for_json()
+    if err:
+        return err
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        entry_id = int(payload.get("monster_entry_id") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "monster_entry_id is required."}), 400
+    if entry_id <= 0:
+        return jsonify({"error": "monster_entry_id is required."}), 400
+
+    try:
+        row = add_monster_to_journal(
+            campaign_id=viewer.campaign_id,
+            viewer_player_id=viewer.id,
+            monster_entry_id=entry_id,
+        )
+        db.session.commit()
+        entry = row.monster_entry
+        profile = build_monster_journal_profile(entry, viewer.id)
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    return jsonify({"ok": True, "monster": profile})
+
+
+@player_bp.route("/monsters", methods=["GET"])
+@login_required
+def list_known_monsters():
+    viewer, err = _active_campaign_player_for_json()
+    if err:
+        return err
+    from app.services.rulesets import get_ruleset
+
+    campaign = _active_campaign_for_player(viewer)
+    if get_ruleset(campaign.system_type).system_type != "dnd5e":
+        return jsonify({"ok": True, "monsters": []})
+    return jsonify({
+        "ok": True,
+        "monsters": build_known_monster_entries(viewer.campaign_id, viewer.id),
+    })
 
 
 @player_bp.route("/maps/image/<int:canvas_id>", methods=["GET"])
@@ -1587,6 +1735,242 @@ def character_dashboard(player_id):
 
     flash("That character is not assigned to an active campaign.", "warning")
     return redirect(url_for("player.view_character_id", player_id=player.id))
+
+
+@player_bp.route("/character/<int:player_id>/level-up", methods=["POST"])
+@login_required
+def level_up_character(player_id):
+    from app.services.character_creation.level_progression_service import (
+        apply_level_up,
+        enrich_level_up_summary_for_wizard,
+        level_up_summary_needs_wizard,
+    )
+
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        if _wants_json_response():
+            return jsonify({"ok": False, "messages": ["Character not found."]}), 404
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
+
+    campaign = _active_campaign_for_player(player)
+    ok, messages, summary = apply_level_up(player, campaign)
+    category = "success" if ok else "error"
+    wizard_summary = None
+    if ok and summary:
+        campaign = _active_campaign_for_player(player)
+        enriched = enrich_level_up_summary_for_wizard(player, campaign, summary)
+        if level_up_summary_needs_wizard(enriched):
+            wizard_summary = enriched
+    if _wants_json_response():
+        return jsonify(
+            {
+                "ok": ok,
+                "messages": messages,
+                "level_up_summary": wizard_summary,
+            }
+        ), (200 if ok else 400)
+    for msg in messages:
+        flash(msg, category)
+    if wizard_summary:
+        session["level_up_summary"] = {
+            "player_id": player.id,
+            **wizard_summary,
+        }
+        session.modified = True
+    if ok and player.campaign_id is not None:
+        return redirect(url_for("player.player_home"))
+    return redirect(request.referrer or url_for("player.character_dashboard", player_id=player.id))
+
+
+@player_bp.route("/character/<int:player_id>/level-down", methods=["POST"])
+@login_required
+def level_down_character(player_id):
+    from app.services.character_creation.level_progression_service import apply_level_down
+
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        if _wants_json_response():
+            return jsonify({"ok": False, "messages": ["Character not found."]}), 404
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
+
+    campaign = _active_campaign_for_player(player)
+    ok, messages = apply_level_down(player, campaign)
+    if _wants_json_response():
+        return jsonify({"ok": ok, "messages": messages}), (200 if ok else 400)
+    category = "success" if ok else "error"
+    for msg in messages:
+        flash(msg, category)
+    return redirect(request.referrer or url_for("player.character_dashboard", player_id=player.id))
+
+
+@player_bp.route("/character/<int:player_id>/skip-level-choices", methods=["POST"])
+@login_required
+def skip_level_choices(player_id):
+    from app.services.character_creation.level_progression_service import (
+        skip_pending_level_choice,
+        skip_pending_level_choices,
+    )
+
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        if _wants_json_response():
+            return jsonify({"ok": False, "message": "Character not found."}), 404
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
+
+    campaign = _active_campaign_for_player(player)
+    level_raw = request.form.get("level")
+    level = int(level_raw) if level_raw and str(level_raw).isdigit() else None
+    choice_type = (request.form.get("choice_type") or "").strip().lower() or None
+    pool_tag = (request.form.get("pool_tag") or "").strip().lower() or None
+    if level is not None and choice_type:
+        ok, message = skip_pending_level_choice(
+            player,
+            campaign,
+            level=level,
+            choice_type=choice_type,
+            pool_tag=pool_tag,
+        )
+    else:
+        ok, message = skip_pending_level_choices(player, campaign, level=level)
+    if _wants_json_response():
+        return jsonify({"ok": ok, "message": message}), (200 if ok else 400)
+    flash(message, "success" if ok else "error")
+    if player.campaign_id is not None:
+        return redirect(url_for("player.player_home"))
+    return redirect(request.referrer or url_for("player.character_dashboard", player_id=player.id))
+
+
+@player_bp.route("/character/<int:player_id>/apply-ability-improvement", methods=["POST"])
+@login_required
+def apply_ability_improvement(player_id):
+    from app.services.character_creation.level_progression_service import apply_ability_score_improvement
+
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        if _wants_json_response():
+            return jsonify({"ok": False, "message": "Character not found."}), 404
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
+
+    campaign = _active_campaign_for_player(player)
+    level_raw = request.form.get("level")
+    if not level_raw or not str(level_raw).isdigit():
+        msg = "Level is required."
+        if _wants_json_response():
+            return jsonify({"ok": False, "message": msg}), 400
+        flash(msg, "error")
+        return redirect(request.referrer or url_for("player.player_home"))
+
+    increases: dict[str, int] = {}
+    for ability in ("str", "dex", "con", "int", "wis", "cha"):
+        raw = request.form.get(f"increase_{ability}")
+        if raw is None or str(raw).strip() == "":
+            continue
+        try:
+            delta = int(raw)
+        except (TypeError, ValueError):
+            msg = f"Invalid increase for {ability.upper()}."
+            if _wants_json_response():
+                return jsonify({"ok": False, "message": msg}), 400
+            flash(msg, "error")
+            return redirect(request.referrer or url_for("player.player_home"))
+        if delta > 0:
+            increases[ability] = delta
+
+    ok, message = apply_ability_score_improvement(
+        player,
+        campaign,
+        level=int(level_raw),
+        increases=increases,
+    )
+    if _wants_json_response():
+        return jsonify({"ok": ok, "message": message}), (200 if ok else 400)
+    flash(message, "success" if ok else "error")
+    if player.campaign_id is not None:
+        return redirect(url_for("player.player_home"))
+    return redirect(request.referrer or url_for("player.character_dashboard", player_id=player.id))
+
+
+@player_bp.route("/character/<int:player_id>/apply-trait-choices", methods=["POST"])
+@login_required
+def apply_trait_choices(player_id):
+    from app.services.character_creation.level_progression_service import apply_class_trait_choices
+
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        if _wants_json_response():
+            return jsonify({"ok": False, "message": "Character not found."}), 404
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
+
+    campaign = _active_campaign_for_player(player)
+    level_raw = request.form.get("level")
+    if not level_raw or not str(level_raw).isdigit():
+        msg = "Level is required."
+        if _wants_json_response():
+            return jsonify({"ok": False, "message": msg}), 400
+        flash(msg, "error")
+        return redirect(request.referrer or url_for("player.player_home"))
+    trait_keys = [key.strip().lower() for key in request.form.getlist("trait_keys") if key.strip()]
+    pool_tag = request.form.get("pool_tag")
+    ok, message = apply_class_trait_choices(
+        player,
+        campaign,
+        level=int(level_raw),
+        trait_keys=trait_keys,
+        pool_tag=pool_tag,
+    )
+    if _wants_json_response():
+        return jsonify({"ok": ok, "message": message}), (200 if ok else 400)
+    flash(message, "success" if ok else "error")
+    if player.campaign_id is not None:
+        return redirect(url_for("player.player_home"))
+    return redirect(request.referrer or url_for("player.character_dashboard", player_id=player.id))
+
+
+@player_bp.route("/character/<int:player_id>/apply-subclass-choice", methods=["POST"])
+@login_required
+def apply_subclass_choice_route(player_id):
+    from app.services.character_creation.level_progression_service import apply_subclass_choice
+
+    player = get_character_for_user(current_user, player_id)
+    if not player:
+        if _wants_json_response():
+            return jsonify({"ok": False, "message": "Character not found."}), 404
+        flash("Character not found.", "warning")
+        return redirect(url_for("player.list_characters"))
+
+    campaign = _active_campaign_for_player(player)
+    level_raw = request.form.get("level")
+    subclass_key = request.form.get("subclass_key") or request.form.get("subclass")
+    if not level_raw or not str(level_raw).isdigit():
+        msg = "Level is required."
+        if _wants_json_response():
+            return jsonify({"ok": False, "message": msg}), 400
+        flash(msg, "error")
+        return redirect(request.referrer or url_for("player.player_home"))
+    if not str(subclass_key or "").strip():
+        msg = "Subclass is required."
+        if _wants_json_response():
+            return jsonify({"ok": False, "message": msg}), 400
+        flash(msg, "error")
+        return redirect(request.referrer or url_for("player.player_home"))
+
+    ok, message = apply_subclass_choice(
+        player,
+        campaign,
+        level=int(level_raw),
+        subclass_key=str(subclass_key).strip(),
+    )
+    if _wants_json_response():
+        return jsonify({"ok": ok, "message": message}), (200 if ok else 400)
+    flash(message, "success" if ok else "error")
+    if player.campaign_id is not None:
+        return redirect(url_for("player.player_home"))
+    return redirect(request.referrer or url_for("player.character_dashboard", player_id=player.id))
 
 
 @player_bp.route("/character/<int:player_id>/update", methods=["POST"])

@@ -19,6 +19,9 @@ MAX_POINT_BUY_BUDGET = 54
 DEFAULT_RANDOM_REROLLS = 0
 MIN_RANDOM_REROLLS = 0
 MAX_RANDOM_REROLLS = 5
+DEFAULT_MAX_PLAYER_LEVEL = 20
+MIN_MAX_PLAYER_LEVEL = 1
+MAX_MAX_PLAYER_LEVEL = 20
 MAX_CUSTOM_LIST = 50
 MAX_NAME_LEN = 60
 MAX_TEXT_LEN = 1000
@@ -33,13 +36,14 @@ class CharacterCreationSettingsError(ValueError):
     """Raised when GM character creation settings are invalid."""
 
 
-def solo_default_creation_settings() -> dict[str, Any]:
+def     solo_default_creation_settings() -> dict[str, Any]:
     """Platform defaults for solo vault creation (no campaign context)."""
     return {
         "schema_version": SCHEMA_VERSION,
         "ability_method": DEFAULT_ABILITY_METHOD,
         "point_buy_budget": DEFAULT_POINT_BUY_BUDGET,
         "random_rerolls_per_ability": DEFAULT_RANDOM_REROLLS,
+        "max_player_level": DEFAULT_MAX_PLAYER_LEVEL,
         "settings_version": "solo-default",
         "scope": "solo",
     }
@@ -76,6 +80,21 @@ def _clamp_rerolls(raw: Any) -> int:
     return max(MIN_RANDOM_REROLLS, min(MAX_RANDOM_REROLLS, value))
 
 
+def _clamp_max_player_level(raw: Any) -> int:
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        value = DEFAULT_MAX_PLAYER_LEVEL
+    return max(MIN_MAX_PLAYER_LEVEL, min(MAX_MAX_PLAYER_LEVEL, value))
+
+
+def get_max_player_level(campaign_id: Optional[int]) -> int:
+    """Campaign cap for player character level (1–20). Solo/vault uses SRD max."""
+    if campaign_id is None:
+        return DEFAULT_MAX_PLAYER_LEVEL
+    return _clamp_max_player_level(get_creation_settings(campaign_id).get("max_player_level"))
+
+
 def normalize_creation_settings(raw: Optional[dict[str, Any]]) -> dict[str, Any]:
     """Return normalized character_creation settings with defaults."""
     data = raw if isinstance(raw, dict) else {}
@@ -88,6 +107,7 @@ def normalize_creation_settings(raw: Optional[dict[str, Any]]) -> dict[str, Any]
         "ability_method": method,
         "point_buy_budget": _clamp_budget(data.get("point_buy_budget")),
         "random_rerolls_per_ability": _clamp_rerolls(data.get("random_rerolls_per_ability")),
+        "max_player_level": _clamp_max_player_level(data.get("max_player_level")),
         "settings_version": settings_version,
     }
 
@@ -188,16 +208,21 @@ def update_creation_settings(campaign_id: int, patch: dict[str, Any]) -> dict[st
     rerolls = _clamp_rerolls(
         patch.get("random_rerolls_per_ability", current["random_rerolls_per_ability"])
     )
+    max_player_level = _clamp_max_player_level(
+        patch.get("max_player_level", current["max_player_level"])
+    )
     changed = (
         method != current["ability_method"]
         or budget != current["point_buy_budget"]
         or rerolls != current["random_rerolls_per_ability"]
+        or max_player_level != current["max_player_level"]
     )
     updated = {
         "schema_version": SCHEMA_VERSION,
         "ability_method": method,
         "point_buy_budget": budget,
         "random_rerolls_per_ability": rerolls,
+        "max_player_level": max_player_level,
         "settings_version": str(uuid.uuid4()) if changed else current["settings_version"],
     }
     settings["character_creation"] = updated

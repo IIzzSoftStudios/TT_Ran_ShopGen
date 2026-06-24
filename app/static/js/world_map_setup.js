@@ -71,7 +71,6 @@
     var viewportLayer = document.getElementById('map-viewport-layer');
     var underlayInput = document.getElementById('map-underlay-input');
     var underlayClearBtn = document.getElementById('map-underlay-clear-btn');
-    var convertEditableBtn = document.getElementById('map-convert-editable-btn');
     var studioOverlay = document.getElementById('map-studio-canvas');
     var continueForm = document.getElementById('world-map-continue-form');
     var previewTimer = null;
@@ -179,10 +178,10 @@
 
     function updateMapViewportHint() {
         var hint = document.getElementById('map-viewport-hint');
-        var painting = mapStudio && mapStudio.isActive();
+        var paintMode = mapStudio && mapStudio.isActive();
         if (!hint) return;
-        if (painting) {
-            hint.textContent = 'Painting active — Stop painting or Save map (top-left), or press Escape to exit';
+        if (paintMode) {
+            hint.textContent = 'Painting — drag to paint hexes · Right-drag to pan · Wheel to zoom · Escape to exit';
         } else {
             hint.textContent = 'Drag to pan · Wheel to zoom · Right-click ends paint stroke · Right-drag pans';
         }
@@ -204,6 +203,9 @@
         }
         if (studioPaintTools) {
             studioPaintTools.hidden = !active;
+        }
+        if (mapViewport && mapViewport.setPaintActive) {
+            mapViewport.setPaintActive(!!active);
         }
         updateMapStudioMapNav();
         updateMapViewportHint();
@@ -230,7 +232,7 @@
     function toggleMapStudio() {
         if (!mapStudio) return;
         if (!state.canvas || state.canvas.has_image) {
-            mapFeedback('Convert or remove the uploaded background to use map studio.', true);
+            mapFeedback('Remove the uploaded background to use map studio.', true);
             return;
         }
         if (mapStudio.isActive()) {
@@ -531,6 +533,11 @@
         if (!window.MapViewport || !stage || !viewportLayer) return;
         mapViewport = window.MapViewport.create(stage, viewportLayer, {
             paintActive: false,
+            shouldStartPan: function (ev) {
+                var paintMode = mapStudio && mapStudio.isActive() && mapStudio.getEditMode() === 'paint';
+                if (!paintMode) return true;
+                return ev.button !== 0;
+            },
             onViewportChange: function () {
                 if (mapStudio && mapStudio.isActive() && mapStudio.scheduleViewportRender) {
                     mapStudio.scheduleViewportRender();
@@ -663,28 +670,6 @@
         }
         if (studioRedoBtn && mapStudio) {
             studioRedoBtn.addEventListener('click', function () { mapStudio.redo(); });
-        }
-        if (convertEditableBtn) {
-            convertEditableBtn.addEventListener('click', async function () {
-                mapFeedback('Converting map\u2026', false);
-                try {
-                    var resp = await fetch(urls.mapWorldConvertEditable, {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: { 'X-CSRFToken': csrfToken }
-                    });
-                    var j = await resp.json().catch(function () { return {}; });
-                    if (!resp.ok) throw new Error(j.error || 'Could not convert map.');
-                    state.canvas = j.canvas;
-                    state.previewGeneration = null;
-                    syncAppearanceControlsFromCanvas();
-                    renderBackground();
-                    rebuildStudioToolButtons();
-                    mapFeedback('Map is now editable in Map studio.', false);
-                } catch (err) {
-                    mapFeedback(err.message || 'Could not convert map.', true);
-                }
-            });
         }
         if (underlayInput) {
             underlayInput.addEventListener('change', async function () {

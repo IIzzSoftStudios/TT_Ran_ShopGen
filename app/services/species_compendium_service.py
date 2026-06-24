@@ -15,6 +15,10 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.extensions import db
 from app.models import CampaignWorldConfig
 from app.services.character_creation.dnd5e_species import CORE_SPECIES, CORE_SPECIES_BY_KEY
+from app.services.traits_compendium_service import (
+    TraitsValidationError as TraitEffectsValidationError,
+    clean_trait_effects,
+)
 from app.services.world_generator.defaults import DEFAULT_SPECIES_DISTRIBUTION
 
 _ABILITIES = ("str", "dex", "con", "int", "wis", "cha")
@@ -366,6 +370,11 @@ def _clean_species_patch(raw: dict[str, Any]) -> dict[str, Any]:
         "notes": str(raw.get("notes") or "").strip()[:1000],
         "gm_edited": True,
     }
+    if "combat_effects" in raw:
+        try:
+            clean["combat_effects"] = clean_trait_effects(raw.get("combat_effects") or {})
+        except TraitEffectsValidationError as exc:
+            raise SpeciesValidationError(str(exc)) from exc
     if "summary" in raw:
         clean["summary"] = str(raw.get("summary") or "").strip()[:500]
     return clean
@@ -424,6 +433,76 @@ def create_species(campaign_id: int, raw: dict[str, Any]) -> dict[str, Any]:
     flag_modified(cfg, "settings_json")
     db.session.flush()
     return deepcopy(entry)
+
+
+def _player_species_snapshot(entry: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "key": entry.get("key"),
+        "name": entry.get("name"),
+        "summary": str(entry.get("summary") or "").strip(),
+        "ability_modifiers": dict(entry.get("ability_modifiers") or {}),
+        "traits": list(entry.get("traits") or []),
+        "trait_keys": list(entry.get("trait_keys") or []),
+        "attached_traits": list(entry.get("attached_traits") or []),
+        "combat_effects": dict(entry.get("combat_effects") or {}),
+        "stat_modifiers": str(entry.get("stat_modifiers") or "").strip(),
+    }
+
+
+def resolve_character_species_details(
+    campaign_id: int,
+    *,
+    species_key: str | None = None,
+    species_name_fallback: str | None = None,
+) -> dict[str, Any]:
+    """Player-safe species compendium lookup for character dashboard tooltips."""
+    entry: dict[str, Any] | None = None
+    key_hint = str(species_key or "").strip().lower()
+    if key_hint:
+        entry = get_species_entry(campaign_id, key_hint)
+    if entry is None:
+        name_hint = str(species_name_fallback or "").strip().lower()
+        if name_hint:
+            for row in ensure_species_compendium(campaign_id):
+                row_key = str(row.get("key") or "").strip().lower()
+                row_name = str(row.get("name") or "").strip().lower()
+                if row_name == name_hint or row_key == name_hint.replace(" ", "_"):
+                    entry = deepcopy(row)
+                    break
+    display_name = (
+        str((entry or {}).get("name") or species_name_fallback or species_key or "").strip()
+        or None
+    )
+    if entry is None:
+        return {
+            "available": bool(display_name),
+            "name": display_name,
+            "entry": None,
+        }
+    attached_traits: list[dict[str, str]] = []
+    trait_keys = [str(k or "").strip().lower() for k in (entry.get("trait_keys") or []) if str(k or "").strip()]
+    if trait_keys:
+        from app.services.traits_compendium_service import ensure_traits_compendium
+
+        trait_by_key = {
+            str(row.get("key") or "").strip().lower(): str(row.get("name") or row.get("key") or "")
+            for row in ensure_traits_compendium(campaign_id)
+        }
+        for trait_key in trait_keys:
+            attached_traits.append(
+                {
+                    "key": trait_key,
+                    "name": trait_by_key.get(trait_key, trait_key),
+                }
+            )
+    snapshot = _player_species_snapshot(entry)
+    snapshot["attached_traits"] = attached_traits
+    return {
+        "available": True,
+        "name": snapshot.get("name") or display_name,
+        "key": snapshot.get("key"),
+        "entry": snapshot,
+    }
 
 
 def update_city_species_population(

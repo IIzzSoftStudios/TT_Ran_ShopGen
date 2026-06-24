@@ -106,6 +106,292 @@
         .character-identity-meta {
             color: var(--color-muted);
             margin: 4px 0 0;
+            text-align: center;
+        }
+
+        .character-identity-triggers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 14px;
+            justify-content: center;
+            align-items: flex-start;
+            margin-top: 4px;
+        }
+
+        .character-identity-triggers .class-details-anchor {
+            display: inline-block;
+        }
+
+        .character-sheet-popout-link {
+            margin: 10px 0 0;
+        }
+
+        .character-sheet-popout-link .button {
+            display: inline-block;
+            font-size: 0.85rem;
+            padding: 6px 12px;
+        }
+
+        .character-sheet-actions {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .character-level-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .character-sheet-actions .inline-level-form {
+            display: inline;
+            margin: 0;
+        }
+
+        .character-sheet-actions .level-control-btn {
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            cursor: pointer;
+        }
+
+        .character-sheet-actions .level-control-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .character-level-actions .level-control-btn:not(:disabled):hover {
+            border-color: var(--color-accent);
+        }
+
+        .level-up-anchor {
+            display: inline-block;
+        }
+
+        .level-up-preview-popout {
+            min-width: 260px;
+        }
+
+        .level-up-preview-popout .level-up-choice {
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+            border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+        }
+
+        .level-up-result-popout {
+            position: fixed;
+            inset: 0;
+            z-index: 1600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.45);
+        }
+
+        .level-up-result-popout[hidden] {
+            display: none !important;
+        }
+
+        .level-up-result-card {
+            width: min(420px, 100%);
+            max-height: min(80vh, 520px);
+            overflow-y: auto;
+            padding: 16px 18px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface, #fff);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+        }
+
+        .level-up-result-card h3 {
+            margin: 0 0 10px;
+        }
+
+        .level-up-result-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .level-up-confirm-overlay,
+        .level-up-wizard-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1650;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.45);
+        }
+
+        .level-up-confirm-overlay[hidden],
+        .level-up-wizard-overlay[hidden] {
+            display: none !important;
+        }
+
+        .level-up-confirm-card,
+        .level-up-wizard-card {
+            width: min(560px, 100%);
+            max-height: min(85vh, 640px);
+            overflow-y: auto;
+            padding: 18px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            box-shadow: var(--shadow-panel);
+        }
+
+        .level-up-wizard-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 16px;
+            padding: 0;
+            list-style: none;
+        }
+
+        .level-up-wizard-nav-item {
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--color-border);
+            font-size: 0.82rem;
+            color: var(--color-muted);
+        }
+
+        .level-up-wizard-nav-item.active {
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+            border-color: transparent;
+        }
+
+        .level-up-wizard-lead {
+            color: var(--color-muted);
+        }
+
+        .level-up-wizard-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-top: 18px;
+        }
+
+        .level-up-wizard-actions button[hidden] {
+            display: none !important;
+        }
+
+        .level-up-wizard-actions-primary {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        .level-up-wizard-actions .button-secondary {
+            background: var(--color-surface);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .level-up-wizard-option-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .level-up-wizard-option-card {
+            text-align: left;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-surface) 90%, var(--color-bg));
+            color: var(--color-text);
+            cursor: pointer;
+        }
+
+        .level-up-wizard-option-card.selected {
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 2px var(--color-accent);
+        }
+
+        .level-up-wizard-option-card strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .level-up-wizard-selected-badge {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--color-accent);
+            color: var(--color-accent-contrast);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .level-up-wizard-asi-mode label {
+            display: block;
+            margin: 8px 0;
+            font-weight: 500;
+        }
+
+        .level-up-wizard-asi-mode input {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .level-up-wizard-asi-pickers label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+
+        .level-up-wizard-asi-pickers label[hidden] {
+            display: none !important;
+        }
+
+        .level-up-wizard-asi-pickers select {
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        #levelUpWizardError {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--color-danger);
+            background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+            color: var(--color-text);
+        }
+
+        #levelUpWizardError[hidden] {
+            display: none !important;
+        }
+
+        .level-up-wizard-feature-list {
+            margin: 8px 0 0;
+            padding-left: 1.2rem;
         }
 
         .player-spells-layout {
@@ -215,6 +501,52 @@
             font-size: 0.78rem;
         }
 
+        .player-spell-chip:focus-visible {
+            outline: 2px solid var(--color-link, #2563eb);
+            outline-offset: 2px;
+        }
+
+        .player-spell-tooltip {
+            position: fixed;
+            z-index: 1600;
+            max-width: 340px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--color-surface) 94%, var(--color-text));
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-panel, 0 8px 24px rgba(0, 0, 0, 0.22));
+            pointer-events: none;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .player-spell-tooltip[hidden] {
+            display: none !important;
+        }
+
+        .player-spell-tooltip-title {
+            display: block;
+            font-size: 0.95rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .player-spell-tooltip-subtitle {
+            display: block;
+            color: var(--color-muted);
+            margin-bottom: 0.45rem;
+        }
+
+        .player-spell-tooltip-line {
+            margin: 0.15rem 0;
+        }
+
+        .player-spell-tooltip-summary {
+            display: block;
+            margin-top: 0.45rem;
+            color: var(--color-muted);
+        }
+
         .player-spell-library {
             border: 1px solid var(--color-border);
             border-radius: 10px;
@@ -236,6 +568,20 @@
         .player-spell-save-status {
             font-size: 0.85rem;
             color: var(--color-muted);
+        }
+
+        .character-sheet-level-status {
+            margin: 6px 0 0;
+            font-size: 0.85rem;
+            color: var(--color-muted);
+        }
+
+        .character-sheet-level-status.is-success {
+            color: var(--color-success, #3d8b5a);
+        }
+
+        .character-sheet-level-status.is-error {
+            color: var(--color-danger, #c0392b);
         }
 
         .character-sheet-link-row {
@@ -522,6 +868,26 @@
             display: none;
         }
 
+        .player-monster-shell {
+            position: relative;
+            min-height: 200px;
+        }
+
+        .player-monster-shell.is-npc-detail-open .player-monster-list {
+            display: none;
+        }
+
+        .player-monster-name-link {
+            background: none;
+            border: none;
+            padding: 0;
+            font: inherit;
+            color: var(--color-link, #2563eb);
+            cursor: pointer;
+            text-decoration: underline;
+            text-align: left;
+        }
+
         .player-npc-detail[hidden] {
             display: none !important;
         }
@@ -628,6 +994,60 @@
             color: var(--color-link-hover, #1d4ed8);
         }
 
+        .player-npc-table tbody tr.player-npc-row {
+            cursor: default;
+        }
+
+        .player-npc-table tbody tr.player-npc-row:hover {
+            background: color-mix(in srgb, var(--color-link, #2563eb) 6%, transparent);
+        }
+
+        .player-npc-owns {
+            font-size: 0.88rem;
+            color: var(--color-text-muted, #4b5563);
+            max-width: 14rem;
+        }
+
+        .player-npc-hover-popout {
+            position: fixed;
+            z-index: 1400;
+            min-width: 220px;
+            max-width: min(340px, 92vw);
+            padding: 0.75rem 0.85rem;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--color-surface, #fff) 94%, var(--color-text, #111));
+            color: var(--color-text, #1f2937);
+            border: 1px solid var(--color-border, #ccc);
+            box-shadow: var(--shadow-panel, 0 8px 24px rgba(0, 0, 0, 0.24));
+            font-size: 0.85rem;
+            line-height: 1.45;
+        }
+
+        .player-npc-hover-popout[hidden] {
+            display: none !important;
+        }
+
+        .player-npc-hover-popout h3 {
+            margin: 0 0 0.45rem;
+            font-size: 1rem;
+        }
+
+        .player-npc-hover-popout dl {
+            margin: 0;
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .player-npc-hover-popout .player-npc-detail-fact {
+            margin: 0;
+        }
+
+        .player-npc-hover-loading {
+            margin: 0;
+            color: var(--color-text-muted, #6b7280);
+            font-size: 0.85rem;
+        }
+
         .map-stat-person-value-link {
             background: none;
             border: none;
@@ -677,6 +1097,26 @@
             padding: 8px;
             border-bottom: 1px solid var(--color-border);
             text-align: left;
+        }
+
+        .player-market-item-trigger {
+            cursor: default;
+        }
+
+        .player-market-item-trigger--interactive {
+            cursor: help;
+            color: var(--color-accent);
+            text-decoration: underline dotted;
+        }
+
+        .player-market-item-trigger--interactive:hover,
+        .player-market-item-trigger--interactive:focus-visible {
+            color: var(--color-accent-hover, var(--color-accent));
+            outline: none;
+        }
+
+        .player-market-table tbody tr.player-market-item-trigger--interactive {
+            cursor: help;
         }
 
         .player-encounter-panel .battle-layout {
@@ -930,6 +1370,7 @@
             flex: 1 1 auto;
             align-self: stretch;
             text-align: center;
+            overflow: visible;
         }
 
         /* main.css sets .section h2 { display: flex; justify-content:
@@ -974,14 +1415,44 @@
 
         .class-details-popout {
             position: absolute;
-            z-index: 30;
+            top: calc(100% + 4px);
+            left: 0;
+            z-index: 40;
             min-width: 260px;
-            max-width: 360px;
+            max-width: min(360px, calc(100vw - var(--gm-rail-width, 56px) - 2.5rem));
+            max-height: min(55vh, 380px);
+            overflow-x: hidden;
+            overflow-y: auto;
             padding: 12px 14px;
             border: 1px solid var(--color-border);
             border-radius: 8px;
             background: var(--color-surface, #fff);
+            color: var(--color-text, #111);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+            pointer-events: auto;
+        }
+
+        .class-details-popout.is-floating {
+            position: fixed;
+            top: auto;
+            left: auto;
+            z-index: 1500;
+            min-width: 220px;
+            max-height: min(60vh, 420px);
+            background: var(--gm-panel-bg, rgba(15, 20, 28, 0.97));
+            color: var(--color-text, #f1f5f9);
+            border-color: var(--gm-panel-border, rgba(255, 255, 255, 0.12));
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+        }
+
+        .class-details-popout.is-floating h4,
+        .class-details-popout.is-floating strong {
+            color: var(--color-text, #f1f5f9);
+        }
+
+        .class-details-popout.is-floating p,
+        .class-details-popout.is-floating li {
+            color: var(--color-text-muted, #cbd5e1);
         }
 
         .class-details-popout h4 {
@@ -1002,6 +1473,45 @@
 
         .class-details-popout li {
             margin-bottom: 4px;
+        }
+
+        .player-feature-chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 6px 0 10px;
+            padding: 0;
+            list-style: none;
+        }
+
+        .player-feature-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--color-border);
+            background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent));
+            color: var(--color-text);
+            font-size: 0.82rem;
+            cursor: help;
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+        }
+
+        .player-feature-chip:hover,
+        .player-feature-chip:focus-visible {
+            color: var(--color-accent-hover, var(--color-accent));
+            outline: none;
+        }
+
+        .player-feature-chip-meta {
+            opacity: 0.72;
+            font-size: 0.74rem;
+        }
+
+        .class-details-popout .player-feature-chip-list {
+            padding-left: 0;
         }
 
         .class-details-anchor {
@@ -1152,6 +1662,135 @@
 
         .inventory-table tr:hover {
             background-color: var(--color-table-hover, var(--color-bg));
+        }
+
+        /* Inventory slide panel: narrow width — stack equipment and use item cards. */
+        #player-inventory-panel .body-equipment-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        #player-inventory-panel .body-equipment-row .body-model-container {
+            flex: 0 0 auto;
+            width: 100%;
+            max-width: 220px;
+            margin: 0 auto;
+        }
+
+        #player-inventory-panel .body-equipment-row .equipment-slots {
+            width: 100%;
+        }
+
+        #player-inventory-panel .equipment-slot-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        #player-inventory-panel .equipment-slot-label {
+            flex: 1 1 160px;
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        #player-inventory-panel .equipment-slot-row form {
+            flex: 0 0 auto;
+        }
+
+        #player-inventory-panel .currency-container {
+            font-size: 1em;
+        }
+
+        #player-inventory-panel .currency-container .button {
+            display: inline-block;
+            margin-top: 8px;
+        }
+
+        #player-inventory-panel .inventory-table thead {
+            display: none;
+        }
+
+        #player-inventory-panel .inventory-table,
+        #player-inventory-panel .inventory-table tbody,
+        #player-inventory-panel .inventory-table tr,
+        #player-inventory-panel .inventory-table td {
+            display: block;
+            width: 100%;
+        }
+
+        #player-inventory-panel .inventory-table tbody tr {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+
+        #player-inventory-panel .inventory-table tbody tr:hover {
+            background: var(--color-table-hover, var(--color-bg));
+        }
+
+        #player-inventory-panel .inventory-table td {
+            border-bottom: none;
+            padding: 6px 0;
+            text-align: left;
+        }
+
+        #player-inventory-panel .inventory-table td::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--color-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 2px;
+        }
+
+        #player-inventory-panel .inventory-table td.item-name {
+            font-size: 1.05rem;
+            padding-top: 0;
+            padding-bottom: 4px;
+        }
+
+        #player-inventory-panel .inventory-table td.item-name::before {
+            display: none;
+        }
+
+        #player-inventory-panel .inventory-table td.inventory-actions-cell {
+            margin-top: 8px;
+            padding-top: 10px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        #player-inventory-panel .inventory-table td.inventory-actions-cell::before {
+            margin-bottom: 6px;
+        }
+
+        #player-inventory-panel .sell-form {
+            flex-wrap: wrap;
+            row-gap: 6px;
+        }
+
+        #player-inventory-panel .inventory-actions-cell .button,
+        #player-inventory-panel .inventory-actions-cell .sell-button {
+            white-space: nowrap;
+        }
+
+        #player-inventory-panel .inventory-column,
+        #player-inventory-panel .inventory-container,
+        #player-inventory-panel .inventory-table-wrapper {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        #player-inventory-panel .inventory-table td[data-label="Description"] {
+            overflow-wrap: anywhere;
         }
 
         .item-quantity {
@@ -2081,6 +2720,160 @@
             return toast;
         }
 
+        function updatePlayerCurrencyDisplay(amount) {
+            var pill = document.getElementById("playerCurrency");
+            if (pill && amount !== undefined && amount !== null) {
+                pill.textContent = amount;
+                stylePlayerCurrency();
+            }
+        }
+
+        function updateBrowseShopStock(shopId, itemId, stock) {
+            shopId = parseInt(shopId, 10);
+            itemId = parseInt(itemId, 10);
+            stock = parseInt(stock, 10);
+            if (!shopId || !itemId || isNaN(stock)) return;
+            var btn = document.querySelector(
+                '.browse-buy-button[data-shop-id="' + shopId + '"][data-item-id="' + itemId + '"]'
+            );
+            if (!btn) return;
+            var row = btn.closest("tr");
+            if (row) {
+                var stockSpan = row.querySelector(".stock-status");
+                if (stockSpan) {
+                    stockSpan.textContent = String(stock);
+                    var status = stock <= 0 ? "out-of-stock" : (stock <= 5 ? "low-stock" : "in-stock");
+                    stockSpan.className = "stock-status " + status;
+                }
+            }
+            if (stock <= 0) {
+                btn.disabled = true;
+                btn.textContent = "Out of stock";
+            } else {
+                btn.disabled = false;
+                btn.textContent = "Buy";
+            }
+        }
+
+        function updateInventoryRowAfterSell(itemId, remainingQty) {
+            itemId = parseInt(itemId, 10);
+            remainingQty = parseInt(remainingQty, 10);
+            if (!itemId || isNaN(remainingQty)) return;
+            var form = document.querySelector('.sell-form[action*="/sell/' + itemId + '"]');
+            if (!form) return;
+            var row = form.closest("tr");
+            if (!remainingQty) {
+                if (row) row.remove();
+                var tbody = document.querySelector(".inventory-table tbody");
+                if (tbody && !tbody.querySelector("tr")) {
+                    var container = document.querySelector(".inventory-container");
+                    if (container) {
+                        var table = container.querySelector(".inventory-table");
+                        if (table) table.remove();
+                        if (!container.querySelector(".empty-state")) {
+                            var empty = document.createElement("div");
+                            empty.className = "empty-state";
+                            empty.innerHTML = "<p>Your inventory is currently empty.</p>";
+                            container.appendChild(empty);
+                        }
+                    }
+                }
+                return;
+            }
+            var qtyCell = row ? row.querySelector(".item-quantity") : null;
+            if (qtyCell) qtyCell.textContent = String(remainingQty);
+            var input = form.querySelector('input[name="quantity"]');
+            if (input) {
+                input.max = String(remainingQty);
+                if (parseInt(input.value, 10) > remainingQty) input.value = String(remainingQty);
+            }
+            var submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = false;
+        }
+
+        function updateInventoryRowAfterBuy(itemId, quantity, itemMeta) {
+            itemId = parseInt(itemId, 10);
+            quantity = parseInt(quantity, 10);
+            if (!itemId || isNaN(quantity)) return;
+            var form = document.querySelector('.sell-form[action*="/sell/' + itemId + '"]');
+            if (form) {
+                var row = form.closest("tr");
+                var qtyCell = row ? row.querySelector(".item-quantity") : null;
+                if (qtyCell) qtyCell.textContent = String(quantity);
+                var input = form.querySelector('input[name="quantity"]');
+                if (input) {
+                    input.max = String(quantity);
+                    if (parseInt(input.value, 10) > quantity) input.value = String(quantity);
+                }
+                return;
+            }
+            if (!itemMeta) return;
+            var container = document.querySelector(".inventory-container");
+            if (!container) return;
+            var empty = container.querySelector(".empty-state");
+            if (empty) empty.remove();
+            var tbody = document.querySelector(".inventory-table tbody");
+            if (!tbody) {
+                var wrapper = document.createElement("div");
+                wrapper.className = "inventory-table-wrapper";
+                var table = document.createElement("table");
+                table.className = "inventory-table";
+                table.innerHTML =
+                    "<thead><tr><th>Item</th><th>Type</th><th>Rarity</th><th>Quantity</th><th>Description</th><th>Actions</th></tr></thead><tbody></tbody>";
+                wrapper.appendChild(table);
+                container.appendChild(wrapper);
+                tbody = table.querySelector("tbody");
+            }
+            var sellPrice = Math.floor((parseInt(itemMeta.base_price, 10) || 0) * 0.75);
+            var rarityClass = String(itemMeta.rarity || "").toLowerCase().replace(/\s+/g, "-");
+            var tr = document.createElement("tr");
+            tr.innerHTML =
+                '<td class="item-name">' + escapeHtml(itemMeta.name || "Item") + "</td>" +
+                '<td class="item-type" data-label="Type">' + escapeHtml(itemMeta.type || "") + "</td>" +
+                '<td class="item-rarity" data-label="Rarity"><span class="rarity-badge rarity-' + escapeHtml(rarityClass) + '">' +
+                escapeHtml(itemMeta.rarity || "") + "</span></td>" +
+                '<td class="item-quantity" data-label="Quantity">' + quantity + "</td>" +
+                '<td data-label="Description">' + escapeHtml(itemMeta.description || "") + "</td>" +
+                '<td class="inventory-actions-cell" data-label="Actions"></td>';
+            var actionsCell = tr.lastElementChild;
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            var csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
+            var sellUrl = playerUrl("{{ url_for('player.sell_item', item_id=999999999) }}", itemId);
+            var equipUrl = playerUrl("{{ url_for('player.equip_item', item_id=999999999) }}", itemId);
+            actionsCell.innerHTML =
+                '<form class="sell-form" action="' + escapeHtml(sellUrl) + '" method="POST" style="margin-bottom: 4px;">' +
+                '<input type="hidden" name="csrf_token" value="' + escapeHtml(csrfToken) + '"/>' +
+                '<input type="number" name="quantity" class="quantity-input" min="1" max="' + quantity + '" value="1" required>' +
+                '<button type="submit" class="sell-button">Sell</button>' +
+                '<div class="sell-price">(' + sellPrice + " credits each)</div></form>" +
+                '<form action="' + escapeHtml(equipUrl) + '" method="POST">' +
+                '<input type="hidden" name="csrf_token" value="' + escapeHtml(csrfToken) + '"/>' +
+                '<button type="submit" class="button" style="padding: 4px 8px; font-size: 0.85em;">Equip on Character</button></form>';
+            tbody.appendChild(tr);
+        }
+
+        function refreshPlayerMarketOverview() {
+            var tbody = document.getElementById("player-market-table-body");
+            if (!tbody) return;
+            tbody.removeAttribute("data-loaded");
+            loadPlayerMarketOverview();
+        }
+
+        function keepPlayerPanelOpenAfterTrade() {
+            if (window.playerDashboard && typeof window.playerDashboard.reopenPanel === "function") {
+                var active = window.playerDashboard.getActivePanelId
+                    ? window.playerDashboard.getActivePanelId()
+                    : null;
+                if (active) {
+                    window.playerDashboard.reopenPanel(active);
+                    return;
+                }
+            }
+            if (window.playerDashboard && typeof window.playerDashboard.reopenPanel === "function") {
+                window.playerDashboard.reopenPanel("player-market-panel");
+            }
+        }
+
         // Delegated submit handler for inventory "Sell" forms. Converts
         // the synchronous POST + redirect (which previously surfaced as a
         // `flash-stack` banner) into an AJAX call so the response goes
@@ -2107,12 +2900,11 @@
                 .then(function (result) {
                     var msg = (result.data && result.data.message) || "Sale failed.";
                     if (result.ok && result.data && result.data.status === "success") {
-                        if (result.data.new_currency !== undefined) {
-                            var pill = document.getElementById("playerCurrency");
-                            if (pill) pill.textContent = result.data.new_currency;
-                        }
+                        updatePlayerCurrencyDisplay(result.data.new_currency);
+                        updateInventoryRowAfterSell(result.data.item_id, result.data.remaining_quantity);
+                        refreshPlayerMarketOverview();
                         showPurchaseToast(msg, "success");
-                        setTimeout(function () { location.reload(); }, 600);
+                        keepPlayerPanelOpenAfterTrade();
                     } else {
                         showPurchaseToast(msg, "error");
                         if (submitBtn) submitBtn.disabled = false;
@@ -2145,8 +2937,12 @@
             .then(response => response.json())
             .then(data => {
                 if (data && data.success) {
+                    updatePlayerCurrencyDisplay(data.new_currency);
+                    updateBrowseShopStock(data.shop_id, data.item_id, data.new_stock);
+                    updateInventoryRowAfterBuy(data.item_id, data.player_quantity, data.item);
+                    refreshPlayerMarketOverview();
                     showPurchaseToast(data.message || "Purchase complete.", "success");
-                    setTimeout(function () { location.reload(); }, 3000);
+                    keepPlayerPanelOpenAfterTrade();
                 } else {
                     var msg = (data && data.message) || "Unknown error";
                     if (data && data.error_code === "would_overdraft") {
@@ -2186,11 +2982,146 @@
                 .replace(/"/g, '&quot;');
         }
 
-        function renderClassDetailsPopout(details) {
+        function formatProgressionCaps(caps) {
+            caps = caps || {};
+            var parts = [];
+            if (caps.cantrips_known != null) parts.push('Cantrips: ' + caps.cantrips_known);
+            if (caps.spells_known != null) parts.push('Spells known: ' + caps.spells_known);
+            if (caps.spells_prepared != null) parts.push('Spells prepared: ' + caps.spells_prepared);
+            if (caps.invocations_known != null) parts.push('Invocations: ' + caps.invocations_known);
+            if (caps.proficiency_bonus != null) parts.push('Proficiency: +' + caps.proficiency_bonus);
+            return parts.join(' · ');
+        }
+
+        function formatSpellSlots(slots) {
+            slots = slots || {};
+            var keys = Object.keys(slots).filter(function (k) { return Number(slots[k]) > 0; });
+            if (!keys.length) return '';
+            return keys.map(function (k) { return 'Lv ' + k + ': ' + slots[k]; }).join(', ');
+        }
+
+        function buildPlayerFeatureTooltipHtml(feature) {
+            feature = feature || {};
+            var name = feature.name || feature.label || 'Feature';
+            var html = '<strong class="player-spell-tooltip-title">' + escapeHtml(name) + '</strong>';
+            if (feature.level != null && feature.level !== '') {
+                html += '<span class="player-spell-tooltip-subtitle">Gained at level ' +
+                    escapeHtml(String(feature.level)) + '</span>';
+            }
+            var body = feature.description || feature.summary || '';
+            if (body) {
+                html += '<span class="player-spell-tooltip-summary">' + escapeHtml(body) + '</span>';
+            }
+            if (feature.rules_text && feature.rules_text !== body) {
+                html += '<span class="player-spell-tooltip-summary">' + escapeHtml(feature.rules_text) + '</span>';
+            }
+            if (!body && !feature.rules_text) {
+                html += '<span class="player-spell-tooltip-summary">No description recorded.</span>';
+            }
+            return html;
+        }
+
+        function playerFeatureChipHtml(feature) {
+            feature = feature || {};
+            var label = feature.name || feature.label || 'Feature';
+            var meta = feature.level != null && feature.level !== ''
+                ? 'Lv ' + String(feature.level)
+                : '';
+            return (
+                '<span class="player-feature-chip" role="button" tabindex="0"' +
+                ' data-feature-name="' + escapeHtml(label) + '"' +
+                ' data-feature-description="' + escapeHtml(feature.description || feature.summary || '') + '"' +
+                ' data-feature-rules="' + escapeHtml(feature.rules_text || '') + '"' +
+                ' data-feature-level="' + escapeHtml(feature.level != null ? String(feature.level) : '') + '"' +
+                ' title="Hover for details">' +
+                escapeHtml(label) +
+                (meta ? ' <span class="player-feature-chip-meta">' + escapeHtml(meta) + '</span>' : '') +
+                '</span>'
+            );
+        }
+
+        function playerFeatureChipFromElement(chip) {
+            return {
+                name: chip.getAttribute('data-feature-name') || '',
+                label: chip.getAttribute('data-feature-name') || '',
+                description: chip.getAttribute('data-feature-description') || '',
+                summary: chip.getAttribute('data-feature-description') || '',
+                rules_text: chip.getAttribute('data-feature-rules') || '',
+                level: chip.getAttribute('data-feature-level') || ''
+            };
+        }
+
+        function ensurePlayerFeatureTooltip() {
+            var tooltip = document.getElementById('playerFeatureTooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'playerFeatureTooltip';
+                tooltip.className = 'player-spell-tooltip';
+                tooltip.setAttribute('role', 'tooltip');
+                tooltip.hidden = true;
+                document.body.appendChild(tooltip);
+            } else {
+                mountPlayerFloatingTooltip(tooltip);
+            }
+            return tooltip;
+        }
+
+        function hidePlayerFeatureTooltip() {
+            var tooltip = document.getElementById('playerFeatureTooltip');
+            if (tooltip) tooltip.hidden = true;
+        }
+
+        function showPlayerFeatureTooltip(feature, clientX, clientY) {
+            var tooltip = ensurePlayerFeatureTooltip();
+            tooltip.innerHTML = buildPlayerFeatureTooltipHtml(feature);
+            positionPlayerFloatingTooltip(tooltip, clientX, clientY);
+        }
+
+        function bindPlayerFeatureChipTooltips(root) {
+            if (!root) return;
+            root.querySelectorAll('.player-feature-chip').forEach(function (chip) {
+                if (chip.dataset.featureTooltipBound === '1') return;
+                chip.dataset.featureTooltipBound = '1';
+                chip.addEventListener('mouseenter', function (ev) {
+                    showPlayerFeatureTooltip(playerFeatureChipFromElement(chip), ev.clientX, ev.clientY);
+                });
+                chip.addEventListener('mousemove', function (ev) {
+                    var tooltip = document.getElementById('playerFeatureTooltip');
+                    if (tooltip && !tooltip.hidden) {
+                        positionPlayerFloatingTooltip(tooltip, ev.clientX, ev.clientY);
+                    }
+                });
+                chip.addEventListener('mouseleave', hidePlayerFeatureTooltip);
+                chip.addEventListener('focus', function () {
+                    var rect = chip.getBoundingClientRect();
+                    showPlayerFeatureTooltip(
+                        playerFeatureChipFromElement(chip),
+                        rect.left + (rect.width / 2),
+                        rect.bottom
+                    );
+                });
+                chip.addEventListener('blur', hidePlayerFeatureTooltip);
+            });
+        }
+
+        function renderClassFeatureChipSection(title, features) {
+            features = features || [];
+            if (!features.length) return '';
+            var html = '<p><strong>' + escapeHtml(title) + '</strong></p>';
+            html += '<div class="player-feature-chip-list">';
+            features.forEach(function (feature) {
+                html += playerFeatureChipHtml(feature);
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function renderClassDetailsPopout(details, extras) {
             var popout = document.getElementById('characterClassPopout');
             var trigger = document.getElementById('characterClassTrigger');
             if (!popout || !trigger) return;
             details = details || {};
+            extras = extras || {};
             if (!details.available) {
                 popout.innerHTML = '<p>' + escapeHtml(details.hidden_message || 'Class details are not available.') + '</p>';
                 trigger.disabled = !details.name;
@@ -2203,22 +3134,68 @@
             if (details.summary) {
                 html += '<p>' + escapeHtml(details.summary) + '</p>';
             }
+            if (details.subclass && details.subclass.name) {
+                html += '<p><strong>Subclass:</strong> ' + escapeHtml(details.subclass.name);
+                if (details.subclass.tagline) {
+                    html += ' — <span class="muted">' + escapeHtml(details.subclass.tagline) + '</span>';
+                }
+                html += '</p>';
+                if (details.subclass.summary) {
+                    html += '<p>' + escapeHtml(details.subclass.summary) + '</p>';
+                }
+                if ((details.subclass.feature_grants || []).length) {
+                    html += renderClassFeatureChipSection('Subclass features', details.subclass.feature_grants.map(function (grant) {
+                        return {
+                            name: grant.name,
+                            description: grant.summary || '',
+                            summary: grant.summary || '',
+                            level: grant.level
+                        };
+                    }));
+                }
+            }
             if (details.hit_die) {
                 html += '<p><strong>Hit die:</strong> d' + escapeHtml(String(details.hit_die)) + '</p>';
             }
-            if ((current.features || []).length) {
-                html += '<p><strong>Current features</strong></p><ul>';
-                current.features.forEach(function (feature) {
-                    html += '<li><strong>' + escapeHtml(feature.name || 'Feature') + '</strong>';
-                    if (feature.description) {
-                        html += ': ' + escapeHtml(feature.description);
-                    }
-                    html += '</li>';
-                });
-                html += '</ul>';
+            var capsText = formatProgressionCaps(current);
+            if (capsText) {
+                html += '<p><strong>Spellcasting caps:</strong> ' + escapeHtml(capsText) + '</p>';
+            }
+            var resolvedSlots = formatSpellSlots(details.resolved_spell_slots || current.spell_slots);
+            if (resolvedSlots) {
+                html += '<p><strong>Spell slots:</strong> ' + escapeHtml(resolvedSlots) + '</p>';
+            } else {
+                var pact = current.pact_magic;
+                if (pact && pact.slots) {
+                    html += '<p><strong>Pact slots:</strong> ' + escapeHtml(String(pact.slots)) +
+                        ' at slot level ' + escapeHtml(String(pact.slot_level || 1)) + '</p>';
+                }
+            }
+            var allFeatures = extras.class_features || [];
+            if (allFeatures.length) {
+                html += renderClassFeatureChipSection('Class features', allFeatures);
+            } else if ((current.features || []).length) {
+                html += renderClassFeatureChipSection('Current features', current.features.map(function (feature) {
+                    return {
+                        name: feature.name,
+                        description: feature.description,
+                        summary: feature.description,
+                        level: details.level
+                    };
+                }));
+            }
+            var combatAbilities = extras.combat_abilities || [];
+            if (combatAbilities.length) {
+                html += renderClassFeatureChipSection('Combat abilities', combatAbilities.map(function (ability) {
+                    return {
+                        name: ability.label,
+                        label: ability.label,
+                        description: ability.description || ''
+                    };
+                }));
             }
             var spellPairs = Object.keys(current.spell_slots || {});
-            if (spellPairs.length) {
+            if (spellPairs.length && !resolvedSlots) {
                 html += '<p><strong>Spell slots:</strong> ' + spellPairs.map(function (key) {
                     return escapeHtml(key) + '=' + escapeHtml(String(current.spell_slots[key]));
                 }).join(', ') + '</p>';
@@ -2233,17 +3210,28 @@
                 html += '<p><em>' + escapeHtml(current.notes) + '</em></p>';
             }
             if (next) {
-                html += '<p><strong>Next level preview</strong></p><ul>';
-                (next.features || []).forEach(function (feature) {
-                    html += '<li><strong>' + escapeHtml(feature.name || 'Feature') + '</strong>';
-                    if (feature.description) {
-                        html += ': ' + escapeHtml(feature.description);
-                    }
-                    html += '</li>';
-                });
-                html += '</ul>';
+                html += '<p><strong>Next level preview</strong></p>';
+                var nextCaps = formatProgressionCaps(next);
+                if (nextCaps) {
+                    html += '<p>' + escapeHtml(nextCaps) + '</p>';
+                }
+                var nextSlots = formatSpellSlots(details.next_resolved_spell_slots || next.spell_slots);
+                if (nextSlots) {
+                    html += '<p><strong>Spell slots:</strong> ' + escapeHtml(nextSlots) + '</p>';
+                }
+                if ((next.features || []).length) {
+                    html += renderClassFeatureChipSection('Gained next level', next.features.map(function (feature) {
+                        return {
+                            name: feature.name,
+                            description: feature.description,
+                            summary: feature.description,
+                            level: next.level
+                        };
+                    }));
+                }
             }
             popout.innerHTML = html;
+            bindPlayerFeatureChipTooltips(popout);
         }
 
         function renderSpellDetailsPopout(spellDetails) {
@@ -2259,10 +3247,11 @@
             trigger.disabled = false;
             var spells = spellDetails.spells || {};
             var html = '<h4>Prepared &amp; known spells</h4>';
+            var bucketLabels = { cantrips: 'Cantrips', prepared: 'Prepared', known: 'Known' };
             ['cantrips', 'prepared', 'known'].forEach(function (bucket) {
                 var rows = spells[bucket] || [];
                 if (!rows.length) return;
-                html += '<p><strong>' + escapeHtml(bucket) + '</strong></p><ul>';
+                html += '<p><strong>' + escapeHtml(bucketLabels[bucket] || bucket) + '</strong></p><ul>';
                 rows.forEach(function (spell) {
                     html += '<li><strong>' + escapeHtml(spell.name || spell.key) + '</strong> (L' +
                         escapeHtml(String(spell.level)) + ', ' + escapeHtml(spell.school || '') + ')';
@@ -2301,18 +3290,642 @@
                 prepared: (spells.prepared || []).map(function (row) { return row.key; }).filter(Boolean),
                 known: (spells.known || []).map(function (row) { return row.key; }).filter(Boolean)
             };
+            window.playerSpellLimits = spellDetails.limits || {};
+            window.playerSpellCounts = spellDetails.counts || {};
             renderPlayerSpellsWorkspace();
         }
 
-        function playerSpellChipHtml(spell, bucket) {
-            var level = parseInt(spell.level, 10);
+        function playerSpellLimitFor(bucket) {
+            var limits = window.playerSpellLimits || {};
+            return limits[bucket] || { enabled: false, max: 0 };
+        }
+
+        function playerSpellCountLabel(bucket) {
+            var limit = playerSpellLimitFor(bucket);
+            if (!limit.enabled) return "";
+            var count = (window.playerSpellState && window.playerSpellState[bucket])
+                ? window.playerSpellState[bucket].length
+                : 0;
+            return " (" + count + " / " + limit.max + ")";
+        }
+
+        function bindHoverDetailsPopout(triggerId, popoutId) {
+            var trigger = document.getElementById(triggerId);
+            var popout = ensureIdentityPopout(popoutId);
+            if (!trigger || !popout || trigger.dataset.hoverPopoutBound === '1') return;
+            trigger.dataset.hoverPopoutBound = '1';
+            var panel = trigger.closest('.player-tab-panel');
+            function openPopout() {
+                positionIdentityPopout(popout, trigger);
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+            function closePopout() {
+                popout.hidden = true;
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+            trigger.addEventListener('mouseenter', openPopout);
+            trigger.addEventListener('focus', openPopout);
+            trigger.addEventListener('mouseleave', function () {
+                setTimeout(function () {
+                    if (!popout.matches(':hover') && document.activeElement !== trigger) {
+                        closePopout();
+                    }
+                }, 120);
+            });
+            popout.addEventListener('mouseenter', function () {
+                popout.hidden = false;
+            });
+            popout.addEventListener('mouseleave', closePopout);
+            if (panel && panel.dataset.identityPopoutScrollBound !== '1') {
+                panel.dataset.identityPopoutScrollBound = '1';
+                panel.addEventListener('scroll', closePopout, { passive: true });
+            }
+            document.addEventListener('click', function (event) {
+                if (!trigger.contains(event.target) && !popout.contains(event.target)) {
+                    closePopout();
+                }
+            });
+        }
+
+        function renderLevelUpPreviewPopout(preview) {
+            var popout = document.getElementById('levelUpPreviewPopout');
+            if (!popout) return;
+            preview = preview || {};
+            if (!preview.available) {
+                popout.innerHTML = '<p>' + escapeHtml(preview.message || 'Level up is not available.') + '</p>';
+                return;
+            }
+            var html = '<h4>Level ' + escapeHtml(String(preview.next_level)) + ' preview</h4>';
+            html += '<p>From level ' + escapeHtml(String(preview.current_level)) +
+                ' to level ' + escapeHtml(String(preview.next_level)) + '.</p>';
+            if (preview.hp_gain) {
+                html += '<p><strong>Hit points:</strong> +' + escapeHtml(String(preview.hp_gain)) +
+                    ' max HP (d' + escapeHtml(String(preview.hit_die || 8)) + ' average + CON).</p>';
+            }
+            if ((preview.features || []).length) {
+                html += renderClassFeatureChipSection('You gain', preview.features.map(function (feature) {
+                    return {
+                        name: feature.name,
+                        description: feature.description,
+                        summary: feature.description,
+                        level: preview.next_level
+                    };
+                }));
+            }
+            var slotChanges = preview.spell_slot_changes || {};
+            var slotKeys = Object.keys(slotChanges);
+            if (slotKeys.length) {
+                html += '<p><strong>Spell slot changes:</strong> ' + slotKeys.map(function (key) {
+                    return 'level ' + escapeHtml(key) + ': ' + escapeHtml(String(slotChanges[key]));
+                }).join(', ') + '</p>';
+            }
+            var deltas = preview.progression_deltas || {};
+            var deltaParts = [];
+            if (deltas.cantrips_known) deltaParts.push('+' + deltas.cantrips_known + ' cantrip(s)');
+            if (deltas.spells_known) deltaParts.push('+' + deltas.spells_known + ' spell(s) known');
+            if (deltas.spells_prepared) deltaParts.push('+' + deltas.spells_prepared + ' prepared');
+            if (deltas.invocations_known) deltaParts.push('+' + deltas.invocations_known + ' invocation(s)');
+            if (deltaParts.length) {
+                html += '<p><strong>Progression:</strong> ' + escapeHtml(deltaParts.join(', ')) + '</p>';
+            }
+            var caps = formatProgressionCaps(preview.class_progression || {});
+            if (caps) {
+                html += '<p><strong>At next level:</strong> ' + escapeHtml(caps) + '</p>';
+            }
+            if ((preview.player_choices || []).length) {
+                html += '<p><strong>You will need to choose</strong></p>';
+                preview.player_choices.forEach(function (choice) {
+                    html += '<div class="level-up-choice"><strong>' +
+                        escapeHtml(choice.title || 'Choice') + '</strong>';
+                    if (choice.description) {
+                        html += '<p style="margin:6px 0 0;">' + escapeHtml(choice.description) + '</p>';
+                    }
+                    html += '</div>';
+                });
+            } else {
+                html += '<p><em>No extra choices required for this level.</em></p>';
+            }
+            popout.innerHTML = html;
+            bindPlayerFeatureChipTooltips(popout);
+        }
+
+        function setupLevelUpPreviewPopout() {
+            var anchor = document.getElementById('levelUpAnchor');
+            var popout = ensureIdentityPopout('levelUpPreviewPopout');
+            var trigger = document.getElementById('levelUpTrigger');
+            if (!anchor || !popout || !trigger || anchor.dataset.levelPreviewBound === '1') return;
+            anchor.dataset.levelPreviewBound = '1';
+            var panel = anchor.closest('.player-tab-panel');
+            function openPopout() {
+                if (trigger.disabled) return;
+                positionIdentityPopout(popout, trigger);
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+            function closePopout() {
+                popout.hidden = true;
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+            anchor.addEventListener('mouseenter', openPopout);
+            trigger.addEventListener('focus', openPopout);
+            anchor.addEventListener('mouseleave', function () {
+                setTimeout(function () {
+                    if (!popout.matches(':hover') && document.activeElement !== trigger) {
+                        closePopout();
+                    }
+                }, 120);
+            });
+            popout.addEventListener('mouseenter', function () {
+                popout.hidden = false;
+            });
+            popout.addEventListener('mouseleave', closePopout);
+            if (panel && panel.dataset.levelPreviewScrollBound !== '1') {
+                panel.dataset.levelPreviewScrollBound = '1';
+                panel.addEventListener('scroll', closePopout, { passive: true });
+            }
+        }
+
+        function showLevelUpResultPopout(summary) {
+            var overlay = document.getElementById('levelUpResultPopout');
+            if (!overlay || !summary) return;
+            var html = '<div class="level-up-result-card" role="dialog" aria-labelledby="levelUpResultTitle">';
+            html += '<h3 id="levelUpResultTitle">Reached level ' + escapeHtml(String(summary.level || '')) + '</h3>';
+            if (summary.hp_gain) {
+                html += '<p><strong>Hit points:</strong> +' + escapeHtml(String(summary.hp_gain)) + ' max HP.</p>';
+            }
+            var caps = formatProgressionCaps(summary.class_progression || {});
+            if (caps) {
+                html += '<p><strong>Class progression:</strong> ' + escapeHtml(caps) + '</p>';
+            }
+            var slotText = formatSpellSlots(summary.spell_slots);
+            if (slotText) {
+                html += '<p><strong>Spell slots:</strong> ' + escapeHtml(slotText) + '</p>';
+            }
+            var resources = summary.class_resources || {};
+            var resKeys = Object.keys(resources);
+            if (resKeys.length) {
+                html += '<p><strong>Resources:</strong> ' + resKeys.map(function (key) {
+                    return escapeHtml(key) + '=' + escapeHtml(String(resources[key]));
+                }).join(', ') + '</p>';
+            }
+            if ((summary.features || []).length) {
+                html += renderClassFeatureChipSection('Gained', summary.features.map(function (feature) {
+                    return {
+                        name: feature.name,
+                        description: feature.description,
+                        summary: feature.description,
+                        level: summary.level
+                    };
+                }));
+            }
+            if ((summary.player_choices || []).length) {
+                html += '<p><strong>Complete these choices</strong></p>';
+                var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                var applyUrl = overlay.getAttribute('data-apply-trait-url') || '';
+                var subclassUrl = overlay.getAttribute('data-apply-subclass-url') || '';
+                summary.player_choices.forEach(function (choice) {
+                    if (choice.type === 'subclass' && (choice.options || []).length && subclassUrl) {
+                        html += '<div class="level-up-choice"><strong>' +
+                            escapeHtml(choice.title || 'Choose Subclass') + '</strong>';
+                        if (choice.description) {
+                            html += '<p style="margin:6px 0 0;">' + escapeHtml(choice.description) + '</p>';
+                        }
+                        html += '<form method="post" action="' + escapeHtml(subclassUrl) + '" class="subclass-pick-form">';
+                        html += '<input type="hidden" name="csrf_token" value="' + escapeHtml(csrf) + '">';
+                        html += '<input type="hidden" name="level" value="' + escapeHtml(String(choice.level || summary.level || '')) + '">';
+                        html += '<ul class="trait-pick-list">';
+                        choice.options.forEach(function (opt) {
+                            html += '<li><label><input type="radio" name="subclass_key" value="' +
+                                escapeHtml(opt.key || '') + '" required> <strong>' + escapeHtml(opt.name || opt.key) +
+                                '</strong>';
+                            if (opt.tagline) {
+                                html += '<br><span class="muted">' + escapeHtml(opt.tagline) + '</span>';
+                            }
+                            if (opt.summary) {
+                                html += '<br><span class="muted">' + escapeHtml(opt.summary) + '</span>';
+                            }
+                            html += '</label></li>';
+                        });
+                        html += '</ul><button type="submit" class="button">Confirm subclass</button></form></div>';
+                        return;
+                    }
+                    if (choice.type === 'trait_pick' && (choice.options || []).length && applyUrl) {
+                        html += '<div class="level-up-choice"><strong>' +
+                            escapeHtml(choice.title || 'Choice') + '</strong>';
+                        if (choice.description) {
+                            html += '<p style="margin:6px 0 0;">' + escapeHtml(choice.description) + '</p>';
+                        }
+                        html += '<form method="post" action="' + escapeHtml(applyUrl) + '" class="trait-pick-form" data-pick-count="' +
+                            escapeHtml(String(choice.pick_count || 1)) + '">';
+                        html += '<input type="hidden" name="csrf_token" value="' + escapeHtml(csrf) + '">';
+                        html += '<input type="hidden" name="level" value="' + escapeHtml(String(choice.level || summary.level || '')) + '">';
+                        html += '<input type="hidden" name="pool_tag" value="' + escapeHtml(choice.pool_tag || '') + '">';
+                        html += '<input type="hidden" name="pick_count" value="' + escapeHtml(String(choice.pick_count || 1)) + '">';
+                        html += '<p class="muted">Select ' + escapeHtml(String(choice.pick_count || 1)) + ':</p><ul class="trait-pick-list">';
+                        choice.options.forEach(function (opt) {
+                            html += '<li><label><input type="checkbox" name="trait_keys" value="' +
+                                escapeHtml(opt.key || '') + '"> <strong>' + escapeHtml(opt.name || opt.key) +
+                                '</strong>';
+                            if (opt.summary) {
+                                html += '<br><span class="muted">' + escapeHtml(opt.summary) + '</span>';
+                            }
+                            html += '</label></li>';
+                        });
+                        html += '</ul><button type="submit" class="button">Save choices</button></form></div>';
+                        return;
+                    }
+                    html += '<div class="level-up-choice"><strong>' +
+                        escapeHtml(choice.title || 'Choice') + '</strong>';
+                    if (choice.description) {
+                        html += '<p style="margin:6px 0 0;">' + escapeHtml(choice.description) + '</p>';
+                    }
+                    html += '</div>';
+                });
+            }
+            var sheetUrl = overlay.getAttribute('data-sheet-url') || '#';
+            var skipUrl = overlay.getAttribute('data-skip-url') || '';
+            var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            html += '<div class="level-up-result-actions">';
+            if ((summary.player_choices || []).length) {
+                html += '<a href="' + escapeHtml(sheetUrl) + '" class="button">Open character sheet</a>';
+                if (skipUrl) {
+                    html += '<form method="post" action="' + escapeHtml(skipUrl) + '" style="display:inline;">';
+                    html += '<input type="hidden" name="csrf_token" value="' + escapeHtml(csrf) + '">';
+                    html += '<input type="hidden" name="level" value="' + escapeHtml(String(summary.level || '')) + '">';
+                    html += '<button type="submit" class="button button-secondary">Skip for now</button>';
+                    html += '</form>';
+                }
+            }
+            html += '<button type="button" class="button" id="levelUpResultDismiss">Got it</button>';
+            html += '</div></div>';
+            overlay.innerHTML = html;
+            bindPlayerFeatureChipTooltips(overlay);
+            overlay.hidden = false;
+            overlay.querySelectorAll('.trait-pick-form').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    var boxes = form.querySelectorAll('input[name="trait_keys"]:checked');
+                    var pickCount = parseInt(form.getAttribute('data-pick-count') || '1', 10);
+                    var hiddenPick = form.querySelector('input[name="pick_count"]');
+                    if (hiddenPick) pickCount = parseInt(hiddenPick.value || '1', 10);
+                    if (boxes.length !== pickCount) {
+                        event.preventDefault();
+                        alert('Select exactly ' + pickCount + ' option(s).');
+                    }
+                });
+            });
+            var dismiss = document.getElementById('levelUpResultDismiss');
+            if (dismiss) {
+                dismiss.addEventListener('click', function () {
+                    overlay.hidden = true;
+                });
+            }
+            overlay.addEventListener('click', function (event) {
+                if (event.target === overlay) {
+                    overlay.hidden = true;
+                }
+            });
+        }
+
+        function renderSpeciesDetailsPopout(traitsDetails, speciesDetails) {
+            var popout = document.getElementById('characterSpeciesPopout');
+            var trigger = document.getElementById('characterSpeciesTrigger');
+            if (!popout || !trigger) return;
+            traitsDetails = traitsDetails || {};
+            speciesDetails = speciesDetails || {};
+            var displayName = String(
+                traitsDetails.name || speciesDetails.name ||
+                (speciesDetails.entry && speciesDetails.entry.name) || 'Species not set'
+            ).trim();
+            trigger.textContent = displayName;
+            var available = traitsDetails.available || speciesDetails.available;
+            if (!available) {
+                popout.innerHTML = '<p>' + escapeHtml(
+                    traitsDetails.hidden_message || speciesDetails.hidden_message ||
+                    'Species details are not available.'
+                ) + '</p>';
+                trigger.disabled = displayName === 'Species not set';
+                return;
+            }
+            trigger.disabled = false;
+            var html = '<h4>' + escapeHtml(displayName) + '</h4>';
+            var entry = speciesDetails.entry;
+            if (entry && entry.summary) {
+                html += '<p>' + escapeHtml(entry.summary) + '</p>';
+            }
+            var mods = entry && formatPlayerAbilityMods(entry.ability_modifiers);
+            if (mods) {
+                html += '<p><strong>Ability modifiers:</strong> ' + escapeHtml(mods) + '</p>';
+            }
+            var combat = entry && summarizePlayerTraitEffects(entry.combat_effects);
+            if (combat) {
+                html += '<p><strong>Traits &amp; defenses:</strong> ' + escapeHtml(combat) + '</p>';
+            }
+            var traits = traitsDetails.traits || [];
+            if (traits.length) {
+                html += '<p><strong>Species traits</strong></p><ul>';
+                traits.forEach(function (trait) {
+                    html += '<li><strong>' + escapeHtml(trait.name || 'Trait') + '</strong>';
+                    if (trait.description) {
+                        html += ': ' + escapeHtml(trait.description);
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+            }
+            (traitsDetails.mechanical_traits || []).forEach(function (trait) {
+                if (!trait) return;
+                html += '<p><strong>' + escapeHtml(trait.name || trait.key || 'Trait') + '</strong>';
+                if (trait.summary) {
+                    html += ': ' + escapeHtml(trait.summary);
+                }
+                html += '</p>';
+            });
+            if (traitsDetails.dragonborn_ancestry) {
+                html += '<p><strong>Draconic Ancestry:</strong> ' +
+                    escapeHtml(String(traitsDetails.dragonborn_ancestry).charAt(0).toUpperCase() +
+                        String(traitsDetails.dragonborn_ancestry).slice(1));
+                if (traitsDetails.dragonborn_breath_summary) {
+                    html += ' — ' + escapeHtml(traitsDetails.dragonborn_breath_summary);
+                } else {
+                    html += ' breath weapon and damage resistance';
+                }
+                html += '</p>';
+            }
+            if (traitsDetails.stat_modifiers) {
+                html += '<p><strong>Size &amp; speed:</strong> ' +
+                    escapeHtml(traitsDetails.stat_modifiers) + '</p>';
+            }
+            if (entry && (entry.traits || []).length) {
+                html += '<p><strong>Compendium notes</strong></p><ul>';
+                entry.traits.forEach(function (trait) {
+                    html += '<li><strong>' + escapeHtml(trait.name || 'Trait') + '</strong>';
+                    if (trait.description) {
+                        html += ': ' + escapeHtml(trait.description);
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+            }
+            popout.innerHTML = html;
+        }
+
+        function setupIdentityHoverPopouts() {
+            ['characterClassPopout', 'characterSpellsPopout', 'characterSpeciesPopout'].forEach(ensureIdentityPopout);
+            bindHoverDetailsPopout('characterClassTrigger', 'characterClassPopout');
+            bindHoverDetailsPopout('characterSpellsTrigger', 'characterSpellsPopout');
+            bindHoverDetailsPopout('characterSpeciesTrigger', 'characterSpeciesPopout');
+        }
+
+        function formatPlayerSpellSchool(spell) {
+            var school = String((spell && spell.school) || "").trim();
+            if (!school) return "";
+            return school.charAt(0).toUpperCase() + school.slice(1);
+        }
+
+        function playerSpellLevelLabel(spell) {
+            var level = parseInt(spell && spell.level, 10);
             if (isNaN(level)) level = 0;
-            var meta = level === 0 ? "Cantrip" : ("Lvl " + level);
+            return level === 0 ? "Cantrip" : ("Level " + level);
+        }
+
+        function buildPlayerSpellTooltipHtml(spell) {
+            if (!spell) return "";
+            var html = "";
+            html += '<strong class="player-spell-tooltip-title">' + escapeHtml(spell.name || spell.key) + "</strong>";
+            html += '<span class="player-spell-tooltip-subtitle">' +
+                escapeHtml(playerSpellLevelLabel(spell) + " · " + formatPlayerSpellSchool(spell)) +
+                "</span>";
+            if (spell.casting_time) {
+                html += '<div class="player-spell-tooltip-line"><strong>Casting time:</strong> ' +
+                    escapeHtml(spell.casting_time) + "</div>";
+            }
+            if (spell.range_text || spell.range_ft != null) {
+                html += '<div class="player-spell-tooltip-line"><strong>Range:</strong> ' +
+                    escapeHtml(spell.range_text || (String(spell.range_ft) + " ft")) + "</div>";
+            }
+            if (spell.components) {
+                html += '<div class="player-spell-tooltip-line"><strong>Components:</strong> ' +
+                    escapeHtml(spell.components) + "</div>";
+            }
+            if (spell.duration) {
+                html += '<div class="player-spell-tooltip-line"><strong>Duration:</strong> ' +
+                    escapeHtml(spell.duration) + "</div>";
+            }
+            var tags = [];
+            if (spell.concentration) tags.push("Concentration");
+            if (spell.ritual) tags.push("Ritual");
+            if (tags.length) {
+                html += '<div class="player-spell-tooltip-line">' + escapeHtml(tags.join(" · ")) + "</div>";
+            }
+            if (spell.attack_type === "save" && spell.save_ability) {
+                html += '<div class="player-spell-tooltip-line"><strong>Save:</strong> ' +
+                    escapeHtml(String(spell.save_ability).toUpperCase()) + "</div>";
+            } else if (spell.attack_type === "spell_attack") {
+                html += '<div class="player-spell-tooltip-line"><strong>Attack:</strong> Spell attack</div>';
+            }
+            if (spell.damage) {
+                html += '<div class="player-spell-tooltip-line"><strong>Damage:</strong> ' +
+                    escapeHtml(spell.damage) +
+                    (spell.damage_type ? (" " + escapeHtml(spell.damage_type)) : "") +
+                    "</div>";
+            }
+            if (spell.healing) {
+                html += '<div class="player-spell-tooltip-line"><strong>Healing:</strong> ' +
+                    escapeHtml(spell.healing) + "</div>";
+            }
+            if (spell.area && (spell.area.shape || spell.area.size_ft != null)) {
+                html += '<div class="player-spell-tooltip-line"><strong>Area:</strong> ' +
+                    escapeHtml(String(spell.area.shape || "area")) + " " +
+                    escapeHtml(String(spell.area.size_ft == null ? "?" : spell.area.size_ft)) +
+                    " ft</div>";
+            }
+            if (spell.conditions && spell.conditions.length) {
+                html += '<div class="player-spell-tooltip-line"><strong>Conditions:</strong> ' +
+                    escapeHtml(spell.conditions.join(", ")) + "</div>";
+            }
+            if (spell.summary) {
+                html += '<span class="player-spell-tooltip-summary">' + escapeHtml(spell.summary) + "</span>";
+            }
+            return html;
+        }
+
+        function mountPlayerFloatingTooltip(tooltip) {
+            if (!tooltip) return tooltip;
+            if (tooltip.parentElement !== document.body) {
+                document.body.appendChild(tooltip);
+            }
+            return tooltip;
+        }
+
+        function identityPopoutBounds(trigger) {
+            var margin = 10;
+            var panel = trigger.closest(".player-tab-panel") || trigger.closest(".gm-slide-panel");
+            var panelRect = panel ? panel.getBoundingClientRect() : null;
+            var viewportW = window.innerWidth || document.documentElement.clientWidth || 0;
+            var viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+            if (panelRect) {
+                return {
+                    left: panelRect.left + margin,
+                    top: panelRect.top + margin,
+                    right: panelRect.right - margin,
+                    bottom: panelRect.bottom - margin,
+                    width: Math.max(200, panelRect.width - margin * 2)
+                };
+            }
+            return {
+                left: margin,
+                top: margin,
+                right: viewportW - margin,
+                bottom: viewportH - margin,
+                width: Math.max(200, viewportW - margin * 2)
+            };
+        }
+
+        function positionIdentityPopout(popout, trigger) {
+            if (!popout || !trigger) return;
+            mountPlayerFloatingTooltip(popout);
+            popout.classList.add("is-floating");
+            var bounds = identityPopoutBounds(trigger);
+            popout.style.maxWidth = Math.min(360, bounds.width) + "px";
+            popout.style.transform = "none";
+            popout.hidden = false;
+            popout.style.left = "-9999px";
+            popout.style.top = "0px";
+            var triggerRect = trigger.getBoundingClientRect();
+            var popRect = popout.getBoundingClientRect();
+            var gap = 8;
+            var left = triggerRect.left;
+            var top = triggerRect.bottom + gap;
+            if (left + popRect.width > bounds.right) {
+                left = bounds.right - popRect.width;
+            }
+            if (left < bounds.left) {
+                left = bounds.left;
+            }
+            if (top + popRect.height > bounds.bottom) {
+                top = triggerRect.top - popRect.height - gap;
+            }
+            if (top < bounds.top) {
+                top = bounds.top;
+            }
+            if (top + popRect.height > bounds.bottom) {
+                top = Math.max(bounds.top, bounds.bottom - popRect.height);
+            }
+            popout.style.left = Math.round(left) + "px";
+            popout.style.top = Math.round(top) + "px";
+        }
+
+        function ensureIdentityPopout(popoutId) {
+            var popout = document.getElementById(popoutId);
+            if (popout) {
+                mountPlayerFloatingTooltip(popout);
+            }
+            return popout;
+        }
+
+        function positionPlayerFloatingTooltip(tooltip, clientX, clientY) {
+            if (!tooltip) return;
+            mountPlayerFloatingTooltip(tooltip);
+            var margin = 10;
+            var offsetX = 14;
+            var offsetY = 14;
+            var viewportW = window.innerWidth || document.documentElement.clientWidth || 0;
+            var viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+            tooltip.style.transform = "none";
+            tooltip.hidden = false;
+            tooltip.style.left = "-9999px";
+            tooltip.style.top = "0px";
+            var rect = tooltip.getBoundingClientRect();
+            var left = clientX + offsetX;
+            var top = clientY + offsetY;
+            if (left + rect.width > viewportW - margin) {
+                left = clientX - rect.width - offsetX;
+            }
+            if (top + rect.height > viewportH - margin) {
+                top = clientY - rect.height - offsetY;
+            }
+            left = Math.max(margin, Math.min(left, viewportW - rect.width - margin));
+            top = Math.max(margin, Math.min(top, viewportH - rect.height - margin));
+            tooltip.style.left = left + "px";
+            tooltip.style.top = top + "px";
+        }
+
+        function ensurePlayerSpellTooltip() {
+            var tooltip = document.getElementById("playerSpellTooltip");
+            if (!tooltip) {
+                tooltip = document.createElement("div");
+                tooltip.id = "playerSpellTooltip";
+                tooltip.className = "player-spell-tooltip";
+                tooltip.setAttribute("role", "tooltip");
+                tooltip.hidden = true;
+                document.body.appendChild(tooltip);
+            } else {
+                mountPlayerFloatingTooltip(tooltip);
+            }
+            return tooltip;
+        }
+
+        function positionPlayerSpellTooltip(tooltip, clientX, clientY) {
+            positionPlayerFloatingTooltip(tooltip, clientX, clientY);
+        }
+
+        function formatPlayerAbilityMods(mods) {
+            mods = mods || {};
+            return ["str", "dex", "con", "int", "wis", "cha"].map(function (ability) {
+                var val = Number(mods[ability] || 0);
+                return ability.toUpperCase() + " " + (val >= 0 ? "+" : "") + val;
+            }).join(", ");
+        }
+
+        function mapPlayerBonusPairs(obj) {
+            if (!obj) return "";
+            return Object.keys(obj).map(function (key) {
+                var val = Number(obj[key] || 0);
+                return String(key).toUpperCase() + " " + (val >= 0 ? "+" : "") + val;
+            }).join(", ");
+        }
+
+        function summarizePlayerTraitEffects(effects) {
+            if (!effects || !Object.keys(effects).length) return "";
+            var parts = [];
+            if (effects.speed_ft != null) parts.push("Speed " + effects.speed_ft + " ft");
+            if (effects.size) parts.push(String(effects.size) + " size");
+            if (effects.darkvision_ft) parts.push("Darkvision " + effects.darkvision_ft + " ft");
+            if (effects.reach_cells) parts.push("Reach " + effects.reach_cells + " cells");
+            if ((effects.damage_resistances || []).length) {
+                parts.push("Resist " + effects.damage_resistances.join(", "));
+            }
+            if ((effects.damage_immunities || []).length) {
+                parts.push("Immune " + effects.damage_immunities.join(", "));
+            }
+            if ((effects.damage_vulnerabilities || []).length) {
+                parts.push("Vuln " + effects.damage_vulnerabilities.join(", "));
+            }
+            if ((effects.condition_immunities || []).length) {
+                parts.push("Cond immune " + effects.condition_immunities.join(", "));
+            }
+            if ((effects.save_advantage_vs_conditions || []).length) {
+                parts.push("Save adv vs " + effects.save_advantage_vs_conditions.join(", "));
+            }
+            if ((effects.save_advantage_vs_magic || []).length) {
+                parts.push("Save adv vs magic (" + effects.save_advantage_vs_magic.join(", ") + ")");
+            }
+            if (effects.save_bonuses && Object.keys(effects.save_bonuses).length) {
+                parts.push("Save bonuses " + mapPlayerBonusPairs(effects.save_bonuses));
+            }
+            if (effects.lucky) parts.push("Lucky");
+            if (effects.savage_attacks) parts.push("Savage attacks");
+            if (effects.relentless_endurance) parts.push("Relentless endurance");
+            return parts.join("; ");
+        }
+
+        function playerSpellChipHtml(spell, bucket) {
+            var meta = playerSpellLevelLabel(spell).replace("Level ", "Lvl ");
             return (
                 '<span class="player-spell-chip" draggable="true" role="button" tabindex="0"' +
                 ' data-spell-key="' + escapeHtml(spell.key) + '"' +
                 ' data-spell-bucket="' + escapeHtml(bucket) + '"' +
-                ' title="Drag to move. Double-click to remove from lists.">' +
+                ' aria-describedby="playerSpellTooltip"' +
+                ' title="Hover for spell stats. Drag to move. Double-click to remove from lists.">' +
                 escapeHtml(spell.name || spell.key) +
                 ' <span class="player-spell-chip-meta">' + escapeHtml(meta) + "</span></span>"
             );
@@ -2331,10 +3944,15 @@
             var catalog = window.playerSpellCatalog || {};
             var spell = catalog[key];
             if (!spell || !window.playerSpellState) return false;
+            var limit = playerSpellLimitFor(bucket);
+            if (!limit.enabled) return false;
             var level = parseInt(spell.level, 10);
             if (isNaN(level)) level = 0;
             if (bucket === "cantrips" && level !== 0) return false;
             if ((bucket === "prepared" || bucket === "known") && level < 1) return false;
+            var current = window.playerSpellState[bucket] || [];
+            var alreadyIn = current.indexOf(key) !== -1;
+            if (!alreadyIn && current.length >= limit.max) return false;
             removePlayerSpellFromBuckets(key);
             if ((window.playerSpellState[bucket] || []).indexOf(key) === -1) {
                 window.playerSpellState[bucket].push(key);
@@ -2372,11 +3990,15 @@
             html += '<div class="player-spell-columns">';
             buckets.forEach(function (row) {
                 var bucket = row[0];
+                var limit = playerSpellLimitFor(bucket);
+                if (!limit.enabled) return;
                 var label = row[1];
                 var hint = row[2];
                 html += '<div class="player-spell-dropzone" data-spell-dropzone="' + escapeHtml(bucket) + '">';
-                html += "<h3>" + escapeHtml(label) + "</h3>";
-                html += '<p class="player-spell-dropzone-hint">' + escapeHtml(hint) + "</p>";
+                html += "<h3>" + escapeHtml(label) + escapeHtml(playerSpellCountLabel(bucket)) + "</h3>";
+                html += '<p class="player-spell-dropzone-hint">' + escapeHtml(hint);
+                html += " Choose up to " + escapeHtml(String(limit.max)) + ".";
+                html += "</p>";
                 html += '<div class="player-spell-chip-list">';
                 (window.playerSpellState[bucket] || []).forEach(function (key) {
                     if (catalog[key]) {
@@ -2389,7 +4011,7 @@
 
             html += '<section class="player-spell-library" data-spell-dropzone="library">';
             html += "<h3>Class Spell List</h3>";
-            html += '<p class="player-spell-dropzone-hint">Drag spells into a list above. Drop here to remove from your selections.</p>';
+            html += '<p class="player-spell-dropzone-hint">Drag spells into a list above. Drop here to remove. Changes save automatically.</p>';
             html += '<div class="player-spell-chip-list">';
             libraryKeys.forEach(function (key) {
                 html += playerSpellChipHtml(catalog[key], "library");
@@ -2400,7 +4022,7 @@
             html += "</div></section>";
 
             html += '<div class="player-spell-save-row">';
-            html += '<button type="button" class="button" id="player-spell-save-btn">Save Spells</button>';
+            html += '<button type="button" class="button-secondary" id="player-spell-save-btn">Save now</button>';
             html += '<span class="player-spell-save-status" id="playerSpellSaveStatus" role="status" aria-live="polite"></span>';
             html += "</div></div>";
 
@@ -2413,6 +4035,17 @@
             if (!panel) return;
             var dragKey = null;
             var dragSource = null;
+            var tooltip = ensurePlayerSpellTooltip();
+
+            function hidePlayerSpellTooltip() {
+                if (tooltip) tooltip.hidden = true;
+            }
+
+            function showPlayerSpellTooltip(spell, clientX, clientY) {
+                if (!tooltip || !spell) return;
+                tooltip.innerHTML = buildPlayerSpellTooltipHtml(spell);
+                positionPlayerSpellTooltip(tooltip, clientX, clientY);
+            }
 
             function clearDragOver() {
                 panel.querySelectorAll(".player-spell-dropzone.is-drag-over").forEach(function (el) {
@@ -2422,6 +4055,7 @@
 
             panel.querySelectorAll(".player-spell-chip").forEach(function (chip) {
                 chip.addEventListener("dragstart", function (ev) {
+                    hidePlayerSpellTooltip();
                     dragKey = chip.getAttribute("data-spell-key");
                     dragSource = chip.getAttribute("data-spell-bucket") || "library";
                     if (ev.dataTransfer) {
@@ -2433,13 +4067,33 @@
                     dragKey = null;
                     dragSource = null;
                     clearDragOver();
+                    hidePlayerSpellTooltip();
                 });
+                chip.addEventListener("mouseenter", function (ev) {
+                    var key = chip.getAttribute("data-spell-key");
+                    var spell = (window.playerSpellCatalog || {})[key];
+                    showPlayerSpellTooltip(spell, ev.clientX, ev.clientY);
+                });
+                chip.addEventListener("mousemove", function (ev) {
+                    if (tooltip && !tooltip.hidden) {
+                        positionPlayerSpellTooltip(tooltip, ev.clientX, ev.clientY);
+                    }
+                });
+                chip.addEventListener("mouseleave", hidePlayerSpellTooltip);
+                chip.addEventListener("focus", function () {
+                    var key = chip.getAttribute("data-spell-key");
+                    var spell = (window.playerSpellCatalog || {})[key];
+                    var rect = chip.getBoundingClientRect();
+                    showPlayerSpellTooltip(spell, rect.left + (rect.width / 2), rect.bottom);
+                });
+                chip.addEventListener("blur", hidePlayerSpellTooltip);
                 chip.addEventListener("dblclick", function () {
                     var key = chip.getAttribute("data-spell-key");
                     var bucket = chip.getAttribute("data-spell-bucket");
                     if (!key || bucket === "library") return;
                     removePlayerSpellFromBuckets(key);
                     renderPlayerSpellsWorkspace();
+                    schedulePlayerSpellAutoSave();
                 });
             });
 
@@ -2464,7 +4118,14 @@
                         if (!addPlayerSpellToBucket(key, target)) {
                             var status = document.getElementById("playerSpellSaveStatus");
                             if (status) {
-                                status.textContent = "That spell cannot go in that list.";
+                                var cap = playerSpellLimitFor(target);
+                                if (!cap.enabled) {
+                                    status.textContent = "That list is not used by your class.";
+                                } else if ((window.playerSpellState[target] || []).length >= cap.max) {
+                                    status.textContent = "That list is full (" + cap.max + " max).";
+                                } else {
+                                    status.textContent = "That spell cannot go in that list.";
+                                }
                             }
                             return;
                         }
@@ -2472,6 +4133,7 @@
                     var status = document.getElementById("playerSpellSaveStatus");
                     if (status) status.textContent = "";
                     renderPlayerSpellsWorkspace();
+                    schedulePlayerSpellAutoSave();
                 });
             });
 
@@ -2481,7 +4143,19 @@
             }
         }
 
-        function savePlayerSpellSelection() {
+        var playerSpellAutoSaveTimer = null;
+
+        function schedulePlayerSpellAutoSave() {
+            if (playerSpellAutoSaveTimer) {
+                clearTimeout(playerSpellAutoSaveTimer);
+            }
+            playerSpellAutoSaveTimer = setTimeout(function () {
+                playerSpellAutoSaveTimer = null;
+                savePlayerSpellSelection(true);
+            }, 400);
+        }
+
+        function savePlayerSpellSelection(autoSave) {
             var status = document.getElementById("playerSpellSaveStatus");
             var state = window.playerSpellState || { cantrips: [], prepared: [], known: [] };
             if (status) status.textContent = "Saving...";
@@ -2510,7 +4184,7 @@
                         if (status) status.textContent = errors.join(" ");
                         return;
                     }
-                    if (status) status.textContent = "Spells saved.";
+                    if (status) status.textContent = autoSave ? "Saved." : "Spells saved.";
                     renderSpellDetailsPopout(result.data.spell_details || {});
                     renderPlayerSpellsPanel(result.data.spell_details || {});
                 })
@@ -2519,65 +4193,84 @@
                 });
         }
 
-        function setupSpellDetailsPopout() {
-            var trigger = document.getElementById('characterSpellsTrigger');
-            var popout = document.getElementById('characterSpellsPopout');
-            if (!trigger || !popout || trigger.dataset.bound === '1') return;
-            trigger.dataset.bound = '1';
-            function openPopout() {
-                popout.hidden = false;
-                trigger.setAttribute('aria-expanded', 'true');
-            }
-            function closePopout() {
-                popout.hidden = true;
-                trigger.setAttribute('aria-expanded', 'false');
-            }
-            trigger.addEventListener('click', function () {
-                if (popout.hidden) openPopout(); else closePopout();
-            });
-            document.addEventListener('click', function (ev) {
-                if (!popout.hidden && !popout.contains(ev.target) && ev.target !== trigger) {
-                    closePopout();
+        function showCharacterSheetLevelStatus(messages, ok) {
+            var el = document.getElementById("characterSheetLevelStatus");
+            if (!el) {
+                el = document.createElement("p");
+                el.id = "characterSheetLevelStatus";
+                el.className = "character-sheet-level-status";
+                el.setAttribute("role", "status");
+                el.setAttribute("aria-live", "polite");
+                var anchor = document.querySelector(".character-level-actions");
+                if (anchor && anchor.parentNode) {
+                    anchor.parentNode.insertBefore(el, anchor.nextSibling);
                 }
-            });
+            }
+            if (!messages || !messages.length) {
+                el.textContent = "";
+                el.hidden = true;
+                return;
+            }
+            el.hidden = false;
+            el.textContent = messages.join(" ");
+            el.className = "character-sheet-level-status " + (ok ? "is-success" : "is-error");
         }
 
-        function setupClassDetailsPopout() {
-            var trigger = document.getElementById('characterClassTrigger');
-            var popout = document.getElementById('characterClassPopout');
-            if (!trigger || !popout || trigger.dataset.bound === '1') return;
-            trigger.dataset.bound = '1';
-            function openPopout() {
-                popout.hidden = false;
-                trigger.setAttribute('aria-expanded', 'true');
+        function ensureCharacterPanelOpen() {
+            var btn = document.getElementById("player-character-tab");
+            if (window.playerDashboard && typeof window.playerDashboard.openPanel === "function" && btn) {
+                window.playerDashboard.openPanel("player-character-panel", btn);
             }
-            function closePopout() {
-                popout.hidden = true;
-                trigger.setAttribute('aria-expanded', 'false');
-            }
-            trigger.addEventListener('click', function () {
-                if (popout.hidden) openPopout();
-                else closePopout();
-            });
-            trigger.addEventListener('mouseenter', openPopout);
-            trigger.addEventListener('focus', openPopout);
-            trigger.addEventListener('mouseleave', function () {
-                setTimeout(function () {
-                    if (!popout.matches(':hover') && document.activeElement !== trigger) {
-                        closePopout();
-                    }
-                }, 120);
-            });
-            popout.addEventListener('mouseleave', closePopout);
-            document.addEventListener('click', function (event) {
-                if (!trigger.contains(event.target) && !popout.contains(event.target)) {
-                    closePopout();
-                }
+        }
+
+        function submitLevelChangeForm(form) {
+            if (!form || !form.action) return;
+            var fd = new FormData(form);
+            fetch(form.action, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json"
+                },
+                body: fd
+            })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    var data = result.data || {};
+                    var success = !!(result.ok && data.ok);
+                    showCharacterSheetLevelStatus(data.messages || [], success);
+                    if (!success) return;
+                    var refresh = typeof loadCharacterData === "function" ? loadCharacterData() : Promise.resolve();
+                    Promise.resolve(refresh).finally(function () {
+                        ensureCharacterPanelOpen();
+                        if (data.level_up_summary && typeof window.startLevelUpWizard === "function") {
+                            window.startLevelUpWizard(data.level_up_summary);
+                        }
+                    });
+                })
+                .catch(function () {
+                    showCharacterSheetLevelStatus(["Could not update level."], false);
+                });
+        }
+        window.submitLevelChangeForm = submitLevelChangeForm;
+        window.ensureCharacterPanelOpen = ensureCharacterPanelOpen;
+
+        function setupInlineLevelForms() {
+            document.querySelectorAll(".inline-level-form").forEach(function (form) {
+                if (form.id === "levelUpForm") return;
+                form.addEventListener("submit", function (ev) {
+                    ev.preventDefault();
+                    submitLevelChangeForm(form);
+                });
             });
         }
 
         function loadCharacterData() {
-            fetch("{{ character_data_url|default(url_for('player.character_data')) }}")
+            return fetch("{{ character_data_url|default(url_for('player.character_data')) }}")
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
@@ -2751,16 +4444,37 @@
                         bodyContainer.addEventListener("mouseleave", hideTooltip);
                     }
 
-                    renderClassDetailsPopout(data.class_details || {});
-                    setupClassDetailsPopout();
+                    renderClassDetailsPopout(data.class_details || {}, {
+                        class_features: data.class_features || [],
+                        combat_abilities: data.combat_abilities || []
+                    });
+                    window.levelUpPreviewState = data.level_up_preview || {};
+                    renderLevelUpPreviewPopout(window.levelUpPreviewState);
+                    setupLevelUpPreviewPopout();
+                    var maxPlayerLevel = data.max_player_level || (window.levelUpPreviewState.max_player_level) || 20;
+                    var currentLevel = data.level || 1;
+                    var levelUpTrigger = document.getElementById('levelUpTrigger');
+                    if (levelUpTrigger) {
+                        levelUpTrigger.disabled = Number(currentLevel) >= Number(maxPlayerLevel);
+                    }
+                    var levelDownBtn = document.querySelector('.character-level-actions .inline-level-form:not(#levelUpForm) button');
+                    if (levelDownBtn) {
+                        levelDownBtn.disabled = Number(currentLevel) <= 1;
+                    }
+                    var levelDisplay = document.querySelector('.character-level-display');
+                    if (levelDisplay && data.level != null) {
+                        levelDisplay.textContent = 'Level ' + data.level;
+                    }
                     renderSpellDetailsPopout(data.spell_details || {});
-                    setupSpellDetailsPopout();
+                    renderSpeciesDetailsPopout(data.traits_details || {}, data.species_details || {});
+                    setupIdentityHoverPopouts();
                     renderPlayerSpellsPanel(data.spell_details || {});
                 })
                 .catch(error => {
                     console.error("Error loading character data:", error);
                 });
         }
+        window.loadCharacterData = loadCharacterData;
     </script>
 </head>
 <body class="player-dashboard">
@@ -2802,7 +4516,8 @@
             <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-inventory-panel" id="player-inventory-tab" role="tab" aria-selected="false" title="Inventory"><span class="gm-nav-icon" aria-hidden="true">🎒</span><span class="gm-nav-label">Inventory</span></button>
             <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-npcs-panel" id="player-npcs-tab" role="tab" aria-selected="false" title="Known NPCs"><span class="gm-nav-icon" aria-hidden="true">🎭</span><span class="gm-nav-label">NPCs</span></button>
             {% if combat_enabled %}
-            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-encounter-panel" id="player-encounter-tab" role="tab" aria-selected="false" title="Encounters"><span class="gm-nav-icon" aria-hidden="true">⚔️</span><span class="gm-nav-label">Fight</span></button>
+            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-monsters-panel" id="player-monsters-tab" role="tab" aria-selected="false" title="Monster bestiary"><span class="gm-nav-icon" aria-hidden="true">👹</span><span class="gm-nav-label">Monsters</span></button>
+            <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-encounter-panel" id="player-encounter-tab" role="tab" aria-selected="false" title="Encounters"><span class="gm-nav-icon" aria-hidden="true">⚔️</span><span class="gm-nav-label">Encounter</span></button>
             {% endif %}
             <button type="button" class="player-panel-tab gm-nav-rail-btn" data-target="player-market-panel" id="player-market-tab" role="tab" aria-selected="false" title="Market Overview"><span class="gm-nav-icon" aria-hidden="true">📊</span><span class="gm-nav-label">Market</span></button>
         </nav>
@@ -2813,26 +4528,51 @@
                 <div class="character-header-row">
                     <div class="character-name-block">
                         <h2>{{ character.name|default('Your Character') }}</h2>
-                        <div class="class-details-anchor">
-                            <button type="button" class="character-class-trigger" id="characterClassTrigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="characterClassPopout">
-                                {% if character.class_name %}{{ character.class_name }}{% else %}Class not set{% endif %}{% if character.class_name and character.level %} · {% endif %}{% if character.level %}Level {{ character.level }}{% endif %}
-                            </button>
-                            <div id="characterClassPopout" class="class-details-popout" role="dialog" aria-label="Class details" hidden></div>
+                        <div class="character-identity-triggers">
+                            <div class="class-details-anchor">
+                                <button type="button" class="character-class-trigger" id="characterClassTrigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="characterClassPopout">
+                                    {% if character.class_name %}{{ character.class_name }}{% else %}Class not set{% endif %}{% if character.class_name and character.level %} · {% endif %}{% if character.level %}Level {{ character.level }}{% endif %}
+                                </button>
+                                <div id="characterClassPopout" class="class-details-popout" role="dialog" aria-label="Class details" hidden></div>
+                            </div>
+                            <div class="class-details-anchor">
+                                <button type="button" class="character-class-trigger" id="characterSpellsTrigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="characterSpellsPopout">
+                                    Spells
+                                </button>
+                                <div id="characterSpellsPopout" class="class-details-popout" role="dialog" aria-label="Spell details" hidden></div>
+                            </div>
+                            <div class="class-details-anchor">
+                                <button type="button" class="character-class-trigger" id="characterSpeciesTrigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="characterSpeciesPopout">
+                                    {% if character.species %}{{ character.species }}{% else %}Species not set{% endif %}
+                                </button>
+                                <div id="characterSpeciesPopout" class="class-details-popout" role="dialog" aria-label="Species details" hidden></div>
+                            </div>
                         </div>
-                        <div class="class-details-anchor">
-                            <button type="button" class="character-class-trigger" id="characterSpellsTrigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="characterSpellsPopout">
-                                Spells
-                            </button>
-                            <div id="characterSpellsPopout" class="class-details-popout" role="dialog" aria-label="Spell details" hidden></div>
+                        {% set sheet_level = character.level if character.level is not none else 1 %}
+                        {% set max_player_level = character.max_player_level if character.max_player_level is defined else 20 %}
+                        <div class="character-sheet-actions">
+                            <a href="{{ url_for('player.view_character_id', player_id=character.id) }}" class="button character-sheet-popout-link">Full character sheet</a>
+                            {% if (character.system_type or '')|lower == 'dnd5e' %}
+                            <div class="character-level-actions">
+                                <form method="POST" action="{{ url_for('player.level_down_character', player_id=character.id) }}" class="inline-level-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="level-control-btn" {% if sheet_level <= 1 %}disabled{% endif %} title="Level down (reverse last level-up)">Level down</button>
+                                </form>
+                                <span class="character-level-display" aria-live="polite">Level {{ sheet_level }}</span>
+                                <div class="class-details-anchor level-up-anchor" id="levelUpAnchor">
+                                    <form method="POST" action="{{ url_for('player.level_up_character', player_id=character.id) }}" class="inline-level-form" id="levelUpForm">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="level-control-btn" id="levelUpTrigger" {% if sheet_level >= max_player_level %}disabled{% endif %} title="Level up (apply SRD progression)" aria-haspopup="dialog" aria-expanded="false" aria-controls="levelUpPreviewPopout">Level up</button>
+                                    </form>
+                                    <div id="levelUpPreviewPopout" class="class-details-popout level-up-preview-popout" role="dialog" aria-label="Next level preview" hidden></div>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
-                        <p class="character-identity-meta">
-                            {% if character.species %}{{ character.species }}{% else %}Species not set{% endif %}
-                            {% if character.system_type %} · {{ character.system_type }}{% endif %}
-                        </p>
+                        {% if character.system_type %}
+                        <p class="character-identity-meta">{{ character.system_type }}</p>
+                        {% endif %}
                         <div id="headerDerivedStats" class="header-derived-stats" style="margin-top: 8px;"></div>
-                        <p class="character-sheet-link-row">
-                            <a href="{{ url_for('player.view_character_id', player_id=character.id) }}" class="button">Full Character Sheet</a>
-                        </p>
                     </div>
                     <div class="saving-throws-block">
                         <p class="stat-section-title">Saves</p>
@@ -2879,6 +4619,7 @@
                     <thead>
                         <tr>
                             <th>Name</th>
+                            <th>Owns</th>
                             <th>Class</th>
                             <th>Species</th>
                             <th>Level</th>
@@ -2886,10 +4627,11 @@
                     </thead>
                     <tbody>
                         {% for npc in known_npc_entries %}
-                        <tr>
+                        <tr class="player-npc-row" data-npc-id="{{ npc.id }}" data-npc-name="{{ npc.name }}">
                             <td>
                                 <button type="button" class="player-npc-name-link" data-npc-id="{{ npc.id }}" data-npc-name="{{ npc.name }}">{{ npc.name }}</button>
                             </td>
+                            <td class="player-npc-owns"{% if npc.location_summary %} title="{{ npc.location_summary }}"{% endif %}>{{ npc.location_summary or '—' }}</td>
                             <td>{{ npc.class_name or '—' }}</td>
                             <td>{{ npc.species or '—' }}</td>
                             <td>{{ npc.level if npc.level is not none else '—' }}</td>
@@ -2902,6 +4644,7 @@
                 {% endif %}
             </div>
             </div>
+            <div id="player-npc-hover-popout" class="player-npc-hover-popout" hidden role="tooltip" aria-hidden="true"></div>
             <div class="player-npc-detail" id="player-npc-detail" hidden aria-label="NPC details">
                 <div class="player-npc-detail-toolbar">
                     <button type="button" class="button player-npc-detail-close">Back to list</button>
@@ -2924,6 +4667,108 @@
             </div>
             </div>
             </section>
+
+            {% if combat_enabled %}
+            <section id="player-monsters-panel" class="player-tab-panel gm-slide-panel" role="tabpanel" aria-labelledby="player-monsters-tab" hidden>
+            <div class="player-monster-shell" id="player-monster-shell">
+            <div class="player-monster-list" id="player-monster-list">
+            <div class="section">
+                <h2>Monster bestiary</h2>
+                <p class="small-text">Creatures your GM shared or you added from encounters. Record your own observations — GM stat blocks are never copied here.</p>
+                <table class="player-npc-table" id="player-monster-table"{% if not known_monster_entries %} hidden{% endif %}>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>CR</th>
+                            <th>Your notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="player-monster-table-body">
+                        {% for monster in known_monster_entries %}
+                        <tr class="player-monster-row" data-monster-id="{{ monster.id }}" data-monster-name="{{ monster.name }}">
+                            <td>
+                                <button type="button" class="player-monster-name-link" data-monster-id="{{ monster.id }}" data-monster-name="{{ monster.name }}">{{ monster.name }}</button>
+                            </td>
+                            <td>{{ monster.challenge_rating if monster.challenge_rating is not none else '—' }}</td>
+                            <td class="player-npc-owns">{{ monster.player_summary or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="player-npc-empty" id="player-monster-empty"{% if known_monster_entries %} hidden{% endif %}>No monsters in your bestiary yet. Click foes during encounters to add them.</p>
+            </div>
+            </div>
+            <div class="player-npc-detail player-monster-detail" id="player-monster-detail" hidden aria-label="Monster journal">
+                <div class="player-npc-detail-toolbar">
+                    <button type="button" class="button player-monster-detail-close">Back to list</button>
+                </div>
+                <p class="player-npc-detail-loading" id="player-monster-detail-loading" hidden>Loading…</p>
+                <p class="player-npc-detail-error" id="player-monster-detail-error" hidden></p>
+                <form id="player-monster-journal-form" class="battle-monster-edit-form" hidden>
+                    <h2 class="player-npc-detail-name" id="player-monster-detail-name"></h2>
+                    <p class="small-text" id="player-monster-detail-meta"></p>
+                    <div class="battle-monster-edit-grid">
+                        <label>HP <input type="number" id="player-monster-hp" min="1" max="2000" placeholder="—"></label>
+                        <label>AC <input type="number" id="player-monster-ac" min="1" max="30" placeholder="—"></label>
+                        <label>Speed (ft) <input type="number" id="player-monster-speed" min="0" max="120" placeholder="—"></label>
+                    </div>
+                    <fieldset class="battle-monster-edit-abilities">
+                        <legend>Abilities (if observed)</legend>
+                        <div class="battle-monster-edit-grid battle-monster-edit-ability-grid">
+                            <label>STR <input type="number" id="player-monster-str" min="1" max="30" placeholder="—"></label>
+                            <label>DEX <input type="number" id="player-monster-dex" min="1" max="30" placeholder="—"></label>
+                            <label>CON <input type="number" id="player-monster-con" min="1" max="30" placeholder="—"></label>
+                            <label>INT <input type="number" id="player-monster-int" min="1" max="30" placeholder="—"></label>
+                            <label>WIS <input type="number" id="player-monster-wis" min="1" max="30" placeholder="—"></label>
+                            <label>CHA <input type="number" id="player-monster-cha" min="1" max="30" placeholder="—"></label>
+                        </div>
+                    </fieldset>
+                    <label>Size / type
+                        <input type="text" id="player-monster-creature-type" maxlength="80" placeholder="Large dragon, Medium humanoid…">
+                    </label>
+                    <label>Senses
+                        <input type="text" id="player-monster-senses" maxlength="200" placeholder="Darkvision 60 ft…">
+                    </label>
+                    <label>Skills
+                        <input type="text" id="player-monster-skills" maxlength="200" placeholder="Perception +5…">
+                    </label>
+                    <label>Saving throws
+                        <input type="text" id="player-monster-saves" maxlength="120" placeholder="Dex +4, Wis +2…">
+                    </label>
+                    <label>Resistances
+                        <input type="text" id="player-monster-resist" maxlength="120" placeholder="fire, cold">
+                    </label>
+                    <label>Immunities
+                        <input type="text" id="player-monster-immune" maxlength="120" placeholder="poison">
+                    </label>
+                    <label>Vulnerabilities
+                        <input type="text" id="player-monster-vuln" maxlength="120" placeholder="radiant">
+                    </label>
+                    <label>Condition immunities
+                        <input type="text" id="player-monster-cond-immune" maxlength="120" placeholder="charmed, frightened">
+                    </label>
+                    <fieldset class="battle-monster-edit-attacks">
+                        <legend>Attacks you observed</legend>
+                        <div id="player-monster-attacks"></div>
+                        <button type="button" class="button" id="player-monster-add-attack">Add attack</button>
+                    </fieldset>
+                    <fieldset class="battle-monster-edit-legendary">
+                        <legend>Legendary actions</legend>
+                        <div id="player-monster-legendary"></div>
+                        <button type="button" class="button" id="player-monster-add-legendary">Add legendary action</button>
+                    </fieldset>
+                    <label>General notes
+                        <textarea id="player-monster-notes" maxlength="2000" placeholder="Behavior, weaknesses, where you fought it…"></textarea>
+                    </label>
+                    <div class="player-npc-notes-actions">
+                        <button type="submit" class="button">Save journal</button>
+                        <span class="player-npc-notes-status" id="player-monster-save-status" aria-live="polite"></span>
+                    </div>
+                </form>
+            </div>
+            </div>
+            </section>
+            {% endif %}
 
             <!-- Right column: body model + equipment slot list stacked
                  above the inventory table. -->
@@ -2966,12 +4811,12 @@
                         </div>
                         <div class="equipment-slots" style="margin-top: 12px;">
                             <h3 style="margin: 0 0 8px 0;">Equipment</h3>
-                            <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9em;">
+                            <ul class="equipment-slot-list" style="list-style: none; padding: 0; margin: 0; font-size: 0.9em;">
                                 {% for slot in character.equipment_slots|default([]) %}
-                                <li style="display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--color-border);">
-                                    <span>{{ slot.slot_name|replace('_', ' ')|title }}: {% if slot.item %}{{ slot.item.name }}{% else %}—{% endif %}</span>
+                                <li class="equipment-slot-row">
+                                    <span class="equipment-slot-label">{{ slot.slot_name|replace('_', ' ')|title }}: {% if slot.item %}{{ slot.item.name }}{% else %}—{% endif %}</span>
                                     {% if slot.item %}
-                                    <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST" style="display: inline;">
+                                    <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="button" style="padding: 2px 8px; font-size: 0.8em;">Unequip</button>
                                     </form>
@@ -2996,6 +4841,7 @@
                     {% endif %}
                 </div>
                 {% if inventory_items %}
+                    <div class="inventory-table-wrapper">
                     <table class="inventory-table">
                         <thead>
                             <tr>
@@ -3011,15 +4857,15 @@
                             {% for item in inventory_items %}
                             <tr>
                                 <td class="item-name">{{ item.name }}</td>
-                                <td class="item-type">{{ item.type }}</td>
-                                <td class="item-rarity">
+                                <td class="item-type" data-label="Type">{{ item.type }}</td>
+                                <td class="item-rarity" data-label="Rarity">
                                     <span class="rarity-badge rarity-{{ item.rarity|lower|replace(' ', '-') }}">
                                         {{ item.rarity }}
                                     </span>
                                 </td>
-                                <td class="item-quantity">{{ item.quantity }}</td>
-                                <td>{{ item.description }}</td>
-                                <td>
+                                <td class="item-quantity" data-label="Quantity">{{ item.quantity }}</td>
+                                <td data-label="Description">{{ item.description }}</td>
+                                <td class="inventory-actions-cell" data-label="Actions">
                                     <form class="sell-form" action="{{ url_for('player.sell_item', item_id=item.item_id) }}" method="POST" style="margin-bottom: 4px;">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <input type="number" 
@@ -3047,6 +4893,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    </div>
                 {% else %}
                     <div class="empty-state">
                         <p>Your inventory is currently empty.</p>
@@ -3085,6 +4932,9 @@
             </div>
             <div class="player-shops-browse-panel" id="player-shops-browse">
                 <h2>Shops by city</h2>
+                {% if player_market_item_catalog %}
+                <script type="application/json" id="player-market-item-catalog">{{ player_market_item_catalog|tojson }}</script>
+                {% endif %}
                 <div class="browse-note">
                     <strong>Tip:</strong> Expand a city to see its shops, then expand a shop to browse items. Buy purchases a single unit; visit the shop page for bulk purchases.
                 </div>
@@ -3150,7 +5000,7 @@
                                         <tbody>
                                             {% for it in items %}
                                             <tr>
-                                                <td>{{ it.name }}</td>
+                                                <td class="player-market-item-trigger" data-item-id="{{ it.item_id }}" title="Hover for item stats.">{{ it.name }}</td>
                                                 <td>{{ "%.0f"|format(it.price) }}</td>
                                                 <td>
                                                     {% set status = 'out-of-stock' if it.stock <= 0 else ('low-stock' if it.stock <= 5 else 'in-stock') %}
@@ -3203,7 +5053,7 @@
                     </div>
                     {% if battle_encounter %}
                     <p class="player-map-empty">
-                        Click your highlighted character on its turn to move, attack, or wait. The board refreshes automatically.
+                        Click your highlighted character on its turn to move, attack, cast spells, or wait. The board refreshes automatically.
                     </p>
                     <div id="battle-feedback" class="battle-feedback" role="status" aria-live="polite"></div>
                     <div class="battle-layout">
@@ -3226,11 +5076,13 @@
                             <div id="battle-radial" class="battle-radial" hidden>
                                 <button type="button" class="battle-radial-btn battle-radial-move-btn" id="battle-radial-move">Move</button>
                                 <button type="button" class="battle-radial-btn battle-radial-attack-btn" id="battle-radial-attack">Attack</button>
+                                <button type="button" class="battle-radial-btn battle-radial-cast-btn" id="battle-radial-cast">Cast</button>
                                 <button type="button" class="battle-radial-btn" id="battle-radial-wait">Wait</button>
                                 <button type="button" class="battle-radial-btn" id="battle-radial-death-save" hidden>Death save</button>
                                 <button type="button" class="battle-radial-btn battle-radial-close-btn" id="battle-radial-close" aria-label="Close">&times;</button>
                             </div>
                             <div id="battle-attack-popout" class="battle-attack-popout" hidden></div>
+                            <div id="battle-cast-popout" class="battle-attack-popout" hidden></div>
                         </div>
                         <aside class="battle-sidebar">
                             <h3>Turn Tracker</h3>
@@ -3261,7 +5113,10 @@
             apiBase: '/api/combat',
             csrfToken: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
             initialEncounterId: {{ battle_encounter.id }},
-            autoStart: true
+            autoStart: true,
+            playerMonsterProfileUrl: "{{ url_for('player.known_monster_profile', entry_id=999999999) }}",
+            playerMonsterDiscoverUrl: "{{ url_for('player.discover_monster') }}",
+            playerMonsterJournalUrl: "{{ url_for('player.save_known_monster_journal', entry_id=999999999) }}"
         };
     </script>
     <script src="{{ url_for('static', filename='js/gm_battle.js') }}"></script>
@@ -3298,10 +5153,17 @@
             mapImage: "{{ url_for('player.player_map_image', canvas_id=999999999) }}",
             shop: "{{ url_for('player.view_shop', shop_id=999999999) }}",
             knownNpcProfile: "{{ url_for('player.known_npc_profile', npc_id=999999999) }}",
-            knownNpcNotes: "{{ url_for('player.save_known_npc_notes', npc_id=999999999) }}"
+            knownNpcNotes: "{{ url_for('player.save_known_npc_notes', npc_id=999999999) }}",
+            knownMonsterList: "{{ url_for('player.list_known_monsters') }}",
+            knownMonsterProfile: "{{ url_for('player.known_monster_profile', entry_id=999999999) }}",
+            knownMonsterJournal: "{{ url_for('player.save_known_monster_journal', entry_id=999999999) }}",
+            discoverMonster: "{{ url_for('player.discover_monster') }}"
         };
 
         var playerNpcDetailState = { npcId: null };
+        var playerNpcProfileCache = {};
+        var playerNpcHoverTimer = null;
+        var playerNpcHoverNpcId = null;
 
         function playerCsrfToken() {
             var meta = document.querySelector('meta[name="csrf-token"]');
@@ -3323,16 +5185,11 @@
             );
         }
 
-        function renderPlayerNpcDetail(npc) {
-            var body = document.getElementById("player-npc-detail-body");
-            var facts = document.getElementById("player-npc-detail-facts");
-            var nameEl = document.getElementById("player-npc-detail-name");
-            var notesInput = document.getElementById("player-npc-notes-input");
-            var status = document.getElementById("player-npc-notes-status");
-            if (!body || !facts || !nameEl || !notesInput) return;
-            nameEl.textContent = npc.name || "NPC";
-            var html = "";
-            html += playerNpcFact("Location", npc.location_summary);
+        function buildPlayerNpcOverviewHtml(npc) {
+            npc = npc || {};
+            var html = '<h3>' + playerEscapeHtml(npc.name || "NPC") + "</h3>";
+            html += '<dl class="player-npc-detail-facts">';
+            html += playerNpcFact("Owns", npc.location_summary);
             html += playerNpcFact("Species", npc.species);
             html += playerNpcFact("Class", npc.class_name);
             html += playerNpcFact("Background", npc.background);
@@ -3345,10 +5202,152 @@
                     playerEscapeHtml(npc.about) +
                     "</dd></div>";
             }
-            facts.innerHTML = html || '<p class="player-npc-detail-loading">No details yet for this NPC.</p>';
+            html += "</dl>";
+            if (
+                !npc.location_summary &&
+                !npc.species &&
+                !npc.class_name &&
+                !npc.background &&
+                (npc.level == null || npc.level === "") &&
+                !npc.about
+            ) {
+                html = '<h3>' + playerEscapeHtml(npc.name || "NPC") + "</h3>" +
+                    '<p class="player-npc-hover-loading">No details yet for this NPC.</p>';
+            }
+            return html;
+        }
+
+        function buildPlayerNpcDetailFactsHtml(npc) {
+            return buildPlayerNpcOverviewHtml(npc).replace(/^<h3>[\s\S]*?<\/h3>/, "");
+        }
+
+        function renderPlayerNpcDetail(npc) {
+            var body = document.getElementById("player-npc-detail-body");
+            var facts = document.getElementById("player-npc-detail-facts");
+            var nameEl = document.getElementById("player-npc-detail-name");
+            var notesInput = document.getElementById("player-npc-notes-input");
+            var status = document.getElementById("player-npc-notes-status");
+            if (!body || !facts || !nameEl || !notesInput) return;
+            nameEl.textContent = npc.name || "NPC";
+            facts.innerHTML = buildPlayerNpcDetailFactsHtml(npc) ||
+                '<p class="player-npc-detail-loading">No details yet for this NPC.</p>';
             notesInput.value = npc.player_notes || "";
             if (status) status.textContent = "";
             body.hidden = false;
+        }
+
+        function ensurePlayerNpcHoverPopout() {
+            var popout = document.getElementById("player-npc-hover-popout");
+            if (popout && popout.parentElement !== document.body) {
+                document.body.appendChild(popout);
+            }
+            return popout;
+        }
+
+        function hidePlayerNpcHoverPopout() {
+            var popout = ensurePlayerNpcHoverPopout();
+            if (!popout) return;
+            popout.hidden = true;
+            popout.setAttribute("aria-hidden", "true");
+            playerNpcHoverNpcId = null;
+        }
+
+        function showPlayerNpcHoverPopout(npc, trigger) {
+            var popout = ensurePlayerNpcHoverPopout();
+            if (!popout || !trigger) return;
+            popout.innerHTML = buildPlayerNpcOverviewHtml(npc);
+            popout.hidden = false;
+            popout.setAttribute("aria-hidden", "false");
+            positionIdentityPopout(popout, trigger);
+        }
+
+        function fetchPlayerNpcProfile(npcId) {
+            var key = String(npcId);
+            if (playerNpcProfileCache[key]) {
+                return Promise.resolve(playerNpcProfileCache[key]);
+            }
+            return fetch(playerUrl(playerDashboardUrls.knownNpcProfile, npcId), {
+                credentials: "same-origin",
+                headers: { Accept: "application/json" }
+            }).then(function (resp) {
+                return resp.json().then(function (data) {
+                    if (!resp.ok) throw new Error((data && data.error) || "Could not load NPC.");
+                    var npc = data.npc || {};
+                    playerNpcProfileCache[key] = npc;
+                    return npc;
+                });
+            });
+        }
+
+        function schedulePlayerNpcHover(row) {
+            if (!row) return;
+            var npcId = row.getAttribute("data-npc-id");
+            if (!npcId) return;
+            if (playerNpcHoverTimer) {
+                clearTimeout(playerNpcHoverTimer);
+                playerNpcHoverTimer = null;
+            }
+            playerNpcHoverTimer = setTimeout(function () {
+                playerNpcHoverTimer = null;
+                playerNpcHoverNpcId = npcId;
+                var popout = ensurePlayerNpcHoverPopout();
+                if (popout) {
+                    popout.innerHTML = '<p class="player-npc-hover-loading">Loading…</p>';
+                    popout.hidden = false;
+                    positionIdentityPopout(popout, row);
+                }
+                fetchPlayerNpcProfile(npcId).then(function (npc) {
+                    if (playerNpcHoverNpcId !== npcId) return;
+                    showPlayerNpcHoverPopout(npc, row);
+                }).catch(function () {
+                    if (playerNpcHoverNpcId !== npcId) return;
+                    hidePlayerNpcHoverPopout();
+                });
+            }, 140);
+        }
+
+        function bindPlayerNpcRowHover(row) {
+            if (!row || row.dataset.npcHoverBound === "1") return;
+            row.dataset.npcHoverBound = "1";
+            var popout = ensurePlayerNpcHoverPopout();
+            row.addEventListener("mouseenter", function () {
+                schedulePlayerNpcHover(row);
+            });
+            row.addEventListener("mouseleave", function () {
+                if (playerNpcHoverTimer) {
+                    clearTimeout(playerNpcHoverTimer);
+                    playerNpcHoverTimer = null;
+                }
+                setTimeout(function () {
+                    if (popout && !popout.matches(":hover") && !row.matches(":hover")) {
+                        hidePlayerNpcHoverPopout();
+                    }
+                }, 120);
+            });
+            row.addEventListener("focusin", function () {
+                schedulePlayerNpcHover(row);
+            });
+            row.addEventListener("focusout", function () {
+                setTimeout(function () {
+                    if (popout && !popout.contains(document.activeElement) && !row.contains(document.activeElement)) {
+                        hidePlayerNpcHoverPopout();
+                    }
+                }, 120);
+            });
+        }
+
+        function setupPlayerNpcHoverPopout() {
+            var popout = ensurePlayerNpcHoverPopout();
+            var panel = document.getElementById("player-npcs-panel");
+            if (popout && popout.dataset.hoverBound !== "1") {
+                popout.dataset.hoverBound = "1";
+                popout.addEventListener("mouseleave", hidePlayerNpcHoverPopout);
+            }
+            if (panel && panel.dataset.npcHoverScrollBound !== "1") {
+                panel.dataset.npcHoverScrollBound = "1";
+                panel.addEventListener("scroll", hidePlayerNpcHoverPopout, { passive: true });
+            }
+            document.querySelectorAll(".player-npc-row").forEach(bindPlayerNpcRowHover);
         }
 
         function openPlayerNpcDetail(npcId, displayName) {
@@ -3361,6 +5360,7 @@
             var error = document.getElementById("player-npc-detail-error");
             var body = document.getElementById("player-npc-detail-body");
             if (!panel || !detail) return;
+            hidePlayerNpcHoverPopout();
             playerNpcDetailState.npcId = Number(npcId);
             if (window.playerDashboard && typeof window.playerDashboard.openPanel === "function") {
                 window.playerDashboard.openPanel("player-npcs-panel", tab);
@@ -3377,17 +5377,9 @@
                 var nameEl = document.getElementById("player-npc-detail-name");
                 if (nameEl) nameEl.textContent = displayName;
             }
-            fetch(playerUrl(playerDashboardUrls.knownNpcProfile, npcId), {
-                credentials: "same-origin",
-                headers: { Accept: "application/json" }
-            }).then(function (resp) {
-                return resp.json().then(function (data) {
-                    if (!resp.ok) throw new Error((data && data.error) || "Could not load NPC.");
-                    return data;
-                });
-            }).then(function (data) {
+            fetchPlayerNpcProfile(npcId).then(function (npc) {
                 if (loading) loading.hidden = true;
-                renderPlayerNpcDetail(data.npc || {});
+                renderPlayerNpcDetail(npc);
             }).catch(function (err) {
                 if (loading) loading.hidden = true;
                 if (error) {
@@ -3405,6 +5397,7 @@
             var error = document.getElementById("player-npc-detail-error");
             var status = document.getElementById("player-npc-notes-status");
             playerNpcDetailState.npcId = null;
+            hidePlayerNpcHoverPopout();
             if (shell) shell.classList.remove("is-npc-detail-open");
             if (detail) detail.hidden = true;
             if (body) body.hidden = true;
@@ -3449,9 +5442,318 @@
             });
         }
 
+        var playerMonsterDetailState = { entryId: null };
+
+        function playerMonsterOptionalInt(id) {
+            var el = document.getElementById(id);
+            if (!el || el.value === "") return null;
+            var val = parseInt(el.value, 10);
+            return isNaN(val) ? null : val;
+        }
+
+        function playerMonsterAttackRowHtml(attack, index) {
+            attack = attack || {};
+            return '<div class="battle-monster-edit-attack-row player-monster-attack-row">' +
+                '<input type="text" class="player-monster-atk-name" placeholder="Attack name" value="' + playerEscapeHtml(attack.name || "") + '">' +
+                '<input type="number" class="player-monster-atk-mod" placeholder="Atk bonus" value="' + (attack.attack_mod != null ? attack.attack_mod : "") + '">' +
+                '<input type="text" class="player-monster-atk-damage" placeholder="Damage (2d6+3)" value="' + playerEscapeHtml(attack.damage || "") + '">' +
+                '<input type="text" class="player-monster-atk-dtype" placeholder="damage type" value="' + playerEscapeHtml(attack.damage_type || "") + '">' +
+                '<button type="button" class="button player-monster-remove-row">Remove</button></div>';
+        }
+
+        function playerMonsterLegendaryRowHtml(action, index) {
+            action = action || {};
+            return '<div class="battle-monster-edit-legendary-row player-monster-legendary-row">' +
+                '<input type="text" class="player-monster-leg-name" placeholder="Action name" value="' + playerEscapeHtml(action.name || "") + '">' +
+                '<input type="number" class="player-monster-leg-cost" min="1" max="3" placeholder="Cost" value="' + (action.cost != null ? action.cost : "") + '">' +
+                '<textarea class="player-monster-leg-desc" placeholder="What it does…">' + playerEscapeHtml(action.description || "") + '</textarea>' +
+                '<button type="button" class="button player-monster-remove-row">Remove</button></div>';
+        }
+
+        function renderPlayerMonsterAttackRows(attacks) {
+            var host = document.getElementById("player-monster-attacks");
+            if (!host) return;
+            host.innerHTML = "";
+            (attacks || []).forEach(function (atk, idx) {
+                host.insertAdjacentHTML("beforeend", playerMonsterAttackRowHtml(atk, idx));
+            });
+        }
+
+        function renderPlayerMonsterLegendaryRows(actions) {
+            var host = document.getElementById("player-monster-legendary");
+            if (!host) return;
+            host.innerHTML = "";
+            (actions || []).forEach(function (act, idx) {
+                host.insertAdjacentHTML("beforeend", playerMonsterLegendaryRowHtml(act, idx));
+            });
+        }
+
+        function collectPlayerMonsterAttacks() {
+            return Array.prototype.map.call(
+                document.querySelectorAll(".player-monster-attack-row"),
+                function (row, index) {
+                    return {
+                        key: "attack_" + index,
+                        name: (row.querySelector(".player-monster-atk-name").value || "").trim(),
+                        attack_mod: playerMonsterOptionalIntFromEl(row.querySelector(".player-monster-atk-mod")) || 0,
+                        damage: (row.querySelector(".player-monster-atk-damage").value || "").trim(),
+                        damage_type: (row.querySelector(".player-monster-atk-dtype").value || "").trim(),
+                        kind: "melee",
+                        range_ft: 5
+                    };
+                }
+            ).filter(function (row) { return row.name || row.damage; });
+        }
+
+        function collectPlayerMonsterLegendary() {
+            return Array.prototype.map.call(
+                document.querySelectorAll(".player-monster-legendary-row"),
+                function (row, index) {
+                    return {
+                        key: "legendary_" + index,
+                        name: (row.querySelector(".player-monster-leg-name").value || "").trim(),
+                        cost: parseInt(row.querySelector(".player-monster-leg-cost").value, 10) || 1,
+                        description: (row.querySelector(".player-monster-leg-desc").value || "").trim()
+                    };
+                }
+            ).filter(function (row) { return row.name || row.description; });
+        }
+
+        function playerMonsterOptionalIntFromEl(el) {
+            if (!el || el.value === "") return null;
+            var val = parseInt(el.value, 10);
+            return isNaN(val) ? null : val;
+        }
+
+        function populatePlayerMonsterJournalForm(monster) {
+            monster = monster || {};
+            var stats = monster.stats || {};
+            var abilities = stats.abilities || {};
+            document.getElementById("player-monster-detail-name").textContent = monster.name || "Monster";
+            var meta = document.getElementById("player-monster-detail-meta");
+            if (meta) {
+                meta.textContent = "CR " + (monster.challenge_rating != null ? monster.challenge_rating : "—") +
+                    (monster.gm_known ? " · GM shared" : "") +
+                    (monster.in_journal ? "" : " · Add observations below");
+            }
+            document.getElementById("player-monster-hp").value = stats.hp_max != null ? stats.hp_max : "";
+            document.getElementById("player-monster-ac").value = stats.ac != null ? stats.ac : "";
+            document.getElementById("player-monster-speed").value = stats.speed_ft != null ? stats.speed_ft : "";
+            ["str", "dex", "con", "int", "wis", "cha"].forEach(function (ab) {
+                var el = document.getElementById("player-monster-" + ab);
+                if (el) el.value = abilities[ab] != null ? abilities[ab] : "";
+            });
+            document.getElementById("player-monster-creature-type").value = stats.creature_type || stats.size || "";
+            document.getElementById("player-monster-senses").value = stats.senses || "";
+            document.getElementById("player-monster-skills").value = stats.skills || "";
+            document.getElementById("player-monster-saves").value = stats.saving_throws || "";
+            document.getElementById("player-monster-resist").value = stats.damage_resistances || "";
+            document.getElementById("player-monster-immune").value = stats.damage_immunities || "";
+            document.getElementById("player-monster-vuln").value = stats.damage_vulnerabilities || "";
+            document.getElementById("player-monster-cond-immune").value = stats.condition_immunities || "";
+            document.getElementById("player-monster-notes").value = stats.notes || "";
+            renderPlayerMonsterAttackRows(stats.attacks || []);
+            renderPlayerMonsterLegendaryRows(stats.legendary_actions || []);
+            var form = document.getElementById("player-monster-journal-form");
+            if (form) form.hidden = false;
+        }
+
+        function collectPlayerMonsterJournalStats() {
+            var abilities = {};
+            ["str", "dex", "con", "int", "wis", "cha"].forEach(function (ab) {
+                var val = playerMonsterOptionalInt("player-monster-" + ab);
+                if (val != null) abilities[ab] = val;
+            });
+            var stats = {
+                attacks: collectPlayerMonsterAttacks(),
+                legendary_actions: collectPlayerMonsterLegendary(),
+                creature_type: document.getElementById("player-monster-creature-type").value.trim(),
+                senses: document.getElementById("player-monster-senses").value.trim(),
+                skills: document.getElementById("player-monster-skills").value.trim(),
+                saving_throws: document.getElementById("player-monster-saves").value.trim(),
+                damage_resistances: document.getElementById("player-monster-resist").value.trim(),
+                damage_immunities: document.getElementById("player-monster-immune").value.trim(),
+                damage_vulnerabilities: document.getElementById("player-monster-vuln").value.trim(),
+                condition_immunities: document.getElementById("player-monster-cond-immune").value.trim(),
+                notes: document.getElementById("player-monster-notes").value.trim()
+            };
+            var hp = playerMonsterOptionalInt("player-monster-hp");
+            var ac = playerMonsterOptionalInt("player-monster-ac");
+            var speed = playerMonsterOptionalInt("player-monster-speed");
+            if (hp != null) stats.hp_max = hp;
+            if (ac != null) stats.ac = ac;
+            if (speed != null) stats.speed_ft = speed;
+            if (Object.keys(abilities).length) stats.abilities = abilities;
+            return stats;
+        }
+
+        function openPlayerMonsterDetail(entryId, displayName) {
+            if (!entryId) return;
+            var tab = document.getElementById("player-monsters-tab");
+            var panel = document.getElementById("player-monsters-panel");
+            var shell = document.getElementById("player-monster-shell");
+            var detail = document.getElementById("player-monster-detail");
+            var loading = document.getElementById("player-monster-detail-loading");
+            var error = document.getElementById("player-monster-detail-error");
+            var form = document.getElementById("player-monster-journal-form");
+            if (!panel || !detail) return;
+            playerMonsterDetailState.entryId = Number(entryId);
+            if (window.playerDashboard && typeof window.playerDashboard.openPanel === "function") {
+                window.playerDashboard.openPanel("player-monsters-panel", tab);
+            }
+            if (shell) shell.classList.add("is-npc-detail-open");
+            detail.hidden = false;
+            if (loading) loading.hidden = false;
+            if (error) { error.hidden = true; error.textContent = ""; }
+            if (form) form.hidden = true;
+            if (displayName) {
+                var nameEl = document.getElementById("player-monster-detail-name");
+                if (nameEl) nameEl.textContent = displayName;
+            }
+            fetch(playerUrl(playerDashboardUrls.knownMonsterProfile, entryId), {
+                credentials: "same-origin",
+                headers: { Accept: "application/json" }
+            }).then(function (resp) {
+                return resp.json().then(function (data) {
+                    if (!resp.ok) throw new Error((data && data.error) || "Could not load monster.");
+                    return data;
+                });
+            }).then(function (data) {
+                if (loading) loading.hidden = true;
+                populatePlayerMonsterJournalForm(data.monster || {});
+            }).catch(function (err) {
+                if (loading) loading.hidden = true;
+                if (error) {
+                    error.hidden = false;
+                    error.textContent = err.message || "Could not load monster.";
+                }
+            });
+        }
+        window.openPlayerMonsterDetail = openPlayerMonsterDetail;
+
+        function closePlayerMonsterDetail() {
+            var shell = document.getElementById("player-monster-shell");
+            var detail = document.getElementById("player-monster-detail");
+            var form = document.getElementById("player-monster-journal-form");
+            var loading = document.getElementById("player-monster-detail-loading");
+            var error = document.getElementById("player-monster-detail-error");
+            playerMonsterDetailState.entryId = null;
+            if (shell) shell.classList.remove("is-npc-detail-open");
+            if (detail) detail.hidden = true;
+            if (form) form.hidden = true;
+            if (loading) loading.hidden = true;
+            if (error) { error.hidden = true; error.textContent = ""; }
+        }
+
+        function renderPlayerMonsterTableRows(monsters) {
+            var tbody = document.getElementById("player-monster-table-body");
+            var table = document.getElementById("player-monster-table");
+            var empty = document.getElementById("player-monster-empty");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            (monsters || []).forEach(function (monster) {
+                var tr = document.createElement("tr");
+                tr.className = "player-monster-row";
+                tr.dataset.monsterId = String(monster.id);
+                tr.dataset.monsterName = monster.name || "";
+                tr.innerHTML =
+                    '<td><button type="button" class="player-monster-name-link" data-monster-id="' +
+                    playerEscapeHtml(String(monster.id)) + '" data-monster-name="' +
+                    playerEscapeHtml(monster.name || "") + '">' + playerEscapeHtml(monster.name || "Monster") +
+                    '</button></td><td>' + playerEscapeHtml(monster.challenge_rating != null ? String(monster.challenge_rating) : "—") +
+                    '</td><td class="player-npc-owns">' + playerEscapeHtml(monster.player_summary || "—") + "</td>";
+                tbody.appendChild(tr);
+            });
+            if (table) table.hidden = !(monsters && monsters.length);
+            if (empty) empty.hidden = !!(monsters && monsters.length);
+        }
+
+        function refreshPlayerMonsterList() {
+            if (!playerDashboardUrls.knownMonsterList) return Promise.resolve();
+            return fetch(playerDashboardUrls.knownMonsterList, {
+                credentials: "same-origin",
+                headers: { Accept: "application/json" }
+            }).then(function (resp) {
+                return resp.json().then(function (data) {
+                    if (!resp.ok || !data.ok) return;
+                    renderPlayerMonsterTableRows(data.monsters || []);
+                });
+            }).catch(function () {});
+        }
+        window.refreshPlayerMonsterList = refreshPlayerMonsterList;
+
+        function savePlayerMonsterJournal(ev) {
+            if (ev) ev.preventDefault();
+            var entryId = playerMonsterDetailState.entryId;
+            var status = document.getElementById("player-monster-save-status");
+            if (!entryId) return;
+            if (status) status.textContent = "Saving…";
+            fetch(playerUrl(playerDashboardUrls.knownMonsterJournal, entryId), {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRFToken": playerCsrfToken()
+                },
+                body: JSON.stringify({ stats: collectPlayerMonsterJournalStats() })
+            }).then(function (resp) {
+                return resp.json().then(function (data) {
+                    if (!resp.ok || !data.ok) throw new Error((data && data.error) || "Save failed.");
+                    return data;
+                });
+            }).then(function (data) {
+                if (status) status.textContent = "Saved.";
+                populatePlayerMonsterJournalForm(data.monster || {});
+                refreshPlayerMonsterList();
+            }).catch(function (err) {
+                if (status) status.textContent = err.message || "Save failed.";
+            });
+        }
+
+        function setupPlayerMonsterPanel() {
+            var panel = document.getElementById("player-monsters-panel");
+            if (!panel) return;
+            panel.addEventListener("click", function (event) {
+                var btn = event.target.closest(".player-monster-name-link");
+                if (btn) {
+                    event.preventDefault();
+                    openPlayerMonsterDetail(btn.getAttribute("data-monster-id"), btn.getAttribute("data-monster-name"));
+                    return;
+                }
+                if (event.target.closest(".player-monster-remove-row")) {
+                    event.preventDefault();
+                    var row = event.target.closest(".player-monster-attack-row, .player-monster-legendary-row");
+                    if (row) row.remove();
+                    return;
+                }
+                if (event.target.closest(".player-monster-detail-close")) {
+                    event.preventDefault();
+                    closePlayerMonsterDetail();
+                }
+            });
+            var addAtk = document.getElementById("player-monster-add-attack");
+            if (addAtk) {
+                addAtk.addEventListener("click", function () {
+                    var host = document.getElementById("player-monster-attacks");
+                    if (host) host.insertAdjacentHTML("beforeend", playerMonsterAttackRowHtml({}, host.children.length));
+                });
+            }
+            var addLeg = document.getElementById("player-monster-add-legendary");
+            if (addLeg) {
+                addLeg.addEventListener("click", function () {
+                    var host = document.getElementById("player-monster-legendary");
+                    if (host) host.insertAdjacentHTML("beforeend", playerMonsterLegendaryRowHtml({}, host.children.length));
+                });
+            }
+            var form = document.getElementById("player-monster-journal-form");
+            if (form) form.addEventListener("submit", savePlayerMonsterJournal);
+        }
+
         function setupPlayerNpcPanel() {
             var panel = document.getElementById("player-npcs-panel");
             if (!panel) return;
+            setupPlayerNpcHoverPopout();
             panel.addEventListener("click", function (event) {
                 var nameBtn = event.target.closest(".player-npc-name-link");
                 if (nameBtn) {
@@ -3524,13 +5826,15 @@
                 setPanelBackdrop(false);
             }
 
-            function openPanel(targetId, triggerBtn) {
+            function openPanel(targetId, triggerBtn, keepOpen) {
                 if (!targetId) return;
-                if (targetId === activePanelId) {
+                if (targetId === activePanelId && !keepOpen) {
                     closeAllPanels();
                     return;
                 }
-                closeAllPanels();
+                if (targetId !== activePanelId) {
+                    closeAllPanels();
+                }
                 if (triggerBtn) {
                     triggerBtn.classList.add("active");
                     triggerBtn.setAttribute("aria-selected", "true");
@@ -3548,6 +5852,12 @@
                     loadPlayerMarketOverview();
                 }
                 setRailDrawer(false);
+            }
+
+            function reopenPanel(panelId) {
+                if (!panelId) return;
+                var btn = document.querySelector('.player-panel-tab[data-target="' + panelId + '"]');
+                if (btn) openPanel(panelId, btn, true);
             }
 
             if (menuBtn) {
@@ -3611,7 +5921,9 @@
 
             window.playerDashboard = {
                 openPanel: openPanel,
-                closeAllPanels: closeAllPanels
+                closeAllPanels: closeAllPanels,
+                reopenPanel: reopenPanel,
+                getActivePanelId: function () { return activePanelId; }
             };
         }
 
@@ -3619,6 +5931,146 @@
             if (status === "higher") return "▲";
             if (status === "lower") return "▼";
             return "=";
+        }
+
+        function initPlayerMarketItemCatalog() {
+            if (typeof window.playerMarketItemCatalog !== "object" || window.playerMarketItemCatalog === null) {
+                window.playerMarketItemCatalog = {};
+            }
+            var node = document.getElementById("player-market-item-catalog");
+            if (!node) return;
+            try {
+                var parsed = JSON.parse(node.textContent || "{}");
+                if (parsed && typeof parsed === "object") {
+                    Object.keys(parsed).forEach(function (key) {
+                        window.playerMarketItemCatalog[key] = parsed[key];
+                    });
+                }
+            } catch (err) {
+                console.warn("Could not parse market item catalog.", err);
+            }
+        }
+
+        function buildPlayerItemTooltipHtml(item) {
+            if (!item) return "";
+            var html = "";
+            html += '<strong class="player-spell-tooltip-title">' + playerEscapeHtml(item.name || "Item") + "</strong>";
+            var subtitle = [item.type, item.rarity].filter(Boolean).join(" · ");
+            if (subtitle) {
+                html += '<span class="player-spell-tooltip-subtitle">' + playerEscapeHtml(subtitle) + "</span>";
+            }
+            if (item.category) {
+                html += '<div class="player-spell-tooltip-line"><strong>Category:</strong> ' +
+                    playerEscapeHtml(item.category) + "</div>";
+            }
+            if (item.requires_attunement) {
+                html += '<div class="player-spell-tooltip-line">Requires attunement</div>';
+            }
+            if (item.damage_dice) {
+                html += '<div class="player-spell-tooltip-line"><strong>Damage:</strong> ' +
+                    playerEscapeHtml(item.damage_dice) +
+                    (item.damage_type ? (" " + playerEscapeHtml(item.damage_type)) : "") +
+                    "</div>";
+            }
+            if (item.magic_bonus) {
+                html += '<div class="player-spell-tooltip-line"><strong>Magic bonus:</strong> +' +
+                    playerEscapeHtml(String(item.magic_bonus)) + "</div>";
+            }
+            if (item.properties && item.properties.length) {
+                html += '<div class="player-spell-tooltip-line"><strong>Properties:</strong> ' +
+                    playerEscapeHtml(item.properties.join(", ")) + "</div>";
+            }
+            if (item.range_ft != null) {
+                var rangeText = String(item.range_ft) + " ft";
+                if (item.long_range_ft != null) {
+                    rangeText += " / " + String(item.long_range_ft) + " ft";
+                }
+                html += '<div class="player-spell-tooltip-line"><strong>Range:</strong> ' +
+                    playerEscapeHtml(rangeText) + "</div>";
+            }
+            if (item.ac_base != null || item.ac_bonus != null || item.is_shield) {
+                var armorParts = [];
+                if (item.ac_base != null) armorParts.push("Base AC " + item.ac_base);
+                if (item.ac_bonus != null) armorParts.push("+" + item.ac_bonus);
+                if (item.dex_cap != null) armorParts.push("Dex cap " + item.dex_cap);
+                if (item.is_shield) armorParts.push("Shield");
+                html += '<div class="player-spell-tooltip-line"><strong>Armor:</strong> ' +
+                    playerEscapeHtml(armorParts.join(", ")) + "</div>";
+            }
+            if (item.effect_tags && item.effect_tags.length) {
+                html += '<div class="player-spell-tooltip-line"><strong>Effects:</strong> ' +
+                    playerEscapeHtml(item.effect_tags.join(", ")) + "</div>";
+            }
+            var desc = item.description || item.summary || "";
+            if (desc) {
+                html += '<span class="player-spell-tooltip-summary">' + playerEscapeHtml(desc) + "</span>";
+            }
+            return html;
+        }
+
+        function ensurePlayerItemTooltip() {
+            var tooltip = document.getElementById("playerItemTooltip");
+            if (!tooltip) {
+                tooltip = document.createElement("div");
+                tooltip.id = "playerItemTooltip";
+                tooltip.className = "player-spell-tooltip";
+                tooltip.setAttribute("role", "tooltip");
+                tooltip.hidden = true;
+                document.body.appendChild(tooltip);
+            } else {
+                mountPlayerFloatingTooltip(tooltip);
+            }
+            return tooltip;
+        }
+
+        function positionPlayerItemTooltip(tooltip, clientX, clientY) {
+            positionPlayerFloatingTooltip(tooltip, clientX, clientY);
+        }
+
+        function refreshPlayerMarketItemTooltipBindings() {
+            initPlayerMarketItemCatalog();
+            var tooltip = ensurePlayerItemTooltip();
+            var catalog = window.playerMarketItemCatalog || {};
+
+            function hidePlayerItemTooltip() {
+                if (tooltip) tooltip.hidden = true;
+            }
+
+            function showPlayerItemTooltip(item, clientX, clientY) {
+                if (!tooltip || !item) return;
+                tooltip.innerHTML = buildPlayerItemTooltipHtml(item);
+                positionPlayerItemTooltip(tooltip, clientX, clientY);
+            }
+
+            function resolveMarketItem(el) {
+                var id = el.getAttribute("data-item-id");
+                if (!id) return null;
+                return catalog[id] || catalog[String(id)] || catalog[Number(id)];
+            }
+
+            document.querySelectorAll(".player-market-item-trigger:not([data-item-tooltip-bound])").forEach(function (el) {
+                var item = resolveMarketItem(el);
+                if (!item) return;
+                el.setAttribute("data-item-tooltip-bound", "1");
+                el.classList.add("player-market-item-trigger--interactive");
+                el.setAttribute("tabindex", "0");
+                el.setAttribute("role", "button");
+                el.setAttribute("aria-describedby", "playerItemTooltip");
+                el.addEventListener("mouseenter", function (ev) {
+                    showPlayerItemTooltip(item, ev.clientX, ev.clientY);
+                });
+                el.addEventListener("mousemove", function (ev) {
+                    if (tooltip && !tooltip.hidden) {
+                        positionPlayerItemTooltip(tooltip, ev.clientX, ev.clientY);
+                    }
+                });
+                el.addEventListener("mouseleave", hidePlayerItemTooltip);
+                el.addEventListener("focus", function () {
+                    var rect = el.getBoundingClientRect();
+                    showPlayerItemTooltip(item, rect.left + (rect.width / 2), rect.bottom);
+                });
+                el.addEventListener("blur", hidePlayerItemTooltip);
+            });
         }
 
         function renderPlayerMarketOverview(data) {
@@ -3633,7 +6085,14 @@
                 return;
             }
             items.forEach(function (item) {
+                if (item.tooltip && item.item_id != null) {
+                    window.playerMarketItemCatalog = window.playerMarketItemCatalog || {};
+                    window.playerMarketItemCatalog[String(item.item_id)] = item.tooltip;
+                }
                 var tr = document.createElement("tr");
+                tr.className = "player-market-item-trigger";
+                tr.setAttribute("data-item-id", String(item.item_id));
+                tr.setAttribute("title", "Hover for item stats.");
                 tr.innerHTML =
                     "<td><strong>" + playerEscapeHtml(item.name) + "</strong><br>" +
                     "<span class='market-type-muted'>" + playerEscapeHtml(item.type || "") + "</span></td>" +
@@ -3643,6 +6102,7 @@
                     marketTrendIcon(item.stock_vs_base) + "</td>";
                 tbody.appendChild(tr);
             });
+            refreshPlayerMarketItemTooltipBindings();
             if (status) status.textContent = "";
         }
 
@@ -4141,6 +6601,44 @@
             playerMountMapPopout(popout, wrap);
         }
 
+        function renderPlayerRegionOverlays(canvas, mode) {
+            var genBg = document.getElementById("player-map-gen-bg");
+            if (!genBg) return;
+            if (!canvas || !canvas.has_image || mode !== "world") {
+                return;
+            }
+            var features = (canvas.generation && canvas.generation.features) || [];
+            var regionFeatures = features.filter(function (feat) {
+                return feat.type === "region_tint" &&
+                    feat.region_id != null &&
+                    feat.points &&
+                    feat.points.length >= 3;
+            });
+            if (!regionFeatures.length) return;
+            var world = { w: Number(canvas.width) || 1000, h: Number(canvas.height) || 750 };
+            var ns = "http://www.w3.org/2000/svg";
+            var svg = document.createElementNS(ns, "svg");
+            svg.setAttribute("class", "map-region-boundary-svg");
+            svg.setAttribute("viewBox", "0 0 " + world.w + " " + world.h);
+            svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+            var strokeW = Math.max(3, world.w / 400);
+            regionFeatures.forEach(function (feat) {
+                var pts = feat.points.map(function (pt) {
+                    return (Number(pt[0]) * world.w).toFixed(2) + "," +
+                        (Number(pt[1]) * world.h).toFixed(2);
+                }).join(" ");
+                var polygon = document.createElementNS(ns, "polygon");
+                polygon.setAttribute("points", pts);
+                polygon.setAttribute("fill", feat.main_color || "#c084fc");
+                polygon.setAttribute("fill-opacity", "0.22");
+                polygon.setAttribute("stroke", feat.secondary_color || "#7c3aed");
+                polygon.setAttribute("stroke-width", String(strokeW));
+                polygon.setAttribute("stroke-linejoin", "round");
+                svg.appendChild(polygon);
+            });
+            genBg.appendChild(svg);
+        }
+
         function renderPlayerMapBackground(canvas) {
             var stage = document.getElementById("player-map-stage");
             var bgImage = document.getElementById("player-map-bg-image");
@@ -4150,6 +6648,7 @@
                 genBg.innerHTML = "";
                 bgImage.src = playerUrl(playerDashboardUrls.mapImage, canvas.id) + "?v=" + Date.now();
                 bgImage.hidden = false;
+                renderPlayerRegionOverlays(canvas, playerMapState.mode);
                 return;
             }
             bgImage.hidden = true;
@@ -4320,10 +6819,14 @@
 
         document.addEventListener("DOMContentLoaded", function () {
             initPlayerMapViewport();
+            initPlayerMarketItemCatalog();
+            refreshPlayerMarketItemTooltipBindings();
             loadCharacterData();
             stylePlayerCurrency();
             setupPlayerDashboardShell();
+            setupInlineLevelForms();
             setupPlayerNpcPanel();
+            setupPlayerMonsterPanel();
             var mapBack = document.getElementById("player-map-back-btn");
             var mapWorldBack = document.getElementById("player-map-world-back-btn");
             function returnToPlayerWorldMap() {
@@ -4369,5 +6872,40 @@
             }
         });
     </script>
+    <div id="playerSpellTooltip" class="player-spell-tooltip" role="tooltip" hidden></div>
+    <div id="playerItemTooltip" class="player-spell-tooltip" role="tooltip" hidden></div>
+    <div id="levelUpConfirmOverlay" class="level-up-confirm-overlay" hidden>
+        <div class="level-up-confirm-card" role="dialog" aria-labelledby="levelUpConfirmTitle">
+            <div id="levelUpConfirmBody"></div>
+            <div class="level-up-wizard-actions">
+                <button type="button" class="button-secondary" id="levelUpConfirmCancel">Cancel</button>
+                <button type="button" class="button" id="levelUpConfirmBtn">Level up</button>
+            </div>
+        </div>
+    </div>
+    <div id="levelUpWizardOverlay" class="level-up-wizard-overlay" hidden
+         data-skip-url="{{ url_for('player.skip_level_choices', player_id=character.id) if character else '' }}"
+         data-apply-trait-url="{{ url_for('player.apply_trait_choices', player_id=character.id) if character else '' }}"
+         data-apply-subclass-url="{{ url_for('player.apply_subclass_choice_route', player_id=character.id) if character else '' }}"
+         data-apply-asi-url="{{ url_for('player.apply_ability_improvement', player_id=character.id) if character else '' }}">
+        <div class="level-up-wizard-card" role="dialog" aria-labelledby="levelUpWizardTitle">
+            <ol class="level-up-wizard-nav" id="levelUpWizardNav" aria-label="Level-up steps"></ol>
+            <div id="levelUpWizardBody"></div>
+            <div id="levelUpWizardError" hidden></div>
+            <div class="level-up-wizard-actions">
+                <button type="button" class="button-secondary" id="levelUpWizardLater">Decide later</button>
+                <div class="level-up-wizard-actions-primary">
+                    <button type="button" class="button-secondary" id="levelUpWizardBack">Back</button>
+                    <button type="button" class="button" id="levelUpWizardContinue">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if level_up_summary %}
+    <script>
+        window.LEVEL_UP_SUMMARY = {{ level_up_summary | tojson }};
+    </script>
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/level_up_wizard.js') }}"></script>
 </body>
 </html>

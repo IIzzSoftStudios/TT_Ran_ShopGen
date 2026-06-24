@@ -1,6 +1,6 @@
-"""Campaign-scoped mechanical trait compendium (settings JSON).
+"""Campaign-scoped trait compendium (settings JSON).
 
-Traits hold machine-readable combat effects only — no SRD prose.
+Mechanical traits (speed, resistances, senses) for species, monsters, and classes.
 """
 
 from __future__ import annotations
@@ -17,7 +17,16 @@ from app.models import CampaignWorldConfig
 from app.services.character_creation.dnd5e_traits import CORE_TRAITS, CORE_TRAITS_BY_KEY
 
 _CATEGORIES = frozenset(
-    {"sense", "movement", "defense", "save", "attack", "resource", "condition", "other"}
+    {
+        "sense",
+        "movement",
+        "defense",
+        "save",
+        "attack",
+        "resource",
+        "condition",
+        "other",
+    }
 )
 _DAMAGE_TYPES = frozenset(
     {
@@ -34,11 +43,15 @@ _CONDITIONS = frozenset(
 )
 _MAX_NAME_LEN = 80
 _MAX_NOTES_LEN = 500
+_MAX_SUMMARY_LEN = 500
+_MAX_RULES_TEXT_LEN = 4000
 _MAX_TRAIT_KEYS = 24
 _MAX_PREREQ_TRAIT_KEYS = 12
-_MAX_ENTRY_BYTES = 8192
+_MAX_PREREQ_SPELL_KEYS = 8
+_MAX_ENTRY_BYTES = 16384
 _ABILITIES = frozenset({"str", "dex", "con", "int", "wis", "cha"})
 _SLUG_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
+_SPELL_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,79}$")
 
 
 class TraitsValidationError(ValueError):
@@ -76,7 +89,12 @@ def _default_trait_entry(raw: dict[str, Any], *, source: str = "custom") -> dict
         "tags": list(raw.get("tags") or []),
         "stacking": str(raw.get("stacking") or "max"),
         "notes": str(raw.get("notes") or "")[:_MAX_NOTES_LEN],
+        "summary": str(raw.get("summary") or "")[:_MAX_SUMMARY_LEN],
+        "rules_text": str(raw.get("rules_text") or "")[:_MAX_RULES_TEXT_LEN],
+        "srd_reference": str(raw.get("srd_reference") or "")[:40],
+        "content_source": str(raw.get("content_source") or "")[:40],
         "gm_edited": bool(raw.get("gm_edited")),
+        "srd_seed_version": int(raw.get("srd_seed_version") or 0),
     }
 
 
@@ -96,6 +114,11 @@ def _clean_string_list(raw: Any, *, allowed: frozenset[str], label: str, max_ite
         if item not in clean:
             clean.append(item)
     return clean
+
+
+def clean_trait_effects(raw: Any) -> dict[str, Any]:
+    """Public wrapper for validating sparse combat effect objects."""
+    return _clean_effects(raw)
 
 
 def _clean_effects(raw: Any) -> dict[str, Any]:
@@ -157,9 +180,47 @@ def _clean_effects(raw: Any) -> dict[str, Any]:
                 raise TraitsValidationError(f"save_bonuses.{ab} must be an integer.")
         if bonuses:
             effects["save_bonuses"] = bonuses
-    for flag in ("lucky", "savage_attacks", "relentless_endurance"):
+    for flag in ("lucky", "savage_attacks", "relentless_endurance", "relentless_rage"):
         if flag in raw:
             effects[flag] = bool(raw[flag])
+    if "speed_bonus_ft" in raw and raw["speed_bonus_ft"] not in (None, ""):
+        try:
+            bonus = int(raw["speed_bonus_ft"])
+        except (TypeError, ValueError):
+            raise TraitsValidationError("effects.speed_bonus_ft must be an integer.")
+        if not (0 <= bonus <= 60):
+            raise TraitsValidationError("effects.speed_bonus_ft must be between 0 and 60.")
+        effects["speed_bonus_ft"] = bonus
+    if "unarmored_ac_add_ability" in raw and str(raw["unarmored_ac_add_ability"] or "").strip():
+        ability = str(raw["unarmored_ac_add_ability"]).strip().lower()
+        if ability not in {"str", "dex", "con", "int", "wis", "cha"}:
+            raise TraitsValidationError("effects.unarmored_ac_add_ability is invalid.")
+        effects["unarmored_ac_add_ability"] = ability
+    if "unarmored_defense" in raw:
+        effects["unarmored_defense"] = bool(raw["unarmored_defense"])
+    if "unarmored_defense_allows_shield" in raw:
+        effects["unarmored_defense_allows_shield"] = bool(raw["unarmored_defense_allows_shield"])
+    if "extra_attacks_per_action" in raw and raw["extra_attacks_per_action"] not in (None, ""):
+        try:
+            count = int(raw["extra_attacks_per_action"])
+        except (TypeError, ValueError):
+            raise TraitsValidationError("effects.extra_attacks_per_action must be an integer.")
+        if not (2 <= count <= 4):
+            raise TraitsValidationError("effects.extra_attacks_per_action must be between 2 and 4.")
+        effects["extra_attacks_per_action"] = count
+    if "action_surge" in raw:
+        effects["action_surge"] = bool(raw["action_surge"])
+    if "action_surge_additional_actions" in raw and raw["action_surge_additional_actions"] not in (
+        None,
+        "",
+    ):
+        try:
+            count = int(raw["action_surge_additional_actions"])
+        except (TypeError, ValueError):
+            raise TraitsValidationError("effects.action_surge_additional_actions must be an integer.")
+        if not (1 <= count <= 2):
+            raise TraitsValidationError("effects.action_surge_additional_actions must be 1 or 2.")
+        effects["action_surge_additional_actions"] = count
     if "reach_cells" in raw and raw["reach_cells"] not in (None, ""):
         try:
             reach = int(raw["reach_cells"])
@@ -171,7 +232,7 @@ def _clean_effects(raw: Any) -> dict[str, Any]:
     return effects
 
 
-def _clean_slug_keys(raw: Any, *, label: str, max_items: int) -> list[str]:
+def _clean_slug_keys(raw: Any, *, label: str, max_items: int, pattern: re.Pattern[str] | None = None) -> list[str]:
     if raw is None:
         return []
     if isinstance(raw, str):
@@ -180,9 +241,10 @@ def _clean_slug_keys(raw: Any, *, label: str, max_items: int) -> list[str]:
         items = [str(part or "").strip().lower() for part in raw if str(part or "").strip()]
     else:
         raise TraitsValidationError(f"{label} must be a list or comma-separated string.")
+    matcher = pattern or _SLUG_KEY_RE
     clean: list[str] = []
     for item in items[:max_items]:
-        if not _SLUG_KEY_RE.match(item):
+        if not matcher.match(item):
             raise TraitsValidationError(f"Invalid {label} value: {item!r}.")
         if item not in clean:
             clean.append(item)
@@ -240,6 +302,10 @@ def _clean_prerequisites(raw: Any) -> dict[str, Any]:
         raise TraitsValidationError("prerequisites.min_level cannot exceed max_level.")
     if "class_keys" in raw:
         out["class_keys"] = _clean_slug_keys(raw["class_keys"], label="class_keys", max_items=8)
+    if "subclass_keys" in raw:
+        out["subclass_keys"] = _clean_slug_keys(
+            raw["subclass_keys"], label="subclass_keys", max_items=8
+        )
     if "species_keys" in raw:
         out["species_keys"] = _clean_slug_keys(raw["species_keys"], label="species_keys", max_items=8)
     if "trait_keys" in raw:
@@ -250,6 +316,13 @@ def _clean_prerequisites(raw: Any) -> dict[str, Any]:
         scores = _clean_ability_score_mins(raw["ability_scores"])
         if scores:
             out["ability_scores"] = scores
+    if "spell_keys" in raw:
+        out["spell_keys"] = _clean_slug_keys(
+            raw["spell_keys"],
+            label="prerequisites.spell_keys",
+            max_items=_MAX_PREREQ_SPELL_KEYS,
+            pattern=_SPELL_KEY_RE,
+        )
     return out
 
 
@@ -271,6 +344,10 @@ def _prerequisites_met(prerequisites: dict[str, Any] | None, context: dict[str, 
     required_classes = prereqs.get("class_keys") or []
     if required_classes and class_key not in required_classes:
         return False
+    subclass_key = str(context.get("subclass_key") or "").strip().lower()
+    required_subclasses = prereqs.get("subclass_keys") or []
+    if required_subclasses and subclass_key not in required_subclasses:
+        return False
     species_key = str(context.get("species_key") or "").strip().lower()
     required_species = prereqs.get("species_keys") or []
     if required_species and species_key not in required_species:
@@ -282,6 +359,14 @@ def _prerequisites_met(prerequisites: dict[str, Any] | None, context: dict[str, 
     }
     for required in prereqs.get("trait_keys") or []:
         if required not in granted:
+            return False
+    spell_keys = {
+        str(key).strip().lower()
+        for key in (context.get("spell_keys") or [])
+        if str(key).strip()
+    }
+    for required_spell in prereqs.get("spell_keys") or []:
+        if required_spell not in spell_keys:
             return False
     abilities = context.get("abilities") if isinstance(context.get("abilities"), dict) else {}
     for ability, minimum in (prereqs.get("ability_scores") or {}).items():
@@ -297,6 +382,8 @@ def _prerequisites_met(prerequisites: dict[str, Any] | None, context: dict[str, 
 def _normalize_trait(raw: dict[str, Any]) -> dict[str, Any]:
     entry = _default_trait_entry(raw, source=str(raw.get("source") or "custom"))
     category = str(entry["category"] or "other").lower()
+    if category == "class_feature":
+        category = "other"
     if category not in _CATEGORIES:
         category = "other"
     entry["category"] = category
@@ -320,6 +407,40 @@ def _trait_from_core(raw: dict[str, Any]) -> dict[str, Any]:
     entry = _normalize_trait({**raw, "source": "base", "gm_edited": False})
     entry["origin_template_key"] = str(raw.get("key") or entry["key"])
     return entry
+
+
+def _load_srd_class_traits() -> tuple[dict[str, Any], ...]:
+    from app.services.character_creation.dnd5e_srd_class_traits import (
+        CURRENT_SRD_CLASS_TRAITS_SEED_VERSION,
+        SRD_CLASS_TRAITS,
+        _refresh_srd_class_traits_cache,
+    )
+
+    if not SRD_CLASS_TRAITS:
+        import app.services.character_creation.dnd5e_srd_class_progression  # noqa: F401
+
+        _refresh_srd_class_traits_cache()
+    from app.services.character_creation.dnd5e_srd_class_traits import (
+        SRD_CLASS_TRAITS as loaded_traits,
+    )
+
+    return loaded_traits, CURRENT_SRD_CLASS_TRAITS_SEED_VERSION
+
+
+def _load_srd_subclass_traits() -> tuple[dict[str, Any], ...]:
+    from app.services.character_creation.dnd5e_srd_subclass_traits import (
+        CURRENT_SRD_SUBCLASSES_SEED_VERSION,
+        SRD_SUBCLASS_TRAITS,
+        _refresh_srd_subclass_traits_cache,
+    )
+
+    if not SRD_SUBCLASS_TRAITS:
+        _refresh_srd_subclass_traits_cache()
+    from app.services.character_creation.dnd5e_srd_subclass_traits import (
+        SRD_SUBCLASS_TRAITS as loaded_traits,
+    )
+
+    return loaded_traits, CURRENT_SRD_SUBCLASSES_SEED_VERSION
 
 
 def _ensure_compendium(settings: dict[str, Any]) -> list[dict[str, Any]]:
@@ -347,6 +468,36 @@ def _ensure_compendium(settings: dict[str, Any]) -> list[dict[str, Any]]:
             merged = _trait_from_core(core)
             merged["notes"] = existing.get("notes") or ""
             by_key[key] = merged
+    srd_class_traits, srd_class_traits_version = _load_srd_class_traits()
+    for srd_trait in srd_class_traits:
+        key = str(srd_trait["key"])
+        existing = by_key.get(key)
+        seed_version = int(srd_trait.get("srd_seed_version") or srd_class_traits_version)
+        if existing is None:
+            by_key[key] = _trait_from_core(srd_trait)
+            by_key[key]["srd_seed_version"] = seed_version
+        elif not existing.get("gm_edited"):
+            current_version = int(existing.get("srd_seed_version") or 0)
+            if current_version < seed_version:
+                merged = _trait_from_core(srd_trait)
+                merged["notes"] = existing.get("notes") or ""
+                merged["srd_seed_version"] = seed_version
+                by_key[key] = merged
+    srd_subclass_traits, srd_subclass_traits_version = _load_srd_subclass_traits()
+    for srd_trait in srd_subclass_traits:
+        key = str(srd_trait["key"])
+        existing = by_key.get(key)
+        seed_version = int(srd_trait.get("srd_seed_version") or srd_subclass_traits_version)
+        if existing is None:
+            by_key[key] = _trait_from_core(srd_trait)
+            by_key[key]["srd_seed_version"] = seed_version
+        elif not existing.get("gm_edited"):
+            current_version = int(existing.get("srd_seed_version") or 0)
+            if current_version < seed_version:
+                merged = _trait_from_core(srd_trait)
+                merged["notes"] = existing.get("notes") or ""
+                merged["srd_seed_version"] = seed_version
+                by_key[key] = merged
     entries = sorted(by_key.values(), key=lambda row: (row.get("category", ""), row["name"].lower()))
     settings["traits_compendium"] = entries
     return entries
@@ -404,6 +555,8 @@ def _clean_trait_patch(raw: dict[str, Any]) -> dict[str, Any]:
         ][:8],
         "stacking": str(raw.get("stacking") or "max").lower(),
         "notes": str(raw.get("notes") or "").strip()[:_MAX_NOTES_LEN],
+        "summary": str(raw.get("summary") or "").strip()[:_MAX_SUMMARY_LEN],
+        "rules_text": str(raw.get("rules_text") or "").strip()[:_MAX_RULES_TEXT_LEN],
         "gm_edited": True,
     }
 
@@ -495,3 +648,57 @@ def resolve_trait_effects(
         if not progress:
             break
     return merge_combat_effects({}, *layers)
+
+
+def list_traits_by_tag(campaign_id: int, tag: str) -> list[dict[str, Any]]:
+    """Return compendium traits matching a tag (e.g. ``warlock-invocation``)."""
+    needle = str(tag or "").strip().lower()
+    if not needle:
+        return []
+    return [
+        deepcopy(entry)
+        for entry in ensure_traits_compendium(campaign_id)
+        if needle in [str(t).strip().lower() for t in (entry.get("tags") or [])]
+    ]
+
+
+def trait_prerequisite_context_from_sheet(sheet: dict[str, Any]) -> dict[str, Any]:
+    """Build prerequisite evaluation context from a character sheet."""
+    creation = sheet.get("creation") if isinstance(sheet.get("creation"), dict) else {}
+    spells_state = sheet.get("spells") if isinstance(sheet.get("spells"), dict) else {}
+    spell_keys: list[str] = []
+    for bucket in ("cantrips", "known", "prepared"):
+        for raw in spells_state.get(bucket) or []:
+            key = str(raw or "").strip().lower()
+            if key:
+                spell_keys.append(key)
+    selections = (
+        sheet.get("class_trait_selections")
+        if isinstance(sheet.get("class_trait_selections"), dict)
+        else {}
+    )
+    granted: set[str] = set()
+    for level_keys in selections.values():
+        if isinstance(level_keys, list):
+            for key in level_keys:
+                clean = str(key or "").strip().lower()
+                if clean:
+                    granted.add(clean)
+    for level in range(1, 21):
+        for key in selections.get(str(level)) or selections.get(level) or []:
+            clean = str(key or "").strip().lower()
+            if clean:
+                granted.add(clean)
+    try:
+        level = max(1, min(20, int(sheet.get("level") or 1)))
+    except (TypeError, ValueError):
+        level = 1
+    return {
+        "level": level,
+        "class_key": str(creation.get("class_key") or "").strip().lower(),
+        "subclass_key": str(creation.get("subclass_key") or "").strip().lower(),
+        "species_key": str(creation.get("species_key") or "").strip().lower(),
+        "abilities": dict(sheet.get("abilities") or {}),
+        "spell_keys": spell_keys,
+        "granted_trait_keys": sorted(granted),
+    }

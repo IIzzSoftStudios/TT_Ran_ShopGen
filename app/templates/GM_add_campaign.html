@@ -97,7 +97,7 @@
 
             <div class="buttons">
                 {% if campaigns %}
-                    <a href="{{ url_for('gm.view_campaigns') }}" class="button">Cancel</a>
+                    <a href="{{ url_for('main.campaigns') }}" class="button">Cancel</a>
                 {% else %}
                     <a href="{{ url_for('auth.logout') }}" class="button">Cancel</a>
                 {% endif %}

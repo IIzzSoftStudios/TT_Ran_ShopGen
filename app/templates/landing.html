@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Econo-Forge</title>
-    <meta name="description" content="Econo-Forge models reactive shop economies for tabletop campaigns. Run prices, stock, and market days from one GM hub.">
+    <meta name="description" content="Econo-Forge is a GM campaign hub for Pathfinder and D&amp;D 5E—world maps, compendiums, living economy, players, and D&amp;D 5e encounter tools from one dashboard.">
     <link rel="canonical" href="{{ url_for('main.index', _external=True) }}">
     <meta name="theme-color" content="#0f172a">
     <meta property="og:title" content="Econo-Forge">
-    <meta property="og:description" content="Reactive shop economies for Pathfinder, D&amp;D 5E, and long-running campaigns. Run prices, stock, and market days from one GM hub.">
+    <meta property="og:description" content="Econo-Forge is a GM campaign hub for Pathfinder and D&amp;D 5E—world maps, compendiums, living economy, players, and D&amp;D 5e encounter tools from one dashboard.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url_for('main.index', _external=True) }}">
     <meta property="og:image" content="{{ url_for('static', filename='media/banner-poster.svg', _external=True) }}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Econo-Forge">
-    <meta name="twitter:description" content="Reactive shop economies for tabletop GMs and players. Run prices, stock, and market days from one GM hub.">
+    <meta name="twitter:description" content="Econo-Forge is a GM campaign hub for Pathfinder and D&amp;D 5E—world maps, compendiums, living economy, players, and D&amp;D 5e encounter tools from one dashboard.">
     <meta name="twitter:image" content="{{ url_for('static', filename='media/banner-poster.svg', _external=True) }}">
     {% include 'partials/theme_head.html' %}
     <style>
@@ -205,9 +205,22 @@
 
         .hero-ctas {
             display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 10px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .hero-ctas-primary,
+        .hero-ctas-deck {
+            display: flex;
             gap: 12px;
             flex-wrap: wrap;
-            margin-top: 10px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
         }
 
         .hero-card {
@@ -312,6 +325,85 @@
             color: var(--color-accent-hover);
         }
 
+        .tiktok-section h2 {
+            text-align: center;
+        }
+
+        .tiktok-rail-wrap {
+            margin: 0 -18px;
+            overflow: hidden;
+        }
+
+        .tiktok-rail-track {
+            display: flex;
+            width: max-content;
+            animation: tiktok-carousel 90s linear infinite;
+            will-change: transform;
+        }
+
+        .tiktok-rail-track.is-paused {
+            animation-play-state: paused;
+        }
+
+        .tiktok-rail-set {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 16px;
+            flex-shrink: 0;
+            padding: 4px 18px 14px;
+        }
+
+        @keyframes tiktok-carousel {
+            from {
+                transform: translateX(0);
+            }
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .tiktok-rail-track {
+                animation: none;
+                overflow-x: auto;
+                max-width: 100%;
+                scrollbar-width: thin;
+            }
+        }
+
+        .tiktok-card {
+            flex: 0 0 280px;
+            width: 280px;
+            aspect-ratio: 9 / 16;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.35);
+            border-radius: 16px;
+            overflow: hidden;
+            scroll-snap-align: start;
+        }
+
+        .tiktok-player {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .tiktok-section-cta {
+            margin-top: 14px;
+            text-align: center;
+        }
+
+        .tiktok-section-cta a {
+            font-weight: 700;
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        .tiktok-section-cta a:hover {
+            color: var(--color-accent-hover);
+        }
+
         /* Mobile: single column stack and prioritise Login + Search */
         @media (max-width: 900px) {
             .hero { grid-template-columns: 1fr; }
@@ -361,9 +453,10 @@
 
         <section class="hero">
             <div>
-                <h1>Stop Stressing. Start Simulating.</h1>
-                <p>Shops that restock. Prices that move when supply runs thin. Econo-Forge runs your campaign’s economy in the background—so the table stays believable and you stay out of the spreadsheet.</p>
+                <h1>One stop shop for all your GameMaster needs</h1>
+                <p>Build or generate your campaign once, then run nations, cities, maps, compendiums, shops, and players from a single dashboard. Advance market days between sessions while your table browses shared maps, inventory, and shops—without you juggling five tools mid-session.</p>
                 <div class="hero-ctas">
+                    <div class="hero-ctas-primary">
                     {% if current_user.is_authenticated %}
                         <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
                         <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
@@ -371,13 +464,19 @@
                         <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
                         <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login to Dashboard</a>
                     {% endif %}
+                    </div>
+                    <div class="hero-ctas-deck">
+                        <a class="btn btn-secondary" href="{{ url_for('main.creator_partnership_request') }}">Creators</a>
+                        <a class="btn btn-secondary" href="{{ url_for('main.public_deck') }}" target="_blank" rel="noopener noreferrer">Public Deck</a>
+                        <a class="btn btn-secondary" href="{{ url_for('main.investor_deck_request') }}">Request Investor Deck</a>
+                    </div>
                 </div>
             </div>
 
             <div class="hero-media">
                 <video autoplay muted loop playsinline poster="{{ url_for('static', filename='media/banner-poster.svg') }}" aria-label="Econo-Forge marketing banner">
                     <source src="{{ url_for('static', filename='media/banner.mp4') }}" type="video/mp4">
-                    <p>Your browser does not support embedded video. Econo-Forge models reactive shop economies for tabletop campaigns—prices, stock, and market days from one GM hub.</p>
+                    <p>Your browser does not support embedded video. Econo-Forge is a GM campaign hub—world maps, compendiums, living economy, and player dashboards for Pathfinder and D&amp;D 5E campaigns.</p>
                 </video>
             </div>
         </section>
@@ -387,55 +486,49 @@
                 <div class="panel">
                     <h2>The Problem</h2>
                     <p style="color: var(--color-muted); margin: 0; line-height: 1.55;">
-                        Players always test the economy—buying in bulk, selling loot, asking what’s actually on the shelf. Static shop lists and flat prices fall apart fast, and you’re left making up numbers mid-session.
+                        Long campaigns sprawl—spreadsheet shops, separate map files, monster notes, player messages, and improvised answers when someone asks what’s on the shelf or where that city actually is. Prep fragments across tools; the table waits while you patch holes live.
                     </p>
                 </div>
                 <div class="panel">
                     <h2>The Forge</h2>
                     <p style="color: var(--color-muted); margin: 0; line-height: 1.55;">
-                        Econo-Forge models shops, stock, and prices as one system. When the party clears a market or a war cuts supply, the world responds—and you don’t have to track every change yourself.
+                        Econo-Forge keeps world-building, compendiums, maps, economy, and encounter prep in one GM workspace. You run story at the table; the hub runs commerce between sessions and gives players one place to check maps, shops, gear, and shared encounters.
                     </p>
                 </div>
             </div>
 
-            <div style="margin-top: 18px;">
-                <h2>Core Features</h2>
-                <div class="feature-grid">
-                    <div class="feature">
-                        <strong>Prices that react</strong>
-                        Costs rise when stock runs low or a region is strained. A sword in the capital shouldn’t price like one hauled through a famine—unless you want it to.
+            {% if tiktok_feed.videos %}
+            <div class="tiktok-section" style="margin-top: 18px;">
+                <h2>Creator Approved</h2>
+                <div class="tiktok-rail-wrap">
+                <div class="tiktok-rail-track" aria-label="TikTok videos from the Econo-Forge community">
+                    {% for copy in range(2) %}
+                    <div class="tiktok-rail-set"{% if copy == 1 %} aria-hidden="true"{% endif %}>
+                        {% for video in tiktok_feed.videos %}
+                        <div class="tiktok-card">
+                            <iframe
+                                class="tiktok-player"
+                                data-src="https://www.tiktok.com/player/v1/{{ video.id }}?autoplay=1&amp;muted=1&amp;loop=1&amp;controls=0&amp;music_info=0&amp;description=0&amp;rel=0"
+                                title="{{ video.title or 'Econo-Forge community TikTok video' }}"
+                                loading="lazy"
+                                allow="autoplay; fullscreen"
+                            ></iframe>
+                        </div>
+                        {% endfor %}
                     </div>
-                    <div class="feature">
-                        <strong>Inventories that stick</strong>
-                        Shops, stashes, and character gear share the same counts. Sell the last potion in town and it’s gone until restock—not “wait, did we have more?”
-                    </div>
-                    <div class="feature">
-                        <strong>GM hub</strong>
-                        Add items, invite players, and advance the simulation between sessions—all from one place.
-                    </div>
+                    {% endfor %}
+                </div>
+                </div>
+                <div class="tiktok-section-cta">
+                    <a href="{{ tiktok_feed.hashtag_url }}" target="_blank" rel="noopener noreferrer">View all on TikTok</a>
                 </div>
             </div>
-        </section>
-
-        <section class="section" style="padding-top:0;">
-            <div class="panel">
-                <h2>Built for long campaigns</h2>
-                <p style="color: var(--color-muted); margin: 0; line-height: 1.65;">
-                    This isn’t a loot roller—it’s a campaign economy. Designed with Pathfinder and D&D 5E in mind, for tables where trade and scarcity matter. Whether you run a sandbox or a year-long arc, stock and prices stay consistent so players trust what they see at the shop.
-                </p>
-
-                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px;">
-                    <span style="padding:8px 12px; border-radius: 999px; background: rgba(124, 58, 237, 0.18); border: 1px solid rgba(124, 58, 237, 0.35); font-weight: 800;">Pathfinder</span>
-                    <span style="padding:8px 12px; border-radius: 999px; background: rgba(124, 58, 237, 0.18); border: 1px solid rgba(124, 58, 237, 0.35); font-weight: 800;">D&D 5E</span>
-                    <span style="padding:8px 12px; border-radius: 999px; background: rgba(148, 163, 184, 0.12); border: 1px solid rgba(148, 163, 184, 0.25); font-weight: 800;">More systems soon</span>
-                </div>
-
-            </div>
+            {% endif %}
         </section>
 
         <div class="cta-band">
             <div class="cta-band-inner">
-                <div class="cta-band-tagline">Ready when you are.</div>
+                <div class="cta-band-tagline">Build your world. Invite your table. Run market days on your schedule.</div>
                 <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
                     {% if current_user.is_authenticated %}
                         <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
@@ -464,6 +557,7 @@
                 <div class="footer-col">
                     <div style="font-weight:800;">Community</div>
                     <a href="https://discord.gg/dkNVnBXMMB" target="_blank" rel="noreferrer">Discord</a>
+                    <a href="{{ tiktok_feed.hashtag_url }}" target="_blank" rel="noopener noreferrer">TikTok #Econoforge</a>
                 </div>
                 <div class="footer-col">
                     <div style="font-weight:800;">Legal</div>
@@ -477,6 +571,110 @@
             </div>
         </footer>
     </div>
+    <script>
+        (function () {
+            var wrap = document.querySelector(".tiktok-rail-wrap");
+            var track = document.querySelector(".tiktok-rail-track");
+            var players = document.querySelectorAll(".tiktok-player[data-src]");
+            if (!wrap || !track || !players.length) {
+                return;
+            }
+
+            function playerMessage(iframe, type, value) {
+                if (!iframe.contentWindow) {
+                    return;
+                }
+                var payload = { type: type, "x-tiktok-player": true };
+                if (value !== undefined) {
+                    payload.value = value;
+                }
+                iframe.contentWindow.postMessage(payload, "*");
+            }
+
+            function ensureLoaded(iframe) {
+                if (!iframe.src) {
+                    iframe.src = iframe.getAttribute("data-src");
+                }
+            }
+
+            function playMuted(iframe) {
+                ensureLoaded(iframe);
+                playerMessage(iframe, "mute");
+                playerMessage(iframe, "play");
+            }
+
+            function pausePlayer(iframe) {
+                if (!iframe.src) {
+                    return;
+                }
+                playerMessage(iframe, "pause");
+            }
+
+            function cardVisible(card) {
+                var wrapRect = wrap.getBoundingClientRect();
+                var cardRect = card.getBoundingClientRect();
+                var visibleWidth = Math.min(cardRect.right, wrapRect.right) - Math.max(cardRect.left, wrapRect.left);
+                return visibleWidth > cardRect.width * 0.35;
+            }
+
+            function syncPlayback() {
+                players.forEach(function (iframe) {
+                    var card = iframe.closest(".tiktok-card");
+                    if (card && cardVisible(card)) {
+                        playMuted(iframe);
+                    } else {
+                        pausePlayer(iframe);
+                    }
+                });
+            }
+
+            function pauseCarousel() {
+                track.classList.add("is-paused");
+            }
+
+            function resumeCarousel() {
+                track.classList.remove("is-paused");
+            }
+
+            wrap.addEventListener("mouseenter", pauseCarousel);
+            wrap.addEventListener("mouseleave", resumeCarousel);
+            wrap.addEventListener("focusin", pauseCarousel);
+            wrap.addEventListener("focusout", function (event) {
+                if (!wrap.contains(event.relatedTarget)) {
+                    resumeCarousel();
+                }
+            });
+
+            if ("IntersectionObserver" in window) {
+                var observer = new IntersectionObserver(function () {
+                    syncPlayback();
+                }, { root: wrap, threshold: [0, 0.35, 0.6, 1] });
+                players.forEach(function (iframe) {
+                    var card = iframe.closest(".tiktok-card");
+                    if (card) {
+                        observer.observe(card);
+                    }
+                });
+            }
+
+            window.addEventListener("message", function (event) {
+                var data = event.data;
+                if (!data || !data["x-tiktok-player"] || data.type !== "onPlayerReady") {
+                    return;
+                }
+                players.forEach(function (iframe) {
+                    if (iframe.contentWindow === event.source) {
+                        var card = iframe.closest(".tiktok-card");
+                        if (card && cardVisible(card)) {
+                            playMuted(iframe);
+                        }
+                    }
+                });
+            });
+
+            syncPlayback();
+            window.setInterval(syncPlayback, 1200);
+        })();
+    </script>
 </body>
 </html>
-

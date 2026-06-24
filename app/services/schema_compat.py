@@ -514,6 +514,42 @@ def warn_if_monster_srd_compat_applied(patched_any: bool) -> None:
         )
 
 
+def ensure_monster_known_to_players_column() -> bool:
+    """Add known_to_players on monster_compendium_entry when missing."""
+    patched_any = False
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        if not _sqlite_table_exists("monster_compendium_entry"):
+            return False
+        if not _sqlite_column_exists("monster_compendium_entry", "known_to_players"):
+            patched_any = True
+            db.session.execute(
+                text(
+                    "ALTER TABLE monster_compendium_entry "
+                    "ADD COLUMN known_to_players BOOLEAN NOT NULL DEFAULT 0"
+                )
+            )
+    elif _regclass_exists("monster_compendium_entry"):
+        if not _column_exists("monster_compendium_entry", "known_to_players"):
+            patched_any = True
+            db.session.execute(
+                text(
+                    "ALTER TABLE monster_compendium_entry "
+                    "ADD COLUMN known_to_players BOOLEAN NOT NULL DEFAULT false"
+                )
+            )
+    if patched_any:
+        db.session.commit()
+    return patched_any
+
+
+def warn_if_monster_known_to_players_applied(applied: bool) -> None:
+    if applied:
+        log.warning(
+            "monster_compendium_entry gained known_to_players column."
+        )
+
+
 def ensure_join_codes_columns() -> bool:
     """Add campaign/player join_code columns and backfill missing codes.
 
@@ -2060,6 +2096,76 @@ def ensure_player_npc_notes_table() -> bool:
 def warn_if_player_npc_notes_table_applied(applied: bool) -> None:
     if applied:
         log.warning("player_npc_note table created via compat bootstrap.")
+
+
+def ensure_player_monster_journal_table() -> bool:
+    """Create player_monster_journal when missing."""
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        if _sqlite_table_exists("player_monster_journal"):
+            return False
+        if not _sqlite_table_exists("player"):
+            return False
+        if not _sqlite_table_exists("monster_compendium_entry"):
+            return False
+        db.session.execute(
+            text(
+                """
+                CREATE TABLE player_monster_journal (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id INTEGER NOT NULL,
+                    viewer_player_id INTEGER NOT NULL,
+                    monster_entry_id INTEGER NOT NULL,
+                    stat_json TEXT NOT NULL DEFAULT '{}',
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (viewer_player_id, monster_entry_id),
+                    FOREIGN KEY(campaign_id) REFERENCES campaign(id) ON DELETE CASCADE,
+                    FOREIGN KEY(viewer_player_id) REFERENCES player(id) ON DELETE CASCADE,
+                    FOREIGN KEY(monster_entry_id) REFERENCES monster_compendium_entry(id) ON DELETE CASCADE
+                )
+                """
+            )
+        )
+        db.session.commit()
+        return True
+
+    if dialect != "postgresql":
+        return False
+    if _regclass_exists("player_monster_journal"):
+        return False
+    if not _regclass_exists("player") or not _regclass_exists("monster_compendium_entry"):
+        return False
+    db.session.execute(
+        text(
+            """
+            CREATE TABLE player_monster_journal (
+                id SERIAL PRIMARY KEY,
+                campaign_id INTEGER NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+                viewer_player_id INTEGER NOT NULL REFERENCES player(id) ON DELETE CASCADE,
+                monster_entry_id INTEGER NOT NULL
+                    REFERENCES monster_compendium_entry(id) ON DELETE CASCADE,
+                stat_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+                updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                    DEFAULT (NOW() AT TIME ZONE 'utc'),
+                CONSTRAINT uq_player_monster_journal_viewer_entry
+                    UNIQUE (viewer_player_id, monster_entry_id)
+            )
+            """
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_player_monster_journal_campaign "
+            "ON player_monster_journal(campaign_id)"
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def warn_if_player_monster_journal_table_applied(applied: bool) -> None:
+    if applied:
+        log.warning("player_monster_journal table created via compat bootstrap.")
 
 
 def ensure_shop_next_restock_day_column() -> bool:

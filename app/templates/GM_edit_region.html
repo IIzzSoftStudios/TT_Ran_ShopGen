@@ -158,8 +158,23 @@
         }
 
         .ruler-name {
-            font-size: 14px;
-            color: #333;
+            font-size: 1.05rem;
+            font-weight: 650;
+            color: var(--color-text, #111827);
+            background: var(--color-surface-muted, #f3f4f6);
+            border: 1px solid var(--color-border, #d1d5db);
+            border-radius: 6px;
+            padding: 0.45rem 0.65rem;
+            line-height: 1.35;
+            cursor: help;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        html.dark-mode .ruler-name {
+            color: var(--color-text, #f3f4f6);
+            background: var(--color-surface-muted, #1f2937);
+            border-color: var(--color-border, #374151);
         }
 
         .axis-hints {
@@ -244,7 +259,7 @@
         {% if mode == 'edit' %}
         <h2 class="section-heading">Ruler</h2>
         <div class="ruler-row">
-            <span class="ruler-name">
+            <span class="ruler-name"{% if ruler_details and ruler_details.tooltip %} title="{{ ruler_details.tooltip }}"{% endif %}>
                 {% if region.ruler_player_id %}
                     {{ ruler_name or ('NPC #' ~ region.ruler_player_id) }}
                 {% else %}
@@ -252,7 +267,7 @@
                 {% endif %}
             </span>
             <span>
-                {% if region.ruler_player_id and ruler_edit_url %}
+                {% if region.ruler_player_id %}
                 <a href="{{ ruler_edit_url }}" class="button">Edit ruler</a>
                 {% elif add_ruler_url %}
                 <a href="{{ add_ruler_url }}" class="button">Add ruler</a>

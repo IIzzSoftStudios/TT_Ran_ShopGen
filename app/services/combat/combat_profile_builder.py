@@ -24,36 +24,6 @@ def _trait_keys_from_species(species_entry: dict[str, Any] | None) -> list[str]:
     return []
 
 
-def class_trait_keys(class_entry: dict[str, Any] | None, level: int) -> list[str]:
-    if not class_entry:
-        return []
-    keys: list[str] = []
-    base = class_entry.get("trait_keys") or []
-    if isinstance(base, list):
-        keys.extend(str(k).strip() for k in base if str(k).strip())
-    try:
-        level_int = max(1, min(20, int(level or 1)))
-    except (TypeError, ValueError):
-        level_int = 1
-    for row in class_entry.get("level_progression") or []:
-        try:
-            row_level = int(row.get("level") or 0)
-        except (TypeError, ValueError):
-            continue
-        if row_level > level_int:
-            continue
-        row_keys = row.get("trait_keys") or []
-        if isinstance(row_keys, list):
-            keys.extend(str(k).strip() for k in row_keys if str(k).strip())
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for key in keys:
-        if key not in seen:
-            seen.add(key)
-            ordered.append(key)
-    return ordered
-
-
 def build_player_combat_profile(
     campaign_id: int,
     sheet: dict[str, Any],
@@ -77,7 +47,12 @@ def build_player_combat_profile(
     layers: list[dict[str, Any]] = [species_profile(species_key)]
     trait_keys: list[str] = []
     trait_keys.extend(_trait_keys_from_species(species_entry))
-    trait_keys.extend(class_trait_keys(class_entry, level))
+    if class_entry or sheet:
+        from app.services.classes_compendium_service import accumulated_class_trait_keys
+
+        trait_keys.extend(
+            accumulated_class_trait_keys(class_entry, level, sheet=sheet)
+        )
     if trait_keys:
         layers.append(
             resolve_trait_effects(
@@ -97,6 +72,9 @@ def build_player_combat_profile(
     layers.append(parse_stat_modifiers_text((species_entry or {}).get("stat_modifiers")))
 
     profile = merge_combat_effects({}, *layers)
+    speed_bonus = int(profile.pop("speed_bonus_ft", 0) or 0)
+    if speed_bonus:
+        profile["speed_ft"] = int(profile.get("speed_ft") or 30) + speed_bonus
     profile["save_prof_flags"] = dict(sheet.get("save_prof_flags") or {})
     profile["character_level"] = level
     profile["species_key"] = species_key or None

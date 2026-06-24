@@ -586,6 +586,17 @@ def action(encounter_id):
                 rng,
                 roll_mode=data.get("roll_mode", "normal"),
             )
+        elif action_type == "multiattack":
+            combatant = _actor_combatant(encounter, data, role, player_ids)
+            result = encounter_service.multiattack_action(
+                encounter,
+                combatant,
+                data.get("target_id"),
+                data.get("multiattack_key"),
+                rng,
+                roll_mode=data.get("roll_mode", "normal"),
+                primary_attack_key=data.get("primary_attack_key"),
+            )
         elif action_type == "batch_attack":
             if role != "gm":
                 raise CombatValidationError("Batch rolls are GM-only.")
@@ -787,11 +798,16 @@ def update_monster(entry_id):
         return jsonify({"error": "Monster not found in this campaign."}), 404
     data = _json_body()
     try:
+        if "known_to_players" in data:
+            known_to_players = bool(data.get("known_to_players"))
+        else:
+            known_to_players = None
         entry = monster_compendium_service.update_entry(
             entry,
             name=data.get("name"),
             stat_json=data.get("stats"),
             challenge_rating=data.get("challenge_rating"),
+            known_to_players=known_to_players,
         )
         db.session.commit()
     except Exception as exc:

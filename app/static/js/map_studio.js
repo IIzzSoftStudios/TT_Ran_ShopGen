@@ -804,6 +804,7 @@
             }
             if (ev.button !== 0) return;
             ev.preventDefault();
+            ev.stopPropagation();
             if (mapViewport) mapViewport.setPaintCapture(true);
             var p = pointerNorm(ev);
             if (tool === 'smooth') {
@@ -834,17 +835,17 @@
             unbindPaintListeners();
             var target = paintListenerTarget();
             if (!target) return;
-            target.addEventListener('pointerdown', onPointerDown);
+            target.addEventListener('pointerdown', onPointerDown, true);
         }
 
         function unbindPaintListeners() {
             teardownPaintSession();
             var target = paintListenerTarget();
             if (target) {
-                target.removeEventListener('pointerdown', onPointerDown);
+                target.removeEventListener('pointerdown', onPointerDown, true);
             }
             if (overlay && overlay !== target) {
-                overlay.removeEventListener('pointerdown', onPointerDown);
+                overlay.removeEventListener('pointerdown', onPointerDown, true);
             }
         }
 

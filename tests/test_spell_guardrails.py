@@ -145,8 +145,6 @@ def test_unsupported_srd_categories_normalize_to_manual():
     _, campaign = _make_gm_with_campaign("guard-srd")
     ensure_spells_compendium(campaign.id)
     manual_keys = {
-        "fireball",
-        "magic_missile",
         "hold_person",
         "counterspell",
         "misty_step",
@@ -270,12 +268,12 @@ def test_post_combat_does_not_persist_source_sheet_slot_usage():
     assert sheet.sheet_json["spells"]["slots_used"] == {"1": 1}
 
 
-def test_manual_ui_does_not_offer_auto_controls():
+def test_cast_ui_only_lists_automated_spells():
     js = Path("app/static/js/gm_battle.js").read_text(encoding="utf-8")
-    assert "Log Cast" in js
-    assert "Manual resolution required" in js
-    assert "display only" in js
-    assert "spellCastButtonLabel" in js
+    assert "Log Cast" not in js
+    assert "castableSpells" in js
+    assert "No castable spells with automated resolution" in js
+    assert "Manual resolution required" not in js
 
 
 def test_spell_metadata_size_caps_are_enforced():
@@ -338,12 +336,18 @@ def test_snapshot_reclassifies_manual_before_combat():
     assert snap["automation"] == AUTOMATION_MANUAL
 
 
-def test_multi_target_or_area_spells_remain_manual():
+def test_multi_target_or_area_spells_automation_tiers():
     _, campaign = _make_gm_with_campaign("guard-area")
     ensure_spells_compendium(campaign.id)
-    for key in ("fireball", "thunderwave", "magic_missile", "scorching_ray"):
+    expected = {
+        "fireball": AUTOMATION_DIRECT_NUMERIC,
+        "thunderwave": AUTOMATION_DIRECT_NUMERIC,
+        "magic_missile": AUTOMATION_DIRECT_NUMERIC,
+        "scorching_ray": AUTOMATION_MANUAL,
+    }
+    for key, automation in expected.items():
         entry = get_spell_entry(campaign.id, key)
-        assert entry["automation"] == AUTOMATION_MANUAL, key
+        assert entry["automation"] == automation, key
 
 
 def test_concentration_starts_on_concentration_spell():
@@ -561,11 +565,11 @@ def test_death_or_defeat_ends_concentration_when_supported():
     assert caster.resources_json.get("concentration") is None
 
 
-def test_upcast_scaling_stays_manual_without_explicit_numeric_rule():
+def test_upcast_scaling_on_area_spell_damage():
     _, campaign = _make_gm_with_campaign("guard-upcast")
     ensure_spells_compendium(campaign.id)
     entry = get_spell_entry(campaign.id, "fireball")
-    assert entry["automation"] == AUTOMATION_MANUAL
+    assert entry["automation"] == AUTOMATION_DIRECT_NUMERIC
     assert entry["upcast"].get("damage_per_slot") == "1d6"
 
 
@@ -718,13 +722,131 @@ def test_player_manual_concentration_end_respects_setting():
     assert caster.resources_json.get("concentration") is None
 
 
+def test_combat_spell_list_uses_prepared_and_cantrips_only_for_wizard():
+    _, campaign = _make_gm_with_campaign("guard-prepared-list")
+    ensure_spells_compendium(campaign.id)
+    player = Player(campaign_id=campaign.id, user_id=None, is_npc=False)
+    db.session.add(player)
+    db.session.flush()
+    sheet = PlayerCharacterSheet(
+        player_id=player.id,
+        campaign_id=campaign.id,
+        sheet_json={
+            "level": 5,
+            "abilities": {"int": 16, "dex": 14, "con": 14, "wis": 12, "str": 10, "cha": 10},
+            "defenses": {"hp_max": 30, "hp_current": 30, "ac": 12},
+            "creation": {"class_key": "wizard"},
+            "spell_slots": {"1": 4, "2": 3, "3": 2},
+            "spells": {
+                "cantrips": ["fire_bolt"],
+                "prepared": ["magic_missile", "fireball"],
+                "known": ["shield"],
+                "slots_used": {},
+            },
+        },
+    )
+    db.session.add(sheet)
+    db.session.flush()
+    encounter = encounter_service.create_encounter(campaign.id, name="Spell List")
+    caster = encounter_service.add_player_combatant(encounter, player, campaign, x=0, y=0)
+    keys = {row["key"] for row in (caster.action_data_json or {}).get("spells") or []}
+    assert keys == {"fire_bolt", "magic_missile", "fireball"}
+    buckets = {
+        row["key"]: row.get("spell_bucket")
+        for row in (caster.action_data_json or {}).get("spells") or []
+    }
+    assert buckets["fire_bolt"] == "cantrip"
+    assert buckets["magic_missile"] == "prepared"
+    assert "shield" not in keys
+
+
+def test_spell_attack_mod_uses_class_casting_ability():
+    _, campaign = _make_gm_with_campaign("guard-spell-mod")
+    from app.services.classes_compendium_service import get_class_entry
+    from app.services.combat.combat_spell_service import spell_attack_modifier
+
+    cleric = get_class_entry(campaign.id, "cleric")
+    mod = spell_attack_modifier(
+        {"wis": 16, "int": 10, "cha": 8},
+        cleric,
+        level=5,
+    )
+    assert mod == 6  # +3 WIS, +3 prof at level 5
+
+
+def test_fireball_area_applies_save_damage_and_resistance():
+    _, campaign = _make_gm_with_campaign("guard-fireball-area")
+    encounter, caster, target, _sheet = _setup_encounter(
+        campaign, prepared=["fireball"]
+    )
+    foe_near = BattleCombatant(
+        encounter_id=encounter.id,
+        campaign_id=encounter.campaign_id,
+        name="Near Foe",
+        side="foe",
+        status="active",
+        x=1,
+        y=0,
+        hp_max=40,
+        hp_current=40,
+        temp_hp=0,
+        ac=10,
+        speed_ft=30,
+        dex_mod=0,
+        ability_json={"dex": 10},
+        action_data_json={
+            "attacks": [],
+            "combat_profile": {"damage_resistances": ["fire"]},
+        },
+        resources_json=encounter_service._fresh_resources(),
+        spell_slots_json={},
+        conditions_json=[],
+    )
+    foe_far = BattleCombatant(
+        encounter_id=encounter.id,
+        campaign_id=encounter.campaign_id,
+        name="Far Foe",
+        side="foe",
+        status="active",
+        x=8,
+        y=0,
+        hp_max=40,
+        hp_current=40,
+        temp_hp=0,
+        ac=10,
+        speed_ft=30,
+        dex_mod=0,
+        ability_json={"dex": 10},
+        action_data_json={"attacks": []},
+        resources_json=encounter_service._fresh_resources(),
+        spell_slots_json={},
+        conditions_json=[],
+    )
+    db.session.add_all([foe_near, foe_far])
+    caster.spell_slots_json = {"3": {"total": 2, "remaining": 2}}
+    db.session.commit()
+
+    result = encounter_service.cast_spell_action(
+        encounter, caster, target.id, "fireball", 3, Random(42)
+    )
+    db.session.commit()
+    area = result.get("area_targets") or []
+    hit_ids = {row["target_id"] for row in area}
+    assert target.id in hit_ids
+    assert foe_near.id in hit_ids
+    assert foe_far.id not in hit_ids
+    near_row = next(row for row in area if row["target_id"] == foe_near.id)
+    assert near_row["damage_roll"]["damage_modifiers"]["applied"] == ["resistance"]
+    assert foe_near.hp_current < 40
+
+
 def test_combat_snapshot_automation_recomputed():
     _, campaign = _make_gm_with_campaign("guard-snap-auto")
     ensure_spells_compendium(campaign.id)
     snaps = combat_spell_snapshots(campaign.id, ["fire_bolt", "fireball"])
     by_key = {row["key"]: row for row in snaps}
     assert by_key["fire_bolt"]["automation"] == AUTOMATION_DIRECT_NUMERIC
-    assert by_key["fireball"]["automation"] == AUTOMATION_MANUAL
+    assert by_key["fireball"]["automation"] == AUTOMATION_DIRECT_NUMERIC
 
 
 def test_legacy_auto_alias_normalizes_to_direct_numeric():

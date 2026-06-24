@@ -14,6 +14,12 @@ from app.services.world_generator.campaign_settings import read_market_volatilit
 _EPSILON = 0.01
 
 
+def _player_item_tooltip(item: Item) -> Dict[str, Any]:
+    from app.services.equipment.item_rules import player_item_tooltip_payload
+
+    return player_item_tooltip_payload(item)
+
+
 def _compare_vs_base(current: float, base: float) -> str:
     if abs(current - base) < _EPSILON:
         return "equal"
@@ -175,6 +181,7 @@ def build_market_overview_payload(campaign_id: int) -> Dict[str, Any]:
                     if last_run_stock_delta is not None
                     else None
                 ),
+                "tooltip": _player_item_tooltip(item),
             }
         )
 

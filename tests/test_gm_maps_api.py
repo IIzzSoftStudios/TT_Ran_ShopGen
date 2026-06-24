@@ -1088,6 +1088,10 @@ def test_dashboard_includes_species_compendium_for_dnd5e_campaign():
     assert 'id="species-compendium-body"' in html
     assert 'id="species-editor"' in html
     assert 'id="species-add-btn"' in html
+    assert 'id="species-edit-combat-resist-group"' in html
+    assert 'id="battle-monster-edit-resist-group"' in html
+    assert 'id="battle-monster-edit-trait-keys-picker"' in html
+    assert 'window.gmTraitPickers' in html
     assert 'id="character-options-tab-btn"' not in html
 
 
@@ -1179,6 +1183,43 @@ def test_species_compendium_json_updates_base_species():
     payload = resp.get_json()["species"]
     assert payload["ability_modifiers"]["str"] == 1
     assert payload["traits"][0]["name"] == "Adaptable"
+
+
+def test_species_compendium_json_persists_combat_effects():
+    user, campaign = _make_gm_with_campaign("gm-species-effects")
+    campaign.system_type = "dnd5e"
+    db.session.commit()
+    client = flask_app.test_client()
+    seed_client_session(client, user, campaign_id=campaign.id)
+
+    resp = client.post(
+        "/gm/species/compendium/human",
+        json={
+            "name": "Human",
+            "population_percent": 40,
+            "ability_modifiers": {
+                "str": 0,
+                "dex": 0,
+                "con": 0,
+                "int": 0,
+                "wis": 0,
+                "cha": 0,
+            },
+            "traits": [],
+            "combat_effects": {
+                "darkvision_ft": 60,
+                "damage_resistances": ["fire"],
+                "lucky": True,
+            },
+            "notes": "",
+        },
+    )
+
+    assert resp.status_code == 200
+    payload = resp.get_json()["species"]
+    assert payload["combat_effects"]["darkvision_ft"] == 60
+    assert payload["combat_effects"]["damage_resistances"] == ["fire"]
+    assert payload["combat_effects"]["lucky"] is True
 
 
 def test_species_compendium_json_creates_custom_species():
@@ -1635,6 +1676,57 @@ def test_convert_editable_from_upload():
     assert body["canvas"]["generation"].get("terrain_grid")
 
 
+def test_region_boundary_preserves_uploaded_background():
+    from app.models import Region
+
+    user, campaign = _make_gm_with_campaign("gm-region-upload")
+    region = Region(campaign_id=campaign.id, name="Uplands")
+    db.session.add(region)
+    db.session.commit()
+
+    client = _gm_client(user, campaign)
+    client.get("/gm/maps/world")
+    upload = client.post(
+        "/gm/maps/world/background",
+        data={"map_image": (_tiny_png(), "bg.png")},
+        content_type="multipart/form-data",
+    )
+    assert upload.status_code == 200
+    assert upload.get_json()["canvas"]["has_image"] is True
+
+    points = [[0.2, 0.2], [0.5, 0.2], [0.5, 0.5], [0.2, 0.5]]
+    boundary = client.post(f"/gm/regions/{region.id}/boundary", json={"points": points})
+    assert boundary.status_code == 200
+
+    world = client.get("/gm/maps/world").get_json()
+    assert world["canvas"]["has_image"] is True
+    assert world["canvas"]["source_type"] == "uploaded"
+    region_feats = [
+        f for f in (world["canvas"]["generation"].get("features") or [])
+        if f.get("type") == "region_tint" and f.get("region_id") == region.id
+    ]
+    assert len(region_feats) == 1
+    assert len(region_feats[0]["points"]) == 4
+
+    city = _add_city(campaign, "Harbor")
+    canvas_id = world["canvas"]["id"]
+    marker = client.post(
+        "/gm/maps/markers",
+        json={
+            "canvas_id": canvas_id,
+            "entity_type": "city",
+            "entity_id": city.city_id,
+            "x": 0.42,
+            "y": 0.58,
+        },
+    )
+    assert marker.status_code == 200
+    assert marker.get_json()["success"] is True
+    saved = MapMarker.query.filter_by(canvas_id=canvas_id, city_id=city.city_id).one()
+    assert saved.x == pytest.approx(0.42)
+    assert saved.y == pytest.approx(0.58)
+
+
 def test_region_boundary_api():
     from app.models import Region
 
@@ -1922,3 +2014,37 @@ def test_player_known_npc_profile_and_notes(client):
 
     profile2 = client.get(f"/player/npcs/{known.id}/profile").get_json()
     assert profile2["npc"]["player_notes"] == "Owes us a favor."
+
+
+def test_build_known_npc_entries_includes_ownership():
+    from app.models import City, Player, PlayerCharacterSheet, Region, User
+    from app.routes.handlers.gm_players_handler import build_known_npc_entries
+
+    gm_user, campaign = _make_gm_with_campaign("gm-known-npc-list")
+    region = Region(campaign_id=campaign.id, name="Northreach")
+    city = _add_city(campaign, "Harbor")
+    known = Player(
+        is_npc=True,
+        user_id=None,
+        campaign_id=campaign.id,
+        currency=0,
+        known_to_players=True,
+    )
+    db.session.add_all([region, known])
+    db.session.flush()
+    region.ruler_player_id = known.id
+    city.owner_player_id = known.id
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=known.id,
+            campaign_id=campaign.id,
+            sheet_json={"name": "Friendly Guard", "class_name": "Fighter", "species": "Human", "level": 2},
+        )
+    )
+    db.session.commit()
+
+    entries = build_known_npc_entries(campaign)
+    assert len(entries) == 1
+    assert entries[0]["name"] == "Friendly Guard"
+    assert "Ruler of Northreach" in entries[0]["location_summary"]
+    assert "Owner of Harbor" in entries[0]["location_summary"]

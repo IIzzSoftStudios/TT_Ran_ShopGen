@@ -39,6 +39,18 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "tentacle",
+              "tentacle",
+              "tentacle"
+            ],
+            "description": "The aboleth makes three tentacle attacks."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "psychic_drain_costs_2_actions",
@@ -124,6 +136,18 @@
             "range_ft": 15
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -205,6 +229,18 @@
             "range_ft": 15
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -280,6 +316,18 @@
             "damage": "2d8+6",
             "damage_type": "bludgeoning",
             "range_ft": 15
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [
@@ -359,6 +407,18 @@
             "range_ft": 15
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -422,6 +482,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -535,6 +596,18 @@
             "range_ft": 15
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -614,6 +687,18 @@
             "damage": "2d8+6",
             "damage_type": "bludgeoning",
             "range_ft": 15
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [
@@ -697,6 +782,18 @@
             "range_ft": 15
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -772,6 +869,18 @@
             "damage": "2d8+8",
             "damage_type": "bludgeoning",
             "range_ft": 15
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [
@@ -851,6 +960,18 @@
             "range_ft": 15
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -912,6 +1033,17 @@
             "damage": "2d8+5",
             "damage_type": "bludgeoning",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The elemental makes two slam attacks."
           }
         ],
         "legendary_actions": [],
@@ -981,6 +1113,18 @@
             "damage": "2d8+8",
             "damage_type": "bludgeoning",
             "range_ft": 20
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [
@@ -1064,6 +1208,18 @@
             "range_ft": 20
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "costs_2_actions",
@@ -1139,6 +1295,18 @@
             "damage": "2d8+9",
             "damage_type": "bludgeoning",
             "range_ft": 20
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [
@@ -1222,6 +1390,18 @@
             "range_ft": 20
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -1297,6 +1477,18 @@
             "damage": "2d8+10",
             "damage_type": "bludgeoning",
             "range_ft": 20
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [
@@ -1380,6 +1572,18 @@
             "range_ft": 20
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -1461,6 +1665,18 @@
             "range_ft": 20
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -1536,6 +1752,18 @@
             "damage": "2d8+10",
             "damage_type": "bludgeoning",
             "range_ft": 20
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [
@@ -1615,6 +1843,18 @@
             "range_ft": 20
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -1676,6 +1916,17 @@
             "damage": "2d10+6",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claw",
+              "claw"
+            ],
+            "description": "The sphinx makes two claw attacks."
           }
         ],
         "legendary_actions": [
@@ -1752,6 +2003,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The armor makes two melee attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -1807,6 +2069,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -1862,6 +2125,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -1928,6 +2192,17 @@
             "damage": "2d6+8",
             "damage_type": "slashing",
             "range_ft": 30
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "longsword",
+              "whip"
+            ],
+            "description": "The balor makes two attacks: one with its longsword and one with its whip."
           }
         ],
         "legendary_actions": [],
@@ -2011,6 +2286,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "tail",
+              "claw",
+              "claw"
+            ],
+            "description": "The devil makes three melee attacks: one with its tail and two with its claws. Alternatively, it can use Hurl Flame twice."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -2070,6 +2357,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -2128,6 +2416,17 @@
             "damage": "1d10+3",
             "damage_type": "slashing",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "beard",
+              "glaive"
+            ],
+            "description": "The devil makes two attacks: one with its beard and one with its glaive."
           }
         ],
         "legendary_actions": [],
@@ -2198,6 +2497,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "constrict"
+            ],
+            "description": "The behir makes two attacks: one with its bite and one to constrict."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Huge",
@@ -2244,6 +2554,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -2295,6 +2606,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -2372,6 +2684,18 @@
             "range_ft": 20
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [
           {
             "key": "wing_attack_costs_2_actions",
@@ -2431,6 +2755,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -2484,6 +2809,18 @@
             "damage": "2d8+4",
             "damage_type": "piercing",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claw",
+              "claw",
+              "sting"
+            ],
+            "description": "The devil makes three attacks: two with its claws and one with its sting."
           }
         ],
         "legendary_actions": [],
@@ -2541,6 +2878,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -2587,6 +2925,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -2638,6 +2977,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -2693,6 +3033,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -2762,6 +3103,17 @@
             "range_ft": 150
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "pike",
+              "hooves"
+            ],
+            "description": "The centaur makes two attacks: one with its pike and one with its hooves or two with its longbow."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -2811,6 +3163,17 @@
             "damage": "2d6+4",
             "damage_type": "slashing",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "chain",
+              "chain"
+            ],
+            "description": "The devil makes two attacks with its chains."
           }
         ],
         "legendary_actions": [],
@@ -2886,6 +3249,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "horns",
+              "claws"
+            ],
+            "description": "The chimera makes three attacks: one with its bite, one with its horns, and one with its claws. When its fire breath is available, it can use the breath in place of its bite or horns."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -2930,6 +3304,17 @@
             "damage": "2d6+4",
             "damage_type": "bludgeoning",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "pincer",
+              "pincer"
+            ],
+            "description": "The chuul makes two pincer attacks. If the chuul is grappling a creature, the chuul can also use its tentacles once."
           }
         ],
         "legendary_actions": [],
@@ -2985,6 +3370,17 @@
             "damage": "2d10+5",
             "damage_type": "bludgeoning",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The golem makes two slam attacks."
           }
         ],
         "legendary_actions": [],
@@ -3063,6 +3459,17 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "tail"
+            ],
+            "description": "The cloaker makes two attacks: one with its bite and one with its tail."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -3131,6 +3538,17 @@
             "range_ft": 60
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "morningstar",
+              "morningstar"
+            ],
+            "description": "The giant makes two morningstar attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -3186,6 +3604,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Small",
@@ -3232,6 +3651,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -3287,6 +3707,7 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -3346,6 +3767,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -3399,6 +3821,17 @@
             "damage": "1d6+4",
             "damage_type": "bludgeoning",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "mace",
+              "mace"
+            ],
+            "description": "The deva makes two melee attacks."
           }
         ],
         "legendary_actions": [],
@@ -3460,6 +3893,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "scimitar",
+              "scimitar",
+              "scimitar"
+            ],
+            "description": "The djinni makes three scimitar attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -3513,6 +3958,17 @@
             "damage": "1d6+4",
             "damage_type": "bludgeoning",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The doppelganger makes two melee attacks."
           }
         ],
         "legendary_actions": [],
@@ -3592,6 +4048,18 @@
             "range_ft": 15
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon turtle makes three attacks: one with its bite and two with its claws. It can make one tail attack in place of its two claw attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -3650,6 +4118,17 @@
             "damage": "2d4",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claws"
+            ],
+            "description": "The dretch makes two attacks: one with its bite and one with its claws."
           }
         ],
         "legendary_actions": [],
@@ -3714,6 +4193,18 @@
             "damage": "1d8+3",
             "damage_type": "piercing",
             "range_ft": 150
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "bite",
+              "bite"
+            ],
+            "description": "The drider makes three attacks, either with its longsword or its longbow. It can replace one of those attacks with a bite attack."
           }
         ],
         "legendary_actions": [],
@@ -3783,6 +4274,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -3846,6 +4338,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -3901,6 +4394,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -3962,6 +4456,17 @@
             "damage": "2d8+5",
             "damage_type": "bludgeoning",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The elemental makes two slam attacks."
           }
         ],
         "legendary_actions": [],
@@ -4028,6 +4533,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "scimitar",
+              "scimitar"
+            ],
+            "description": "The efreeti makes two scimitar attacks or uses its Hurl Flame twice."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -4092,6 +4608,7 @@
             "range_ft": 30
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -4160,6 +4677,18 @@
             "range_ft": 150
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "longsword",
+              "longsword",
+              "longsword"
+            ],
+            "description": "The erinyes makes three attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -4222,6 +4751,17 @@
             "damage": "2d4+2",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claws"
+            ],
+            "description": "The ettercap makes two attacks: one with its bite and one with its claws."
           }
         ],
         "legendary_actions": [],
@@ -4292,6 +4832,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "battleaxe",
+              "morningstar"
+            ],
+            "description": "The ettin makes two attacks: one with its battleaxe and one with its morningstar."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -4345,6 +4896,17 @@
             "damage": "2d6+3",
             "damage_type": "fire",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "touch",
+              "touch"
+            ],
+            "description": "The elemental makes two touch attacks."
           }
         ],
         "legendary_actions": [],
@@ -4415,6 +4977,17 @@
             "range_ft": 60
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "greatsword",
+              "greatsword"
+            ],
+            "description": "The giant makes two greatsword attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Huge",
@@ -4459,6 +5032,17 @@
             "damage": "2d8+4",
             "damage_type": "bludgeoning",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The golem makes two slam attacks."
           }
         ],
         "legendary_actions": [],
@@ -4532,6 +5116,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -4596,6 +5181,17 @@
             "range_ft": 60
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "greataxe",
+              "greataxe"
+            ],
+            "description": "The giant makes two greataxe attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Huge",
@@ -4651,6 +5247,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claws"
+            ],
+            "description": "The gargoyle makes two attacks: one with its bite and one with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -4702,6 +5309,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -4766,6 +5374,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -4821,6 +5430,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -4885,6 +5495,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -4929,6 +5540,16 @@
             "damage": "5d6",
             "damage_type": "piercing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bites"
+            ],
+            "description": "The gibbering mouther makes one bite attack and, if it can, uses its Blinding Spittle."
           }
         ],
         "legendary_actions": [],
@@ -4995,6 +5616,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "pincer",
+              "pincer"
+            ],
+            "description": "The glabrezu makes four attacks: two with its pincers and two with its fists. Alternatively, it makes two attacks with its pincers and casts one spell."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -5059,6 +5691,7 @@
             "range_ft": 150
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5119,6 +5752,7 @@
             "range_ft": 30
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5187,6 +5821,7 @@
             "range_ft": 80
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5238,6 +5873,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5298,6 +5934,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5349,6 +5986,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5408,6 +6046,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5459,6 +6098,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5527,6 +6167,16 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "tentacles"
+            ],
+            "description": "The grick makes one attack with its tentacles. If that attack hits, the grick can make one beak attack against the same target."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -5587,6 +6237,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "beak",
+              "claws"
+            ],
+            "description": "The griffon makes two attacks: one with its beak and one with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -5638,6 +6299,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5706,6 +6368,7 @@
             "range_ft": 15
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -5759,6 +6422,17 @@
             "damage": "2d8+4",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claw",
+              "claw"
+            ],
+            "description": "The sphinx makes two claw attacks."
           }
         ],
         "legendary_actions": [
@@ -5853,6 +6527,17 @@
             "range_ft": 100
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "longsword",
+              "longsword"
+            ],
+            "description": "The veteran makes two longsword attacks. If it has a shortsword drawn, it can also make a shortsword attack."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -5908,6 +6593,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claws",
+              "club"
+            ],
+            "description": "The harpy makes two attacks: one with its claws and one with its club."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -5954,6 +6650,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -6009,6 +6706,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -6085,6 +6783,17 @@
             "range_ft": 60
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "greatclub",
+              "greatclub"
+            ],
+            "description": "The giant makes two greatclub attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Huge",
@@ -6138,6 +6847,17 @@
             "damage": "2d6+3",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "beak",
+              "claws"
+            ],
+            "description": "The hippogriff makes two attacks: one with its beak and one with its claws."
           }
         ],
         "legendary_actions": [],
@@ -6200,6 +6920,7 @@
             "range_ft": 150
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -6251,6 +6972,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -6320,6 +7042,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "fork",
+              "fork",
+              "tail"
+            ],
+            "description": "The devil makes three melee attacks: two with its fork and one with its tail. It can use Hurl Flame in place of any melee attack."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -6375,6 +7109,7 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -6456,6 +7191,17 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claws",
+              "tail"
+            ],
+            "description": "The devil makes three attacks: one with its bite, one with its claws, and one with its tail."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -6511,6 +7257,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -6570,6 +7317,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -6637,6 +7385,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The stalker makes two slam attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -6699,6 +7458,17 @@
             "damage": "3d10+7",
             "damage_type": "slashing",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The golem makes two melee attacks."
           }
         ],
         "legendary_actions": [],
@@ -6773,6 +7543,7 @@
             "range_ft": 30
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -6835,6 +7606,18 @@
             "damage": "3d6+10",
             "damage_type": "bludgeoning",
             "range_ft": 30
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "tentacle",
+              "tentacle",
+              "tentacle"
+            ],
+            "description": "The kraken makes three tentacle attacks, each of which it can replace with one use of Fling."
           }
         ],
         "legendary_actions": [
@@ -6921,6 +7704,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claws",
+              "dagger"
+            ],
+            "description": "The lamia makes two attacks: one with its claws and one with its dagger or Intoxicating Touch."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -6972,6 +7766,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -7027,6 +7822,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [
           {
             "key": "paralyzing_touch_costs_2_actio",
@@ -7131,6 +7927,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "bite"
+            ],
+            "description": "The lizardfolk makes two melee attacks, each one with a different weapon."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -7182,6 +7989,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -7241,6 +8049,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -7296,6 +8105,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -7370,6 +8180,22 @@
             "damage": "2d10+4",
             "damage_type": "bludgeoning",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "longsword",
+              "longsword",
+              "longsword",
+              "longsword",
+              "longsword",
+              "longsword",
+              "tail"
+            ],
+            "description": "The marilith makes seven attacks: six with its longswords and one with its tail."
           }
         ],
         "legendary_actions": [],
@@ -7449,6 +8275,18 @@
             "range_ft": 150
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "snake_hair",
+              "shortsword",
+              "shortsword"
+            ],
+            "description": "The medusa makes either three melee attacks-one with its snake hair and two with its shortsword-or two ranged attacks with its longbow."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -7500,6 +8338,7 @@
             "range_ft": 20
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -7558,6 +8397,17 @@
             "damage": "2d4+4",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claws"
+            ],
+            "description": "The merrow makes two attacks: one with its bite and one with its claws or harpoon."
           }
         ],
         "legendary_actions": [],
@@ -7620,6 +8470,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -7692,6 +8543,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -7760,6 +8612,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -7811,6 +8664,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -7857,6 +8711,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [
           {
             "key": "blasphemous_word_costs_2_actio",
@@ -7947,6 +8802,18 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The nalfeshnee uses Horror Nimbus if it can. It then makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -7998,6 +8865,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -8053,6 +8921,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -8108,6 +8977,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -8172,6 +9042,7 @@
             "range_ft": 30
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -8218,6 +9089,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -8276,6 +9148,17 @@
             "damage": "2d10+4",
             "damage_type": "slashing",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claw_oni_form_only",
+              "claw_oni_form_only"
+            ],
+            "description": "The oni makes two attacks, either with its claws or its glaive."
           }
         ],
         "legendary_actions": [],
@@ -8337,6 +9220,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -8395,6 +9279,18 @@
             "damage": "1d8+3",
             "damage_type": "bludgeoning",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "tentacle",
+              "tentacle"
+            ],
+            "description": "The otyugh makes three attacks: one with its bite and two with its tentacles."
           }
         ],
         "legendary_actions": [],
@@ -8457,6 +9353,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "beak",
+              "claws"
+            ],
+            "description": "The owlbear makes two attacks: one with its beak and one with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -8508,6 +9415,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -8581,6 +9489,17 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "mace",
+              "tail"
+            ],
+            "description": "The pit fiend makes four attacks: one with its bite, one with its claw, one with its mace, and one with its tail."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -8642,6 +9561,17 @@
             "damage": "4d6+7",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "greatsword",
+              "greatsword"
+            ],
+            "description": "The planetar makes two melee attacks."
           }
         ],
         "legendary_actions": [],
@@ -8707,6 +9637,7 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -8767,6 +9698,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -8835,6 +9767,16 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite"
+            ],
+            "description": "The worm makes two attacks: one with its bite and one with its stinger."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -8886,6 +9828,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -8939,6 +9882,17 @@
             "damage": "2d6+2",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claw",
+              "claw"
+            ],
+            "description": "The rakshasa makes two claw attacks."
           }
         ],
         "legendary_actions": [],
@@ -8996,6 +9950,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -9042,6 +9997,7 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -9102,6 +10058,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "beak",
+              "talons"
+            ],
+            "description": "The roc makes two attacks: one with its beak and one with its talons."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -9153,6 +10120,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -9228,6 +10196,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -9287,6 +10256,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -9349,6 +10319,17 @@
             "damage": "1d4+1",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claws"
+            ],
+            "description": "The sahuagin makes two melee attacks: one with its bite and one with its claws or spear."
           }
         ],
         "legendary_actions": [],
@@ -9417,6 +10398,17 @@
             "damage": "2d6+4",
             "damage_type": "bludgeoning",
             "range_ft": 10
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "spear",
+              "tail"
+            ],
+            "description": "The salamander makes two attacks: one with its spear and one with its tail."
           }
         ],
         "legendary_actions": [],
@@ -9492,6 +10484,7 @@
             "range_ft": 80
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -9543,6 +10536,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -9598,6 +10592,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -9657,6 +10652,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The shambling mound makes two slam attacks. If both attacks hit a Medium or smaller target, the target is grappled (escape DC 14), and the shambling mound uses its Engulf on it."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -9706,6 +10712,17 @@
             "damage": "2d6+4",
             "damage_type": "bludgeoning",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "fist",
+              "fist"
+            ],
+            "description": "The guardian makes two fist attacks."
           }
         ],
         "legendary_actions": [],
@@ -9767,6 +10784,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -9822,6 +10840,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -9877,6 +10896,7 @@
             "range_ft": 80
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -9930,6 +10950,17 @@
             "damage": "2d8+6",
             "damage_type": "piercing",
             "range_ft": 150
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "greatsword",
+              "greatsword"
+            ],
+            "description": "The solar makes two greatsword attacks."
           }
         ],
         "legendary_actions": [
@@ -10011,6 +11042,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -10066,6 +11098,7 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -10121,6 +11154,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -10184,6 +11218,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -10239,6 +11274,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Tiny",
@@ -10294,6 +11330,17 @@
             "range_ft": 60
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "greatclub",
+              "greatclub"
+            ],
+            "description": "The giant makes two greatclub attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -10343,6 +11390,17 @@
             "damage": "3d8+6",
             "damage_type": "bludgeoning",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The golem makes two slam attacks."
           }
         ],
         "legendary_actions": [],
@@ -10413,6 +11471,17 @@
             "range_ft": 60
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "greatsword",
+              "greatsword"
+            ],
+            "description": "The giant makes two greatsword attacks."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -10468,6 +11537,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -10530,6 +11600,17 @@
             "damage": "4d10+6",
             "damage_type": "bludgeoning",
             "range_ft": 60
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "slam",
+              "slam"
+            ],
+            "description": "The treant makes two slam attacks."
           }
         ],
         "legendary_actions": [],
@@ -10596,6 +11677,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -10654,6 +11736,18 @@
             "damage": "2d6+4",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The troll makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [],
@@ -10720,6 +11814,17 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "tail"
+            ],
+            "description": "The tyrannosaurus makes two attacks: one with its bite and one with its tail. It can’t make both attacks against the same target."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Huge",
@@ -10773,6 +11878,17 @@
             "damage": "1d8+4",
             "damage_type": "piercing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "hooves",
+              "horn"
+            ],
+            "description": "The unicorn makes two attacks: one with its hooves and one with its horn."
           }
         ],
         "legendary_actions": [
@@ -10853,6 +11969,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -10965,6 +12082,16 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite"
+            ],
+            "description": "The vampire makes two attacks, only one of which can be a bite attack."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -11024,6 +12151,7 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -11084,6 +12212,17 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "beak",
+              "talons"
+            ],
+            "description": "The vrock makes two attacks: one with its beak and one with its talons."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -11139,6 +12278,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -11185,6 +12325,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -11252,6 +12393,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -11305,6 +12447,17 @@
             "damage": "2d6+3",
             "damage_type": "bludgeoning",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack (Humanoid or Hybrid Form Only)",
+            "attack_keys": [
+              "maul_humanoid_or_hybrid_form_o",
+              "maul_humanoid_or_hybrid_form_o"
+            ],
+            "description": "The wereboar makes two attacks, only one of which can be with its tusks."
           }
         ],
         "legendary_actions": [],
@@ -11373,6 +12526,17 @@
             "damage": "1d6+2",
             "damage_type": "piercing",
             "range_ft": 30
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack (Humanoid or Hybrid Form Only)",
+            "attack_keys": [
+              "shortsword_humanoid_or_hybrid_",
+              "shortsword_humanoid_or_hybrid_"
+            ],
+            "description": "The wererat makes two attacks, only one of which can be a bite."
           }
         ],
         "legendary_actions": [],
@@ -11448,6 +12612,7 @@
             "range_ft": 150
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -11529,6 +12694,17 @@
             "range_ft": 20
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack (Humanoid or Hybrid Form Only)",
+            "attack_keys": [
+              "bite_wolf_or_hybrid_form_only",
+              "bite_wolf_or_hybrid_form_only"
+            ],
+            "description": "The werewolf makes two attacks: one with its bite and one with its claws or spear."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -11584,6 +12760,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [],
         "size": "Medium",
@@ -11648,6 +12825,17 @@
             "range_ft": 150
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "longsword",
+              "longsword"
+            ],
+            "description": "The wight makes two longsword attacks or two longbow attacks. It can use its Life Drain in place of one longsword attack."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -11699,6 +12887,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -11762,6 +12951,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -11835,6 +13025,17 @@
             "range_ft": 10
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "stinger"
+            ],
+            "description": "The wyvern makes two attacks: one with its bite and one with its stinger. While flying, it can use its claws in place of one other attack."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -11888,6 +13089,19 @@
             "damage": "3d6+3",
             "damage_type": "piercing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "claw",
+              "claw",
+              "claw",
+              "bite"
+            ],
+            "description": "The xorn makes three claw attacks and one bite attack."
           }
         ],
         "legendary_actions": [],
@@ -11949,6 +13163,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {
@@ -12025,6 +13240,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -12080,6 +13307,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -12133,6 +13372,18 @@
             "damage": "2d6+5",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [],
@@ -12195,6 +13446,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -12248,6 +13511,18 @@
             "damage": "2d6+6",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [],
@@ -12310,6 +13585,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -12370,6 +13657,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [],
         "size": "Large",
@@ -12423,6 +13722,18 @@
             "damage": "2d6+6",
             "damage_type": "slashing",
             "range_ft": 5
+          }
+        ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
           }
         ],
         "legendary_actions": [],
@@ -12480,6 +13791,18 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [
+          {
+            "key": "multiattack",
+            "name": "Multiattack",
+            "attack_keys": [
+              "bite",
+              "claw",
+              "claw"
+            ],
+            "description": "The dragon makes three attacks: one with its bite and two with its claws."
+          }
+        ],
         "legendary_actions": [],
         "traits": [
           {
@@ -12531,6 +13854,7 @@
             "range_ft": 5
           }
         ],
+        "multiattacks": [],
         "legendary_actions": [],
         "traits": [
           {

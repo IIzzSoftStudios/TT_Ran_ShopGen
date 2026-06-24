@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Request Investor Deck — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        .page-wrap { max-width: 980px; margin: 0 auto; padding: 22px 18px 60px; }
+        .topbar-simple {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        }
+        .topbar-inner-simple {
+            max-width: 980px; margin: 0 auto; padding: 14px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 14px; flex-wrap: wrap;
+        }
+        .title { font-size: 2rem; margin: 0 0 6px; }
+        .subtitle { margin: 0 0 18px; color: var(--color-muted); line-height: 1.6; }
+        .form-card {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px; padding: 18px;
+        }
+        .section-title {
+            margin: 18px 0 10px; font-size: 1.1rem; font-weight: 800;
+        }
+        .section-title:first-child { margin-top: 0; }
+        .field-row {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 14px; margin-bottom: 12px;
+        }
+        .field { display: flex; flex-direction: column; gap: 8px; }
+        .field label { font-weight: 800; color: var(--color-text); }
+        .field input, .field select { padding: 10px 12px; border-radius: 12px; }
+        .field-hint { font-size: 0.88rem; color: var(--color-muted); margin: 0; line-height: 1.45; }
+        .radio-group { display: grid; gap: 10px; }
+        .radio-option {
+            display: flex; gap: 10px; align-items: flex-start;
+            padding: 10px 12px; border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(15, 23, 42, 0.15);
+        }
+        .radio-option input { margin-top: 4px; }
+        .radio-option label { font-weight: 600; line-height: 1.45; }
+        .checkbox-row {
+            display: flex; gap: 10px; align-items: flex-start;
+            margin-top: 14px; padding: 12px;
+            border-radius: 12px; border: 1px solid rgba(124, 58, 237, 0.35);
+            background: rgba(124, 58, 237, 0.08);
+        }
+        .checkbox-row input { margin-top: 4px; }
+        .checkbox-row label { font-weight: 600; line-height: 1.5; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 10px; padding: 10px 14px; border: 1px solid transparent;
+            font-weight: 800; cursor: pointer; text-decoration: none; white-space: nowrap;
+        }
+        .btn-primary { background: var(--color-accent); color: var(--color-accent-contrast); }
+        .btn-secondary {
+            background: transparent; border: 1px solid rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+        @media (max-width: 720px) {
+            .field-row { grid-template-columns: 1fr; }
+            .title { font-size: 1.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar-simple">
+        <div class="topbar-inner-simple">
+            <div style="font-weight:900; letter-spacing:0.2px;">Econo-Forge</div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Home</a>
+                <a class="btn btn-secondary" href="{{ url_for('main.public_deck') }}" target="_blank" rel="noopener noreferrer">Public Deck</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-wrap">
+        <h1 class="title">Request Investor Deck</h1>
+        <p class="subtitle">
+            Submit your details for manual review. We do not grant immediate deck access—the team follows up with a secure link after vetting.
+        </p>
+
+        <div class="form-card">
+            <form method="POST" action="{{ url_for('main.investor_deck_request') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <h2 class="section-title">Core contact &amp; identification</h2>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="full_name">Full name</label>
+                        <input type="text" id="full_name" name="full_name" required maxlength="120" autocomplete="name">
+                    </div>
+                    <div class="field">
+                        <label for="email">Professional email address</label>
+                        <input type="email" id="email" name="email" required placeholder="you@fund.com" autocomplete="email">
+                        <p class="field-hint">Work or fund email preferred. Personal addresses are accepted when a fund website is provided.</p>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="company_fund_name">Company / fund / syndicate name</label>
+                        <input type="text" id="company_fund_name" name="company_fund_name" required maxlength="200" placeholder="e.g., Individual Angel, Greycroft, Forge Ventures">
+                    </div>
+                    <div class="field">
+                        <label for="fund_website">Fund website (recommended)</label>
+                        <input type="text" id="fund_website" name="fund_website" maxlength="500" placeholder="www.yourfund.com" autocomplete="url">
+                        <p class="field-hint">Domain or URL accepted—https:// is optional.</p>
+                    </div>
+                </div>
+
+                <h2 class="section-title">Regulatory &amp; qualification</h2>
+                <p class="field-hint" style="margin-bottom:10px;">
+                    Self-attestation for data-room access. Accredited investor generally means $200k+ individual income, $300k+ joint, or $1M+ net worth excluding primary residence.
+                </p>
+                <div class="radio-group" role="radiogroup" aria-label="Investor status">
+                    <div class="radio-option">
+                        <input type="radio" id="status_accredited" name="investor_status" value="accredited" required>
+                        <label for="status_accredited">I am an Accredited Investor</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="status_institutional" name="investor_status" value="institutional">
+                        <label for="status_institutional">I represent an Institutional Fund / Venture Capital Firm</label>
+                    </div>
+                </div>
+
+                <div id="investor-fields">
+                    <h2 class="section-title">Investment thesis alignment</h2>
+                    <div class="field-row">
+                        <div class="field">
+                            <label for="check_size">Typical check size / investment range</label>
+                            <select id="check_size" name="check_size" required>
+                                <option value="">Select a range</option>
+                                <option value="10000_25000">$10,000 – $25,000</option>
+                                <option value="25000_50000">$25,000 – $50,000</option>
+                                <option value="50000_100000">$50,000 – $100,000</option>
+                                <option value="100000_plus">$100,000+</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="prior_saas_gaming_invest">Previously invested in SaaS, gaming, or infrastructure technology?</label>
+                            <select id="prior_saas_gaming_invest" name="prior_saas_gaming_invest" required>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="confidentiality_ack" name="confidentiality_ack" value="yes" required>
+                        <label for="confidentiality_ack">
+                            I understand that the Econo-Forge investor deck contains proprietary product architecture, financial models, and strategic roadmaps. I agree to keep this information strictly confidential and will not distribute it without written permission.
+                        </label>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-primary" type="submit">Submit request</button>
+                    <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Back to Home</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

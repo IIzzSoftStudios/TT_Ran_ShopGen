@@ -36,6 +36,9 @@
         system: cfg.default_system || "dnd5e",
         species: null,
         speciesFlex: {},
+        speciesSkillChoices: [],
+        dragonbornAncestry: null,
+        pendingSpecies: null,
         classKey: null,
         classSkills: [],
         backgroundKey: null,
@@ -126,17 +129,246 @@
         });
     }
 
+    const DRAGONBORN_ANCESTRY_META = cfg.dragonborn_ancestry_options || {};
+    const DRAGONBORN_ANCESTRY = Object.keys(DRAGONBORN_ANCESTRY_META).length
+        ? Object.keys(DRAGONBORN_ANCESTRY_META)
+        : ["acid", "cold", "fire", "lightning", "poison"];
+
+    function escapeHtml(text) {
+        return String(text || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function abilityModLine(mods) {
+        mods = mods || {};
+        return ABILITIES.filter((a) => mods[a])
+            .map((a) => ABILITY_LABELS[a] + " " + (mods[a] > 0 ? "+" : "") + mods[a])
+            .join(", ");
+    }
+
+    function speciesTraitListHtml(sp) {
+        const traits = sp.traits || [];
+        if (!traits.length) return "";
+        let html = "<ul class='species-trait-list'>";
+        traits.forEach((trait) => {
+            html +=
+                "<li><strong>" +
+                escapeHtml(trait.name || "Trait") +
+                "</strong>" +
+                (trait.description ? "<span>" + escapeHtml(trait.description) + "</span>" : "") +
+                "</li>";
+        });
+        html += "</ul>";
+        return html;
+    }
+
+    function renderSpeciesModalChoices(sp) {
+        const host = $("#species-modal-choices");
+        if (!host) return;
+        host.innerHTML = "";
+        const flexCount = Number(sp.flex_ability_bonuses || 0);
+        if (flexCount > 0) {
+            const panel = document.createElement("div");
+            panel.className = "species-choice-panel";
+            panel.innerHTML = "<h4>Flexible ability increases</h4>";
+            const grid = document.createElement("div");
+            grid.className = "species-flex-grid";
+            const flexTargets =
+                sp.key === "half-elf"
+                    ? ABILITIES.filter((a) => a !== "cha")
+                    : ABILITIES.slice();
+            for (let i = 0; i < flexCount; i += 1) {
+                const label = document.createElement("label");
+                label.innerHTML =
+                    "Bonus " +
+                    (i + 1) +
+                    ' <select data-species-flex="' +
+                    i +
+                    '"><option value="">Choose ability</option>' +
+                    flexTargets
+                        .map((ab) => {
+                            const selected =
+                                Object.keys(state.speciesFlex).find(
+                                    (key) => state.speciesFlex[key] === i + 1
+                                ) === ab
+                                    ? " selected"
+                                    : "";
+                            return (
+                                '<option value="' +
+                                ab +
+                                '"' +
+                                selected +
+                                ">" +
+                                ABILITY_LABELS[ab] +
+                                "</option>"
+                            );
+                        })
+                        .join("") +
+                    "</select>";
+                grid.appendChild(label);
+            }
+            grid.addEventListener("change", (ev) => {
+                const select = ev.target.closest("select[data-species-flex]");
+                if (!select) return;
+                const slot = Number(select.getAttribute("data-species-flex")) + 1;
+                const ability = select.value;
+                Object.keys(state.speciesFlex).forEach((key) => {
+                    if (state.speciesFlex[key] === slot) delete state.speciesFlex[key];
+                });
+                if (ability) state.speciesFlex[ability] = slot;
+            });
+            panel.appendChild(grid);
+            host.appendChild(panel);
+        }
+        const skillCfg = sp.species_skill_choices || null;
+        const skillCount = Number(skillCfg && skillCfg.count ? skillCfg.count : 0);
+        if (skillCount > 0) {
+            const options = (skillCfg.options || []).map((sk) => String(sk).toLowerCase());
+            const panel = document.createElement("div");
+            panel.className = "species-choice-panel";
+            panel.innerHTML =
+                "<h4>Species skill choices</h4><p class='muted'>Choose " +
+                skillCount +
+                " skill(s).</p>";
+            const grid = document.createElement("div");
+            grid.className = "species-skill-grid";
+            options.forEach((sk) => {
+                const id = "species-skill-" + sk;
+                const wrap = document.createElement("label");
+                const checked = state.speciesSkillChoices.includes(sk);
+                wrap.innerHTML =
+                    '<input type="checkbox" id="' +
+                    id +
+                    '" data-species-skill="' +
+                    sk +
+                    '" ' +
+                    (checked ? "checked" : "") +
+                    "> " +
+                    sk.replace(/_/g, " ");
+                const input = wrap.querySelector("input");
+                input.addEventListener("change", () => {
+                    if (input.checked) {
+                        if (!state.speciesSkillChoices.includes(sk)) {
+                            state.speciesSkillChoices.push(sk);
+                        }
+                    } else {
+                        state.speciesSkillChoices = state.speciesSkillChoices.filter(
+                            (row) => row !== sk
+                        );
+                    }
+                    if (state.speciesSkillChoices.length > skillCount) {
+                        state.speciesSkillChoices = state.speciesSkillChoices.slice(-skillCount);
+                        renderSpeciesModalChoices(sp);
+                    }
+                });
+                grid.appendChild(wrap);
+            });
+            panel.appendChild(grid);
+            host.appendChild(panel);
+        }
+        if (sp.requires_dragonborn_ancestry) {
+            const panel = document.createElement("div");
+            panel.className = "species-choice-panel";
+            panel.innerHTML = "<h4>Draconic ancestry</h4>";
+            const select = document.createElement("select");
+            select.id = "species-dragonborn-ancestry";
+            select.innerHTML =
+                '<option value="">Choose damage type</option>' +
+                DRAGONBORN_ANCESTRY.map((row) => {
+                    const meta = DRAGONBORN_ANCESTRY_META[row] || {};
+                    const label = meta.label || row.charAt(0).toUpperCase() + row.slice(1);
+                    const selected = state.dragonbornAncestry === row ? " selected" : "";
+                    return (
+                        '<option value="' +
+                        row +
+                        '"' +
+                        selected +
+                        ">" +
+                        escapeHtml(label) +
+                        "</option>"
+                    );
+                }).join("");
+            const helper = document.createElement("p");
+            helper.className = "muted species-ancestry-helper";
+            helper.id = "species-dragonborn-helper";
+            function updateAncestryHelper() {
+                const meta = DRAGONBORN_ANCESTRY_META[select.value] || null;
+                helper.textContent = meta
+                    ? "Breath weapon (" +
+                      (meta.breath_shape || "area") +
+                      "): " +
+                      (meta.breath_summary || "")
+                    : "Choose a damage type to see breath weapon details.";
+            }
+            select.addEventListener("change", () => {
+                state.dragonbornAncestry = select.value || null;
+                updateAncestryHelper();
+            });
+            updateAncestryHelper();
+            panel.appendChild(select);
+            panel.appendChild(helper);
+            host.appendChild(panel);
+        }
+    }
+
+    function validateSpeciesChoices(sp) {
+        if (!sp) return "Select a species.";
+        const flexCount = Number(sp.flex_ability_bonuses || 0);
+        if (flexCount > 0) {
+            const assigned = Object.keys(state.speciesFlex).filter(
+                (key) => Number(state.speciesFlex[key]) > 0
+            );
+            if (assigned.length !== flexCount) {
+                return "Assign all flexible ability increases before accepting this species.";
+            }
+            if (new Set(assigned).size !== assigned.length) {
+                return "Flexible bonuses must target different abilities.";
+            }
+            if (sp.key === "half-elf" && assigned.includes("cha")) {
+                return "Half-Elf flexible bonuses cannot apply to Charisma.";
+            }
+        }
+        const skillCfg = sp.species_skill_choices || null;
+        const skillCount = Number(skillCfg && skillCfg.count ? skillCfg.count : 0);
+        if (skillCount > 0 && state.speciesSkillChoices.length !== skillCount) {
+            return "Pick exactly " + skillCount + " species skill(s).";
+        }
+        if (sp.requires_dragonborn_ancestry && !state.dragonbornAncestry) {
+            return "Choose a draconic ancestry damage type.";
+        }
+        return "";
+    }
+
     function openSpeciesModal(sp) {
         const modal = $("#species-modal");
         if (!modal) return;
+        state.pendingSpecies = sp;
+        if (state.species?.key !== sp.key) {
+            state.speciesFlex = {};
+            state.speciesSkillChoices = [];
+            state.dragonbornAncestry = null;
+        }
         $("#species-modal-title").textContent = sp.name;
-        const mods = sp.ability_modifiers || {};
-        const modLines = ABILITIES.filter((a) => mods[a])
-            .map((a) => ABILITY_LABELS[a] + " " + (mods[a] > 0 ? "+" : "") + mods[a])
-            .join(", ");
-        $("#species-modal-body").textContent =
-            (sp.summary || "No description.") +
-            (modLines ? "\n\nAbility modifiers: " + modLines : "");
+        const body = $("#species-modal-body");
+        if (body) {
+            const mods = abilityModLine(sp.ability_modifiers);
+            let html = "<p>" + escapeHtml(sp.summary || "No description.") + "</p>";
+            if (mods) {
+                html += "<p><strong>Ability modifiers:</strong> " + escapeHtml(mods) + "</p>";
+            }
+            if (sp.stat_modifiers) {
+                html +=
+                    "<p><strong>Size, speed, and languages:</strong> " +
+                    escapeHtml(sp.stat_modifiers) +
+                    "</p>";
+            }
+            html += speciesTraitListHtml(sp);
+            body.innerHTML = html;
+        }
+        renderSpeciesModalChoices(sp);
         modal.dataset.key = sp.key;
         modal.hidden = false;
     }
@@ -150,11 +382,21 @@
         const modal = $("#species-modal");
         const key = modal?.dataset.key;
         const sp = (catalog.species || []).find((row) => row.key === key);
+        const err = validateSpeciesChoices(sp);
+        if (err) {
+            showError(err);
+            return;
+        }
         if (sp) {
             state.species = sp;
-            state.speciesFlex = {};
+            const flexPayload = {};
+            Object.keys(state.speciesFlex).forEach((ability) => {
+                flexPayload[ability] = 1;
+            });
+            state.speciesFlex = flexPayload;
             speciesCards();
         }
+        showError("");
         closeSpeciesModal();
     }
 
@@ -468,19 +710,53 @@
         host.innerHTML =
             "<ul class='review-list'>" +
             "<li><strong>Name:</strong> " +
-            (state.name || "Unnamed") +
+            escapeHtml(state.name || "Unnamed") +
             "</li>" +
             "<li><strong>Species:</strong> " +
-            (sp?.name || "—") +
+            escapeHtml(sp?.name || "—") +
             "</li>" +
+            (sp && sp.traits && sp.traits.length
+                ? "<li><strong>Species traits:</strong><ul>" +
+                  sp.traits
+                      .map(
+                          (trait) =>
+                              "<li><strong>" +
+                              escapeHtml(trait.name || "Trait") +
+                              "</strong>" +
+                              (trait.description
+                                  ? ": " + escapeHtml(trait.description)
+                                  : "") +
+                              "</li>"
+                      )
+                      .join("") +
+                  "</ul></li>"
+                : "") +
+            (state.dragonbornAncestry
+                ? "<li><strong>Draconic ancestry:</strong> " +
+                  escapeHtml(
+                      (DRAGONBORN_ANCESTRY_META[state.dragonbornAncestry] || {}).label ||
+                          state.dragonbornAncestry
+                  ) +
+                  (DRAGONBORN_ANCESTRY_META[state.dragonbornAncestry]?.breath_summary
+                      ? "<br><span class='muted'>" +
+                        escapeHtml(DRAGONBORN_ANCESTRY_META[state.dragonbornAncestry].breath_summary) +
+                        "</span>"
+                      : "") +
+                  "</li>"
+                : "") +
+            (state.speciesSkillChoices.length
+                ? "<li><strong>Species skills:</strong> " +
+                  escapeHtml(state.speciesSkillChoices.join(", ")) +
+                  "</li>"
+                : "") +
             "<li><strong>Class:</strong> " +
-            (cl?.name || "—") +
+            escapeHtml(cl?.name || "—") +
             "</li>" +
             "<li><strong>Background:</strong> " +
-            (bg?.name || "—") +
+            escapeHtml(bg?.name || "—") +
             "</li>" +
             "<li><strong>Class skills:</strong> " +
-            (state.classSkills.join(", ") || "—") +
+            escapeHtml(state.classSkills.join(", ") || "—") +
             "</li>" +
             "<li><strong>Abilities (base):</strong> " +
             ABILITIES.map(
@@ -501,6 +777,13 @@
         if (step === "species" && !state.species) {
             showError("Select a species.");
             return false;
+        }
+        if (step === "species" && state.species) {
+            const speciesErr = validateSpeciesChoices(state.species);
+            if (speciesErr) {
+                showError(speciesErr);
+                return false;
+            }
         }
         if (step === "class" && !state.classKey) {
             showError("Select a class.");
@@ -538,6 +821,8 @@
             class_skill_choices: state.classSkills,
             base_abilities: state.baseAbilities,
             species_flex_assignments: state.speciesFlex,
+            species_skill_choices: state.speciesSkillChoices,
+            dragonborn_ancestry: state.dragonbornAncestry,
             campaign_player_id: campaignPlayerId,
             region_id: cfg.region_id || null,
             assign_ruler: !!cfg.assign_ruler,

@@ -457,6 +457,10 @@
             cursor: pointer;
             text-align: left;
         }
+        .spell-sort-header:hover,
+        .spell-sort-header:focus-visible {
+            color: var(--color-link, #6366f1);
+        }
         .species-compendium-table-wrapper {
             overflow-x: auto;
         }
@@ -510,6 +514,185 @@
         }
         .class-resource-row input[type="number"] {
             width: 5rem;
+        }
+        .class-progression-table-wrap {
+            margin-top: 0.75rem;
+        }
+        .class-progression-table .class-level-features-cell {
+            max-width: 220px;
+            line-height: 1.35;
+        }
+        .class-feature-chip {
+            cursor: help;
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+        }
+        .class-feature-chip:hover,
+        .class-feature-chip:focus-visible {
+            color: var(--color-link-hover, #7c3aed);
+            outline: none;
+        }
+        .compendium-feature-card {
+            position: fixed;
+            z-index: 1400;
+            min-width: 240px;
+            max-width: min(360px, 92vw);
+            max-height: min(320px, 70vh);
+            overflow: auto;
+            padding: 0.7rem 0.8rem;
+            border-radius: 8px;
+            border: 1px solid var(--color-border, #d1d5db);
+            background: var(--color-surface, #fff);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+            pointer-events: auto;
+        }
+        .compendium-feature-card[hidden] {
+            display: none !important;
+        }
+        .compendium-feature-card-name {
+            display: block;
+            font-size: 1rem;
+            font-weight: 700;
+            margin: 0 0 0.4rem;
+            color: var(--color-text, #111827);
+        }
+        .compendium-feature-card-summary {
+            margin: 0 0 0.45rem;
+            font-size: 0.88rem;
+            line-height: 1.45;
+            color: var(--color-text, #374151);
+        }
+        .compendium-feature-card-rules {
+            margin: 0 0 0.55rem;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: var(--color-text-muted, #4b5563);
+            white-space: pre-wrap;
+        }
+        .compendium-feature-card .button {
+            margin-top: 0.15rem;
+        }
+        .button-link {
+            display: inline;
+            padding: 0;
+            border: none;
+            background: none;
+            color: var(--color-link, #2563eb);
+            font: inherit;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .button-link:hover,
+        .button-link:focus-visible {
+            color: var(--color-link-hover, #7c3aed);
+        }
+        .class-progression-table .class-level-summary-row {
+            cursor: pointer;
+        }
+        .class-progression-table .class-level-summary-row:hover td {
+            background: var(--color-table-stripe, rgba(255, 255, 255, 0.04));
+        }
+        .class-progression-table .class-level-summary-row.is-expanded td {
+            background: var(--color-table-stripe, rgba(255, 255, 255, 0.06));
+            border-bottom: none;
+        }
+        .class-progression-table .class-level-detail-row td {
+            padding: 0;
+            vertical-align: top;
+            border-top: none;
+        }
+        .class-folder-row .class-folder-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0 6px 0 0;
+            color: inherit;
+        }
+        .class-folder-row .class-folder-toggle:hover,
+        .class-folder-row .class-folder-toggle:focus-visible {
+            color: var(--color-link, #6366f1);
+        }
+        .class-subclass-row td {
+            background: var(--color-table-stripe, rgba(255, 255, 255, 0.03));
+            border-top: none;
+            padding-top: 4px;
+            padding-bottom: 4px;
+        }
+        .class-subclass-row .class-subclass-indent {
+            display: inline-block;
+            padding-left: 28px;
+        }
+        .class-subclass-folder-actions {
+            padding-left: 28px;
+            padding-bottom: 8px;
+        }
+        .subclass-editor-form section + section {
+            margin-top: 14px;
+        }
+        .subclass-feature-row {
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            background: var(--color-surface);
+        }
+        .subclass-feature-row .species-editor-grid {
+            margin-bottom: 8px;
+        }
+        .class-level-editor {
+            padding: 12px 14px 16px;
+            border-top: 2px solid var(--color-border);
+            background: var(--color-surface);
+        }
+        .class-level-editor section + section {
+            margin-top: 14px;
+        }
+        .class-level-editor h4 {
+            margin: 0 0 6px;
+            font-size: 0.95rem;
+        }
+        .class-level-editor-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 8px;
+            align-items: end;
+            margin-bottom: 8px;
+            padding: 8px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.12);
+        }
+        .class-level-editor-row label {
+            display: grid;
+            gap: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .class-level-editor-row .class-level-row-actions {
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-end;
+        }
+        .class-level-editor-row textarea {
+            min-height: 52px;
+            resize: vertical;
+        }
+        .class-level-editor-row--wide {
+            grid-template-columns: 1fr;
+        }
+        .class-level-add-btn {
+            margin-top: 4px;
+        }
+        .class-pact-slots-block,
+        .class-standard-slots-block {
+            margin-top: 10px;
+        }
+        .class-pact-slots-block strong,
+        .class-standard-slots-block strong {
+            display: block;
+            margin-bottom: 6px;
         }
         .class-spell-slot-grid label {
             font-size: 0.9rem;
@@ -925,6 +1108,86 @@
         .map-compendium-map-muted {
             color: var(--color-muted, #666);
             font-size: 0.85rem;
+        }
+        .compendium-person-cell {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .compendium-person-link {
+            font-weight: 650;
+            color: var(--color-link, #5b21b6);
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            font: inherit;
+            font-weight: 650;
+            cursor: pointer;
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+            text-align: left;
+        }
+        .compendium-person-link:hover,
+        .compendium-person-link:focus-visible {
+            color: var(--color-link-hover, #7c3aed);
+            outline: 2px solid var(--color-accent, #7c3aed);
+            outline-offset: 2px;
+        }
+        .compendium-person-card {
+            position: fixed;
+            z-index: 1400;
+            min-width: 200px;
+            max-width: min(280px, 90vw);
+            padding: 0.65rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--color-border, #d1d5db);
+            background: var(--color-surface, #fff);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+            pointer-events: auto;
+        }
+        .compendium-person-card[hidden] {
+            display: none !important;
+        }
+        .compendium-person-card-role {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--color-text-muted, #6b7280);
+            margin: 0 0 0.2rem;
+        }
+        .compendium-person-card-name {
+            display: block;
+            font-size: 1rem;
+            font-weight: 700;
+            margin: 0 0 0.45rem;
+            color: var(--color-text, #111827);
+        }
+        .compendium-person-card-stats {
+            margin: 0 0 0.55rem;
+            font-size: 0.85rem;
+            line-height: 1.45;
+            color: var(--color-text, #374151);
+        }
+        .compendium-person-card-stats dt {
+            font-weight: 600;
+            display: inline;
+        }
+        .compendium-person-card-stats dt::after {
+            content: ': ';
+        }
+        .compendium-person-card-stats dd {
+            display: inline;
+            margin: 0 0 0.25rem;
+        }
+        .compendium-person-card-stats dd::after {
+            content: '';
+            display: block;
+        }
+        .compendium-person-card .button {
+            width: 100%;
+            box-sizing: border-box;
         }
         .map-shop-city-picker {
             position: fixed;
@@ -1869,22 +2132,22 @@
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="shops-pane-content" id="shops-tab-btn" role="tab" aria-selected="false" title="Shop Compendium"><span class="gm-nav-icon" aria-hidden="true">🏪</span><span class="gm-nav-label">Shops</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="items-pane-content" id="items-tab-btn" role="tab" aria-selected="false" title="Item Compendium"><span class="gm-nav-icon" aria-hidden="true">📦</span><span class="gm-nav-label">Items</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="market-pane-content" id="market-tab-btn" role="tab" aria-selected="false" title="Market Overview"><span class="gm-nav-icon" aria-hidden="true">📊</span><span class="gm-nav-label">Market</span></button>
-            <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="sim-pane-content" role="tab" aria-selected="false" title="Simulation"><span class="gm-nav-icon" aria-hidden="true">⏱</span><span class="gm-nav-label">Sim</span></button>
+            <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="sim-pane-content" role="tab" aria-selected="false" title="Calendar"><span class="gm-nav-icon" aria-hidden="true">⏱</span><span class="gm-nav-label">Calendar</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="players-npcs-pane-content" id="players-npcs-tab-btn" role="tab" aria-selected="false" title="Players and NPCs"><span class="gm-nav-icon" aria-hidden="true">👥</span><span class="gm-nav-label">Players</span></button>
             {% if combat_enabled %}
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="species-pane-content" id="species-tab-btn" role="tab" aria-selected="false" title="Species Compendium"><span class="gm-nav-icon" aria-hidden="true">🧬</span><span class="gm-nav-label">Species</span></button>
-            <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="traits-pane-content" id="traits-tab-btn" role="tab" aria-selected="false" title="Traits Compendium"><span class="gm-nav-icon" aria-hidden="true">🎭</span><span class="gm-nav-label">Traits</span></button>
+            <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="traits-pane-content" id="traits-tab-btn" role="tab" aria-selected="false" title="Combat traits (speed, resistances, senses)"><span class="gm-nav-icon" aria-hidden="true">🎭</span><span class="gm-nav-label">Traits</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="classes-pane-content" id="classes-tab-btn" role="tab" aria-selected="false" title="Classes Compendium"><span class="gm-nav-icon" aria-hidden="true">⚔</span><span class="gm-nav-label">Classes</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="spells-pane-content" id="spells-tab-btn" role="tab" aria-selected="false" title="Spell Compendium"><span class="gm-nav-icon" aria-hidden="true">✨</span><span class="gm-nav-label">Spells</span></button>
-            <button type="button" class="gm-panel-tab gm-nav-rail-btn" id="battle-tab-btn" role="tab" aria-selected="false" title="Encounters"><span class="gm-nav-icon" aria-hidden="true">⚔️</span><span class="gm-nav-label">Fight</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="monsters-pane-content" id="monsters-tab-btn" role="tab" aria-selected="false" title="Monster Compendium"><span class="gm-nav-icon" aria-hidden="true">👹</span><span class="gm-nav-label">Monsters</span></button>
+            <button type="button" class="gm-panel-tab gm-nav-rail-btn" id="battle-tab-btn" role="tab" aria-selected="false" title="Encounters"><span class="gm-nav-icon" aria-hidden="true">⚔️</span><span class="gm-nav-label">Encounter</span></button>
             {% endif %}
         </nav>
         </div>
         <div id="gm-panel-backdrop" hidden></div>
         <div id="gm-slide-panels">
         <div id="sim-pane-content" class="gm-slide-panel tab-panel-content" role="tabpanel" hidden>
-        <h2>Simulation</h2>
+        <h2>Calendar</h2>
         {% if first_run_sim %}
         <div class="gm-first-run-prompt" id="gm-first-run-prompt">
             <strong>Start the market clock</strong>
@@ -1939,6 +2202,10 @@
                     <input type="number" id="char-creation-rerolls" min="0" max="5"
                            value="{{ character_creation_settings.random_rerolls_per_ability }}">
                 </label>
+                <label>Max player level
+                    <input type="number" id="char-creation-max-level" min="1" max="20"
+                           value="{{ character_creation_settings.max_player_level }}">
+                </label>
                 <button type="button" class="button" id="char-creation-save-btn">Save creation rules</button>
                 <span class="players-npcs-muted" id="char-creation-save-status"></span>
             </div>
@@ -1976,7 +2243,6 @@
                                             <span class="players-npcs-tag">Lv {{ character.level }}</span>
                                             {% endif %}
                                         </span>
-                                        <span class="players-npcs-muted">View sheet</span>
                                     </a>
                                     {% endfor %}
                                 </div>
@@ -2043,7 +2309,6 @@
                                             <span class="players-npcs-tag">Lv {{ character.level }}</span>
                                             {% endif %}
                                         </span>
-                                        <span class="players-npcs-muted">View sheet</span>
                                     </a>
                                     {% endfor %}
                                 </div>
@@ -2180,7 +2445,7 @@
                 <div class="species-compendium-tools">
                     <span id="cities-compendium-status" role="status" aria-live="polite"></span>
                     <label class="spell-compendium-search">Search
-                        <input type="search" id="cities-search-input" placeholder="Name, nation, size...">
+                        <input type="search" id="cities-search-input" placeholder="Name, nation, owner, size...">
                     </label>
                     <span class="species-compendium-actions">
                         <button type="button" class="button" data-compendium-add-url="{{ url_for('gm.add_city') }}" data-compendium-title="Add City">Add City</button>
@@ -2196,6 +2461,7 @@
                                 <th>Nation</th>
                                 <th>Size</th>
                                 <th>Population</th>
+                                <th>Owner</th>
                                 <th>Shops</th>
                                 <th></th>
                             </tr>
@@ -2226,7 +2492,7 @@
                 <div class="species-compendium-tools">
                     <span id="shops-compendium-status" role="status" aria-live="polite"></span>
                     <label class="spell-compendium-search">Search
-                        <input type="search" id="shops-search-input" placeholder="Name, type, city...">
+                        <input type="search" id="shops-search-input" placeholder="Name, type, owner, city...">
                     </label>
                     <span class="species-compendium-actions">
                         <button type="button" class="button" data-compendium-add-url="{{ url_for('gm.add_shop') }}" data-compendium-title="Add Shop">Add Shop</button>
@@ -2242,6 +2508,7 @@
                                 <th>Name</th>
                                 <th>Type</th>
                                 <th>Cities</th>
+                                <th>Owner</th>
                                 <th>Items</th>
                                 <th>Restock</th>
                                 <th></th>
@@ -2326,9 +2593,6 @@
                                aria-label="Challenge rating">
                         <button type="button" class="button" id="battle-generate-btn">Generate monster</button>
                     </span>
-                    <span class="battle-compendium-import">
-                        <button type="button" class="button" id="battle-monster-import-btn">Import monsters</button>
-                    </span>
                     <span class="battle-compendium-source-filter" role="group" aria-label="Monster source filter">
                         <button type="button" class="button" data-monster-source-filter="srd_only">SRD only</button>
                         <button type="button" class="button" data-monster-source-filter="all" aria-pressed="true">SRD and Custom</button>
@@ -2342,26 +2606,6 @@
                         <input type="text" id="battle-monster-damage" placeholder="Damage (1d6+2)" value="1d6+2">
                         <button type="button" class="button" id="battle-monster-create-btn">Create monster</button>
                     </span>
-                </div>
-                <div id="battle-monster-import-popout" class="import-type-popout" hidden>
-                    <h3>Import monsters</h3>
-                    <p>Choose the monster file type you want to prepare for. Import processing is not active yet.</p>
-                    <label for="battle-monster-import-file-type">File type</label>
-                    <select id="battle-monster-import-file-type" data-import-type-select>
-                        <option value="excel">Excel workbook</option>
-                        <option value="csv">CSV</option>
-                        <option value="md">Markdown</option>
-                        <option value="json">JSON</option>
-                        <option value="other">Other</option>
-                    </select>
-                    <label for="battle-monster-import-file-type-other" class="import-type-other-label" hidden>Other file type</label>
-                    <input type="text" id="battle-monster-import-file-type-other" class="import-type-other-input"
-                           placeholder="Enter file type" maxlength="40" hidden>
-                    <div class="import-type-actions">
-                        <button type="button" class="button" data-import-submit data-import-title="Monster import request" data-import-prompted-key="monster_import">Submit request</button>
-                        <button type="button" class="button" data-import-close>Close</button>
-                    </div>
-                    <p class="import-type-status" data-import-status role="status" aria-live="polite"></p>
                 </div>
                 <p class="battle-compendium-hint" id="battle-monsters-count" aria-live="polite"></p>
                 <div class="battle-compendium-table-wrapper">
@@ -2388,6 +2632,12 @@
 
                     <label for="battle-monster-edit-cr">Challenge rating</label>
                     <input type="number" id="battle-monster-edit-cr" min="0" max="30" step="0.25">
+
+                    <label class="battle-monster-edit-known">
+                        <input type="checkbox" id="battle-monster-edit-known" value="1">
+                        Known to players
+                    </label>
+                    <p class="battle-monster-edit-help">When checked, this monster appears in player bestiaries without meeting it in combat.</p>
 
                     <div class="battle-monster-edit-grid">
                         <label for="battle-monster-edit-hp">HP</label>
@@ -2427,21 +2677,44 @@
 
                     <fieldset class="battle-monster-edit-defenses">
                         <legend>Defenses &amp; traits</legend>
-                        <p class="battle-monster-edit-help">Mechanical tags only (comma-separated damage types or condition names).</p>
-                        <label for="battle-monster-edit-resist">Damage resistances</label>
-                        <input type="text" id="battle-monster-edit-resist" maxlength="120" placeholder="fire, cold">
-                        <label for="battle-monster-edit-immune">Damage immunities</label>
-                        <input type="text" id="battle-monster-edit-immune" maxlength="120">
-                        <label for="battle-monster-edit-vuln">Damage vulnerabilities</label>
-                        <input type="text" id="battle-monster-edit-vuln" maxlength="120">
-                        <label for="battle-monster-edit-cond-immune">Condition immunities</label>
-                        <input type="text" id="battle-monster-edit-cond-immune" maxlength="120" placeholder="poisoned, frightened">
-                        <label for="battle-monster-edit-saves">Saving throws</label>
-                        <input type="text" id="battle-monster-edit-saves" maxlength="120" placeholder="Dex +5, Con +10">
-                        <label for="battle-monster-edit-senses">Senses</label>
-                        <input type="text" id="battle-monster-edit-senses" maxlength="200" placeholder="darkvision 60 ft.">
-                        <label for="battle-monster-edit-trait-keys">Trait keys</label>
-                        <input type="text" id="battle-monster-edit-trait-keys" maxlength="240" placeholder="darkvision-60, resist-fire">
+                        <p class="battle-monster-edit-help">Pick damage types, conditions, and compendium traits — same controls as the Traits editor. No comma-separated lists.</p>
+                        <label>Darkvision (ft)
+                            <input type="number" id="battle-monster-edit-darkvision" min="0" max="240" placeholder="60">
+                        </label>
+                        <details class="trait-picker-details" open>
+                            <summary>Damage resistances</summary>
+                            <div id="battle-monster-edit-resist-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <details class="trait-picker-details">
+                            <summary>Damage immunities</summary>
+                            <div id="battle-monster-edit-immune-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <details class="trait-picker-details">
+                            <summary>Damage vulnerabilities</summary>
+                            <div id="battle-monster-edit-vulnerable-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <details class="trait-picker-details">
+                            <summary>Condition immunities</summary>
+                            <div id="battle-monster-edit-condition-immune-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <fieldset class="trait-ability-fieldset">
+                            <legend>Save bonuses</legend>
+                            <p class="battle-monster-edit-help">Flat bonus to saving throws. Leave blank for none.</p>
+                            <div class="trait-ability-row">
+                                <label>STR <input type="number" id="battle-monster-edit-save-bonus-str" min="-10" max="20" placeholder="—"></label>
+                                <label>DEX <input type="number" id="battle-monster-edit-save-bonus-dex" min="-10" max="20" placeholder="—"></label>
+                                <label>CON <input type="number" id="battle-monster-edit-save-bonus-con" min="-10" max="20" placeholder="—"></label>
+                                <label>INT <input type="number" id="battle-monster-edit-save-bonus-int" min="-10" max="20" placeholder="—"></label>
+                                <label>WIS <input type="number" id="battle-monster-edit-save-bonus-wis" min="-10" max="20" placeholder="—"></label>
+                                <label>CHA <input type="number" id="battle-monster-edit-save-bonus-cha" min="-10" max="20" placeholder="—"></label>
+                            </div>
+                        </fieldset>
+                        <div class="trait-picker-block" id="battle-monster-edit-trait-keys-picker">
+                            <span class="trait-picker-label">Compendium traits</span>
+                            <input type="search" class="trait-picker-search" placeholder="Search traits by name…" autocomplete="off">
+                            <div class="trait-picker-chips"></div>
+                            <div class="trait-picker-list"></div>
+                        </div>
                     </fieldset>
 
                     <div class="battle-monster-edit-actions">
@@ -2477,7 +2750,7 @@
                                 <th>Source</th>
                                 <th>Population</th>
                                 <th>Ability mods</th>
-                                <th>Combat traits</th>
+                                <th>Combat effects</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -2502,14 +2775,75 @@
                         <label>{{ ability|upper }} mod <input type="number" id="species-edit-{{ ability }}" min="-10" max="10"></label>
                         {% endfor %}
                     </div>
-                    <label>Traits
-                        <textarea id="species-edit-traits" placeholder="One trait per line. Use your own wording."></textarea>
-                    </label>
-                    <label>Stat or rules modifiers
-                        <textarea id="species-edit-stat-modifiers" placeholder="Speed, senses, proficiencies, resistances, size, or other mechanical notes."></textarea>
+                    <label>Flavor traits
+                        <textarea id="species-edit-traits" placeholder="One trait per line. Use your own wording for roleplay and lore."></textarea>
                     </label>
                     <fieldset class="species-editor-grid">
-                        <legend>Combat traits</legend>
+                        <legend>Species combat effects</legend>
+                        <p class="battle-monster-edit-help">Built-in mechanical bonuses for this species in tactical combat. Use checkboxes and numbers — no comma lists or JSON.</p>
+                        <label>Speed (ft)
+                            <input type="number" id="species-edit-combat-speed" min="0" max="120" placeholder="30">
+                        </label>
+                        <label>Size
+                            <select id="species-edit-combat-size">
+                                <option value="">— default —</option>
+                                <option value="tiny">Tiny</option>
+                                <option value="small">Small</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large</option>
+                                <option value="huge">Huge</option>
+                                <option value="gargantuan">Gargantuan</option>
+                            </select>
+                        </label>
+                        <label>Darkvision (ft)
+                            <input type="number" id="species-edit-combat-darkvision" min="0" max="240" placeholder="60">
+                        </label>
+                        <label>Reach (grid cells)
+                            <input type="number" id="species-edit-combat-reach" min="1" max="4" placeholder="1">
+                        </label>
+                        <details class="trait-picker-details" open>
+                            <summary>Damage resistances</summary>
+                            <div id="species-edit-combat-resist-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <details class="trait-picker-details">
+                            <summary>Damage immunities</summary>
+                            <div id="species-edit-combat-immune-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <details class="trait-picker-details">
+                            <summary>Damage vulnerabilities</summary>
+                            <div id="species-edit-combat-vulnerable-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <details class="trait-picker-details">
+                            <summary>Condition immunities</summary>
+                            <div id="species-edit-combat-condition-immune-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <details class="trait-picker-details">
+                            <summary>Save advantage vs conditions</summary>
+                            <div id="species-edit-combat-save-adv-conditions-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <details class="trait-picker-details">
+                            <summary>Save advantage vs magic</summary>
+                            <div id="species-edit-combat-save-adv-magic-group" class="trait-checkbox-grid"></div>
+                        </details>
+                        <fieldset class="trait-ability-fieldset">
+                            <legend>Save bonuses</legend>
+                            <div class="trait-ability-row">
+                                <label>STR <input type="number" id="species-edit-combat-save-bonus-str" min="-10" max="20" placeholder="—"></label>
+                                <label>DEX <input type="number" id="species-edit-combat-save-bonus-dex" min="-10" max="20" placeholder="—"></label>
+                                <label>CON <input type="number" id="species-edit-combat-save-bonus-con" min="-10" max="20" placeholder="—"></label>
+                                <label>INT <input type="number" id="species-edit-combat-save-bonus-int" min="-10" max="20" placeholder="—"></label>
+                                <label>WIS <input type="number" id="species-edit-combat-save-bonus-wis" min="-10" max="20" placeholder="—"></label>
+                                <label>CHA <input type="number" id="species-edit-combat-save-bonus-cha" min="-10" max="20" placeholder="—"></label>
+                            </div>
+                        </fieldset>
+                        <div class="species-editor-grid">
+                            <label><input type="checkbox" id="species-edit-combat-lucky"> Lucky (reroll natural 1 on d20)</label>
+                            <label><input type="checkbox" id="species-edit-combat-savage-attacks"> Savage attacks (extra damage die on melee crit)</label>
+                            <label><input type="checkbox" id="species-edit-combat-relentless"> Relentless endurance (drop to 1 HP once)</label>
+                        </div>
+                    </fieldset>
+                    <fieldset class="species-editor-grid">
+                        <legend>Attached compendium traits</legend>
                         <p class="battle-monster-edit-help">Search and pick traits from your Traits compendium. These apply in tactical combat.</p>
                         <div class="trait-picker-block" id="species-edit-trait-keys-picker">
                             <span class="trait-picker-label">Attached traits</span>
@@ -2536,9 +2870,9 @@
             <div class="battle-compendium">
                 <h2>Traits Compendium</h2>
                 <p class="battle-compendium-hint">
-                    Reusable mechanical combat effects (speed, resistances, save advantages, etc.).
-                    Attach traits to species, classes, or monsters via trait keys. No SRD rules text — your labels and mechanics only.
-                    Use the form fields when editing a trait; you never need to write JSON.
+                    Reusable mechanical combat effects (speed, resistances, save advantages, senses, etc.).
+                    Attach traits to species or monsters via trait keys.
+                    Use the form fields when editing; you never need to write JSON.
                 </p>
                 <div class="species-compendium-tools">
                     <span id="traits-compendium-status" role="status" aria-live="polite"></span>
@@ -2549,7 +2883,14 @@
                 </div>
                 <div class="species-compendium-table-wrapper">
                     <table class="species-compendium-table">
-                        <thead><tr><th>Name</th><th>Key</th><th>Category</th><th>Effects</th><th>Prerequisites</th><th></th></tr></thead>
+                        <thead><tr>
+                            <th><button type="button" class="spell-sort-header" data-trait-sort="name">Name</button></th>
+                            <th><button type="button" class="spell-sort-header" data-trait-sort="key">Key</button></th>
+                            <th><button type="button" class="spell-sort-header" data-trait-sort="category">Category</button></th>
+                            <th><button type="button" class="spell-sort-header" data-trait-sort="effects">Effects</button></th>
+                            <th><button type="button" class="spell-sort-header" data-trait-sort="prerequisites">Prerequisites</button></th>
+                            <th></th>
+                        </tr></thead>
                         <tbody id="traits-compendium-body"></tbody>
                     </table>
                 </div>
@@ -2645,6 +2986,36 @@
                             <label><input type="checkbox" id="traits-edit-relentless"> Relentless endurance (drop to 1 HP once)</label>
                         </div>
                     </fieldset>
+                    <fieldset class="species-editor-grid trait-class-abilities-fieldset">
+                        <legend>Class combat abilities</legend>
+                        <p class="battle-monster-edit-help">Mechanical hooks for battle and the character sheet. Check to enable, then set counts or options.</p>
+                        <label><input type="checkbox" id="traits-edit-extra-attack-enabled"> Extra Attack</label>
+                        <label class="trait-class-ability-sub" id="traits-edit-extra-attack-wrap" hidden>
+                            Attacks per Attack action
+                            <input type="number" id="traits-edit-extra-attacks-per-action" min="2" max="4" value="2">
+                        </label>
+                        <label><input type="checkbox" id="traits-edit-unarmored-defense"> Unarmored Defense (AC 10 + DEX + ability)</label>
+                        <label class="trait-class-ability-sub" id="traits-edit-unarmored-ability-wrap" hidden>
+                            Add ability
+                            <select id="traits-edit-unarmored-ac-add-ability">
+                                <option value="">—</option>
+                                <option value="con">CON</option>
+                                <option value="wis">WIS</option>
+                                <option value="dex">DEX</option>
+                                <option value="str">STR</option>
+                                <option value="int">INT</option>
+                                <option value="cha">CHA</option>
+                            </select>
+                        </label>
+                        <label class="trait-class-ability-sub" id="traits-edit-unarmored-shield-wrap" hidden>
+                            <input type="checkbox" id="traits-edit-unarmored-shield" checked> Shield allowed with Unarmored Defense
+                        </label>
+                        <label><input type="checkbox" id="traits-edit-action-surge-enabled"> Action Surge</label>
+                        <label class="trait-class-ability-sub" id="traits-edit-action-surge-wrap" hidden>
+                            Additional actions per use
+                            <input type="number" id="traits-edit-action-surge-additional" min="1" max="2" value="1">
+                        </label>
+                    </fieldset>
                     <fieldset class="species-editor-grid">
                         <legend>Prerequisites</legend>
                         <p class="battle-monster-edit-help">Optional gates — search and pick from your campaign lists. Leave blank for always-on traits.</p>
@@ -2688,6 +3059,12 @@
                     <label>Notes
                         <textarea id="traits-edit-notes" maxlength="500"></textarea>
                     </label>
+                    <label>Summary (player-facing short text)
+                        <textarea id="traits-edit-summary" maxlength="500"></textarea>
+                    </label>
+                    <label>Rules text (SRD 5.1 class features)
+                        <textarea id="traits-edit-rules-text" maxlength="4000" rows="6"></textarea>
+                    </label>
                     <div class="species-editor-actions">
                         <button type="button" class="button" id="traits-edit-cancel">Cancel</button>
                         <button type="submit" class="button">Save trait</button>
@@ -2704,7 +3081,7 @@
                 <h2>Classes Compendium</h2>
                 <p class="battle-compendium-hint">
                     Campaign classes include editable D&amp;D 5e shells and custom classes with level 1–20 progression rows.
-                    Add your own feature wording; no book text is bundled here.
+                    Expand a class to manage its subclasses. Attach traits from the compendium — no book text is bundled here.
                 </p>
                 <div class="species-compendium-tools">
                     <span id="classes-compendium-status" role="status" aria-live="polite"></span>
@@ -2730,7 +3107,7 @@
                 </div>
             </div>
             </div>
-            <aside class="gm-compendium-embed gm-compendium-detail" hidden aria-label="Class editor">
+            <aside id="class-editor-panel" class="gm-compendium-embed gm-compendium-detail" hidden aria-label="Class editor">
                 <div class="gm-compendium-embed-toolbar">
                     <button type="button" class="button gm-compendium-detail-close">Back to list</button>
                     <span class="gm-compendium-embed-title" aria-live="polite"></span>
@@ -2782,51 +3159,94 @@
                         <label><input type="checkbox" id="classes-edit-secret"> Secret (GM-only concept)</label>
                         <label><input type="checkbox" id="classes-edit-visible-owner" checked> Visible to owning player when hidden</label>
                     </fieldset>
-                    <label>Progression level
-                        <select id="classes-edit-level-select"></select>
-                    </label>
-                    <label>Level features (one per line; optional Name: description)
-                        <textarea id="classes-edit-level-features" placeholder="Second Wind: Recover hit points as a bonus action."></textarea>
-                    </label>
-                    <details class="trait-picker-details">
-                        <summary>Spell slots &amp; class resources (optional)</summary>
-                        <fieldset class="species-editor-grid">
-                            <legend>Spell slots at this character level</legend>
-                            <p class="battle-monster-edit-help">For spellcasting classes only — how many slots of each spell level (1–9) the class has at the selected progression level. Leave at 0 for martial classes.</p>
-                            <div class="class-spell-slot-grid species-editor-grid">
-                                {% for slot_level in range(1, 10) %}
-                                <label>Lv {{ slot_level }} slots
-                                    <input type="number" id="classes-edit-slot-{{ slot_level }}" min="0" max="99" placeholder="0">
-                                </label>
-                                {% endfor %}
-                            </div>
-                        </fieldset>
-                        <fieldset class="species-editor-grid">
-                            <legend>Class resources at this level</legend>
-                            <p class="battle-monster-edit-help">Limited-use abilities (e.g. Rage, Ki, Bardic Inspiration). Name the resource and how many uses per rest.</p>
-                            <div id="classes-edit-resources-list"></div>
-                            <button type="button" class="button" id="classes-edit-resources-add">Add resource</button>
-                        </fieldset>
-                    </details>
                     <fieldset class="species-editor-grid">
-                        <legend>Level combat traits</legend>
-                        <p class="battle-monster-edit-help">Traits gained at the selected level.</p>
-                        <div class="trait-picker-block" id="classes-edit-level-trait-keys-picker">
-                            <span class="trait-picker-label">Traits at this level</span>
-                            <input type="search" class="trait-picker-search" placeholder="Search traits by name…" autocomplete="off">
-                            <div class="trait-picker-chips"></div>
-                            <div class="trait-picker-list"></div>
-                        </div>
+                        <legend>Spellcasting</legend>
+                        <p class="battle-monster-edit-help">Set how this class casts spells overall. Per-level caps and slots are edited in the progression table below.</p>
+                        <label>Type
+                            <select id="classes-edit-spellcasting-type">
+                                <option value="none">None (martial)</option>
+                                <option value="full">Full caster (Wizard, Cleric…)</option>
+                                <option value="half">Half caster (Paladin, Ranger…)</option>
+                                <option value="third">Third caster (Eldritch Knight…)</option>
+                                <option value="pact">Pact caster (Warlock-style)</option>
+                                <option value="known">Spells known (Sorcerer, Bard…)</option>
+                            </select>
+                        </label>
+                        <label>Casting ability
+                            <select id="classes-edit-spellcasting-ability">
+                                <option value="int">INT</option>
+                                <option value="wis">WIS</option>
+                                <option value="cha">CHA</option>
+                                <option value="str">STR</option>
+                                <option value="dex">DEX</option>
+                                <option value="con">CON</option>
+                            </select>
+                        </label>
                     </fieldset>
-                    <label>Level notes
-                        <textarea id="classes-edit-level-notes" placeholder="GM guidance for this level."></textarea>
-                    </label>
+                    <div class="class-progression-table-wrap">
+                        <h4>Level progression (1–20)</h4>
+                        <p class="battle-monster-edit-help">Click a level row to expand and edit traits, spell caps, slots, player choices, and resources for that level.</p>
+                        <div class="species-compendium-table-wrapper">
+                            <table class="species-compendium-table class-progression-table" id="classes-progression-table">
+                                <thead>
+                                    <tr>
+                                        <th>Lvl</th>
+                                        <th>PB</th>
+                                        <th>Traits</th>
+                                        <th>Cant</th>
+                                        <th>Known</th>
+                                        <th>Prep</th>
+                                        <th>Slots</th>
+                                        <th>Inv</th>
+                                        <th>Res</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="classes-progression-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
                     <label>GM notes
                         <textarea id="classes-edit-notes" placeholder="Campaign guidance for this class."></textarea>
                     </label>
                     <div class="species-editor-actions">
                         <button type="button" class="button" id="classes-edit-cancel">Cancel</button>
                         <button type="submit" class="button">Save class</button>
+                    </div>
+                </form>
+                </div>
+            </aside>
+            <aside id="subclass-editor-panel" class="gm-compendium-embed gm-compendium-detail" hidden aria-label="Subclass editor">
+                <div class="gm-compendium-embed-toolbar">
+                    <button type="button" class="button gm-compendium-detail-close" id="subclass-edit-back">Back to list</button>
+                    <span class="gm-compendium-embed-title" id="subclass-editor-title" aria-live="polite">Edit subclass</span>
+                </div>
+                <div class="gm-compendium-detail-body">
+                <form id="subclasses-editor" class="species-editor subclass-editor-form">
+                    <input type="hidden" id="subclass-edit-class-key">
+                    <input type="hidden" id="subclass-edit-index">
+                    <h3 id="subclass-editor-heading">Edit subclass</h3>
+                    <p class="battle-monster-edit-help" id="subclass-editor-class-label"></p>
+                    <div class="species-editor-grid">
+                        <label>Subclass name <input type="text" id="subclass-edit-name" maxlength="80" required placeholder="e.g. Path of the Berserker"></label>
+                        <label>Players choose at level
+                            <input type="number" id="subclass-edit-pick-level" min="1" max="20" value="3" title="Character level when players pick this subclass">
+                        </label>
+                    </div>
+                    <label>Player-facing hook
+                        <input type="text" id="subclass-edit-tagline" maxlength="120" placeholder="One line shown under the name (optional)">
+                    </label>
+                    <label>Overview for players
+                        <textarea id="subclass-edit-summary" placeholder="What makes this subclass special? Shown in the subclass picker."></textarea>
+                    </label>
+                    <section>
+                        <h4>Features by level</h4>
+                        <p class="battle-monster-edit-help">Each feature is granted when the character reaches that level. Attach traits from the compendium for combat automation.</p>
+                        <div id="subclass-features-list"></div>
+                        <button type="button" class="button" id="subclass-feature-add-btn">Add feature</button>
+                    </section>
+                    <div class="species-editor-actions">
+                        <button type="button" class="button" id="subclass-edit-cancel">Cancel</button>
+                        <button type="submit" class="button">Save subclass</button>
                     </div>
                 </form>
                 </div>
@@ -2849,30 +3269,9 @@
                     <span class="species-compendium-actions">
                         <button type="button" class="button" id="spells-add-btn">Add spell</button>
                         <button type="button" class="button" id="spells-refresh-btn">Refresh spells</button>
-                        <button type="button" class="button" id="spells-request-btn">Request / import</button>
                     </span>
                 </div>
                 <p class="battle-compendium-hint" id="spells-compendium-count"></p>
-                <div id="spells-import-popout" class="species-import-popout" hidden>
-                    <p><strong>Request a spell import</strong></p>
-                    <label>Spell or source
-                        <select data-import-type-select>
-                            <option value="custom">Custom homebrew spell</option>
-                            <option value="other">Other (describe below)</option>
-                        </select>
-                    </label>
-                    <label class="import-type-other-label" hidden>Description
-                        <input type="text" class="import-type-other-input" hidden>
-                    </label>
-                    <div class="species-import-actions">
-                        <button type="button" class="button" data-import-submit
-                                data-import-title="Spell compendium import request"
-                                data-import-description="Please review this spell for the campaign compendium."
-                                data-import-prompted-key="spell_request">Submit request</button>
-                        <button type="button" class="button" data-import-close>Close</button>
-                    </div>
-                    <span data-import-status role="status"></span>
-                </div>
                 <div class="species-compendium-table-wrapper">
                     <table class="species-compendium-table">
                         <thead>
@@ -3076,8 +3475,7 @@
                 </div>
             </details>
             <p id="map-studio-blocked" class="map-studio-blocked" hidden>
-                Map studio edits procedural maps. Remove the uploaded background or
-                <button type="button" class="button" id="map-convert-editable-btn">convert to editable map</button>.
+                Map studio edits procedural maps. You can still draw nation boundaries and place cities and shops on uploaded maps.
             </p>
             <details id="map-studio-panel" class="map-studio-panel" hidden>
                 <summary>Map studio</summary>
@@ -3157,8 +3555,6 @@
             mapWorldGeneration: "{{ url_for('gm.gm_map_world_generation') }}",
             mapWorldGenerationRegen: "{{ url_for('gm.gm_map_world_generation_regen') }}",
             mapCityGeneration: "{{ url_for('gm.gm_map_city_generation', city_id=999999999) }}",
-            mapWorldConvertEditable: "{{ url_for('gm.gm_map_world_convert_editable') }}",
-            mapCityConvertEditable: "{{ url_for('gm.gm_map_city_convert_editable', city_id=999999999) }}",
             mapWorldUnderlay: "{{ url_for('gm.gm_map_world_underlay') }}",
             mapCityUnderlay: "{{ url_for('gm.gm_map_city_underlay', city_id=999999999) }}",
             mapUnderlayImage: "{{ url_for('gm.gm_map_underlay', canvas_id=999999999) }}",
@@ -3339,7 +3735,7 @@
                     '<td>' + escapeHtml(entry.source || 'base') + '</td>' +
                     '<td>' + Number(entry.population_percent || 0).toFixed(1) + '%</td>' +
                     '<td>' + escapeHtml(abilitySummary(entry.ability_modifiers)) + '</td>' +
-                    '<td>' + escapeHtml(summarizeAttachedTraitKeys(entry.trait_keys)) + '</td>' +
+                    '<td>' + escapeHtml(summarizeSpeciesCombat(entry)) + '</td>' +
                     '<td><button type="button" class="button" data-species-edit="' + escapeHtml(entry.key) + '">Edit</button></td>';
                 tbody.appendChild(tr);
             });
@@ -3377,6 +3773,7 @@
         function openSpeciesEditor(entry) {
             var form = document.getElementById('species-editor');
             if (!form) return;
+            initSpeciesCombatPickers();
             document.getElementById('species-edit-key').value = entry.key;
             document.getElementById('species-editor-title').textContent = 'Edit ' + entry.name;
             document.getElementById('species-edit-name').value = entry.name || '';
@@ -3386,8 +3783,8 @@
                 if (el) el.value = (entry.ability_modifiers || {})[ability] || 0;
             });
             document.getElementById('species-edit-traits').value = traitText(entry);
-            document.getElementById('species-edit-stat-modifiers').value = entry.stat_modifiers || '';
             document.getElementById('species-edit-notes').value = entry.notes || '';
+            loadCombatEffectsIntoForm('species-edit-combat-', entry.combat_effects || {});
             refreshAttachedTraitPicker('species-edit-trait-keys-picker', entry.trait_keys || []).then(function () {
                 openCompendiumDetail('species-pane-content', 'Edit ' + entry.name);
                 document.getElementById('species-edit-name').focus();
@@ -3397,6 +3794,7 @@
         function openSpeciesCreator() {
             var form = document.getElementById('species-editor');
             if (!form) return;
+            initSpeciesCombatPickers();
             document.getElementById('species-edit-key').value = '';
             document.getElementById('species-editor-title').textContent = 'Add species';
             document.getElementById('species-edit-name').value = '';
@@ -3406,8 +3804,8 @@
                 if (el) el.value = 0;
             });
             document.getElementById('species-edit-traits').value = '';
-            document.getElementById('species-edit-stat-modifiers').value = '';
             document.getElementById('species-edit-notes').value = '';
+            loadCombatEffectsIntoForm('species-edit-combat-', {});
             refreshAttachedTraitPicker('species-edit-trait-keys-picker', []).then(function () {
                 openCompendiumDetail('species-pane-content', 'Add species');
                 document.getElementById('species-edit-name').focus();
@@ -3420,7 +3818,7 @@
                 population_percent: document.getElementById('species-edit-population').value,
                 ability_modifiers: {},
                 traits: traitsFromText(document.getElementById('species-edit-traits').value),
-                stat_modifiers: document.getElementById('species-edit-stat-modifiers').value,
+                combat_effects: combatEffectsFromForm('species-edit-combat-'),
                 trait_keys: readTraitSearchPicker('species-edit-trait-keys-picker'),
                 notes: document.getElementById('species-edit-notes').value
             };
@@ -3475,7 +3873,8 @@
             window.gmSpecies = { ensureLoaded: function () { return loadSpeciesCompendium(false); } };
         }
 
-        var traitsState = { loaded: false, rows: [] };
+        var traitsState = { loaded: false, rows: [], sortBy: 'name', sortDir: 'asc' };
+        var traitEditorHostPaneId = 'traits-pane-content';
         var TRAIT_ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
         var TRAIT_DAMAGE_TYPES = [
             'acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic',
@@ -3487,6 +3886,195 @@
             'stunned', 'unconscious'
         ];
         var traitEditorStaticPickersReady = false;
+        var speciesCombatPickersReady = false;
+        var monsterDefensePickersReady = false;
+
+        function combatEffectsFormConfig(prefix, options) {
+            options = options || {};
+            return {
+                prefix: prefix,
+                saveBonusPrefix: options.saveBonusPrefix || (prefix + 'save-bonus-'),
+                includeFlags: options.includeFlags !== false
+            };
+        }
+
+        function parseDamageTypeTags(raw) {
+            if (Array.isArray(raw)) {
+                return raw.map(function (tag) { return String(tag || '').toLowerCase(); }).filter(Boolean);
+            }
+            if (!raw) return [];
+            var text = String(raw).toLowerCase();
+            return TRAIT_DAMAGE_TYPES.filter(function (tag) { return text.indexOf(tag) !== -1; });
+        }
+
+        function parseConditionTags(raw) {
+            if (Array.isArray(raw)) {
+                return raw.map(function (tag) { return String(tag || '').toLowerCase(); }).filter(Boolean);
+            }
+            if (!raw) return [];
+            var text = String(raw).toLowerCase();
+            return TRAIT_CONDITIONS.filter(function (cond) { return text.indexOf(cond) !== -1; });
+        }
+
+        function formatTagList(tags) {
+            return (tags || []).filter(Boolean).join(', ');
+        }
+
+        function parseDarkvisionFromSenses(senses) {
+            if (!senses) return null;
+            var match = String(senses).match(/darkvision\s+(\d+)\s*ft/i);
+            return match ? parseInt(match[1], 10) : null;
+        }
+
+        function formatDarkvisionSenses(feet) {
+            var value = parseInt(feet, 10);
+            return value > 0 ? ('darkvision ' + value + ' ft.') : '';
+        }
+
+        function parseMonsterSaveBonuses(text) {
+            var found = {};
+            if (!text) return found;
+            var re = /\b(str|dex|con|int|wis|cha)\s*\+\s*(-?\d+)/gi;
+            var match;
+            while ((match = re.exec(String(text)))) {
+                found[match[1].toLowerCase()] = parseInt(match[2], 10);
+            }
+            return found;
+        }
+
+        function formatMonsterSaveBonuses(bonuses) {
+            bonuses = bonuses || {};
+            return TRAIT_ABILITIES.filter(function (ability) {
+                return bonuses[ability] != null && bonuses[ability] !== '';
+            }).map(function (ability) {
+                return ability.charAt(0).toUpperCase() + ability.slice(1) + ' +' + bonuses[ability];
+            }).join(', ');
+        }
+
+        function monsterEffectsFromStats(stats) {
+            stats = stats || {};
+            return {
+                darkvision_ft: parseDarkvisionFromSenses(stats.senses),
+                damage_resistances: parseDamageTypeTags(stats.damage_resistances),
+                damage_immunities: parseDamageTypeTags(stats.damage_immunities),
+                damage_vulnerabilities: parseDamageTypeTags(stats.damage_vulnerabilities),
+                condition_immunities: parseConditionTags(stats.condition_immunities),
+                save_bonuses: parseMonsterSaveBonuses(stats.saving_throws)
+            };
+        }
+
+        function initCombatEffectsPickers(prefix) {
+            traitCheckboxGroupMount(prefix + 'resist-group', TRAIT_DAMAGE_TYPES);
+            traitCheckboxGroupMount(prefix + 'immune-group', TRAIT_DAMAGE_TYPES);
+            traitCheckboxGroupMount(prefix + 'vulnerable-group', TRAIT_DAMAGE_TYPES);
+            traitCheckboxGroupMount(prefix + 'condition-immune-group', TRAIT_CONDITIONS);
+            traitCheckboxGroupMount(prefix + 'save-adv-conditions-group', TRAIT_CONDITIONS);
+            traitCheckboxGroupMount(prefix + 'save-adv-magic-group', TRAIT_ABILITIES);
+        }
+
+        function initSpeciesCombatPickers() {
+            if (speciesCombatPickersReady) return;
+            initCombatEffectsPickers('species-edit-combat-');
+            speciesCombatPickersReady = true;
+        }
+
+        function initMonsterDefensePickers() {
+            if (monsterDefensePickersReady) return;
+            initCombatEffectsPickers('battle-monster-edit-');
+            monsterDefensePickersReady = true;
+        }
+
+        function loadSaveBonusesWithPrefix(saveBonusPrefix, bonuses) {
+            bonuses = bonuses || {};
+            TRAIT_ABILITIES.forEach(function (ability) {
+                setTraitOptionalInt(
+                    saveBonusPrefix + ability,
+                    bonuses[ability] == null ? null : bonuses[ability]
+                );
+            });
+        }
+
+        function saveBonusesFromFormWithPrefix(saveBonusPrefix) {
+            var bonuses = {};
+            TRAIT_ABILITIES.forEach(function (ability) {
+                var value = traitOptionalInt(saveBonusPrefix + ability);
+                if (value != null) bonuses[ability] = value;
+            });
+            return bonuses;
+        }
+
+        function loadCombatEffectsIntoForm(cfg, effects) {
+            if (typeof cfg === 'string') {
+                cfg = combatEffectsFormConfig(cfg);
+            }
+            effects = effects || {};
+            var prefix = cfg.prefix;
+            setTraitOptionalInt(prefix + 'speed', effects.speed_ft);
+            var sizeEl = document.getElementById(prefix + 'size');
+            if (sizeEl) sizeEl.value = effects.size || '';
+            setTraitOptionalInt(prefix + 'darkvision', effects.darkvision_ft);
+            setTraitOptionalInt(prefix + 'reach', effects.reach_cells);
+            setTraitCheckboxGroup(prefix + 'resist-group', effects.damage_resistances);
+            setTraitCheckboxGroup(prefix + 'immune-group', effects.damage_immunities);
+            setTraitCheckboxGroup(prefix + 'vulnerable-group', effects.damage_vulnerabilities);
+            setTraitCheckboxGroup(prefix + 'condition-immune-group', effects.condition_immunities);
+            setTraitCheckboxGroup(prefix + 'save-adv-conditions-group', effects.save_advantage_vs_conditions);
+            setTraitCheckboxGroup(prefix + 'save-adv-magic-group', effects.save_advantage_vs_magic);
+            loadSaveBonusesWithPrefix(cfg.saveBonusPrefix, effects.save_bonuses);
+            if (cfg.includeFlags) {
+                var luckyEl = document.getElementById(prefix + 'lucky');
+                if (luckyEl) luckyEl.checked = !!effects.lucky;
+                var savageEl = document.getElementById(prefix + 'savage-attacks');
+                if (savageEl) savageEl.checked = !!effects.savage_attacks;
+                var relentlessEl = document.getElementById(prefix + 'relentless');
+                if (relentlessEl) relentlessEl.checked = !!effects.relentless_endurance;
+            }
+        }
+
+        function combatEffectsFromForm(cfg) {
+            if (typeof cfg === 'string') {
+                cfg = combatEffectsFormConfig(cfg);
+            }
+            var effects = {};
+            var prefix = cfg.prefix;
+            var speed = traitOptionalInt(prefix + 'speed');
+            if (speed != null) effects.speed_ft = speed;
+            var sizeEl = document.getElementById(prefix + 'size');
+            if (sizeEl && sizeEl.value) effects.size = sizeEl.value;
+            var darkvision = traitOptionalInt(prefix + 'darkvision');
+            if (darkvision != null) effects.darkvision_ft = darkvision;
+            var reach = traitOptionalInt(prefix + 'reach');
+            if (reach != null) effects.reach_cells = reach;
+            var resist = readTraitCheckboxGroup(prefix + 'resist-group');
+            if (resist.length) effects.damage_resistances = resist;
+            var immune = readTraitCheckboxGroup(prefix + 'immune-group');
+            if (immune.length) effects.damage_immunities = immune;
+            var vulnerable = readTraitCheckboxGroup(prefix + 'vulnerable-group');
+            if (vulnerable.length) effects.damage_vulnerabilities = vulnerable;
+            var condImmune = readTraitCheckboxGroup(prefix + 'condition-immune-group');
+            if (condImmune.length) effects.condition_immunities = condImmune;
+            var saveAdv = readTraitCheckboxGroup(prefix + 'save-adv-conditions-group');
+            if (saveAdv.length) effects.save_advantage_vs_conditions = saveAdv;
+            var saveMagic = readTraitCheckboxGroup(prefix + 'save-adv-magic-group');
+            if (saveMagic.length) effects.save_advantage_vs_magic = saveMagic;
+            var saveBonuses = saveBonusesFromFormWithPrefix(cfg.saveBonusPrefix);
+            if (Object.keys(saveBonuses).length) effects.save_bonuses = saveBonuses;
+            if (cfg.includeFlags) {
+                if ((document.getElementById(prefix + 'lucky') || {}).checked) effects.lucky = true;
+                if ((document.getElementById(prefix + 'savage-attacks') || {}).checked) effects.savage_attacks = true;
+                if ((document.getElementById(prefix + 'relentless') || {}).checked) effects.relentless_endurance = true;
+            }
+            return effects;
+        }
+
+        function summarizeSpeciesCombat(entry) {
+            var parts = [];
+            var fx = summarizeTraitEffects(entry.combat_effects);
+            if (fx && fx !== '—') parts.push(fx);
+            var attached = summarizeAttachedTraitKeys(entry.trait_keys);
+            if (attached && attached !== '—') parts.push('Traits: ' + attached);
+            return parts.length ? parts.join('; ') : '—';
+        }
 
         function traitsStatus(msg, isError) {
             var el = document.getElementById('traits-compendium-status');
@@ -3572,17 +4160,46 @@
             }).sort(function (a, b) { return a.label.localeCompare(b.label); });
         }
 
-        function traitTraitsCatalog(excludeKey) {
+        function traitTraitsCatalog(excludeKey, categoryFilter) {
             var skip = String(excludeKey || '').toLowerCase();
+            var catFilter = categoryFilter ? String(categoryFilter).toLowerCase() : '';
             return (traitsState.rows || []).filter(function (entry) {
-                return String(entry.key || '').toLowerCase() !== skip;
+                if (String(entry.key || '').toLowerCase() === skip) return false;
+                if (catFilter && String(entry.category || '').toLowerCase() !== catFilter) return false;
+                return true;
             }).map(function (entry) {
+                var hint = String(entry.summary || entry.rules_text || entry.notes || '').trim();
+                if (hint.length > 280) hint = hint.slice(0, 277) + '…';
                 return {
                     key: entry.key,
                     label: entry.name,
-                    search: (entry.name + ' ' + entry.key + ' ' + (entry.category || '')).toLowerCase()
+                    search: (entry.name + ' ' + entry.key + ' ' + (entry.category || '') + ' ' + hint).toLowerCase(),
+                    hint: hint
                 };
             }).sort(function (a, b) { return a.label.localeCompare(b.label); });
+        }
+
+        function traitEntryByKey(key) {
+            var needle = String(key || '').toLowerCase();
+            if (!needle) return null;
+            return (traitsState.rows || []).find(function (entry) {
+                return String(entry.key || '').toLowerCase() === needle;
+            }) || null;
+        }
+
+        function attachTraitEditorToPane(paneId) {
+            var panel = document.getElementById(paneId);
+            var editor = document.getElementById('traits-editor-panel');
+            if (!panel || !editor) return;
+            var shell = panel.querySelector('.gm-compendium-shell');
+            if (!shell) return;
+            shell.appendChild(editor);
+            traitEditorHostPaneId = paneId;
+        }
+
+        function openGmCompendiumPanel(panelId) {
+            var btn = document.querySelector('.gm-panel-tab[data-target="' + panelId + '"]');
+            if (btn) btn.click();
         }
 
         function renderTraitSearchPicker(rootId) {
@@ -3630,6 +4247,7 @@
                 });
                 row.appendChild(cb);
                 row.appendChild(document.createTextNode(item.label));
+                if (item.hint) row.title = item.hint;
                 listEl.appendChild(row);
             });
         }
@@ -3670,9 +4288,9 @@
             }).join(', ');
         }
 
-        async function refreshAttachedTraitPicker(pickerId, selectedKeys) {
+        async function refreshAttachedTraitPicker(pickerId, selectedKeys, categoryFilter) {
             await loadTraitsCompendium(false);
-            ensureTraitSearchPicker(pickerId, traitTraitsCatalog(''), selectedKeys || []);
+            ensureTraitSearchPicker(pickerId, traitTraitsCatalog('', categoryFilter), selectedKeys || []);
         }
 
         async function refreshClassCatalogPicker(pickerId, selectedKeys) {
@@ -3725,14 +4343,92 @@
             syncClassSkillsPickerVisibility();
         }
 
+        var traitEditorStaticPickersReady = false;
+
+        function syncTraitClassAbilityFieldVisibility() {
+            var extraEnabled = document.getElementById('traits-edit-extra-attack-enabled');
+            var extraWrap = document.getElementById('traits-edit-extra-attack-wrap');
+            if (extraWrap) extraWrap.hidden = !(extraEnabled && extraEnabled.checked);
+            var udEnabled = document.getElementById('traits-edit-unarmored-defense');
+            var udAbilityWrap = document.getElementById('traits-edit-unarmored-ability-wrap');
+            var udShieldWrap = document.getElementById('traits-edit-unarmored-shield-wrap');
+            var udOn = !!(udEnabled && udEnabled.checked);
+            if (udAbilityWrap) udAbilityWrap.hidden = !udOn;
+            if (udShieldWrap) udShieldWrap.hidden = !udOn;
+            var surgeEnabled = document.getElementById('traits-edit-action-surge-enabled');
+            var surgeWrap = document.getElementById('traits-edit-action-surge-wrap');
+            if (surgeWrap) surgeWrap.hidden = !(surgeEnabled && surgeEnabled.checked);
+        }
+
+        function initTraitClassAbilityPickers() {
+            [
+                'traits-edit-extra-attack-enabled',
+                'traits-edit-unarmored-defense',
+                'traits-edit-action-surge-enabled'
+            ].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el && !el._traitClassAbilityBound) {
+                    el._traitClassAbilityBound = true;
+                    el.addEventListener('change', syncTraitClassAbilityFieldVisibility);
+                }
+            });
+            syncTraitClassAbilityFieldVisibility();
+        }
+
+        function loadClassCombatAbilityEffects(effects) {
+            effects = effects || {};
+            var extraEnabled = document.getElementById('traits-edit-extra-attack-enabled');
+            var extraCount = document.getElementById('traits-edit-extra-attacks-per-action');
+            if (extraEnabled) {
+                extraEnabled.checked = effects.extra_attacks_per_action != null && Number(effects.extra_attacks_per_action) >= 2;
+            }
+            if (extraCount) {
+                extraCount.value = effects.extra_attacks_per_action != null ? String(effects.extra_attacks_per_action) : '2';
+            }
+            var ud = document.getElementById('traits-edit-unarmored-defense');
+            if (ud) {
+                ud.checked = !!effects.unarmored_defense || !!effects.unarmored_ac_add_ability;
+            }
+            var udAbility = document.getElementById('traits-edit-unarmored-ac-add-ability');
+            if (udAbility) udAbility.value = effects.unarmored_ac_add_ability || '';
+            var udShield = document.getElementById('traits-edit-unarmored-shield');
+            if (udShield) udShield.checked = effects.unarmored_defense_allows_shield !== false;
+            var surge = document.getElementById('traits-edit-action-surge-enabled');
+            if (surge) surge.checked = !!effects.action_surge;
+            var surgeCount = document.getElementById('traits-edit-action-surge-additional');
+            if (surgeCount) {
+                surgeCount.value = effects.action_surge_additional_actions != null
+                    ? String(effects.action_surge_additional_actions) : '1';
+            }
+            syncTraitClassAbilityFieldVisibility();
+        }
+
+        function classCombatAbilityEffectsFromForm() {
+            var effects = {};
+            if ((document.getElementById('traits-edit-extra-attack-enabled') || {}).checked) {
+                var extraCount = traitOptionalInt('traits-edit-extra-attacks-per-action');
+                if (extraCount != null && extraCount >= 2) effects.extra_attacks_per_action = extraCount;
+            }
+            if ((document.getElementById('traits-edit-unarmored-defense') || {}).checked) {
+                effects.unarmored_defense = true;
+                var abilityEl = document.getElementById('traits-edit-unarmored-ac-add-ability');
+                if (abilityEl && abilityEl.value) effects.unarmored_ac_add_ability = abilityEl.value;
+                effects.unarmored_defense_allows_shield = !!(document.getElementById('traits-edit-unarmored-shield') || {}).checked;
+            }
+            if ((document.getElementById('traits-edit-action-surge-enabled') || {}).checked) {
+                effects.action_surge = true;
+                var surgeCount = traitOptionalInt('traits-edit-action-surge-additional');
+                if (surgeCount != null && surgeCount >= 1) {
+                    effects.action_surge_additional_actions = surgeCount;
+                }
+            }
+            return effects;
+        }
+
         function initTraitEditorStaticPickers() {
             if (traitEditorStaticPickersReady) return;
-            traitCheckboxGroupMount('traits-edit-resist-group', TRAIT_DAMAGE_TYPES);
-            traitCheckboxGroupMount('traits-edit-immune-group', TRAIT_DAMAGE_TYPES);
-            traitCheckboxGroupMount('traits-edit-vulnerable-group', TRAIT_DAMAGE_TYPES);
-            traitCheckboxGroupMount('traits-edit-condition-immune-group', TRAIT_CONDITIONS);
-            traitCheckboxGroupMount('traits-edit-save-adv-conditions-group', TRAIT_CONDITIONS);
-            traitCheckboxGroupMount('traits-edit-save-adv-magic-group', TRAIT_ABILITIES);
+            initCombatEffectsPickers('traits-edit-');
+            initTraitClassAbilityPickers();
             traitEditorStaticPickersReady = true;
         }
 
@@ -3825,6 +4521,18 @@
             if (effects.lucky) parts.push('Lucky');
             if (effects.savage_attacks) parts.push('Savage attacks');
             if (effects.relentless_endurance) parts.push('Relentless endurance');
+            if (effects.extra_attacks_per_action >= 2) {
+                parts.push('Extra Attack x' + effects.extra_attacks_per_action);
+            }
+            if (effects.unarmored_defense || effects.unarmored_ac_add_ability) {
+                var ab = String(effects.unarmored_ac_add_ability || '?').toUpperCase();
+                var shield = effects.unarmored_defense_allows_shield === false ? 'no shield' : 'shield OK';
+                parts.push('UD 10+DEX+' + ab + ' (' + shield + ')');
+            }
+            if (effects.action_surge) {
+                var add = effects.action_surge_additional_actions || 1;
+                parts.push('Action Surge +' + add);
+            }
             return parts.length ? parts.join('; ') : '—';
         }
 
@@ -3894,56 +4602,20 @@
         }
 
         function loadTraitEffectsIntoForm(effects) {
-            effects = effects || {};
-            setTraitOptionalInt('traits-edit-speed', effects.speed_ft);
-            var sizeEl = document.getElementById('traits-edit-size');
-            if (sizeEl) sizeEl.value = effects.size || '';
-            setTraitOptionalInt('traits-edit-darkvision', effects.darkvision_ft);
-            setTraitOptionalInt('traits-edit-reach', effects.reach_cells);
-            setTraitCheckboxGroup('traits-edit-resist-group', effects.damage_resistances);
-            setTraitCheckboxGroup('traits-edit-immune-group', effects.damage_immunities);
-            setTraitCheckboxGroup('traits-edit-vulnerable-group', effects.damage_vulnerabilities);
-            setTraitCheckboxGroup('traits-edit-condition-immune-group', effects.condition_immunities);
-            setTraitCheckboxGroup('traits-edit-save-adv-conditions-group', effects.save_advantage_vs_conditions);
-            setTraitCheckboxGroup('traits-edit-save-adv-magic-group', effects.save_advantage_vs_magic);
-            loadTraitSaveBonuses(effects.save_bonuses);
-            var luckyEl = document.getElementById('traits-edit-lucky');
-            if (luckyEl) luckyEl.checked = !!effects.lucky;
-            var savageEl = document.getElementById('traits-edit-savage-attacks');
-            if (savageEl) savageEl.checked = !!effects.savage_attacks;
-            var relentlessEl = document.getElementById('traits-edit-relentless');
-            if (relentlessEl) relentlessEl.checked = !!effects.relentless_endurance;
+            loadCombatEffectsIntoForm(
+                combatEffectsFormConfig('traits-edit-', { saveBonusPrefix: 'traits-edit-save-bonus-' }),
+                effects
+            );
+            loadClassCombatAbilityEffects(effects);
             var presetEl = document.getElementById('traits-edit-preset');
             if (presetEl) presetEl.value = '';
         }
 
         function traitEffectsFromForm() {
-            var effects = {};
-            var speed = traitOptionalInt('traits-edit-speed');
-            if (speed != null) effects.speed_ft = speed;
-            var sizeEl = document.getElementById('traits-edit-size');
-            if (sizeEl && sizeEl.value) effects.size = sizeEl.value;
-            var darkvision = traitOptionalInt('traits-edit-darkvision');
-            if (darkvision != null) effects.darkvision_ft = darkvision;
-            var reach = traitOptionalInt('traits-edit-reach');
-            if (reach != null) effects.reach_cells = reach;
-            var resist = readTraitCheckboxGroup('traits-edit-resist-group');
-            if (resist.length) effects.damage_resistances = resist;
-            var immune = readTraitCheckboxGroup('traits-edit-immune-group');
-            if (immune.length) effects.damage_immunities = immune;
-            var vulnerable = readTraitCheckboxGroup('traits-edit-vulnerable-group');
-            if (vulnerable.length) effects.damage_vulnerabilities = vulnerable;
-            var condImmune = readTraitCheckboxGroup('traits-edit-condition-immune-group');
-            if (condImmune.length) effects.condition_immunities = condImmune;
-            var saveAdv = readTraitCheckboxGroup('traits-edit-save-adv-conditions-group');
-            if (saveAdv.length) effects.save_advantage_vs_conditions = saveAdv;
-            var saveMagic = readTraitCheckboxGroup('traits-edit-save-adv-magic-group');
-            if (saveMagic.length) effects.save_advantage_vs_magic = saveMagic;
-            var saveBonuses = traitSaveBonusesFromForm();
-            if (Object.keys(saveBonuses).length) effects.save_bonuses = saveBonuses;
-            if ((document.getElementById('traits-edit-lucky') || {}).checked) effects.lucky = true;
-            if ((document.getElementById('traits-edit-savage-attacks') || {}).checked) effects.savage_attacks = true;
-            if ((document.getElementById('traits-edit-relentless') || {}).checked) effects.relentless_endurance = true;
+            var effects = combatEffectsFromForm(
+                combatEffectsFormConfig('traits-edit-', { saveBonusPrefix: 'traits-edit-save-bonus-' })
+            );
+            Object.assign(effects, classCombatAbilityEffectsFromForm());
             return effects;
         }
 
@@ -3959,11 +4631,57 @@
             });
         }
 
+        function traitSortValue(entry, key) {
+            switch (key) {
+                case 'key':
+                    return String(entry.key || '').toLowerCase();
+                case 'category':
+                    return String(entry.category || '').toLowerCase();
+                case 'effects':
+                    return summarizeTraitEffects(entry.effects);
+                case 'prerequisites':
+                    return summarizeTraitPrerequisites(entry.prerequisites);
+                case 'name':
+                default:
+                    return String(entry.name || '').toLowerCase();
+            }
+        }
+
+        function sortedTraitsRows() {
+            var rows = (traitsState.rows || []).slice();
+            rows.sort(function (a, b) {
+                var valueA = traitSortValue(a, traitsState.sortBy);
+                var valueB = traitSortValue(b, traitsState.sortBy);
+                var result = String(valueA).localeCompare(String(valueB), undefined, {
+                    sensitivity: 'base',
+                    numeric: true
+                });
+                return traitsState.sortDir === 'desc' ? -result : result;
+            });
+            return rows;
+        }
+
+        function updateTraitSortHeaders() {
+            var labels = {
+                name: 'Name',
+                key: 'Key',
+                category: 'Category',
+                effects: 'Effects',
+                prerequisites: 'Prerequisites'
+            };
+            document.querySelectorAll('[data-trait-sort]').forEach(function (btn) {
+                var sortKey = btn.getAttribute('data-trait-sort') || 'name';
+                var label = labels[sortKey] || sortKey;
+                var isActive = sortKey === traitsState.sortBy;
+                btn.textContent = label + (isActive ? (traitsState.sortDir === 'asc' ? ' ▲' : ' ▼') : '');
+            });
+        }
+
         function renderTraitsTable() {
             var tbody = document.getElementById('traits-compendium-body');
             if (!tbody) return;
             tbody.innerHTML = '';
-            traitsState.rows.forEach(function (entry) {
+            sortedTraitsRows().forEach(function (entry) {
                 var tr = document.createElement('tr');
                 var fx = summarizeTraitEffects(entry.effects);
                 var prereq = summarizeTraitPrerequisites(entry.prerequisites);
@@ -3978,9 +4696,10 @@
                 btn.addEventListener('click', function () {
                     var key = btn.getAttribute('data-trait-edit');
                     var entry = traitsState.rows.find(function (r) { return r.key === key; });
-                    if (entry) openTraitEditor(entry);
+                    if (entry) openTraitEditor(entry, 'traits-pane-content');
                 });
             });
+            updateTraitSortHeaders();
         }
 
         async function loadTraitsCompendium(force) {
@@ -3999,7 +4718,9 @@
             }
         }
 
-        function openTraitEditor(entry) {
+        function openTraitEditor(entry, paneId) {
+            paneId = paneId || traitEditorHostPaneId || 'traits-pane-content';
+            attachTraitEditorToPane(paneId);
             populateTraitPresetOptions();
             refreshTraitEditorPickers(entry.key).then(function () {
                 document.getElementById('traits-edit-key').value = entry.key;
@@ -4009,21 +4730,32 @@
                 loadTraitEffectsIntoForm(entry.effects || {});
                 loadTraitPrerequisitesIntoForm(entry.prerequisites || {}, entry.key);
                 document.getElementById('traits-edit-notes').value = entry.notes || '';
-                openCompendiumDetail('traits-pane-content', 'Edit ' + entry.name);
+                var summaryEl = document.getElementById('traits-edit-summary');
+                if (summaryEl) summaryEl.value = entry.summary || '';
+                var rulesEl = document.getElementById('traits-edit-rules-text');
+                if (rulesEl) rulesEl.value = entry.rules_text || '';
+                openCompendiumDetail(paneId, 'Edit ' + entry.name);
             });
         }
 
-        function openTraitCreator() {
+        function openTraitCreator(paneId, defaults) {
+            paneId = paneId || traitEditorHostPaneId || 'traits-pane-content';
+            defaults = defaults || {};
+            attachTraitEditorToPane(paneId);
             populateTraitPresetOptions();
             refreshTraitEditorPickers('').then(function () {
                 document.getElementById('traits-edit-key').value = '';
                 document.getElementById('traits-editor-title').textContent = 'Add trait';
                 document.getElementById('traits-edit-name').value = '';
-                document.getElementById('traits-edit-category').value = 'other';
+                document.getElementById('traits-edit-category').value = defaults.category || 'other';
                 loadTraitEffectsIntoForm({});
                 loadTraitPrerequisitesIntoForm({}, '');
                 document.getElementById('traits-edit-notes').value = '';
-                openCompendiumDetail('traits-pane-content', 'Add trait');
+                var summaryEl = document.getElementById('traits-edit-summary');
+                if (summaryEl) summaryEl.value = '';
+                var rulesEl = document.getElementById('traits-edit-rules-text');
+                if (rulesEl) rulesEl.value = '';
+                openCompendiumDetail(paneId, 'Add trait');
             });
         }
 
@@ -4033,9 +4765,28 @@
             var refresh = document.getElementById('traits-refresh-btn');
             var form = document.getElementById('traits-editor');
             var cancel = document.getElementById('traits-edit-cancel');
-            if (add) add.addEventListener('click', openTraitCreator);
+            if (add) add.addEventListener('click', function () { openTraitCreator('traits-pane-content'); });
             if (refresh) refresh.addEventListener('click', function () { loadTraitsCompendium(true); });
-            if (cancel) cancel.addEventListener('click', function () { closeCompendiumDetail('traits-pane-content'); });
+            if (cancel) {
+                cancel.addEventListener('click', function () {
+                    closeCompendiumDetail(traitEditorHostPaneId || 'traits-pane-content');
+                });
+            }
+            var traitsPane = document.getElementById('traits-pane-content');
+            if (traitsPane) {
+                traitsPane.querySelectorAll('[data-trait-sort]').forEach(function (header) {
+                    header.addEventListener('click', function () {
+                        var nextSort = header.getAttribute('data-trait-sort') || 'name';
+                        if (traitsState.sortBy === nextSort) {
+                            traitsState.sortDir = traitsState.sortDir === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            traitsState.sortBy = nextSort;
+                            traitsState.sortDir = 'asc';
+                        }
+                        renderTraitsTable();
+                    });
+                });
+            }
             var preset = document.getElementById('traits-edit-preset');
             if (preset) {
                 preset.addEventListener('change', function () {
@@ -4056,7 +4807,9 @@
                         category: document.getElementById('traits-edit-category').value,
                         effects: effects,
                         prerequisites: traitPrerequisitesFromForm(),
-                        notes: document.getElementById('traits-edit-notes').value
+                        notes: document.getElementById('traits-edit-notes').value,
+                        summary: (document.getElementById('traits-edit-summary') || {}).value || '',
+                        rules_text: (document.getElementById('traits-edit-rules-text') || {}).value || ''
                     };
                     traitsStatus('Saving trait...', false);
                     try {
@@ -4070,7 +4823,7 @@
                         if (!resp.ok) throw new Error(data.error || 'Could not save trait.');
                         traitsState.loaded = false;
                         await loadTraitsCompendium(true);
-                        closeCompendiumDetail('traits-pane-content');
+                        closeCompendiumDetail(traitEditorHostPaneId || 'traits-pane-content');
                         traitsStatus(isCreate ? 'Trait added.' : 'Trait saved.', false);
                     } catch (err) {
                         traitsStatus(err.message || 'Could not save trait.', true);
@@ -4078,9 +4831,301 @@
                 });
             }
             window.gmTraits = { ensureLoaded: function () { return loadTraitsCompendium(false); } };
+            window.gmTraitPickers = {
+                initMonsterDefensePickers: initMonsterDefensePickers,
+                loadCombatEffectsIntoForm: loadCombatEffectsIntoForm,
+                combatEffectsFromForm: combatEffectsFromForm,
+                combatEffectsFormConfig: combatEffectsFormConfig,
+                monsterEffectsFromStats: monsterEffectsFromStats,
+                formatTagList: formatTagList,
+                formatMonsterSaveBonuses: formatMonsterSaveBonuses,
+                formatDarkvisionSenses: formatDarkvisionSenses,
+                refreshAttachedTraitPicker: refreshAttachedTraitPicker,
+                readTraitSearchPicker: readTraitSearchPicker
+            };
         }
 
-        var classesState = { loaded: false, entries: [], draftProgression: [] };
+        function classLevelTraitPickerId(level) {
+            return 'class-level-traits-picker-' + String(level);
+        }
+
+        function renderClassLevelTraitsCell(row) {
+            var cell = document.createElement('td');
+            cell.className = 'class-level-features-cell';
+            cell.textContent = summarizeAttachedTraitKeys(row.trait_keys || []);
+            return cell;
+        }
+
+        var classesState = {
+            loaded: false,
+            entries: [],
+            draftProgression: [],
+            expandedClassKeys: {},
+            expandedLevel: null,
+            draftFeatureGrants: [],
+            editingSubclass: null
+        };
+
+        function findClassEntry(classKey) {
+            return classesState.entries.find(function (row) { return row.key === classKey; }) || null;
+        }
+
+        function slugSubclassKey(name) {
+            return String(name || '').trim().toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'subclass';
+        }
+
+        function subclassGrantPickerId(classKey, grantIndex) {
+            var safe = String(classKey || 'sub').replace(/[^a-z0-9-]/gi, '');
+            return 'subclass-grant-picker-' + safe + '-' + String(grantIndex);
+        }
+
+        function toggleClassFolder(classKey) {
+            if (classesState.expandedClassKeys[classKey]) {
+                delete classesState.expandedClassKeys[classKey];
+            } else {
+                classesState.expandedClassKeys[classKey] = true;
+            }
+            renderClassesCompendium();
+        }
+
+        function classPayloadFromEntry(entry) {
+            return {
+                name: entry.name,
+                summary: entry.summary || '',
+                hit_die: Number(entry.hit_die || 8),
+                save_proficiencies: entry.save_proficiencies || [],
+                skill_choices: entry.skill_choices || { count: 0, options: [] },
+                level_progression: entry.level_progression || defaultProgressionRows(),
+                spellcasting: entry.spellcasting || { type: 'none', ability: 'int' },
+                progression_columns: entry.progression_columns || [],
+                trait_keys: entry.trait_keys || [],
+                is_hidden: !!entry.is_hidden,
+                secret: !!entry.secret,
+                visible_to_owner: entry.visible_to_owner !== false,
+                notes: entry.notes || '',
+                subclasses: entry.subclasses || []
+            };
+        }
+
+        async function persistClassEntry(classKey, statusMessage) {
+            var entry = findClassEntry(classKey);
+            if (!entry) throw new Error('Class not found.');
+            classesStatus(statusMessage || 'Saving...', false);
+            var resp = await fetch(urls.classesUpdateBase + encodeURIComponent(classKey), {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(classPayloadFromEntry(entry))
+            });
+            var data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Could not save class.');
+            classesState.loaded = false;
+            await loadClassesCompendium(true);
+        }
+
+        function renderSubclassFeaturesEditor(grants, classKey) {
+            var wrap = document.getElementById('subclass-features-list');
+            if (!wrap) return;
+            wrap.innerHTML = '';
+            (grants || []).forEach(function (grant, index) {
+                var row = document.createElement('div');
+                row.className = 'subclass-feature-row';
+                row.dataset.grantIndex = String(index);
+
+                var grid = document.createElement('div');
+                grid.className = 'species-editor-grid';
+
+                var levelLabel = document.createElement('label');
+                levelLabel.textContent = 'Gained at level';
+                var levelInput = document.createElement('input');
+                levelInput.type = 'number';
+                levelInput.min = '1';
+                levelInput.max = '20';
+                levelInput.value = String(grant.level || 1);
+                levelInput.dataset.grantLevel = '1';
+                levelLabel.appendChild(levelInput);
+
+                var nameLabel = document.createElement('label');
+                nameLabel.textContent = 'Feature name';
+                var nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.maxLength = 80;
+                nameInput.value = grant.name || '';
+                nameInput.placeholder = 'e.g. Frenzy';
+                nameInput.dataset.grantName = '1';
+                nameLabel.appendChild(nameInput);
+
+                grid.appendChild(levelLabel);
+                grid.appendChild(nameLabel);
+                row.appendChild(grid);
+
+                var traitsHelp = document.createElement('p');
+                traitsHelp.className = 'battle-monster-edit-help';
+                traitsHelp.textContent = 'Attach traits from the compendium for combat automation.';
+                row.appendChild(traitsHelp);
+
+                var pickerBlock = document.createElement('div');
+                pickerBlock.className = 'trait-picker-block';
+                pickerBlock.id = subclassGrantPickerId(classKey, index);
+                pickerBlock.innerHTML =
+                    '<span class="trait-picker-label">Attached traits</span>' +
+                    '<input type="search" class="trait-picker-search" placeholder="Search traits by name…" autocomplete="off">' +
+                    '<div class="trait-picker-chips"></div>' +
+                    '<div class="trait-picker-list"></div>';
+                row.appendChild(pickerBlock);
+
+                var removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'button button-secondary';
+                removeBtn.textContent = 'Remove feature';
+                removeBtn.addEventListener('click', function () {
+                    var removeIndex = parseInt(row.dataset.grantIndex, 10);
+                    classesState.draftFeatureGrants.splice(removeIndex, 1);
+                    renderSubclassFeaturesEditor(classesState.draftFeatureGrants, classKey);
+                });
+                row.appendChild(removeBtn);
+
+                wrap.appendChild(row);
+                refreshAttachedTraitPicker(pickerBlock.id, grant.trait_keys || []);
+            });
+        }
+
+        function readSubclassFeaturesFromEditor(classKey) {
+            var wrap = document.getElementById('subclass-features-list');
+            if (!wrap) return [];
+            var grants = [];
+            wrap.querySelectorAll('.subclass-feature-row').forEach(function (row) {
+                var nameInput = row.querySelector('[data-grant-name]');
+                var levelInput = row.querySelector('[data-grant-level]');
+                var picker = row.querySelector('.trait-picker-block');
+                if (!nameInput || !String(nameInput.value || '').trim()) return;
+                grants.push({
+                    level: Number(levelInput && levelInput.value ? levelInput.value : 1),
+                    name: String(nameInput.value || '').trim(),
+                    trait_keys: picker && picker.id ? readTraitSearchPicker(picker.id) : []
+                });
+            });
+            return grants;
+        }
+
+        function openSubclassEditor(classKey, index) {
+            var classEntry = findClassEntry(classKey);
+            if (!classEntry) return;
+            classesState.editingSubclass = { classKey: classKey, index: typeof index === 'number' ? index : null };
+            var row = typeof index === 'number' ? ((classEntry.subclasses || [])[index] || {}) : {};
+            var isNew = typeof index !== 'number';
+            var title = isNew
+                ? 'Add subclass — ' + classEntry.name
+                : 'Edit ' + (row.name || 'subclass') + ' (' + classEntry.name + ')';
+
+            document.getElementById('subclass-edit-class-key').value = classKey;
+            document.getElementById('subclass-edit-index').value = typeof index === 'number' ? String(index) : '';
+            document.getElementById('subclass-editor-heading').textContent = isNew ? 'Add subclass' : 'Edit subclass';
+            document.getElementById('subclass-editor-class-label').textContent =
+                'Under class: ' + classEntry.name + '. Players pick one subclass when they reach the chosen level.';
+            document.getElementById('subclass-edit-name').value = row.name || '';
+            document.getElementById('subclass-edit-pick-level').value = String(row.pick_level || 3);
+            document.getElementById('subclass-edit-tagline').value = row.tagline || '';
+            document.getElementById('subclass-edit-summary').value = row.summary || '';
+            classesState.draftFeatureGrants = JSON.parse(JSON.stringify(row.feature_grants || []));
+            renderSubclassFeaturesEditor(classesState.draftFeatureGrants, classKey);
+            openCompendiumDetail('classes-pane-content', title, '#subclass-editor-panel');
+            document.getElementById('subclass-edit-name').focus();
+        }
+
+        function closeSubclassEditor() {
+            closeCompendiumDetail('classes-pane-content', '#subclass-editor-panel');
+            classesState.editingSubclass = null;
+            classesState.draftFeatureGrants = [];
+        }
+
+        async function saveSubclassFromEditor() {
+            var classKey = document.getElementById('subclass-edit-class-key').value;
+            var classEntry = findClassEntry(classKey);
+            if (!classEntry) {
+                classesStatus('Class not found.', true);
+                return;
+            }
+            var name = String(document.getElementById('subclass-edit-name').value || '').trim();
+            if (!name) {
+                classesStatus('Subclass name is required.', true);
+                return;
+            }
+            if (!classEntry.subclasses) classEntry.subclasses = [];
+            var entry = {
+                key: slugSubclassKey(name),
+                name: name,
+                source: 'custom',
+                tagline: document.getElementById('subclass-edit-tagline').value || '',
+                summary: document.getElementById('subclass-edit-summary').value || '',
+                pick_level: Number(document.getElementById('subclass-edit-pick-level').value || 3),
+                feature_grants: readSubclassFeaturesFromEditor(classKey),
+                is_hidden: false,
+                secret: false,
+                visible_to_owner: true,
+                gm_edited: true
+            };
+            var idxRaw = document.getElementById('subclass-edit-index').value;
+            if (idxRaw !== '') {
+                var existing = classEntry.subclasses[parseInt(idxRaw, 10)] || {};
+                entry.key = existing.key || entry.key;
+                if (existing.source === 'base') {
+                    entry.source = 'base';
+                    entry.gm_edited = true;
+                }
+                entry.is_hidden = !!existing.is_hidden;
+                entry.secret = !!existing.secret;
+                entry.visible_to_owner = existing.visible_to_owner !== false;
+                classEntry.subclasses[parseInt(idxRaw, 10)] = entry;
+            } else {
+                classEntry.subclasses.push(entry);
+            }
+            classesState.expandedClassKeys[classKey] = true;
+            try {
+                await persistClassEntry(classKey, 'Saving subclass...');
+                closeSubclassEditor();
+                classesStatus('Subclass saved.', false);
+            } catch (err) {
+                classesStatus(err.message || 'Could not save subclass.', true);
+            }
+        }
+
+        async function removeSubclass(classKey, index) {
+            var classEntry = findClassEntry(classKey);
+            if (!classEntry || !classEntry.subclasses) return;
+            var sub = classEntry.subclasses[index];
+            if (!sub) return;
+            var label = sub.name || sub.key || 'this subclass';
+            if (!window.confirm('Remove "' + label + '" from ' + classEntry.name + '?')) return;
+            classEntry.subclasses.splice(index, 1);
+            classesState.expandedClassKeys[classKey] = true;
+            try {
+                await persistClassEntry(classKey, 'Removing subclass...');
+                classesStatus('Subclass removed.', false);
+            } catch (err) {
+                classesStatus(err.message || 'Could not remove subclass.', true);
+            }
+        }
+
+        var CLASS_PLAYER_CHOICE_TYPES = [
+            ['ability_scores', 'Ability score improvement'],
+            ['subclass', 'Subclass'],
+            ['feat', 'Feat'],
+            ['custom', 'Custom choice'],
+            ['pact_boon', 'Pact boon'],
+            ['mystic_arcanum', 'Mystic arcanum'],
+            ['invocations', 'Invocations'],
+            ['trait_pick', 'Trait pick (advanced)'],
+            ['spell', 'Spell'],
+            ['spells', 'Spells'],
+            ['cantrip', 'Cantrip'],
+            ['cantrips', 'Cantrips']
+        ];
 
         function classesStatus(message, isError) {
             var el = document.getElementById('classes-compendium-status');
@@ -4104,31 +5149,83 @@
                     features: [],
                     trait_keys: [],
                     spell_slots: {},
+                    pact_magic: null,
                     resources: {},
+                    cantrips_known: null,
+                    spells_known: null,
+                    spells_prepared: null,
+                    invocations_known: null,
+                    player_choices: [],
+                    trait_pools: [],
+                    progression_stats: {},
                     notes: ''
                 };
             });
         }
 
-        function featuresToText(features) {
-            return (features || []).map(function (feature) {
-                return (feature.name || 'Feature') + (feature.description ? ': ' + feature.description : '');
-            }).join('\n');
+        function resolveRowSpellSlotsDisplay(row) {
+            row = row || {};
+            if (row.pact_magic && row.pact_magic.slots) {
+                return String(row.pact_magic.slots) + '@' + String(row.pact_magic.slot_level || 1);
+            }
+            var keys = Object.keys(row.spell_slots || {}).filter(function (k) {
+                return Number(row.spell_slots[k]) > 0;
+            }).sort(function (a, b) { return Number(a) - Number(b); });
+            if (!keys.length) return '—';
+            return keys.map(function (k) { return k + ':' + row.spell_slots[k]; }).join(', ');
         }
 
-        function featuresFromText(text) {
-            return String(text || '').split(/\r?\n/).map(function (line, index) {
-                var trimmed = line.trim();
-                if (!trimmed) return null;
-                var sep = trimmed.indexOf(':');
-                if (sep > 0) {
-                    return {
-                        name: trimmed.slice(0, sep).trim().slice(0, 80),
-                        description: trimmed.slice(sep + 1).trim().slice(0, 500)
-                    };
+        function summarizeResources(resources) {
+            resources = resources || {};
+            var keys = Object.keys(resources);
+            if (!keys.length) return '—';
+            return keys.map(function (k) { return k + '=' + resources[k]; }).join(', ');
+        }
+
+        function renderClassProgressionTable() {
+            var tbody = document.getElementById('classes-progression-table-body');
+            if (!tbody || !classesState.draftProgression.length) return;
+            tbody.innerHTML = '';
+            var expanded = classesState.expandedLevel;
+            classesState.draftProgression.forEach(function (row) {
+                var tr = document.createElement('tr');
+                tr.className = 'class-level-summary-row' + (expanded === row.level ? ' is-expanded' : '');
+                tr.dataset.level = String(row.level);
+                var expandMark = expanded === row.level ? ' ▾' : ' ▸';
+                var levelTd = document.createElement('td');
+                levelTd.innerHTML = '<strong>' + escapeHtml(String(row.level)) + expandMark + '</strong>';
+                tr.appendChild(levelTd);
+                var profTd = document.createElement('td');
+                profTd.textContent = '+' + String(row.proficiency_bonus || '');
+                tr.appendChild(profTd);
+                tr.appendChild(renderClassLevelTraitsCell(row));
+                [
+                    row.cantrips_known != null ? String(row.cantrips_known) : '—',
+                    row.spells_known != null ? String(row.spells_known) : '—',
+                    row.spells_prepared != null ? String(row.spells_prepared) : '—',
+                    resolveRowSpellSlotsDisplay(row),
+                    row.invocations_known != null ? String(row.invocations_known) : '—',
+                    summarizeResources(row.resources)
+                ].forEach(function (text) {
+                    var td = document.createElement('td');
+                    td.textContent = text;
+                    tr.appendChild(td);
+                });
+                tr.addEventListener('click', function () {
+                    toggleClassLevelEditor(row.level);
+                });
+                tbody.appendChild(tr);
+                if (expanded === row.level) {
+                    var detailTr = document.createElement('tr');
+                    detailTr.className = 'class-level-detail-row';
+                    var detailTd = document.createElement('td');
+                    detailTd.colSpan = 9;
+                    detailTd.appendChild(buildClassLevelEditorPanel(row));
+                    detailTr.appendChild(detailTd);
+                    tbody.appendChild(detailTr);
+                    refreshAttachedTraitPicker(classLevelTraitPickerId(row.level), row.trait_keys || []);
                 }
-                return { name: 'Feature ' + (index + 1), description: trimmed.slice(0, 500) };
-            }).filter(Boolean);
+            });
         }
 
         function mapFromPairs(text) {
@@ -4149,25 +5246,425 @@
             }).join(', ');
         }
 
-        function loadClassSpellSlots(slots) {
-            slots = slots || {};
-            for (var lvl = 1; lvl <= 9; lvl += 1) {
-                var input = document.getElementById('classes-edit-slot-' + lvl);
-                if (!input) continue;
-                var raw = slots[String(lvl)];
-                input.value = raw != null && raw !== '' ? String(raw) : '';
-            }
+        function readOptionalInput(input) {
+            if (!input || input.value === '') return null;
+            var val = Number(input.value);
+            return isNaN(val) ? null : val;
         }
 
-        function readClassSpellSlots() {
+        function appendPlayerChoiceRow(host, choice) {
+            choice = choice || {};
+            var row = document.createElement('div');
+            row.className = 'class-level-editor-row class-level-editor-row--wide';
+            var typeLabel = document.createElement('label');
+            typeLabel.textContent = 'Choice type';
+            var typeSelect = document.createElement('select');
+            typeSelect.className = 'class-choice-type';
+            CLASS_PLAYER_CHOICE_TYPES.forEach(function (pair) {
+                var opt = document.createElement('option');
+                opt.value = pair[0];
+                opt.textContent = pair[1];
+                typeSelect.appendChild(opt);
+            });
+            typeSelect.value = choice.type || 'custom';
+            typeLabel.appendChild(typeSelect);
+            var titleLabel = document.createElement('label');
+            titleLabel.textContent = 'Title shown to players';
+            var titleInput = document.createElement('input');
+            titleInput.type = 'text';
+            titleInput.className = 'class-choice-title';
+            titleInput.maxLength = 80;
+            titleInput.placeholder = 'Ability Score Improvement';
+            titleInput.value = choice.title || '';
+            titleLabel.appendChild(titleInput);
+            var descLabel = document.createElement('label');
+            descLabel.textContent = 'Instructions (optional)';
+            var descInput = document.createElement('textarea');
+            descInput.className = 'class-choice-description';
+            descInput.maxLength = 500;
+            descInput.placeholder = 'What the player should pick or do.';
+            descInput.value = choice.description || '';
+            descLabel.appendChild(descInput);
+            var actions = document.createElement('div');
+            actions.className = 'class-level-row-actions';
+            var removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'button';
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', function () { row.remove(); });
+            actions.appendChild(removeBtn);
+            row.appendChild(typeLabel);
+            row.appendChild(titleLabel);
+            row.appendChild(descLabel);
+            row.appendChild(actions);
+            host.appendChild(row);
+        }
+
+        function loadPlayerChoiceRows(host, choices) {
+            host.innerHTML = '';
+            var rows = choices || [];
+            if (!rows.length) return;
+            rows.forEach(function (choice) { appendPlayerChoiceRow(host, choice); });
+        }
+
+        function readPlayerChoiceRows(host) {
+            var out = [];
+            host.querySelectorAll('.class-level-editor-row').forEach(function (row) {
+                var type = (row.querySelector('.class-choice-type') || {}).value || 'custom';
+                var title = ((row.querySelector('.class-choice-title') || {}).value || '').trim();
+                var description = ((row.querySelector('.class-choice-description') || {}).value || '').trim();
+                if (!title && !description) return;
+                out.push({
+                    type: type,
+                    title: title || 'Choice',
+                    description: description
+                });
+            });
+            return out;
+        }
+
+        function appendTraitPoolRow(host, pool) {
+            pool = pool || {};
+            var row = document.createElement('div');
+            row.className = 'class-level-editor-row class-level-editor-row--wide';
+            var pickLabel = document.createElement('label');
+            pickLabel.textContent = 'How many to pick';
+            var pickInput = document.createElement('input');
+            pickInput.type = 'number';
+            pickInput.className = 'class-pool-pick';
+            pickInput.min = '1';
+            pickInput.max = '20';
+            pickInput.placeholder = '1';
+            pickInput.value = pool.pick != null ? String(pool.pick) : '';
+            pickLabel.appendChild(pickInput);
+            var titleLabel = document.createElement('label');
+            titleLabel.textContent = 'Title shown to players';
+            var titleInput = document.createElement('input');
+            titleInput.type = 'text';
+            titleInput.className = 'class-pool-title';
+            titleInput.maxLength = 80;
+            titleInput.placeholder = 'Eldritch Invocations';
+            titleInput.value = pool.title || '';
+            titleLabel.appendChild(titleInput);
+            var tagLabel = document.createElement('label');
+            tagLabel.textContent = 'Trait pool tag';
+            var tagInput = document.createElement('input');
+            tagInput.type = 'text';
+            tagInput.className = 'class-pool-tag';
+            tagInput.maxLength = 40;
+            tagInput.placeholder = 'warlock-invocation';
+            tagInput.value = pool.pool_tag || '';
+            tagLabel.appendChild(tagInput);
+            var descLabel = document.createElement('label');
+            descLabel.textContent = 'Instructions (optional)';
+            var descInput = document.createElement('textarea');
+            descInput.className = 'class-pool-description';
+            descInput.maxLength = 500;
+            descInput.placeholder = 'Traits must use this tag in the Traits compendium.';
+            descInput.value = pool.description || '';
+            descLabel.appendChild(descInput);
+            var actions = document.createElement('div');
+            actions.className = 'class-level-row-actions';
+            var removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'button';
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', function () { row.remove(); });
+            actions.appendChild(removeBtn);
+            row.appendChild(pickLabel);
+            row.appendChild(titleLabel);
+            row.appendChild(tagLabel);
+            row.appendChild(descLabel);
+            row.appendChild(actions);
+            host.appendChild(row);
+        }
+
+        function loadTraitPoolRows(host, pools) {
+            host.innerHTML = '';
+            var rows = pools || [];
+            if (!rows.length) return;
+            rows.forEach(function (pool) { appendTraitPoolRow(host, pool); });
+        }
+
+        function readTraitPoolRows(host) {
+            var out = [];
+            host.querySelectorAll('.class-level-editor-row').forEach(function (row) {
+                var pickRaw = (row.querySelector('.class-pool-pick') || {}).value;
+                var title = ((row.querySelector('.class-pool-title') || {}).value || '').trim();
+                var poolTag = ((row.querySelector('.class-pool-tag') || {}).value || '').trim().toLowerCase();
+                var description = ((row.querySelector('.class-pool-description') || {}).value || '').trim();
+                if (!poolTag) return;
+                var entry = { title: title || 'Class feature choice', pool_tag: poolTag };
+                if (description) entry.description = description;
+                var pick = parseInt(pickRaw, 10);
+                if (!isNaN(pick) && pick > 0) entry.pick = pick;
+                out.push(entry);
+            });
+            return out;
+        }
+
+        function loadPanelSpellSlots(panel, slots) {
+            slots = slots || {};
+            panel.querySelectorAll('.class-level-slot-input').forEach(function (input) {
+                var lvl = input.getAttribute('data-slot-level');
+                var raw = slots[String(lvl)];
+                input.value = raw != null && raw !== '' ? String(raw) : '';
+            });
+        }
+
+        function readPanelSpellSlots(panel) {
             var out = {};
-            for (var lvl = 1; lvl <= 9; lvl += 1) {
-                var input = document.getElementById('classes-edit-slot-' + lvl);
-                if (!input || input.value === '') continue;
+            panel.querySelectorAll('.class-level-slot-input').forEach(function (input) {
+                if (!input.value) return;
+                var lvl = input.getAttribute('data-slot-level');
                 var val = parseInt(input.value, 10);
                 if (!isNaN(val) && val > 0) out[String(lvl)] = val;
-            }
+            });
             return out;
+        }
+
+        function buildClassLevelEditorPanel(row) {
+            var panel = document.createElement('div');
+            panel.className = 'class-level-editor';
+            panel.dataset.level = String(row.level);
+
+            var traitsSection = document.createElement('section');
+            traitsSection.innerHTML = '<h4>Traits at this level</h4>' +
+                '<p class="battle-monster-edit-help">Select traits from the compendium granted when a character reaches this class level.</p>';
+            var pickerBlock = document.createElement('div');
+            pickerBlock.className = 'trait-picker-block';
+            pickerBlock.id = classLevelTraitPickerId(row.level);
+            pickerBlock.innerHTML =
+                '<span class="trait-picker-label">Attached traits</span>' +
+                '<input type="search" class="trait-picker-search" placeholder="Search traits by name…" autocomplete="off">' +
+                '<div class="trait-picker-chips"></div>' +
+                '<div class="trait-picker-list"></div>';
+            traitsSection.appendChild(pickerBlock);
+            panel.appendChild(traitsSection);
+
+            var capsSection = document.createElement('section');
+            capsSection.innerHTML = '<h4>Spell list limits at this level</h4>' +
+                '<p class="battle-monster-edit-help">How many cantrips, prepared spells, or known spells players may select. Leave blank if not used by this class.</p>';
+            var capsGrid = document.createElement('div');
+            capsGrid.className = 'species-editor-grid';
+            [
+                ['cantrips_known', 'Cantrips known', 20],
+                ['spells_known', 'Spells known', 50],
+                ['spells_prepared', 'Spells prepared', 50],
+                ['invocations_known', 'Invocations known', 20]
+            ].forEach(function (spec) {
+                var label = document.createElement('label');
+                label.textContent = spec[1];
+                var input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'class-level-cap-input';
+                input.dataset.capField = spec[0];
+                input.min = '0';
+                input.max = String(spec[2]);
+                input.placeholder = '—';
+                label.appendChild(input);
+                capsGrid.appendChild(label);
+            });
+            capsSection.appendChild(capsGrid);
+            panel.appendChild(capsSection);
+
+            var slotsSection = document.createElement('section');
+            slotsSection.innerHTML = '<h4>Spell slots at this level</h4>' +
+                '<p class="battle-monster-edit-help">Most casters use the standard grid (different counts per spell level). ' +
+                'Pact casters (Warlock) use pact slots instead — every slot is the same level, so fill in the pact section and leave the grid at 0.</p>';
+            var pactBlock = document.createElement('div');
+            pactBlock.className = 'class-pact-slots-block';
+            pactBlock.innerHTML = '<strong>Pact slots (Warlock-style)</strong>';
+            var pactGrid = document.createElement('div');
+            pactGrid.className = 'species-editor-grid';
+            var pactCountLabel = document.createElement('label');
+            pactCountLabel.textContent = 'Number of slots';
+            var pactCountInput = document.createElement('input');
+            pactCountInput.type = 'number';
+            pactCountInput.className = 'class-level-pact-slots';
+            pactCountInput.min = '0';
+            pactCountInput.max = '99';
+            pactCountInput.placeholder = '0';
+            pactCountLabel.appendChild(pactCountInput);
+            var pactLevelLabel = document.createElement('label');
+            pactLevelLabel.textContent = 'Spell level of each slot';
+            var pactLevelInput = document.createElement('input');
+            pactLevelInput.type = 'number';
+            pactLevelInput.className = 'class-level-pact-slot-level';
+            pactLevelInput.min = '1';
+            pactLevelInput.max = '9';
+            pactLevelInput.placeholder = '1';
+            pactLevelLabel.appendChild(pactLevelInput);
+            pactGrid.appendChild(pactCountLabel);
+            pactGrid.appendChild(pactLevelLabel);
+            pactBlock.appendChild(pactGrid);
+            slotsSection.appendChild(pactBlock);
+            var standardBlock = document.createElement('div');
+            standardBlock.className = 'class-standard-slots-block';
+            standardBlock.innerHTML = '<strong>Standard slots (most casters)</strong>';
+            var slotGrid = document.createElement('div');
+            slotGrid.className = 'class-spell-slot-grid species-editor-grid';
+            for (var slotLvl = 1; slotLvl <= 9; slotLvl += 1) {
+                var slotLabel = document.createElement('label');
+                slotLabel.textContent = 'Level ' + slotLvl + ' slots';
+                var slotInput = document.createElement('input');
+                slotInput.type = 'number';
+                slotInput.className = 'class-level-slot-input';
+                slotInput.dataset.slotLevel = String(slotLvl);
+                slotInput.min = '0';
+                slotInput.max = '99';
+                slotInput.placeholder = '0';
+                slotLabel.appendChild(slotInput);
+                slotGrid.appendChild(slotLabel);
+            }
+            standardBlock.appendChild(slotGrid);
+            slotsSection.appendChild(standardBlock);
+            panel.appendChild(slotsSection);
+
+            var resourcesSection = document.createElement('section');
+            resourcesSection.innerHTML = '<h4>Class resources</h4>' +
+                '<p class="battle-monster-edit-help">Limited-use abilities (Rage, Ki, Bardic Inspiration). Name the resource and uses per rest.</p>';
+            var resourcesList = document.createElement('div');
+            resourcesList.className = 'class-level-resources-list';
+            resourcesSection.appendChild(resourcesList);
+            var addResourceBtn = document.createElement('button');
+            addResourceBtn.type = 'button';
+            addResourceBtn.className = 'button class-level-add-btn';
+            addResourceBtn.textContent = 'Add resource';
+            addResourceBtn.addEventListener('click', function () {
+                appendClassResourceRow(resourcesList, '', '');
+            });
+            resourcesSection.appendChild(addResourceBtn);
+            panel.appendChild(resourcesSection);
+
+            var choicesSection = document.createElement('section');
+            choicesSection.innerHTML = '<h4>Player choices at this level</h4>' +
+                '<p class="battle-monster-edit-help">Prompts during level-up (ASI, subclass, feat).</p>';
+            var choicesList = document.createElement('div');
+            choicesList.className = 'class-level-choices-list';
+            choicesSection.appendChild(choicesList);
+            var addChoiceBtn = document.createElement('button');
+            addChoiceBtn.type = 'button';
+            addChoiceBtn.className = 'button class-level-add-btn';
+            addChoiceBtn.textContent = 'Add player choice';
+            addChoiceBtn.addEventListener('click', function () { appendPlayerChoiceRow(choicesList, {}); });
+            choicesSection.appendChild(addChoiceBtn);
+            panel.appendChild(choicesSection);
+
+            var notesSection = document.createElement('section');
+            var notesLabel = document.createElement('label');
+            notesLabel.textContent = 'GM notes for this level';
+            var notesInput = document.createElement('textarea');
+            notesInput.className = 'class-level-notes';
+            notesInput.placeholder = 'Private guidance — not shown to players.';
+            notesLabel.appendChild(notesInput);
+            notesSection.appendChild(notesLabel);
+            panel.appendChild(notesSection);
+
+            populateClassLevelEditorPanel(panel, row);
+            return panel;
+        }
+
+        function populateClassLevelEditorPanel(panel, row) {
+            row = row || {};
+            panel.querySelectorAll('.class-level-cap-input').forEach(function (input) {
+                var field = input.dataset.capField;
+                var raw = row[field];
+                input.value = raw != null && raw !== '' ? String(raw) : '';
+            });
+            var pact = row.pact_magic || {};
+            var pactSlots = panel.querySelector('.class-level-pact-slots');
+            var pactLevel = panel.querySelector('.class-level-pact-slot-level');
+            if (pactSlots) pactSlots.value = pact.slots != null ? String(pact.slots) : '';
+            if (pactLevel) pactLevel.value = pact.slot_level != null ? String(pact.slot_level) : '';
+            loadPanelSpellSlots(panel, row.spell_slots);
+            loadClassResourcesIntoPanel(panel.querySelector('.class-level-resources-list'), row.resources);
+            loadPlayerChoiceRows(panel.querySelector('.class-level-choices-list'), row.player_choices);
+            var notesInput = panel.querySelector('.class-level-notes');
+            if (notesInput) notesInput.value = row.notes || '';
+        }
+
+        function loadClassResourcesIntoPanel(host, resources) {
+            if (!host) return;
+            host.innerHTML = '';
+            resources = resources || {};
+            var keys = Object.keys(resources);
+            if (!keys.length) {
+                appendClassResourceRow(host, '', '');
+                return;
+            }
+            keys.forEach(function (key) {
+                appendClassResourceRow(host, key, resources[key]);
+            });
+        }
+
+        function readClassLevelEditorPanel(panel) {
+            var row = {};
+            panel.querySelectorAll('.class-level-cap-input').forEach(function (input) {
+                var field = input.dataset.capField;
+                row[field] = readOptionalInput(input);
+            });
+            row.spell_slots = readPanelSpellSlots(panel);
+            row.resources = readClassResourcesFromPanel(panel.querySelector('.class-level-resources-list'));
+            row.player_choices = readPlayerChoiceRows(panel.querySelector('.class-level-choices-list'));
+            row.trait_keys = readTraitSearchPicker(classLevelTraitPickerId(panel.dataset.level));
+            var notesInput = panel.querySelector('.class-level-notes');
+            row.notes = notesInput ? (notesInput.value || '') : '';
+            var pactSlots = readOptionalInput(panel.querySelector('.class-level-pact-slots'));
+            var pactLevel = readOptionalInput(panel.querySelector('.class-level-pact-slot-level'));
+            if (pactSlots != null && pactSlots > 0) {
+                row.pact_magic = { slots: pactSlots, slot_level: pactLevel || 1 };
+            } else {
+                row.pact_magic = null;
+            }
+            return row;
+        }
+
+        function readClassResourcesFromPanel(host) {
+            if (!host) return {};
+            var out = {};
+            host.querySelectorAll('.class-resource-row').forEach(function (row) {
+                var nameEl = row.querySelector('.class-resource-name');
+                var valueEl = row.querySelector('.class-resource-value');
+                var name = (nameEl && nameEl.value || '').trim().toLowerCase();
+                if (!name) return;
+                var val = parseInt(valueEl && valueEl.value, 10);
+                if (isNaN(val) || val < 0) return;
+                out[name] = val;
+            });
+            return out;
+        }
+
+        function toggleClassLevelEditor(level) {
+            saveLevelEditorToDraft();
+            if (classesState.expandedLevel === level) {
+                classesState.expandedLevel = null;
+            } else {
+                classesState.expandedLevel = level;
+            }
+            renderClassProgressionTable();
+        }
+
+        function saveLevelEditorToDraft() {
+            var level = classesState.expandedLevel;
+            if (!level || !classesState.draftProgression.length) return;
+            var panel = document.querySelector('.class-level-editor[data-level="' + level + '"]');
+            if (!panel) return;
+            var row = classesState.draftProgression.find(function (item) {
+                return Number(item.level) === Number(level);
+            });
+            if (!row) return;
+            var edits = readClassLevelEditorPanel(panel);
+            row.spell_slots = edits.spell_slots;
+            row.resources = edits.resources;
+            row.cantrips_known = edits.cantrips_known;
+            row.spells_known = edits.spells_known;
+            row.spells_prepared = edits.spells_prepared;
+            row.invocations_known = edits.invocations_known;
+            row.pact_magic = edits.pact_magic;
+            row.player_choices = edits.player_choices;
+            row.trait_keys = edits.trait_keys;
+            row.notes = edits.notes;
         }
 
         function appendClassResourceRow(host, name, value) {
@@ -4199,77 +5696,6 @@
             host.appendChild(row);
         }
 
-        function loadClassResources(resources) {
-            var host = document.getElementById('classes-edit-resources-list');
-            if (!host) return;
-            host.innerHTML = '';
-            resources = resources || {};
-            var keys = Object.keys(resources);
-            if (!keys.length) {
-                appendClassResourceRow(host, '', '');
-                return;
-            }
-            keys.forEach(function (key) {
-                appendClassResourceRow(host, key, resources[key]);
-            });
-        }
-
-        function readClassResources() {
-            var host = document.getElementById('classes-edit-resources-list');
-            if (!host) return {};
-            var out = {};
-            host.querySelectorAll('.class-resource-row').forEach(function (row) {
-                var nameEl = row.querySelector('.class-resource-name');
-                var valueEl = row.querySelector('.class-resource-value');
-                var name = (nameEl && nameEl.value || '').trim().toLowerCase();
-                if (!name) return;
-                var val = parseInt(valueEl && valueEl.value, 10);
-                if (isNaN(val) || val < 0) return;
-                out[name] = val;
-            });
-            return out;
-        }
-
-        function ensureLevelSelectOptions() {
-            var select = document.getElementById('classes-edit-level-select');
-            if (!select || select.options.length) return;
-            for (var level = 1; level <= 20; level += 1) {
-                var opt = document.createElement('option');
-                opt.value = String(level);
-                opt.textContent = 'Level ' + level;
-                select.appendChild(opt);
-            }
-        }
-
-        function loadLevelEditorFromDraft() {
-            var select = document.getElementById('classes-edit-level-select');
-            if (!select || !classesState.draftProgression.length) return;
-            var level = Number(select.value || 1);
-            var row = classesState.draftProgression.find(function (item) {
-                return Number(item.level) === level;
-            }) || classesState.draftProgression[level - 1];
-            document.getElementById('classes-edit-level-features').value = featuresToText(row.features);
-            loadClassSpellSlots(row.spell_slots);
-            loadClassResources(row.resources);
-            refreshAttachedTraitPicker('classes-edit-level-trait-keys-picker', row.trait_keys || []);
-            document.getElementById('classes-edit-level-notes').value = row.notes || '';
-        }
-
-        function saveLevelEditorToDraft() {
-            var select = document.getElementById('classes-edit-level-select');
-            if (!select || !classesState.draftProgression.length) return;
-            var level = Number(select.value || 1);
-            var row = classesState.draftProgression.find(function (item) {
-                return Number(item.level) === level;
-            });
-            if (!row) return;
-            row.features = featuresFromText(document.getElementById('classes-edit-level-features').value);
-            row.spell_slots = readClassSpellSlots();
-            row.resources = readClassResources();
-            row.trait_keys = readTraitSearchPicker('classes-edit-level-trait-keys-picker');
-            row.notes = document.getElementById('classes-edit-level-notes').value || '';
-        }
-
         function renderClassesCompendium() {
             var tbody = document.getElementById('classes-compendium-body');
             if (!tbody) return;
@@ -4279,21 +5705,79 @@
                 return;
             }
             classesState.entries.forEach(function (entry) {
+                var expanded = !!classesState.expandedClassKeys[entry.key];
+                var subs = entry.subclasses || [];
                 var tr = document.createElement('tr');
+                tr.className = 'class-folder-row';
                 tr.innerHTML =
-                    '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
+                    '<td><button type="button" class="class-folder-toggle" data-class-toggle="' + escapeHtml(entry.key) + '" aria-expanded="' + (expanded ? 'true' : 'false') + '" title="Show subclasses">' +
+                    (expanded ? '▾' : '▸') + '</button> <strong>' + escapeHtml(entry.name) + '</strong>' +
+                    (subs.length ? ' <span class="muted">(' + subs.length + ' subclass' + (subs.length === 1 ? '' : 'es') + ')</span>' : '') +
+                    '</td>' +
                     '<td>' + escapeHtml(entry.source || 'base') + '</td>' +
                     '<td>d' + escapeHtml(String(entry.hit_die || 8)) + '</td>' +
                     '<td>' + escapeHtml(classVisibilityLabel(entry)) + '</td>' +
                     '<td>' + escapeHtml(summarizeAttachedTraitKeys(entry.trait_keys)) + '</td>' +
-                    '<td><button type="button" class="button" data-class-edit="' + escapeHtml(entry.key) + '">Edit</button></td>';
+                    '<td><button type="button" class="button" data-class-edit="' + escapeHtml(entry.key) + '">Edit class</button></td>';
                 tbody.appendChild(tr);
+                if (expanded) {
+                    if (!subs.length) {
+                        var emptyTr = document.createElement('tr');
+                        emptyTr.className = 'class-subclass-row';
+                        emptyTr.innerHTML = '<td colspan="6"><span class="class-subclass-indent muted">No subclasses yet.</span></td>';
+                        tbody.appendChild(emptyTr);
+                    } else {
+                        subs.forEach(function (sub, idx) {
+                            var featureCount = (sub.feature_grants || []).length;
+                            var subTr = document.createElement('tr');
+                            subTr.className = 'class-subclass-row';
+                            subTr.innerHTML =
+                                '<td colspan="6">' +
+                                '<span class="class-subclass-indent">↳ ' + escapeHtml(sub.name || sub.key) + '</span>' +
+                                ' · chosen at level ' + escapeHtml(String(sub.pick_level || 3)) +
+                                ' · ' + escapeHtml(String(featureCount)) + ' feature' + (featureCount === 1 ? '' : 's') +
+                                ' <button type="button" class="button" data-subclass-edit="' + escapeHtml(entry.key) + ':' + idx + '">Edit</button>' +
+                                ' <button type="button" class="button button-secondary" data-subclass-delete="' + escapeHtml(entry.key) + ':' + idx + '">Remove</button>' +
+                                '</td>';
+                            tbody.appendChild(subTr);
+                        });
+                    }
+                    var addTr = document.createElement('tr');
+                    addTr.className = 'class-subclass-row';
+                    addTr.innerHTML =
+                        '<td colspan="6"><div class="class-subclass-folder-actions">' +
+                        '<button type="button" class="button" data-subclass-add="' + escapeHtml(entry.key) + '">Add subclass</button>' +
+                        '</div></td>';
+                    tbody.appendChild(addTr);
+                }
+            });
+            tbody.querySelectorAll('[data-class-toggle]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    toggleClassFolder(btn.getAttribute('data-class-toggle'));
+                });
             });
             tbody.querySelectorAll('[data-class-edit]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     var key = btn.getAttribute('data-class-edit');
-                    var entry = classesState.entries.find(function (row) { return row.key === key; });
+                    var entry = findClassEntry(key);
                     if (entry) openClassEditor(entry);
+                });
+            });
+            tbody.querySelectorAll('[data-subclass-edit]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var parts = String(btn.getAttribute('data-subclass-edit') || '').split(':');
+                    if (parts.length === 2) openSubclassEditor(parts[0], parseInt(parts[1], 10));
+                });
+            });
+            tbody.querySelectorAll('[data-subclass-delete]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var parts = String(btn.getAttribute('data-subclass-delete') || '').split(':');
+                    if (parts.length === 2) removeSubclass(parts[0], parseInt(parts[1], 10));
+                });
+            });
+            tbody.querySelectorAll('[data-subclass-add]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    openSubclassEditor(btn.getAttribute('data-subclass-add'), null);
                 });
             });
         }
@@ -4324,7 +5808,6 @@
             var form = document.getElementById('classes-editor');
             if (!form) return;
             initClassEditorStaticPickers();
-            ensureLevelSelectOptions();
             document.getElementById('classes-edit-key').value = entry.key;
             document.getElementById('classes-editor-title').textContent = 'Edit ' + entry.name;
             document.getElementById('classes-edit-name').value = entry.name || '';
@@ -4338,11 +5821,14 @@
             document.getElementById('classes-edit-secret').checked = !!entry.secret;
             document.getElementById('classes-edit-visible-owner').checked = entry.visible_to_owner !== false;
             document.getElementById('classes-edit-notes').value = entry.notes || '';
+            var spellcasting = entry.spellcasting || { type: 'none', ability: 'int' };
+            document.getElementById('classes-edit-spellcasting-type').value = spellcasting.type || 'none';
+            document.getElementById('classes-edit-spellcasting-ability').value = spellcasting.ability || 'int';
             classesState.draftProgression = JSON.parse(JSON.stringify(entry.level_progression || defaultProgressionRows()));
-            document.getElementById('classes-edit-level-select').value = '1';
-            loadLevelEditorFromDraft();
+            classesState.expandedLevel = 1;
+            renderClassProgressionTable();
             refreshAttachedTraitPicker('classes-edit-trait-keys-picker', entry.trait_keys || []).then(function () {
-                openCompendiumDetail('classes-pane-content', 'Edit ' + entry.name);
+                openCompendiumDetail('classes-pane-content', 'Edit ' + entry.name, '#class-editor-panel');
                 document.getElementById('classes-edit-name').focus();
             });
         }
@@ -4351,7 +5837,6 @@
             var form = document.getElementById('classes-editor');
             if (!form) return;
             initClassEditorStaticPickers();
-            ensureLevelSelectOptions();
             document.getElementById('classes-edit-key').value = '';
             document.getElementById('classes-editor-title').textContent = 'Add class';
             document.getElementById('classes-edit-name').value = '';
@@ -4364,14 +5849,13 @@
             document.getElementById('classes-edit-secret').checked = false;
             document.getElementById('classes-edit-visible-owner').checked = true;
             document.getElementById('classes-edit-notes').value = '';
+            document.getElementById('classes-edit-spellcasting-type').value = 'none';
+            document.getElementById('classes-edit-spellcasting-ability').value = 'int';
             classesState.draftProgression = defaultProgressionRows();
-            document.getElementById('classes-edit-level-select').value = '1';
-            loadLevelEditorFromDraft();
-            Promise.all([
-                refreshAttachedTraitPicker('classes-edit-trait-keys-picker', []),
-                refreshAttachedTraitPicker('classes-edit-level-trait-keys-picker', [])
-            ]).then(function () {
-                openCompendiumDetail('classes-pane-content', 'Add class');
+            classesState.expandedLevel = 1;
+            renderClassProgressionTable();
+            refreshAttachedTraitPicker('classes-edit-trait-keys-picker', []).then(function () {
+                openCompendiumDetail('classes-pane-content', 'Add class', '#class-editor-panel');
                 document.getElementById('classes-edit-name').focus();
             });
         }
@@ -4379,6 +5863,8 @@
         function classesPayloadFromEditor() {
             saveLevelEditorToDraft();
             var skillsAny = document.getElementById('classes-edit-skills-any').checked;
+            var key = document.getElementById('classes-edit-key').value;
+            var existing = key ? findClassEntry(key) : null;
             return {
                 name: document.getElementById('classes-edit-name').value,
                 summary: document.getElementById('classes-edit-summary').value,
@@ -4389,11 +5875,17 @@
                     options: skillsAny ? 'any' : readTraitSearchPicker('classes-edit-skills-picker')
                 },
                 level_progression: classesState.draftProgression,
+                spellcasting: {
+                    type: document.getElementById('classes-edit-spellcasting-type').value || 'none',
+                    ability: document.getElementById('classes-edit-spellcasting-ability').value || 'int'
+                },
+                progression_columns: [],
                 trait_keys: readTraitSearchPicker('classes-edit-trait-keys-picker'),
                 is_hidden: document.getElementById('classes-edit-hidden').checked,
                 secret: document.getElementById('classes-edit-secret').checked,
                 visible_to_owner: document.getElementById('classes-edit-visible-owner').checked,
-                notes: document.getElementById('classes-edit-notes').value
+                notes: document.getElementById('classes-edit-notes').value,
+                subclasses: existing ? (existing.subclasses || []) : []
             };
         }
 
@@ -4402,26 +5894,29 @@
             var refresh = document.getElementById('classes-refresh-btn');
             var form = document.getElementById('classes-editor');
             var cancel = document.getElementById('classes-edit-cancel');
-            var levelSelect = document.getElementById('classes-edit-level-select');
             if (add) add.addEventListener('click', openClassCreator);
             if (refresh) refresh.addEventListener('click', function () { loadClassesCompendium(true); });
             if (cancel && form) cancel.addEventListener('click', function () { closeCompendiumDetail('classes-pane-content'); });
-            if (levelSelect) {
-                levelSelect.addEventListener('change', function () {
-                    saveLevelEditorToDraft();
-                    loadLevelEditorFromDraft();
-                });
-            }
             initClassEditorStaticPickers();
             var skillsAny = document.getElementById('classes-edit-skills-any');
             if (skillsAny) {
                 skillsAny.addEventListener('change', syncClassSkillsPickerVisibility);
             }
-            var resourcesAdd = document.getElementById('classes-edit-resources-add');
-            if (resourcesAdd) {
-                resourcesAdd.addEventListener('click', function () {
-                    var host = document.getElementById('classes-edit-resources-list');
-                    if (host) appendClassResourceRow(host, '', '');
+            var subclassForm = document.getElementById('subclasses-editor');
+            var subclassCancel = document.getElementById('subclass-edit-cancel');
+            var subclassBack = document.getElementById('subclass-edit-back');
+            var featureAdd = document.getElementById('subclass-feature-add-btn');
+            if (subclassCancel) subclassCancel.addEventListener('click', closeSubclassEditor);
+            if (subclassBack) subclassBack.addEventListener('click', closeSubclassEditor);
+            if (featureAdd) featureAdd.addEventListener('click', function () {
+                var classKey = document.getElementById('subclass-edit-class-key').value;
+                classesState.draftFeatureGrants.push({ level: 3, name: '', trait_keys: [] });
+                renderSubclassFeaturesEditor(classesState.draftFeatureGrants, classKey);
+            });
+            if (subclassForm) {
+                subclassForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    saveSubclassFromEditor();
                 });
             }
             if (form) {
@@ -4749,7 +6244,6 @@
                     }
                 });
             }
-            setupImportPopout('spells-request-btn', 'spells-import-popout');
             window.gmSpells = { ensureLoaded: function () { return loadSpellsCompendium(false); } };
         }
 
@@ -4893,6 +6387,186 @@
             return '<button type="button" class="button" data-compendium-edit-url="' + escapeHtml(url) + '" data-compendium-title="' + escapeHtml(title || label || 'Edit') + '">' + escapeHtml(label || 'Open') + '</button>';
         }
 
+        var compendiumPersonCardEl = null;
+        var compendiumPersonCardHideTimer = null;
+
+        function ensureCompendiumPersonCard() {
+            if (compendiumPersonCardEl) return compendiumPersonCardEl;
+            compendiumPersonCardEl = document.createElement('div');
+            compendiumPersonCardEl.id = 'compendium-person-card';
+            compendiumPersonCardEl.className = 'compendium-person-card';
+            compendiumPersonCardEl.hidden = true;
+            compendiumPersonCardEl.setAttribute('role', 'tooltip');
+            compendiumPersonCardEl.innerHTML =
+                '<p class="compendium-person-card-role"></p>' +
+                '<strong class="compendium-person-card-name"></strong>' +
+                '<dl class="compendium-person-card-stats"></dl>' +
+                '<button type="button" class="button compendium-person-card-edit">Edit</button>';
+            document.body.appendChild(compendiumPersonCardEl);
+            compendiumPersonCardEl.addEventListener('mouseenter', function () {
+                if (compendiumPersonCardHideTimer) {
+                    clearTimeout(compendiumPersonCardHideTimer);
+                    compendiumPersonCardHideTimer = null;
+                }
+            });
+            compendiumPersonCardEl.addEventListener('mouseleave', function () {
+                hideCompendiumPersonCard();
+            });
+            var editBtn = compendiumPersonCardEl.querySelector('.compendium-person-card-edit');
+            if (editBtn) {
+                editBtn.addEventListener('click', function () {
+                    var url = editBtn.getAttribute('data-compendium-edit-url');
+                    var title = editBtn.getAttribute('data-compendium-title') || 'Edit';
+                    var panelId = editBtn.getAttribute('data-compendium-panel');
+                    if (!url || !panelId || !window.gmCompendiumEmbed) return;
+                    hideCompendiumPersonCard();
+                    window.gmCompendiumEmbed.open(
+                        document.getElementById(panelId),
+                        url,
+                        title
+                    );
+                });
+            }
+            return compendiumPersonCardEl;
+        }
+
+        function hideCompendiumPersonCard() {
+            if (compendiumPersonCardHideTimer) {
+                clearTimeout(compendiumPersonCardHideTimer);
+                compendiumPersonCardHideTimer = null;
+            }
+            if (compendiumPersonCardEl) compendiumPersonCardEl.hidden = true;
+        }
+
+        function scheduleHideCompendiumPersonCard() {
+            if (compendiumPersonCardHideTimer) clearTimeout(compendiumPersonCardHideTimer);
+            compendiumPersonCardHideTimer = setTimeout(hideCompendiumPersonCard, 120);
+        }
+
+        function showCompendiumPersonCard(anchor, data) {
+            var card = ensureCompendiumPersonCard();
+            if (compendiumPersonCardHideTimer) {
+                clearTimeout(compendiumPersonCardHideTimer);
+                compendiumPersonCardHideTimer = null;
+            }
+            var roleEl = card.querySelector('.compendium-person-card-role');
+            var nameEl = card.querySelector('.compendium-person-card-name');
+            var statsEl = card.querySelector('.compendium-person-card-stats');
+            var editBtn = card.querySelector('.compendium-person-card-edit');
+            if (roleEl) roleEl.textContent = data.role || 'Owner';
+            if (nameEl) nameEl.textContent = data.name || 'NPC';
+            if (statsEl) {
+                statsEl.innerHTML = '';
+                if (data.className) {
+                    statsEl.innerHTML += '<dt>Class</dt><dd>' + escapeHtml(data.className) + '</dd>';
+                }
+                if (data.level != null && data.level !== '') {
+                    statsEl.innerHTML += '<dt>Level</dt><dd>' + escapeHtml(String(data.level)) + '</dd>';
+                }
+                if (data.notes) {
+                    var noteText = String(data.notes);
+                    if (noteText.length > 160) noteText = noteText.slice(0, 157) + '…';
+                    statsEl.innerHTML += '<dt>Notes</dt><dd>' + escapeHtml(noteText) + '</dd>';
+                }
+                if (!statsEl.innerHTML) {
+                    statsEl.innerHTML = '<dd>No class, level, or notes recorded.</dd>';
+                }
+            }
+            if (editBtn) {
+                editBtn.textContent = data.editLabel || ('Edit ' + (data.role || 'owner').toLowerCase());
+                editBtn.setAttribute('data-compendium-edit-url', data.editUrl || '');
+                editBtn.setAttribute('data-compendium-title', data.editLabel || 'Edit');
+                editBtn.setAttribute('data-compendium-panel', data.panelId || '');
+            }
+            card.hidden = false;
+            var rect = anchor.getBoundingClientRect();
+            var cardRect = card.getBoundingClientRect();
+            var left = rect.left;
+            var top = rect.bottom + 8;
+            if (left + cardRect.width > window.innerWidth - 12) {
+                left = window.innerWidth - cardRect.width - 12;
+            }
+            if (top + cardRect.height > window.innerHeight - 12) {
+                top = rect.top - cardRect.height - 8;
+            }
+            card.style.left = Math.max(8, left) + 'px';
+            card.style.top = Math.max(8, top) + 'px';
+        }
+
+        function personCompendiumCell(entry, prefix, options) {
+            options = options || {};
+            var roleLabel = options.role || (prefix === 'ruler' ? 'Ruler' : 'Owner');
+            var addLabel = options.add || ('Add ' + roleLabel.toLowerCase());
+            var editLabel = options.edit || ('Edit ' + roleLabel.toLowerCase());
+            var panelId = options.panelId || '';
+            var playerId = entry[prefix + '_player_id'];
+            var name = entry[prefix + '_name'];
+            var editUrl = entry[prefix + '_edit_url'];
+            var addUrl = entry['add_' + prefix + '_url'];
+            if (playerId) {
+                var displayName = name || ('NPC #' + playerId);
+                var linkHtml = '<button type="button" class="compendium-person-link" ' +
+                    'data-compendium-edit-url="' + escapeHtml(editUrl || '') + '" ' +
+                    'data-compendium-title="' + escapeHtml(editLabel) + '" ' +
+                    'data-compendium-panel="' + escapeHtml(panelId) + '" ' +
+                    'data-person-role="' + escapeHtml(roleLabel) + '" ' +
+                    'data-person-name="' + escapeHtml(displayName) + '" ' +
+                    'data-person-class="' + escapeHtml(entry[prefix + '_class_name'] || '') + '" ' +
+                    'data-person-level="' + escapeHtml(entry[prefix + '_level'] == null ? '' : String(entry[prefix + '_level'])) + '" ' +
+                    'data-person-notes="' + escapeHtml(entry[prefix + '_notes'] || '') + '">' +
+                    escapeHtml(displayName) + '</button>';
+                return '<span class="compendium-person-cell">' + linkHtml + '</span>';
+            }
+            if (addUrl) {
+                return linkCell(addUrl, addLabel, addLabel);
+            }
+            return '—';
+        }
+
+        function bindCompendiumPersonCells(kind) {
+            var tbody = document.getElementById(kind + '-compendium-body');
+            if (!tbody) return;
+            var panelId = kind + '-pane-content';
+            tbody.querySelectorAll('.compendium-person-link').forEach(function (btn) {
+                btn.addEventListener('mouseenter', function () {
+                    showCompendiumPersonCard(btn, {
+                        role: btn.getAttribute('data-person-role'),
+                        name: btn.getAttribute('data-person-name'),
+                        className: btn.getAttribute('data-person-class'),
+                        level: btn.getAttribute('data-person-level'),
+                        notes: btn.getAttribute('data-person-notes'),
+                        editUrl: btn.getAttribute('data-compendium-edit-url'),
+                        editLabel: btn.getAttribute('data-compendium-title'),
+                        panelId: panelId
+                    });
+                });
+                btn.addEventListener('mouseleave', scheduleHideCompendiumPersonCard);
+                btn.addEventListener('focus', function () {
+                    showCompendiumPersonCard(btn, {
+                        role: btn.getAttribute('data-person-role'),
+                        name: btn.getAttribute('data-person-name'),
+                        className: btn.getAttribute('data-person-class'),
+                        level: btn.getAttribute('data-person-level'),
+                        notes: btn.getAttribute('data-person-notes'),
+                        editUrl: btn.getAttribute('data-compendium-edit-url'),
+                        editLabel: btn.getAttribute('data-compendium-title'),
+                        panelId: panelId
+                    });
+                });
+                btn.addEventListener('blur', scheduleHideCompendiumPersonCard);
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var url = btn.getAttribute('data-compendium-edit-url');
+                    var title = btn.getAttribute('data-compendium-title') || 'Edit';
+                    var panel = document.getElementById(panelId);
+                    if (!url || !panel || !window.gmCompendiumEmbed) return;
+                    hideCompendiumPersonCard();
+                    window.gmCompendiumEmbed.open(panel, url, title);
+                });
+            });
+        }
+
         function compendiumCityMapButton(entry) {
             if (entry.is_on_world_map) {
                 return '<button type="button" class="button map-compendium-map-btn is-on-map" disabled title="Already on world map">On map</button>';
@@ -4980,7 +6654,7 @@
             }
             if (!rows.length) {
                 var empty = document.createElement('tr');
-                var colspan = kind === 'regions' ? 5 : 6;
+                var colspan = kind === 'regions' ? 5 : (kind === 'cities' || kind === 'shops' ? 7 : 6);
                 empty.innerHTML = '<td colspan="' + colspan + '" class="empty-city">No ' + escapeHtml(kind) + ' match the current search.</td>';
                 tbody.appendChild(empty);
                 return;
@@ -4988,21 +6662,15 @@
             rows.forEach(function (entry) {
                 var tr = document.createElement('tr');
                 if (kind === 'regions') {
-                    var rulerCell;
-                    if (entry.ruler_player_id) {
-                        rulerCell = escapeHtml(entry.ruler_name || ('NPC #' + entry.ruler_player_id));
-                        if (entry.ruler_edit_url) {
-                            rulerCell += ' ' + linkCell(entry.ruler_edit_url, 'Edit', 'Edit ruler');
-                        }
-                    } else if (entry.add_ruler_url) {
-                        rulerCell = linkCell(entry.add_ruler_url, 'Add ruler', 'Add ruler');
-                    } else {
-                        rulerCell = '—';
-                    }
                     tr.innerHTML =
                         '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
                         '<td>' + escapeHtml(entry.axis_position == null ? 'Unspecified' : String(entry.axis_position)) + '</td>' +
-                        '<td>' + rulerCell + '</td>' +
+                        '<td>' + personCompendiumCell(entry, 'ruler', {
+                            role: 'Ruler',
+                            add: 'Add ruler',
+                            edit: 'Edit ruler',
+                            panelId: 'regions-pane-content'
+                        }) + '</td>' +
                         '<td>' + escapeHtml(String(entry.city_count || 0)) + '</td>' +
                         '<td>' + compendiumRegionMapButton(entry) + ' ' + linkCell(entry.edit_url, 'Edit') + '</td>';
                 } else if (kind === 'cities') {
@@ -5011,6 +6679,12 @@
                         '<td>' + escapeHtml(entry.region || 'Unassigned') + '</td>' +
                         '<td>' + escapeHtml(entry.size || '') + '</td>' +
                         '<td>' + escapeHtml(String(entry.population || 0)) + '</td>' +
+                        '<td>' + personCompendiumCell(entry, 'owner', {
+                            role: 'Owner',
+                            add: 'Add owner',
+                            edit: 'Edit owner',
+                            panelId: 'cities-pane-content'
+                        }) + '</td>' +
                         '<td>' + escapeHtml(String(entry.shop_count || 0)) + '</td>' +
                         '<td>' + linkCell(entry.edit_url, 'Edit') + ' ' + compendiumCityMapButton(entry) + '</td>';
                 } else {
@@ -5018,6 +6692,12 @@
                         '<td><strong>' + escapeHtml(entry.name) + '</strong></td>' +
                         '<td>' + escapeHtml(entry.type || '') + '</td>' +
                         '<td>' + escapeHtml((entry.cities || []).join(', ') || 'Unassigned') + '</td>' +
+                        '<td>' + personCompendiumCell(entry, 'owner', {
+                            role: 'Owner',
+                            add: 'Add owner',
+                            edit: 'Edit owner',
+                            panelId: 'shops-pane-content'
+                        }) + '</td>' +
                         '<td>' + escapeHtml(String(entry.inventory_count || 0)) + '</td>' +
                         '<td>' + escapeHtml(entry.next_restock_day == null ? 'Not set' : String(entry.next_restock_day)) + '</td>' +
                         '<td>' + linkCell(entry.items_url, 'Items') + ' ' + linkCell(entry.edit_url, 'Edit') + ' ' +
@@ -5026,6 +6706,7 @@
                 tbody.appendChild(tr);
             });
             bindCompendiumMapButtons(kind);
+            bindCompendiumPersonCells(kind);
         }
 
         async function loadWorldCompendium(kind, force) {
@@ -5084,22 +6765,34 @@
             };
         }
 
-        function openCompendiumDetail(panelId, title) {
+        function openCompendiumDetail(panelId, title, detailSelector) {
             var panel = document.getElementById(panelId);
             if (!panel) return;
-            var detail = panel.querySelector('.gm-compendium-detail');
+            panel.querySelectorAll('.gm-compendium-detail').forEach(function (el) {
+                el.hidden = true;
+            });
+            var detail = detailSelector
+                ? panel.querySelector(detailSelector)
+                : panel.querySelector('.gm-compendium-detail');
             var titleEl = detail && detail.querySelector('.gm-compendium-embed-title');
             if (titleEl) titleEl.textContent = title || '';
             if (detail) detail.hidden = false;
             panel.classList.add('is-compendium-embed-open');
         }
 
-        function closeCompendiumDetail(panelId) {
+        function closeCompendiumDetail(panelId, detailSelector) {
             var panel = document.getElementById(panelId);
             if (!panel) return;
-            var detail = panel.querySelector('.gm-compendium-detail');
-            if (detail) detail.hidden = true;
-            panel.classList.remove('is-compendium-embed-open');
+            if (detailSelector) {
+                var detail = panel.querySelector(detailSelector);
+                if (detail) detail.hidden = true;
+            } else {
+                panel.querySelectorAll('.gm-compendium-detail').forEach(function (el) {
+                    el.hidden = true;
+                });
+            }
+            var anyOpen = panel.querySelector('.gm-compendium-detail:not([hidden])');
+            if (!anyOpen) panel.classList.remove('is-compendium-embed-open');
         }
 
         var compendiumPaneKinds = {
@@ -5182,9 +6875,18 @@
                 var data = event.data || {};
                 if (data.type === 'gm-players-changed' && typeof refreshPlayersNpcsList === 'function') {
                     refreshPlayersNpcsList();
+                    ['regions', 'cities', 'shops'].forEach(function (kind) {
+                        if (worldCompendiumState[kind]) {
+                            worldCompendiumState[kind].loaded = false;
+                            loadWorldCompendium(kind, true);
+                        }
+                    });
+                    if (window.gmMap && typeof window.gmMap.refreshCurrentMap === 'function') {
+                        window.gmMap.refreshCurrentMap();
+                    }
                 }
-                if (data.type === 'gm-map-changed' && typeof refreshCurrentMap === 'function') {
-                    refreshCurrentMap();
+                if (data.type === 'gm-map-changed' && window.gmMap && typeof window.gmMap.refreshCurrentMap === 'function') {
+                    window.gmMap.refreshCurrentMap();
                 }
                 if (data.type !== 'gm-compendium-embed-close') return;
                 var panel = document.getElementById(data.anchor || '');
@@ -5194,8 +6896,8 @@
                     if (typeof refreshPlayersNpcsList === 'function') {
                         refreshPlayersNpcsList();
                     }
-                    if (typeof refreshCurrentMap === 'function') {
-                        refreshCurrentMap();
+                    if (window.gmMap && typeof window.gmMap.refreshCurrentMap === 'function') {
+                        window.gmMap.refreshCurrentMap();
                     }
                 }
             });
@@ -5211,8 +6913,11 @@
 
             document.querySelectorAll('.gm-compendium-detail-close').forEach(function (btn) {
                 btn.addEventListener('click', function () {
+                    var detail = btn.closest('.gm-compendium-detail');
                     var panel = btn.closest('.gm-slide-panel');
-                    if (panel) closeCompendiumDetail(panel.id);
+                    if (!panel) return;
+                    var detailSelector = detail && detail.id ? ('#' + detail.id) : null;
+                    closeCompendiumDetail(panel.id, detailSelector);
                 });
             });
         }
@@ -5595,7 +7300,6 @@
             var underlayImage = document.getElementById('map-underlay-image');
             var underlayInput = document.getElementById('map-underlay-input');
             var underlayClearBtn = document.getElementById('map-underlay-clear-btn');
-            var convertEditableBtn = document.getElementById('map-convert-editable-btn');
             var regionBoundaryLayer = document.getElementById('map-region-boundary-layer');
             var studioOverlay = document.getElementById('map-studio-canvas');
             var viewportLayer = document.getElementById('map-viewport-layer');
@@ -5742,12 +7446,6 @@
                     : cityUrl(urls.mapCityUnderlay, state.cityId);
             }
 
-            function studioConvertUrl() {
-                return state.mode === 'world'
-                    ? urls.mapWorldConvertEditable
-                    : cityUrl(urls.mapCityConvertEditable, state.cityId);
-            }
-
             function updateMapViewportHint() {
                 var hint = document.getElementById('map-viewport-hint');
                 var painting = mapStudio && mapStudio.isActive();
@@ -5846,7 +7544,7 @@
             function toggleMapStudio() {
                 if (!mapStudio) return;
                 if (!state.canvas || state.canvas.has_image) {
-                    mapFeedback('Convert or remove the uploaded background to use map studio.', true);
+                    mapFeedback('Remove the uploaded background to use map studio.', true);
                     return;
                 }
                 if (mapStudio.isActive()) {
@@ -6190,6 +7888,58 @@
                 return { w: 1000, h: 750 };
             }
 
+            function buildRegionTintSvg(regionFeatures, world) {
+                var ns = 'http://www.w3.org/2000/svg';
+                var svg = document.createElementNS(ns, 'svg');
+                svg.setAttribute('class', 'map-region-boundary-svg');
+                svg.setAttribute('viewBox', '0 0 ' + world.w + ' ' + world.h);
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                var strokeW = Math.max(3, world.w / 400);
+                regionFeatures.forEach(function (feat) {
+                    if (!feat.points || feat.points.length < 3) return;
+                    var fillColor = feat.main_color || '#c084fc';
+                    var borderColor = feat.secondary_color || '#7c3aed';
+                    var pts = feat.points.map(function (pt) {
+                        return (Number(pt[0]) * world.w).toFixed(2) + ',' +
+                            (Number(pt[1]) * world.h).toFixed(2);
+                    }).join(' ');
+                    var polygon = document.createElementNS(ns, 'polygon');
+                    polygon.setAttribute('points', pts);
+                    polygon.setAttribute('fill', fillColor);
+                    polygon.setAttribute('fill-opacity', '0.22');
+                    polygon.setAttribute('stroke', borderColor);
+                    polygon.setAttribute('stroke-width', String(strokeW));
+                    polygon.setAttribute('stroke-linejoin', 'round');
+                    svg.appendChild(polygon);
+                });
+                return svg;
+            }
+
+            function renderSavedRegionOverlays() {
+                if (!regionBoundaryLayer || state.pendingRegionBoundary) return;
+                if (!state.canvas || state.mode !== 'world') {
+                    regionBoundaryLayer.innerHTML = '';
+                    regionBoundaryLayer.hidden = true;
+                    return;
+                }
+                var features = (state.canvas.generation && state.canvas.generation.features) || [];
+                var regionFeatures = features.filter(function (feat) {
+                    return feat.type === 'region_tint' &&
+                        feat.region_id != null &&
+                        feat.points &&
+                        feat.points.length >= 3;
+                });
+                if (!state.canvas.has_image || !regionFeatures.length) {
+                    regionBoundaryLayer.innerHTML = '';
+                    regionBoundaryLayer.hidden = true;
+                    return;
+                }
+                var world = regionBoundaryWorldSize();
+                regionBoundaryLayer.innerHTML = '';
+                regionBoundaryLayer.appendChild(buildRegionTintSvg(regionFeatures, world));
+                regionBoundaryLayer.hidden = false;
+            }
+
             function renderRegionBoundaryOverlay() {
                 if (!regionBoundaryLayer) return;
                 var draft = state.pendingRegionBoundary;
@@ -6262,7 +8012,7 @@
                 syncRegionBoundaryNav(!!draft);
                 if (stageUploadLabel) stageUploadLabel.hidden = !!draft;
                 if (!draft) {
-                    renderRegionBoundaryOverlay();
+                    renderSavedRegionOverlays();
                     updatePendingPlacementClass();
                     if (mapViewport && mapViewport.setPaintActive) {
                         mapViewport.setPaintActive(false);
@@ -6575,8 +8325,10 @@
                     bgImage.hidden = false;
                     configureUploadedMapViewport(canvas);
                     if (appearancePanel) appearancePanel.hidden = true;
+                    renderSavedRegionOverlays();
                     return;
                 }
+                renderSavedRegionOverlays();
                 bgImage.hidden = true;
                 bgImage.removeAttribute('src');
                 if (appearancePanel) appearancePanel.hidden = false;
@@ -7209,10 +8961,13 @@
                 }
                 var key = playerId != null ? String(playerId) : '';
                 if (key && state.people && state.people[key] && state.people[key].display) {
-                    if (!resolved) {
-                        resolved = { label: label, display: state.people[key].display };
-                    }
-                    if (resolved.player_id == null) {
+                    if (!resolved || resolved.display === 'Unassigned') {
+                        resolved = {
+                            label: label,
+                            display: state.people[key].display,
+                            player_id: state.people[key].player_id || Number(playerId)
+                        };
+                    } else if (resolved.player_id == null) {
                         resolved.player_id = state.people[key].player_id || Number(playerId);
                     }
                 }
@@ -7221,6 +8976,13 @@
                         label: summaryField.label || label,
                         display: summaryField.display,
                         player_id: summaryField.player_id
+                    };
+                }
+                if ((!resolved || resolved.display === 'Unassigned') && playerId != null) {
+                    resolved = {
+                        label: label,
+                        display: 'NPC #' + playerId,
+                        player_id: Number(playerId)
                     };
                 }
                 if (!resolved) {
@@ -7808,7 +9570,7 @@
             async function refreshCurrentMap() {
                 var mapPanel = document.getElementById('map-pane-content');
                 var mapActive = mapPanel && mapPanel.classList.contains('active');
-                if (!state.canvas && !mapActive) return;
+                if (!state.loadedOnce && !mapActive) return;
                 if (state.mode === 'city' && state.cityId) {
                     return openCityMap(state.cityId);
                 }
@@ -8222,26 +9984,6 @@
             }
             if (studioRedoBtn && mapStudio) {
                 studioRedoBtn.addEventListener('click', function () { mapStudio.redo(); });
-            }
-            if (convertEditableBtn) {
-                convertEditableBtn.addEventListener('click', async function () {
-                    mapFeedback('Converting map\u2026', false);
-                    try {
-                        var resp = await fetch(studioConvertUrl(), {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            headers: { 'X-CSRFToken': csrfToken }
-                        });
-                        var j = await resp.json().catch(function () { return {}; });
-                        if (!resp.ok) throw new Error(j.error || 'Could not convert map.');
-                        state.canvas = j.canvas;
-                        previewGeneration = null;
-                        renderAll();
-                        mapFeedback('Map is now editable in Map studio.', false);
-                    } catch (err) {
-                        mapFeedback(err.message || 'Could not convert map.', true);
-                    }
-                });
             }
             if (underlayInput) {
                 underlayInput.addEventListener('change', async function () {
@@ -8750,7 +10492,8 @@
                         cityId: state.cityId,
                         cityName: state.cityName
                     };
-                }
+                },
+                refreshCurrentMap: refreshCurrentMap
             };
         })();
         window.gmMap = gmMap;
@@ -9030,7 +10773,8 @@
                 var payload = {
                     ability_method: methodEl.value,
                     point_buy_budget: parseInt(document.getElementById('char-creation-budget')?.value || '27', 10),
-                    random_rerolls_per_ability: parseInt(document.getElementById('char-creation-rerolls')?.value || '0', 10)
+                    random_rerolls_per_ability: parseInt(document.getElementById('char-creation-rerolls')?.value || '0', 10),
+                    max_player_level: parseInt(document.getElementById('char-creation-max-level')?.value || '20', 10)
                 };
                 fetch('/gm/character-creation/settings', {
                     method: 'POST',
@@ -9128,10 +10872,6 @@
                         nameSpan.appendChild(lvlTag);
                     }
                     link.appendChild(nameSpan);
-                    var hint = document.createElement('span');
-                    hint.className = 'players-npcs-muted';
-                    hint.textContent = 'View sheet';
-                    link.appendChild(hint);
                     list.appendChild(link);
                     charCell.appendChild(list);
                     var actCell = document.createElement('td');
@@ -9183,7 +10923,6 @@
             setupPlayersSubtabs();
             setupCharacterCreationControls();
             setupImportPopout('market-import-btn', 'market-import-popout');
-            setupImportPopout('battle-monster-import-btn', 'battle-monster-import-popout');
             updateSimulationStatus().finally(scheduleStatusPoll);
             var firstSimCta = document.getElementById('gm-first-sim-cta');
             if (firstSimCta) {

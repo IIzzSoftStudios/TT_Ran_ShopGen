@@ -63,6 +63,51 @@ def test_ensure_classes_compendium_seeds_core_classes():
     assert all(len(row.get("level_progression") or []) == 20 for row in entries)
 
 
+def test_ensure_classes_compendium_seeds_srd_subclasses():
+    _, campaign = _make_gm_with_campaign("gm-seed-subclasses")
+    entries = ensure_classes_compendium(campaign.id)
+    barbarian = next(row for row in entries if row["key"] == "barbarian")
+    subclasses = barbarian.get("subclasses") or []
+    assert any(row.get("key") == "path-of-the-berserker" for row in subclasses)
+    pick_row = next(
+        row for row in (barbarian.get("level_progression") or []) if int(row.get("level") or 0) == 3
+    )
+    assert any(
+        str(choice.get("type") or "") == "subclass"
+        for choice in (pick_row.get("player_choices") or [])
+    )
+
+
+def test_update_class_with_custom_subclass():
+    _, campaign = _make_gm_with_campaign("gm-subclass-crud")
+    fighter = next(row for row in ensure_classes_compendium(campaign.id) if row["key"] == "fighter")
+    updated = update_class(
+        campaign.id,
+        "fighter",
+        {
+            **fighter,
+            "subclasses": list(fighter.get("subclasses") or [])
+            + [
+                {
+                    "key": "battle-master",
+                    "name": "Battle Master",
+                    "pick_level": 3,
+                    "summary": "Custom tactical fighter.",
+                    "feature_grants": [
+                        {
+                            "level": 3,
+                            "name": "Combat Superiority",
+                            "trait_keys": ["cf-fighting-style"],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+    keys = {row.get("key") for row in updated.get("subclasses") or []}
+    assert "battle-master" in keys
+
+
 def test_create_class_requires_valid_progression():
     _, campaign = _make_gm_with_campaign("gm-create-class")
     with pytest.raises(ClassesValidationError):
@@ -152,7 +197,8 @@ def test_classes_compendium_json_updates_base_class():
     assert listed.status_code == 200
     fighter = next(row for row in listed.get_json()["classes"] if row["key"] == "fighter")
     progression = fighter["level_progression"]
-    progression[0]["features"] = [{"name": "Custom Fighting Style", "description": "GM-authored level 1 feature."}]
+    progression[0]["trait_keys"] = ["speed-30"]
+    progression[0]["features"] = []
 
     resp = client.post(
         "/gm/classes/compendium/fighter",
@@ -172,7 +218,8 @@ def test_classes_compendium_json_updates_base_class():
     assert resp.status_code == 200
     body = resp.get_json()["class"]
     assert body["summary"] == "Updated fighter shell."
-    assert body["level_progression"][0]["features"][0]["name"] == "Custom Fighting Style"
+    assert body["level_progression"][0]["trait_keys"] == ["speed-30"]
+    assert body["level_progression"][0]["features"][0]["name"] == "Speed 30 ft"
 
 
 def test_classes_compendium_json_creates_custom_class():
@@ -223,7 +270,8 @@ def test_compendium_mutation_reflected_in_player_class_details():
     entries = ensure_classes_compendium(campaign.id)
     fighter = next(row for row in entries if row["key"] == "fighter")
     progression = fighter["level_progression"]
-    progression[4]["features"] = [{"name": "Extra Attack", "description": "Attack twice when you take the Attack action."}]
+    progression[4]["trait_keys"] = ["savage-attacks"]
+    progression[4]["features"] = []
     update_class(
         campaign.id,
         "fighter",
@@ -272,11 +320,11 @@ def test_compendium_mutation_reflected_in_player_class_details():
         owner_class_key="fighter",
     )
     assert details["available"] is True
-    assert details["current_level_row"]["features"][0]["name"] == "Extra Attack"
+    assert details["current_level_row"]["features"][0]["name"] == "Extra damage die on melee crit"
 
     payload = character_data_payload(player, campaign)
     assert payload["class_details"]["available"] is True
-    assert payload["class_details"]["current_level_row"]["features"][0]["name"] == "Extra Attack"
+    assert payload["class_details"]["current_level_row"]["features"][0]["name"] == "Extra damage die on melee crit"
 
 
 def test_hidden_class_not_exposed_by_name_fallback():

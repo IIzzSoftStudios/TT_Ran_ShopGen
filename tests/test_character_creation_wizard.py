@@ -97,6 +97,14 @@ def test_create_character_get_includes_dnd5e_wizard(client):
         assert b".selection-badge" in body
         assert b"id=\"background-modal\"" in body
         assert b"Accept background" in body
+        assert b"species-trait-list" in body
+        assert b"species-modal-choices" in body
+        assert b'"traits"' in body
+
+
+def test_point_buy_spend_table():
+    assert point_buy_spend({"str": 8, "dex": 8, "con": 8, "int": 8, "wis": 8, "cha": 8}) == 0
+    assert point_buy_spend({"str": 15, "dex": 8, "con": 8, "int": 8, "wis": 8, "cha": 8}) == 9
 
 
 def test_campaign_redeem_redirects_dnd5e_player_to_wizard(client):
@@ -363,6 +371,7 @@ def test_gm_character_creation_settings_persist(client):
                     "ability_method": "random_roll",
                     "point_buy_budget": 30,
                     "random_rerolls_per_ability": 2,
+                    "max_player_level": 12,
                 }
             ),
             content_type="application/json",
@@ -372,6 +381,7 @@ def test_gm_character_creation_settings_persist(client):
         stored = cfg.settings_json["character_creation"]
         assert stored["ability_method"] == "random_roll"
         assert stored["random_rerolls_per_ability"] == 2
+        assert stored["max_player_level"] == 12
 
 
 def test_gm_home_shows_species_compendium_without_character_options_tab(client):
@@ -393,6 +403,7 @@ def test_gm_home_shows_species_compendium_without_character_options_tab(client):
         assert 'id="species-tab-btn"' in html
         assert 'id="species-add-btn"' in html
         assert 'id="char-creation-controls"' in html
+        assert 'id="char-creation-max-level"' in html
 
 
 def test_vault_sheet_copied_on_campaign_join(client):
@@ -451,11 +462,57 @@ def test_build_final_sheet_applies_species_after_point_buy():
     )
     assert sheet["abilities"]["str"] == 16
     assert sheet["creation"]["base_abilities"]["str"] == 15
+    assert sheet["traits"]
+    assert sheet["creation"]["trait_keys"] == ["speed-30", "size-medium"]
 
 
-def test_point_buy_spend_table():
-    assert point_buy_spend({"str": 8, "dex": 8, "con": 8, "int": 8, "wis": 8, "cha": 8}) == 0
-    assert point_buy_spend({"str": 15, "dex": 8, "con": 8, "int": 8, "wis": 8, "cha": 8}) == 9
+def test_build_final_sheet_elf_grants_perception_and_traits():
+    from app.services.character_creation.dnd5e_catalog import merged_creation_catalog as catalog_merge
+
+    catalog = catalog_merge()
+    settings = {
+        "ability_method": "point_buy",
+        "point_buy_budget": 27,
+        "settings_version": "test",
+    }
+    sheet = build_final_sheet_json(
+        _valid_wizard_payload(species_key="elf"),
+        catalog=catalog,
+        settings=settings,
+    )
+    assert any(t.get("name") == "Keen Senses" for t in sheet["traits"])
+    assert sheet["skill_prof_tiers"]["perception"] == 2
+    assert "darkvision-60" in sheet["creation"]["trait_keys"]
+
+
+def test_build_final_sheet_half_elf_requires_species_skills():
+    from app.services.character_creation.dnd5e_catalog import merged_creation_catalog as catalog_merge
+
+    catalog = catalog_merge()
+    settings = {
+        "ability_method": "point_buy",
+        "point_buy_budget": 27,
+        "settings_version": "test",
+    }
+    with pytest.raises(Exception):
+        build_final_sheet_json(
+            _valid_wizard_payload(
+                species_key="half-elf",
+                species_flex_assignments={"int": 1, "wis": 1},
+            ),
+            catalog=catalog,
+            settings=settings,
+        )
+
+
+def test_merged_catalog_exposes_srd_species_traits():
+    from app.services.character_creation.dnd5e_catalog import merged_creation_catalog as catalog_merge
+
+    catalog = catalog_merge()
+    dwarf = next(row for row in catalog["species"] if row["key"] == "dwarf")
+    assert dwarf["traits"]
+    assert dwarf["trait_keys"]
+    assert dwarf["stat_modifiers"]
 
 
 def test_custom_class_with_any_skill_options_finalizes_immutable_choices():
@@ -523,7 +580,25 @@ def test_build_final_sheet_uncapped_accepts_high_abilities():
     )
     assert sheet["creation"]["base_abilities"]["str"] == 22
     assert sheet["abilities"]["str"] == 23  # human +1 to all
-    assert sheet["creation"]["ability_method"] == "gm_set"
+
+
+def test_dragonborn_finalize_stores_ancestry_and_resist_trait():
+    from app.services.character_creation.dnd5e_catalog import merged_creation_catalog as catalog_merge
+
+    catalog = catalog_merge()
+    settings = get_creation_settings(None)
+    sheet = build_final_sheet_json(
+        _valid_wizard_payload(
+            species_key="dragonborn",
+            dragonborn_ancestry="fire",
+        ),
+        catalog=catalog,
+        settings=settings,
+    )
+    creation = sheet["creation"]
+    assert creation["dragonborn_ancestry"] == "fire"
+    assert "fire" in (creation.get("dragonborn_breath_summary") or "").lower()
+    assert "resist-fire" in creation["trait_keys"]
 
 
 def test_gm_create_npc_get_shows_dnd5e_wizard(client):

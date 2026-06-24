@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Creator Partnership — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        .page-wrap { max-width: 980px; margin: 0 auto; padding: 22px 18px 60px; }
+        .topbar-simple {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        }
+        .topbar-inner-simple {
+            max-width: 980px; margin: 0 auto; padding: 14px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 14px; flex-wrap: wrap;
+        }
+        .title { font-size: 2rem; margin: 0 0 6px; }
+        .subtitle { margin: 0 0 18px; color: var(--color-muted); line-height: 1.6; }
+        .form-card {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 16px; padding: 18px;
+        }
+        .section-title { margin: 18px 0 10px; font-size: 1.1rem; font-weight: 800; }
+        .section-title:first-child { margin-top: 0; }
+        .field-row {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 14px; margin-bottom: 12px;
+        }
+        .field { display: flex; flex-direction: column; gap: 8px; }
+        .field label { font-weight: 800; color: var(--color-text); }
+        .field input, .field select, .field textarea {
+            padding: 10px 12px; border-radius: 12px;
+        }
+        .field textarea { min-height: 110px; resize: vertical; }
+        .field-hint { font-size: 0.88rem; color: var(--color-muted); margin: 0; line-height: 1.45; }
+        .radio-group, .checkbox-group { display: grid; gap: 10px; }
+        .radio-option, .checkbox-option {
+            display: flex; gap: 10px; align-items: flex-start;
+            padding: 10px 12px; border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(15, 23, 42, 0.15);
+        }
+        .radio-option input, .checkbox-option input { margin-top: 4px; }
+        .radio-option label, .checkbox-option label { font-weight: 600; line-height: 1.45; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 10px; padding: 10px 14px; border: 1px solid transparent;
+            font-weight: 800; cursor: pointer; text-decoration: none; white-space: nowrap;
+        }
+        .btn-primary { background: var(--color-accent); color: var(--color-accent-contrast); }
+        .btn-secondary {
+            background: transparent; border: 1px solid rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+        #rate-field[hidden] { display: none !important; }
+        @media (max-width: 720px) {
+            .field-row { grid-template-columns: 1fr; }
+            .title { font-size: 1.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar-simple">
+        <div class="topbar-inner-simple">
+            <div style="font-weight:900; letter-spacing:0.2px;">Econo-Forge</div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Home</a>
+                <a class="btn btn-secondary" href="{{ url_for('main.public_deck') }}" target="_blank" rel="noopener noreferrer">Public Deck</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-wrap">
+        <h1 class="title">Creator / Sponsor Partnership</h1>
+        <p class="subtitle">
+            For TTRPG and gaming creators who want affiliate access, product exchange, or paid integrations.
+            Submit verifiable channel details—we review every request manually and follow up by email.
+        </p>
+
+        <div class="form-card">
+            <form method="POST" action="{{ url_for('main.creator_partnership_request') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <h2 class="section-title">Contact</h2>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="full_name">Full name</label>
+                        <input type="text" id="full_name" name="full_name" required maxlength="120" autocomplete="name">
+                    </div>
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <input type="email" id="email" name="email" required placeholder="you@channel.com" autocomplete="email">
+                    </div>
+                </div>
+
+                <h2 class="section-title">Channel identity &amp; reach</h2>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="primary_platform">Primary platform</label>
+                        <select id="primary_platform" name="primary_platform" required>
+                            <option value="">Select platform</option>
+                            <option value="youtube_shorts">YouTube / Shorts</option>
+                            <option value="tiktok">TikTok</option>
+                            <option value="twitch">Twitch</option>
+                            <option value="instagram_reels">Instagram Reels</option>
+                            <option value="podcast_other">Podcast / Other</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="audience_size">Audience size</label>
+                        <select id="audience_size" name="audience_size" required>
+                            <option value="">Select range</option>
+                            <option value="under_10k">Under 10k subscribers/followers</option>
+                            <option value="10k_50k">10k – 50k subscribers/followers</option>
+                            <option value="50k_250k">50k – 250k subscribers/followers</option>
+                            <option value="250k_plus">250k+ subscribers/followers</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field" style="grid-column: 1 / -1;">
+                        <label for="channel_url">Primary channel URL / handle</label>
+                        <input type="text" id="channel_url" name="channel_url" required maxlength="500" placeholder="https://youtube.com/@channel or @handle">
+                        <p class="field-hint">Use a full URL or @handle so we can audit your content and audience fit.</p>
+                    </div>
+                </div>
+
+                <h2 class="section-title">Niche &amp; audience fit</h2>
+                <p class="field-hint" style="margin-bottom:10px;">Select every content focus that applies to your channel.</p>
+                <div class="checkbox-group" role="group" aria-label="Primary content focus">
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="focus_ttrpg" name="content_focus" value="ttrpg">
+                        <label for="focus_ttrpg">Tabletop RPGs (D&amp;D 5E, Pathfinder, OGL, etc.)</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="focus_gm" name="content_focus" value="gm_advice">
+                        <label for="focus_gm">GM Advice / World-Building Tutorials</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="focus_strategy" name="content_focus" value="grand_strategy">
+                        <label for="focus_strategy">Grand Strategy / Simulation / Management Games</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="focus_milsim" name="content_focus" value="military_sim">
+                        <label for="focus_milsim">Military Simulation / Tactical Gaming</label>
+                    </div>
+                </div>
+                <div class="field-row" style="margin-top:12px;">
+                    <div class="field" style="grid-column: 1 / -1;">
+                        <label for="avg_views_note">Average video views / concurrent stream viewers</label>
+                        <input type="text" id="avg_views_note" name="avg_views_note" required maxlength="300" placeholder="e.g., Average 5k views per Short, or 150 concurrent viewers on Twitch">
+                    </div>
+                </div>
+
+                <h2 class="section-title">Partnership model</h2>
+                <div class="radio-group" role="radiogroup" aria-label="Partnership type">
+                    <div class="radio-option">
+                        <input type="radio" id="partner_affiliate" name="partnership_type" value="affiliate" required>
+                        <label for="partner_affiliate">Affiliate / Revenue Share — custom referral link or code for paid Pro tier upgrades I drive</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="partner_paid" name="partnership_type" value="paid_sponsorship">
+                        <label for="partner_paid">Paid Sponsorship / Integration — dedicated videos, product placements, or sponsored streams</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="partner_exchange" name="partnership_type" value="product_exchange">
+                        <label for="partner_exchange">Product Exchange — free Pro / Forge Master access to use live on stream or at the table</label>
+                    </div>
+                </div>
+                <div class="field-row" id="rate-field" hidden>
+                    <div class="field" style="grid-column: 1 / -1;">
+                        <label for="rate_or_cpm">Standard rate or base CPM</label>
+                        <input type="text" id="rate_or_cpm" name="rate_or_cpm" maxlength="200" placeholder="Leave blank if you operate purely on affiliate or product-exchange terms">
+                    </div>
+                </div>
+
+                <h2 class="section-title">Creative pitch</h2>
+                <div class="field">
+                    <label for="campaign_pitch">How do you plan to showcase Econo-Forge?</label>
+                    <textarea id="campaign_pitch" name="campaign_pitch" required maxlength="2000" placeholder="e.g., I want to run a TikTok series showing what happens when my players crash a local town's economy, or feature the live dashboard on my weekly actual-play stream."></textarea>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-primary" type="submit">Submit partnership request</button>
+                    <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Back to Home</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var rateField = document.getElementById('rate-field');
+            var rateInput = document.getElementById('rate_or_cpm');
+            var radios = document.querySelectorAll('input[name="partnership_type"]');
+            function syncRateField() {
+                var selected = document.querySelector('input[name="partnership_type"]:checked');
+                var paid = selected && selected.value === 'paid_sponsorship';
+                rateField.hidden = !paid;
+                rateInput.required = paid;
+            }
+            radios.forEach(function (r) { r.addEventListener('change', syncRateField); });
+            syncRateField();
+        })();
+    </script>
+</body>
+</html>

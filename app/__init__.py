@@ -25,6 +25,7 @@ from app.services.schema_compat import (
     ensure_item_folder_schema,
     ensure_item_srd_columns,
     ensure_monster_srd_columns,
+    ensure_monster_known_to_players_column,
     ensure_join_codes_columns,
     ensure_campaign_code_redemption_table,
     ensure_expansion_interest_table,
@@ -35,6 +36,7 @@ from app.services.schema_compat import (
     ensure_player_npc_columns,
     ensure_city_shop_owner_columns,
     ensure_player_npc_notes_table,
+    ensure_player_monster_journal_table,
     ensure_region_campaign_only,
     ensure_region_nation_columns,
     ensure_sim_rules_table,
@@ -59,6 +61,7 @@ from app.services.schema_compat import (
     warn_if_item_folder_compat_applied,
     warn_if_item_srd_compat_applied,
     warn_if_monster_srd_compat_applied,
+    warn_if_monster_known_to_players_applied,
     warn_if_join_codes_compat_applied,
     warn_if_campaign_code_redemption_table_applied,
     warn_if_expansion_interest_table_applied,
@@ -72,6 +75,7 @@ from app.services.schema_compat import (
     warn_if_player_gm_meta_columns_applied,
     warn_if_city_shop_owner_columns_applied,
     warn_if_player_npc_notes_table_applied,
+    warn_if_player_monster_journal_table_applied,
     warn_if_preflight_applied,
     warn_if_region_campaign_only_applied,
     warn_if_region_nation_columns_applied,
@@ -314,6 +318,12 @@ def create_app():
     app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
     app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
     app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com")
+    app.config["INVESTOR_DECK_NOTIFY_EMAIL"] = os.getenv(
+        "INVESTOR_DECK_NOTIFY_EMAIL", "iizzsoftstudios@gmail.com"
+    )
+    app.config["CREATOR_PARTNERSHIP_NOTIFY_EMAIL"] = os.getenv(
+        "CREATOR_PARTNERSHIP_NOTIFY_EMAIL", "iizzsoftstudios@gmail.com"
+    )
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -441,6 +451,11 @@ def create_app():
                 warn_if_monster_srd_compat_applied,
             )
             _safe_bootstrap(
+                "monster known_to_players column compatibility bootstrap",
+                ensure_monster_known_to_players_column,
+                warn_if_monster_known_to_players_applied,
+            )
+            _safe_bootstrap(
                 "item folders schema compatibility bootstrap",
                 ensure_item_folder_schema,
                 warn_if_item_folder_compat_applied,
@@ -494,6 +509,11 @@ def create_app():
                 "ensure_player_npc_notes_table",
                 ensure_player_npc_notes_table,
                 warn_if_player_npc_notes_table_applied,
+            )
+            _safe_bootstrap(
+                "ensure_player_monster_journal_table",
+                ensure_player_monster_journal_table,
+                warn_if_player_monster_journal_table_applied,
             )
 
             # Stage B — campaign re-key migration.

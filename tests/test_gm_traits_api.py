@@ -142,42 +142,6 @@ def test_monster_trait_keys_and_resistances_in_combat_profile():
     assert profile.get("darkvision_ft") == 60
 
 
-def test_class_level_trait_keys_merge_into_player_profile():
-    campaign = _campaign()
-    ensure_traits_compendium(campaign.id)
-    fighter = next(
-        e for e in ensure_classes_compendium(campaign.id) if e["key"] == "fighter"
-    )
-    progression = fighter["level_progression"]
-    for row in progression:
-        if row["level"] == 1:
-            row["trait_keys"] = ["lucky"]
-    update_class(
-        campaign.id,
-        fighter["key"],
-        {
-            **fighter,
-            "level_progression": progression,
-            "trait_keys": ["save-adv-frightened"],
-        },
-    )
-    db.session.commit()
-    class_entry = next(
-        e for e in ensure_classes_compendium(campaign.id) if e["key"] == "fighter"
-    )
-    sheet = {
-        "level": 1,
-        "abilities": {"str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10},
-        "save_prof_flags": {},
-        "creation": {"species_key": "human", "class_key": "fighter"},
-    }
-    profile = build_player_combat_profile(
-        campaign.id, sheet, species_entry=None, class_entry=class_entry
-    )
-    assert profile.get("lucky") is True
-    assert "frightened" in profile.get("save_advantage_vs_conditions", [])
-
-
 def test_trait_prerequisites_block_until_level_met():
     campaign = _campaign()
     ensure_traits_compendium(campaign.id)

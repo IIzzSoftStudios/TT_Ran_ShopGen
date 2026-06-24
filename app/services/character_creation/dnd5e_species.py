@@ -14,6 +14,59 @@ from app.services.character_creation.srd_species_manifest import SRD_SPECIES_COU
 
 ABILITIES = ("str", "dex", "con", "int", "wis", "cha")
 
+DRAGONBORN_ANCESTRY_META: dict[str, dict[str, str]] = {
+    "acid": {
+        "label": "Acid",
+        "damage_type": "acid",
+        "breath_shape": "5×30-ft line",
+        "trait_key": "resist-acid",
+        "breath_summary": (
+            "5×30-ft line; DC 8 + CON mod + proficiency; 2d6 acid damage; "
+            "half on save; recharge 5–6"
+        ),
+    },
+    "cold": {
+        "label": "Cold",
+        "damage_type": "cold",
+        "breath_shape": "15-ft cone",
+        "trait_key": "resist-cold",
+        "breath_summary": (
+            "15-ft cone; DC 8 + CON mod + proficiency; 2d6 cold damage; "
+            "half on save; recharge 5–6"
+        ),
+    },
+    "fire": {
+        "label": "Fire",
+        "damage_type": "fire",
+        "breath_shape": "15-ft cone",
+        "trait_key": "resist-fire",
+        "breath_summary": (
+            "15-ft cone; DC 8 + CON mod + proficiency; 2d6 fire damage; "
+            "half on save; recharge 5–6"
+        ),
+    },
+    "lightning": {
+        "label": "Lightning",
+        "damage_type": "lightning",
+        "breath_shape": "15-ft cone",
+        "trait_key": "resist-lightning",
+        "breath_summary": (
+            "15-ft cone; DC 8 + CON mod + proficiency; 2d6 lightning damage; "
+            "half on save; recharge 5–6"
+        ),
+    },
+    "poison": {
+        "label": "Poison",
+        "damage_type": "poison",
+        "breath_shape": "15-ft cone",
+        "trait_key": "resist-poison",
+        "breath_summary": (
+            "15-ft cone; DC 8 + CON mod + proficiency; 2d6 poison damage; "
+            "half on save; recharge 5–6"
+        ),
+    },
+}
+
 _ZERO_MODS = {ability: 0 for ability in ABILITIES}
 
 
@@ -35,6 +88,9 @@ def _entry(
     stat_modifiers: str = "",
     traits: list[dict[str, str]] | None = None,
     trait_keys: list[str] | None = None,
+    species_skill_proficiencies: list[str] | None = None,
+    species_skill_choices: dict[str, Any] | None = None,
+    requires_dragonborn_ancestry: bool = False,
 ) -> dict[str, Any]:
     return {
         "key": key,
@@ -46,6 +102,9 @@ def _entry(
         "stat_modifiers": stat_modifiers,
         "traits": deepcopy(traits or []),
         "trait_keys": list(trait_keys or []),
+        "species_skill_proficiencies": list(species_skill_proficiencies or []),
+        "species_skill_choices": deepcopy(species_skill_choices) if species_skill_choices else None,
+        "requires_dragonborn_ancestry": bool(requires_dragonborn_ancestry),
         "content_source": "srd_5_1",
         "srd_reference": "SRD 5.1",
     }
@@ -73,6 +132,7 @@ CORE_SPECIES: tuple[dict[str, Any], ...] = (
         ability_modifiers=_mods(dex=2),
         stat_modifiers="Medium size. Speed 30 ft. Common and Elvish.",
         trait_keys=["speed-30", "size-medium", "darkvision-60", "save-adv-charmed"],
+        species_skill_proficiencies=["perception"],
         traits=[
             {
                 "name": "Darkvision",
@@ -146,7 +206,8 @@ CORE_SPECIES: tuple[dict[str, Any], ...] = (
         summary="Draconic heritage with breath weapon and elemental resilience.",
         ability_modifiers=_mods(str=2, cha=1),
         stat_modifiers="Medium size. Speed 30 ft. Common and Draconic.",
-        trait_keys=["speed-30", "size-medium", "resist-acid"],
+        trait_keys=["speed-30", "size-medium"],
+        requires_dragonborn_ancestry=True,
         traits=[
             {
                 "name": "Draconic Ancestry",
@@ -184,6 +245,7 @@ CORE_SPECIES: tuple[dict[str, Any], ...] = (
         flex_ability_bonuses=2,
         stat_modifiers="Medium size. Speed 30 ft. Common, Elvish, and one extra language.",
         trait_keys=["speed-30", "size-medium", "darkvision-60", "save-adv-charmed"],
+        species_skill_choices={"count": 2, "options": "any"},
         traits=[
             {
                 "name": "Flexible Ability Increase",

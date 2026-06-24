@@ -1,0 +1,134 @@
+<div id="playerFeatureTooltip" class="player-feature-tooltip" role="tooltip" hidden></div>
+<script>
+    (function () {
+        var tooltip = document.getElementById('playerFeatureTooltip');
+        if (!tooltip) return;
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function featureFromChip(chip) {
+            if (chip.classList.contains('player-spell-chip')) {
+                return {
+                    isSpell: true,
+                    name: chip.getAttribute('data-feature-name') || '',
+                    level: chip.getAttribute('data-spell-level') || '',
+                    school: chip.getAttribute('data-spell-school') || '',
+                    casting_time: chip.getAttribute('data-spell-casting-time') || '',
+                    range: chip.getAttribute('data-spell-range') || '',
+                    duration: chip.getAttribute('data-spell-duration') || '',
+                    components: chip.getAttribute('data-spell-components') || '',
+                    summary: chip.getAttribute('data-spell-summary') || ''
+                };
+            }
+            return {
+                isSpell: false,
+                name: chip.getAttribute('data-feature-name') || '',
+                description: chip.getAttribute('data-feature-description') || '',
+                rules_text: chip.getAttribute('data-feature-rules') || '',
+                level: chip.getAttribute('data-feature-level') || ''
+            };
+        }
+
+        function buildSpellTooltipHtml(spell) {
+            var html = '<span class="player-feature-tooltip-title">' + escapeHtml(spell.name) + '</span>';
+            var levelLabel = spell.level === '0' || spell.level === 0 ? 'Cantrip' : ('Level ' + spell.level);
+            var subtitle = [levelLabel, spell.school].filter(Boolean).join(' · ');
+            if (subtitle) {
+                html += '<span class="player-feature-tooltip-subtitle">' + escapeHtml(subtitle) + '</span>';
+            }
+            if (spell.casting_time) {
+                html += '<div class="player-feature-tooltip-line"><strong>Casting time:</strong> ' +
+                    escapeHtml(spell.casting_time) + '</div>';
+            }
+            if (spell.range) {
+                html += '<div class="player-feature-tooltip-line"><strong>Range:</strong> ' +
+                    escapeHtml(spell.range) + '</div>';
+            }
+            if (spell.components) {
+                html += '<div class="player-feature-tooltip-line"><strong>Components:</strong> ' +
+                    escapeHtml(spell.components) + '</div>';
+            }
+            if (spell.duration) {
+                html += '<div class="player-feature-tooltip-line"><strong>Duration:</strong> ' +
+                    escapeHtml(spell.duration) + '</div>';
+            }
+            if (spell.summary) {
+                html += '<span class="player-feature-tooltip-body">' + escapeHtml(spell.summary) + '</span>';
+            } else {
+                html += '<span class="player-feature-tooltip-body">No description recorded.</span>';
+            }
+            return html;
+        }
+
+        function buildTooltipHtml(feature) {
+            if (feature.isSpell) {
+                return buildSpellTooltipHtml(feature);
+            }
+            var html = '<span class="player-feature-tooltip-title">' + escapeHtml(feature.name) + '</span>';
+            if (feature.level) {
+                html += '<span class="player-feature-tooltip-subtitle">Gained at level ' +
+                    escapeHtml(feature.level) + '</span>';
+            }
+            var body = feature.description || '';
+            if (body) {
+                html += '<span class="player-feature-tooltip-body">' + escapeHtml(body) + '</span>';
+            }
+            if (feature.rules_text && feature.rules_text !== body) {
+                html += '<span class="player-feature-tooltip-body">' + escapeHtml(feature.rules_text) + '</span>';
+            }
+            if (!body && !feature.rules_text) {
+                html += '<span class="player-feature-tooltip-body">No description recorded.</span>';
+            }
+            return html;
+        }
+
+        function positionTooltip(clientX, clientY) {
+            var margin = 12;
+            tooltip.style.transform = 'none';
+            tooltip.hidden = false;
+            tooltip.style.left = '-9999px';
+            tooltip.style.top = '0px';
+            var rect = tooltip.getBoundingClientRect();
+            var left = clientX + 14;
+            var top = clientY + 12;
+            if (left + rect.width + margin > window.innerWidth) {
+                left = clientX - rect.width - 14;
+            }
+            if (top + rect.height + margin > window.innerHeight) {
+                top = clientY - rect.height - 12;
+            }
+            tooltip.style.left = Math.max(margin, left) + 'px';
+            tooltip.style.top = Math.max(margin, top) + 'px';
+        }
+
+        function showTooltip(feature, clientX, clientY) {
+            tooltip.innerHTML = buildTooltipHtml(feature);
+            positionTooltip(clientX, clientY);
+        }
+
+        function hideTooltip() {
+            tooltip.hidden = true;
+        }
+
+        document.querySelectorAll('.player-feature-chip').forEach(function (chip) {
+            chip.addEventListener('mouseenter', function (ev) {
+                showTooltip(featureFromChip(chip), ev.clientX, ev.clientY);
+            });
+            chip.addEventListener('mousemove', function (ev) {
+                if (!tooltip.hidden) positionTooltip(ev.clientX, ev.clientY);
+            });
+            chip.addEventListener('mouseleave', hideTooltip);
+            chip.addEventListener('focus', function () {
+                var rect = chip.getBoundingClientRect();
+                showTooltip(featureFromChip(chip), rect.left + rect.width / 2, rect.bottom);
+            });
+            chip.addEventListener('blur', hideTooltip);
+        });
+    })();
+</script>

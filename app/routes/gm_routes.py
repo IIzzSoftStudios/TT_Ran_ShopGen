@@ -585,6 +585,9 @@ def edit_city(city_id):
             flash(f"Error updating city: {e}", "danger")
 
     embed = request.args.get("embed") == "1" or request.form.get("embed") == "1"
+    owner_details = (
+        _npc_person_details(city.owner, camp) if city.owner_player_id else None
+    )
     owner_edit_url = None
     add_owner_url = None
     if city.owner_player_id:
@@ -607,6 +610,7 @@ def edit_city(city_id):
         campaign_regions=campaign_regions,
         species_population_rows=species_population_rows,
         owner_name=_owner_display_name(city.owner, camp),
+        owner_details=owner_details,
         owner_edit_url=owner_edit_url,
         add_owner_url=add_owner_url,
         embed=embed,
@@ -714,6 +718,87 @@ def _owner_display_name(owner, campaign) -> str | None:
     sheet = character_sheet_service.get_or_default_sheet(owner, campaign)
     name = (sheet.get("name") or "").strip()
     return name or f"NPC #{owner.id}"
+
+
+def _npc_person_details(player, campaign) -> dict | None:
+    """Name, class, level, notes, and hover tooltip for ruler/owner NPCs."""
+    if player is None:
+        return None
+    from app.services import character_sheet_service
+
+    sheet = character_sheet_service.get_or_default_sheet(player, campaign)
+    name = (sheet.get("name") or "").strip() or f"NPC #{player.id}"
+    class_name = (
+        (sheet.get("class_name") or sheet.get("class") or "").strip() or None
+    )
+    level_raw = sheet.get("level")
+    level = None
+    if level_raw is not None and str(level_raw).strip() != "":
+        try:
+            level = int(level_raw)
+        except (TypeError, ValueError):
+            level = str(level_raw).strip()
+    notes = (sheet.get("notes") or "").strip() or None
+    tooltip_parts = []
+    if class_name:
+        tooltip_parts.append(f"Class: {class_name}")
+    if level is not None:
+        tooltip_parts.append(f"Level: {level}")
+    if notes:
+        tooltip_parts.append(f"Notes: {notes}")
+    return {
+        "name": name,
+        "class_name": class_name,
+        "level": level,
+        "notes": notes,
+        "tooltip": "\n".join(tooltip_parts) if tooltip_parts else name,
+    }
+
+
+def _person_compendium_fields(
+    player,
+    campaign,
+    *,
+    embed: bool,
+    edit_endpoint: str,
+    create_endpoint: str,
+    create_kwargs: dict,
+    player_id: int | None,
+) -> dict:
+    """Shared ruler/owner payload for compendium APIs."""
+    fields: dict = {
+        "player_id": player_id,
+        "name": None,
+        "class_name": None,
+        "level": None,
+        "notes": None,
+        "tooltip": None,
+        "edit_url": None,
+        "add_url": None,
+    }
+    if player_id and player is not None:
+        details = _npc_person_details(player, campaign) or {}
+        fields.update(
+            {
+                "name": details.get("name"),
+                "class_name": details.get("class_name"),
+                "level": details.get("level"),
+                "notes": details.get("notes"),
+                "tooltip": details.get("tooltip"),
+                "edit_url": url_for(
+                    edit_endpoint,
+                    character_id=player_id,
+                    embed=1 if embed else None,
+                ),
+            }
+        )
+    elif player_id is None:
+        fields["add_url"] = url_for(
+            create_endpoint,
+            embed=1 if embed else None,
+            **create_kwargs,
+        )
+    return fields
 
 
 @gm_bp.route("/regions/add", methods=["GET", "POST"])
@@ -861,6 +946,9 @@ def edit_region(region_id):
         unassigned_cities = _unassigned_cities_for_campaign(camp.id)
 
     ruler_name = _ruler_display_name(region)
+    ruler_details = (
+        _npc_person_details(region.ruler, camp) if region.ruler_player_id else None
+    )
     ruler_edit_url = None
     add_ruler_url = None
     if region.ruler_player_id:
@@ -884,6 +972,7 @@ def edit_region(region_id):
         unassigned_cities=unassigned_cities,
         embed=embed,
         ruler_name=ruler_name,
+        ruler_details=ruler_details,
         ruler_edit_url=ruler_edit_url,
         add_ruler_url=add_ruler_url,
         default_main_color=DEFAULT_NATION_MAIN_COLOR,
@@ -1025,7 +1114,12 @@ def regions_compendium_api():
     if not region_table_exists():
         return jsonify({"regions": [], "total": 0})
 
-    rows = Region.query.filter_by(campaign_id=camp.id).order_by(Region.name).all()
+    rows = (
+        Region.query.filter_by(campaign_id=camp.id)
+        .options(subqueryload(Region.ruler))
+        .order_by(Region.name)
+        .all()
+    )
     city_counts = {
         region_id: count
         for region_id, count in db.session.query(City.region_id, db.func.count(City.city_id))
@@ -1039,7 +1133,15 @@ def regions_compendium_api():
     payload = []
     for region in rows:
         flavor = region.local_flavor if isinstance(region.local_flavor, dict) else {}
-        ruler_name = _ruler_display_name(region)
+        ruler_fields = _person_compendium_fields(
+            region.ruler,
+            camp,
+            embed=False,
+            edit_endpoint="gm.gm_view_character",
+            create_endpoint="gm.gm_create_npc",
+            create_kwargs={"region_id": region.id, "assign_ruler": 1},
+            player_id=region.ruler_player_id,
+        )
         entry = {
             "region_id": region.id,
             "name": region.name,
@@ -1048,18 +1150,18 @@ def regions_compendium_api():
             "has_boundary": region.id in boundaries,
             "main_color": region.main_color or DEFAULT_NATION_MAIN_COLOR,
             "secondary_color": region.secondary_color or DEFAULT_NATION_BORDER_COLOR,
-            "ruler_name": ruler_name,
+            "ruler_name": ruler_fields.get("name"),
             "ruler_player_id": region.ruler_player_id,
+            "ruler_class_name": ruler_fields.get("class_name"),
+            "ruler_level": ruler_fields.get("level"),
+            "ruler_notes": ruler_fields.get("notes"),
+            "ruler_tooltip": ruler_fields.get("tooltip"),
             "edit_url": url_for("gm.edit_region", region_id=region.id),
         }
-        if region.ruler_player_id:
-            entry["ruler_edit_url"] = url_for(
-                "gm.gm_view_character", character_id=region.ruler_player_id
-            )
-        else:
-            entry["add_ruler_url"] = url_for(
-                "gm.gm_create_npc", region_id=region.id, assign_ruler=1
-            )
+        if ruler_fields.get("edit_url"):
+            entry["ruler_edit_url"] = ruler_fields["edit_url"]
+        elif ruler_fields.get("add_url"):
+            entry["add_ruler_url"] = ruler_fields["add_url"]
         payload.append(entry)
     return jsonify({"regions": payload, "total": len(payload)})
 
@@ -1126,7 +1228,7 @@ def cities_compendium_api():
 
     query = City.query.filter_by(campaign_id=camp.id).order_by(City.name)
     if region_table_exists():
-        query = query.options(subqueryload(City.region_obj))
+        query = query.options(subqueryload(City.region_obj), subqueryload(City.owner))
     rows = query.all()
     from app.services.gm_maps import compendium_map_status
 
@@ -1138,18 +1240,36 @@ def cities_compendium_api():
         if getattr(city, "region_obj", None) is not None:
             region_name = city.region_obj.name
         region_name = region_name or city.region or "Unassigned"
-        payload.append(
-            {
-                "city_id": city.city_id,
-                "name": city.name,
-                "size": city.size,
-                "population": city.population or 0,
-                "region": region_name,
-                "shop_count": len(city.shops or []),
-                "is_on_world_map": city.city_id in cities_on_world,
-                "edit_url": url_for("gm.edit_city", city_id=city.city_id),
-            }
+        owner_fields = _person_compendium_fields(
+            city.owner,
+            camp,
+            embed=False,
+            edit_endpoint="gm.gm_view_character",
+            create_endpoint="gm.gm_create_npc",
+            create_kwargs={"city_id": city.city_id, "assign_owner": 1},
+            player_id=city.owner_player_id,
         )
+        city_entry = {
+            "city_id": city.city_id,
+            "name": city.name,
+            "size": city.size,
+            "population": city.population or 0,
+            "region": region_name,
+            "shop_count": len(city.shops or []),
+            "is_on_world_map": city.city_id in cities_on_world,
+            "edit_url": url_for("gm.edit_city", city_id=city.city_id),
+            "owner_name": owner_fields.get("name"),
+            "owner_player_id": city.owner_player_id,
+            "owner_class_name": owner_fields.get("class_name"),
+            "owner_level": owner_fields.get("level"),
+            "owner_notes": owner_fields.get("notes"),
+            "owner_tooltip": owner_fields.get("tooltip"),
+        }
+        if owner_fields.get("edit_url"):
+            city_entry["owner_edit_url"] = owner_fields["edit_url"]
+        elif owner_fields.get("add_url"):
+            city_entry["add_owner_url"] = owner_fields["add_url"]
+        payload.append(city_entry)
     return jsonify({"cities": payload, "total": len(payload)})
 
 
@@ -1163,7 +1283,11 @@ def shops_compendium_api():
 
     rows = (
         Shop.query.filter_by(campaign_id=camp.id)
-        .options(selectinload(Shop.cities), selectinload(Shop.inventory))
+        .options(
+            selectinload(Shop.cities),
+            selectinload(Shop.inventory),
+            selectinload(Shop.owner),
+        )
         .order_by(Shop.name)
         .all()
     )
@@ -1182,19 +1306,37 @@ def shops_compendium_api():
             }
             for city in sorted_cities
         ]
-        payload.append(
-            {
-                "shop_id": shop.shop_id,
-                "name": shop.name,
-                "type": shop.type,
-                "cities": [city.name for city in sorted_cities],
-                "city_links": city_links,
-                "inventory_count": len(shop.inventory or []),
-                "next_restock_day": shop.next_restock_day,
-                "edit_url": url_for("gm.edit_shop", shop_id=shop.shop_id),
-                "items_url": url_for("gm.view_shop_items", shop_id=shop.shop_id),
-            }
+        owner_fields = _person_compendium_fields(
+            shop.owner,
+            camp,
+            embed=False,
+            edit_endpoint="gm.gm_view_character",
+            create_endpoint="gm.gm_create_npc",
+            create_kwargs={"shop_id": shop.shop_id, "assign_owner": 1},
+            player_id=shop.owner_player_id,
         )
+        shop_entry = {
+            "shop_id": shop.shop_id,
+            "name": shop.name,
+            "type": shop.type,
+            "cities": [city.name for city in sorted_cities],
+            "city_links": city_links,
+            "inventory_count": len(shop.inventory or []),
+            "next_restock_day": shop.next_restock_day,
+            "edit_url": url_for("gm.edit_shop", shop_id=shop.shop_id),
+            "items_url": url_for("gm.view_shop_items", shop_id=shop.shop_id),
+            "owner_name": owner_fields.get("name"),
+            "owner_player_id": shop.owner_player_id,
+            "owner_class_name": owner_fields.get("class_name"),
+            "owner_level": owner_fields.get("level"),
+            "owner_notes": owner_fields.get("notes"),
+            "owner_tooltip": owner_fields.get("tooltip"),
+        }
+        if owner_fields.get("edit_url"):
+            shop_entry["owner_edit_url"] = owner_fields["edit_url"]
+        elif owner_fields.get("add_url"):
+            shop_entry["add_owner_url"] = owner_fields["add_url"]
+        payload.append(shop_entry)
     return jsonify({"shops": payload, "total": len(payload)})
 
 @gm_bp.route("/shops/add", methods=["GET", "POST"])
@@ -1307,6 +1449,9 @@ def edit_shop(shop_id):
     linked_city_ids = {c.city_id for c in shop.cities}
     panel_ctx = get_shop_city_panel_context(current_user.gm_profile)
     embed = request.args.get("embed") == "1" or request.form.get("embed") == "1"
+    owner_details = (
+        _npc_person_details(shop.owner, camp) if shop.owner_player_id else None
+    )
     owner_edit_url = None
     add_owner_url = None
     if shop.owner_player_id:
@@ -1331,6 +1476,7 @@ def edit_shop(shop_id):
         campaign_regions=panel_ctx["campaign_regions"],
         region_labels=panel_ctx["region_labels"],
         owner_name=_owner_display_name(shop.owner, camp),
+        owner_details=owner_details,
         owner_edit_url=owner_edit_url,
         add_owner_url=add_owner_url,
         embed=embed,

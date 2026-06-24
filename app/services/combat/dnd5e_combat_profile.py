@@ -120,7 +120,31 @@ def merge_combat_effects(base: dict[str, Any] | None, *layers: dict[str, Any]) -
                 profile[key] = max(int(profile.get(key) or 0), int(value or 0))
             elif key == "speed_ft":
                 profile[key] = int(value)
-            elif key in ("lucky", "savage_attacks", "relentless_endurance"):
+            elif key == "speed_bonus_ft":
+                profile[key] = int(profile.get(key) or 0) + int(value or 0)
+            elif key == "unarmored_ac_add_ability" and str(value or "").lower() in ABILITIES:
+                profile[key] = str(value).lower()
+            elif key == "unarmored_defense":
+                profile[key] = bool(value) or bool(profile.get(key))
+            elif key == "unarmored_defense_allows_shield":
+                profile[key] = bool(profile.get(key, True)) and bool(value)
+            elif key == "extra_attacks_per_action":
+                try:
+                    count = int(value or 0)
+                except (TypeError, ValueError):
+                    continue
+                if count >= 2:
+                    profile[key] = max(int(profile.get(key) or 1), count)
+            elif key == "action_surge":
+                profile[key] = bool(value) or bool(profile.get(key))
+            elif key == "action_surge_additional_actions":
+                try:
+                    count = int(value or 0)
+                except (TypeError, ValueError):
+                    continue
+                if count >= 1:
+                    profile[key] = max(int(profile.get(key) or 0), count)
+            elif key in ("lucky", "savage_attacks", "relentless_endurance", "relentless_rage"):
                 profile[key] = bool(value) or bool(profile.get(key))
             elif key == "reach_cells":
                 profile[key] = max(int(profile.get(key) or 1), int(value or 1))

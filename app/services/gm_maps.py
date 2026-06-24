@@ -1067,13 +1067,29 @@ def save_canvas_generation(
 ) -> None:
     """Persist validated studio edits. Caller commits."""
     validated = validate_generation_json(generation, canvas.scope)
-    if convert_from_upload or canvas.source_type == "uploaded":
+    if convert_from_upload:
         delete_map_image(canvas)
         canvas.source_type = "generated"
         canvas.image_path = None
         canvas.width = 1024
         canvas.height = 1024
     canvas.generation_json = validated
+
+
+def _generation_for_canvas_metadata(
+    canvas: MapCanvas,
+    settings: dict | None = None,
+) -> dict:
+    """Prepare generation JSON for overlay metadata without replacing uploads."""
+    generation = dict(canvas.generation_json or {})
+    if canvas.source_type == "uploaded":
+        generation.setdefault("schema_version", GENERATION_SCHEMA_VERSION)
+        generation["scope"] = canvas.scope
+        return generation
+    if settings is None:
+        settings = _settings_for_campaign(canvas.campaign_id)
+    profile = _merge_profile_for_canvas(canvas, settings, None)
+    return ensure_studio_ready_generation(generation, canvas.scope, profile)
 
 
 def convert_canvas_to_editable(canvas: MapCanvas, settings: dict | None = None) -> dict:
@@ -1572,8 +1588,17 @@ def _map_person_field_for_id(
     label: str,
     for_player: bool = False,
 ) -> dict | None:
+    person = _player_for_map(campaign_id, player_id)
+    if person is None and player_id:
+        if for_player:
+            return None
+        return {
+            "label": label,
+            "display": f"NPC #{int(player_id)}",
+            "player_id": int(player_id),
+        }
     return _map_person_field(
-        _player_for_map(campaign_id, player_id),
+        person,
         campaign,
         label=label,
         for_player=for_player,
@@ -2710,10 +2735,8 @@ def upsert_region_boundary(
 ) -> dict:
     """Create, update, or clear a GM-drawn region boundary on the world map."""
     canvas = get_or_create_world_canvas(campaign_id)
-    generation = dict(canvas.generation_json or {})
     settings = _settings_for_campaign(campaign_id)
-    profile = _merge_profile_for_canvas(canvas, settings, None)
-    generation = ensure_studio_ready_generation(generation, WORLD_SCOPE, profile)
+    generation = _generation_for_canvas_metadata(canvas, settings)
     features = [
         f
         for f in (generation.get("features") or [])

@@ -116,6 +116,14 @@ def mark_setup_economy(settings: dict[str, Any]) -> dict[str, Any]:
     return updated
 
 
+def mark_setup_map(settings: dict[str, Any]) -> dict[str, Any]:
+    """Return to the map-builder step (wizard back navigation)."""
+    updated = dict(settings)
+    updated["setup_stage"] = SETUP_STAGE_MAP
+    updated["pending_generation"] = True
+    return updated
+
+
 def merge_map_ranges_from_form(
     settings: dict[str, Any], form: dict[str, Any]
 ) -> dict[str, Any]:

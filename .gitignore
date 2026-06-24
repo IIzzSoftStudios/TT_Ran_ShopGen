@@ -102,6 +102,7 @@ static/uploads/
 static/media/
 !app/static/media/
 !app/static/media/banner.mp4
+!app/static/media/web-deck-v1.pdf
 
 # Jupyter Notebook
 .ipynb_checkpoints

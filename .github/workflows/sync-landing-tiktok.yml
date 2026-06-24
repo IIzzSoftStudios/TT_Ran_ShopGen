@@ -1,0 +1,40 @@
+name: sync-landing-tiktok
+
+on:
+  schedule:
+    # 12:00 UTC on the 1st of every month
+    - cron: "0 12 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install sync dependencies
+        run: |
+          pip install -r scripts/requirements-sync.txt
+          python -m playwright install chromium
+
+      - name: Sync TikTok collection to landing JSON
+        run: python scripts/sync_landing_tiktok_collection.py
+
+      - name: Commit updated landing TikTok feed
+        run: |
+          if git diff --quiet -- app/data/landing_tiktok_videos.json; then
+            echo "No TikTok feed changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/data/landing_tiktok_videos.json
+          git commit -m "Sync landing TikTok collection feed"
+          git push

@@ -24,7 +24,13 @@ EQUIPMENT_SLOTS = ALL_EQUIPMENT_SLOTS
 
 
 def _embed_mode() -> bool:
-    return request.args.get("embed") == "1" or request.form.get("embed") == "1"
+    if request.args.get("embed") == "1" or request.form.get("embed") == "1":
+        return True
+    payload = request.get_json(silent=True) or {}
+    if payload.get("embed"):
+        return True
+    referer = request.referrer or ""
+    return "embed=1" in referer
 
 
 def _redirect_players_pane():
@@ -189,6 +195,8 @@ def build_player_entries(campaign):
 
 def build_known_npc_entries(campaign):
     """NPCs the GM has marked visible to players."""
+    from app.services.player_npc_service import build_npc_lore_profile
+
     entries = []
     npcs = (
         Player.query.filter_by(
@@ -200,14 +208,16 @@ def build_known_npc_entries(campaign):
         .all()
     )
     for npc in npcs:
-        sheet = character_sheet_service.get_or_default_sheet(npc, campaign)
+        profile = build_npc_lore_profile(npc, campaign)
         entries.append(
             {
                 "id": npc.id,
-                "name": (sheet.get("name") or "").strip() or f"NPC #{npc.id}",
-                "class_name": (sheet.get("class_name") or "").strip() or None,
-                "species": (sheet.get("species") or "").strip() or None,
-                "level": sheet.get("level"),
+                "name": profile["name"],
+                "class_name": profile.get("class_name"),
+                "species": profile.get("species"),
+                "level": profile.get("level"),
+                "location_summary": profile.get("location_summary"),
+                "locations": profile.get("locations") or [],
             }
         )
     return entries
@@ -340,6 +350,7 @@ def create_npc():
                     "city_id": city_id,
                     "shop_id": shop_id,
                     "assign_owner": assign_owner,
+                    "embed": _embed_mode(),
                     "settings": {
                         **wizard_payload.get("settings", {}),
                         "ability_method": "gm_set",
@@ -401,11 +412,20 @@ def create_npc():
             )
         )
         if region_id and assign_ruler:
-            _assign_region_ruler(campaign.id, region_id, player.id)
+            if not _assign_region_ruler(campaign.id, region_id, player.id):
+                db.session.rollback()
+                flash("NPC was created but could not be assigned as ruler.", "warning")
+                return _redirect_players_pane()
         if city_id and assign_owner:
-            _assign_city_owner(campaign.id, city_id, player.id)
+            if not _assign_city_owner(campaign.id, city_id, player.id):
+                db.session.rollback()
+                flash("NPC was created but could not be assigned as city owner.", "warning")
+                return _redirect_players_pane()
         if shop_id and assign_owner:
-            _assign_shop_owner(campaign.id, shop_id, player.id)
+            if not _assign_shop_owner(campaign.id, shop_id, player.id):
+                db.session.rollback()
+                flash("NPC was created but could not be assigned as shop owner.", "warning")
+                return _redirect_players_pane()
         db.session.commit()
         flash("NPC added to this campaign.", "success")
     except Exception as e:

@@ -1,0 +1,542 @@
+{# Shared character sheet form — set before include:
+   sheet_form_action, character (required)
+   sheet_form_id (default characterSheetForm)
+   show_level_controls (default false)
+   sheet_back_url (optional)
+   show_equipment_section (default true)
+   show_gm_npc_fields (default false) + player
+   show_identity_level_field (default false)
+   npc_ability_bounds (default false)
+   show_pending_banner (default true)
+   form_section (optional hidden field value, e.g. "sheet")
+#}
+{% set sheet_form_id = sheet_form_id|default('characterSheetForm') %}
+{% set show_level_controls = show_level_controls|default(false) %}
+{% set show_equipment_section = show_equipment_section|default(true) %}
+{% set show_gm_npc_fields = show_gm_npc_fields|default(false) %}
+{% set show_identity_level_field = show_identity_level_field|default(false) %}
+{% set npc_ability_bounds = npc_ability_bounds|default(false) %}
+{% set show_pending_banner = show_pending_banner|default(true) %}
+{% set sheet_level = character.level if character.level is not none else 1 %}
+{% set max_player_level = character.max_player_level if character.max_player_level is defined else 20 %}
+
+{% set pending_choices = character.pending_level_choices if character.pending_level_choices is defined else [] %}
+{% if show_pending_banner and pending_choices %}
+<div class="pending-choices-banner" role="status">
+    <strong>Level-up choices pending</strong>
+    <p style="margin: 4px 0 0;">These choices were not applied automatically. Update your sheet when ready.</p>
+    <ul>
+        {% for choice in pending_choices %}
+        <li>
+            {% if choice.title %}{{ choice.title }}{% else %}{{ choice.type|replace('_', ' ')|title }}{% endif %}
+            {% if choice.level %} (level {{ choice.level }}){% endif %}
+            {% if choice.description %} — {{ choice.description }}{% endif %}
+            {% if choice.type == 'subclass' and choice.options %}
+            <form method="post" action="{{ url_for('player.apply_subclass_choice_route', player_id=character.id) }}" style="margin-top:8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="level" value="{{ choice.level }}"/>
+                {% for opt in choice.options %}
+                <label style="display:block; margin:4px 0;">
+                    <input type="radio" name="subclass_key" value="{{ opt.key }}" required>
+                    <strong>{{ opt.name }}</strong>
+                    {% if opt.tagline %}<span class="muted"> — {{ opt.tagline }}</span>{% endif %}
+                </label>
+                {% endfor %}
+                <button type="submit" class="button" style="margin-top:6px;">Confirm subclass</button>
+            </form>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="sheet-toolbar">
+    <div class="sheet-toolbar-left">
+        {% if sheet_back_url %}
+        <a href="{{ sheet_back_url }}" class="button button-secondary">Back to Dashboard</a>
+        {% endif %}
+    </div>
+    {% if show_level_controls and (character.system_type or '')|lower == 'dnd5e' %}
+    <div class="sheet-toolbar-center level-controls">
+        <form method="POST" action="{{ url_for('player.level_down_character', player_id=character.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="level-control-btn" {% if sheet_level <= 1 %}disabled{% endif %}>Level down</button>
+        </form>
+        <span class="level-display" id="levelDisplay">Level {{ sheet_level }}</span>
+        <form method="POST" action="{{ url_for('player.level_up_character', player_id=character.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="level-control-btn" {% if sheet_level >= max_player_level %}disabled{% endif %}>Level up</button>
+        </form>
+    </div>
+    {% elif not show_level_controls and not show_identity_level_field and (character.system_type or '')|lower == 'dnd5e' %}
+    <div class="sheet-toolbar-center">
+        <span class="level-display">Level {{ sheet_level }}</span>
+    </div>
+    {% endif %}
+    <div class="sheet-toolbar-right">
+        <button type="submit" class="button" form="{{ sheet_form_id }}">Save Changes</button>
+    </div>
+</div>
+
+{% if show_gm_npc_fields %}
+<p class="gm-npc-sheet-note">NPC sheet — ability scores are not capped for GMs. Combat uses species/class compendium traits when the sheet was built through the creation wizard.</p>
+{% endif %}
+
+<form method="POST" action="{{ sheet_form_action }}" id="{{ sheet_form_id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    {% if form_section is defined and form_section %}
+    <input type="hidden" name="form_section" value="{{ form_section }}"/>
+    {% endif %}
+
+    <div class="section">
+        <h2>Identity</h2>
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="{{ character.name }}">
+
+        <label for="class_name">Class</label>
+        <input type="text" id="class_name" name="class_name" value="{{ character.class_name or '' }}" placeholder="Class or archetype (e.g. Fighter)">
+
+        <label for="species">Species / Ancestry</label>
+        <input type="text" id="species" name="species" value="{{ character.species or '' }}" placeholder="Species or ancestry (e.g. Human)">
+
+        {% if show_identity_level_field %}
+        <label for="level">Level</label>
+        {% if show_gm_npc_fields %}
+        <input type="number" id="level" name="level" value="{{ character.level if character.level is not none else '' }}" min="0" max="999"/>
+        {% else %}
+        <input type="number" id="level" name="level" value="{{ character.level if character.level is not none else '' }}" min="1" max="{{ max_player_level }}"/>
+        {% endif %}
+        {% endif %}
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes">{{ character.notes or '' }}</textarea>
+    </div>
+
+    {% if show_gm_npc_fields and player is defined %}
+    <div class="section">
+        <h2>GM only</h2>
+        <label for="gm_notes">GM notes</label>
+        <textarea id="gm_notes" name="gm_notes">{{ player.gm_notes or '' }}</textarea>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-weight: 600;">
+            <input type="checkbox" name="known_to_players" value="1" {% if player.known_to_players %}checked{% endif %}>
+            Known to players
+        </label>
+        <p class="sheet-muted" style="margin-top: 0.35rem;">
+            When checked, this NPC appears in the player NPC list and named rulers/owners show on map stat cards.
+        </p>
+    </div>
+    {% endif %}
+
+    {% set species_details = character.species_details if character.species_details is defined else none %}
+    {% set background_details = character.background_details if character.background_details is defined else none %}
+    {% if species_details and species_details.available and species_details.entry %}
+    <div class="section">
+        <h2>Species</h2>
+        <div class="readonly-detail-box">
+            <strong>{{ species_details.name }}</strong>
+            {% if species_details.entry.summary %}
+            <p>{{ species_details.entry.summary }}</p>
+            {% endif %}
+            {% set ability_mods = species_details.entry.ability_modifiers or {} %}
+            {% if ability_mods %}
+            <p><strong>Ability modifiers:</strong>
+                {% for key, value in ability_mods.items() %}
+                    {% if value %}{{ key|upper }} {{ '%+d'|format(value) }}{% if not loop.last %}, {% endif %}{% endif %}
+                {% endfor %}
+            </p>
+            {% endif %}
+            {% if species_details.entry.stat_modifiers %}
+            <p><em>{{ species_details.entry.stat_modifiers }}</em></p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if background_details and background_details.available %}
+    <div class="section">
+        <h2>Background</h2>
+        <div class="readonly-detail-box">
+            <strong>{{ background_details.name }}</strong>
+            {% if background_details.summary %}
+            <p>{{ background_details.summary }}</p>
+            {% endif %}
+            {% if background_details.skill_proficiencies %}
+            <p><strong>Skill proficiencies:</strong> {{ background_details.skill_proficiencies|join(', ')|replace('_', ' ') }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% set traits_details = character.traits_details if character.traits_details is defined else none %}
+    <div class="section">
+        <h2>Traits</h2>
+        {% if traits_details and traits_details.available %}
+        <div class="readonly-detail-box">
+            {% if traits_details.name %}
+            <p><strong>{{ traits_details.name }}</strong></p>
+            {% endif %}
+            {% if traits_details.traits %}
+            <p><strong>Species traits</strong></p>
+            <div class="player-feature-chip-list">
+                {% for trait in traits_details.traits %}
+                <span class="player-feature-chip" role="button" tabindex="0"
+                      data-feature-name="{{ trait.name }}"
+                      data-feature-description="{{ trait.description or '' }}"
+                      title="Hover for details">
+                    {{ trait.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if traits_details.mechanical_traits %}
+            <p><strong>Mechanical traits</strong></p>
+            <div class="player-feature-chip-list">
+                {% for trait in traits_details.mechanical_traits %}
+                <span class="player-feature-chip" role="button" tabindex="0"
+                      data-feature-name="{{ trait.name }}"
+                      data-feature-description="{{ trait.summary or '' }}"
+                      title="Hover for details">
+                    {{ trait.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if traits_details.dragonborn_ancestry %}
+            <p><strong>Draconic Ancestry:</strong> {{ traits_details.dragonborn_ancestry|title }}
+                {% if traits_details.dragonborn_breath_summary %}
+                — {{ traits_details.dragonborn_breath_summary }}
+                {% else %}
+                breath weapon and damage resistance
+                {% endif %}
+            </p>
+            {% endif %}
+            {% if traits_details.stat_modifiers %}
+            <p><em>{{ traits_details.stat_modifiers }}</em></p>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="sheet-muted"><em>No species traits are recorded for this character yet.</em></p>
+        {% endif %}
+    </div>
+
+    {% set class_details = character.class_details if character.class_details is defined else none %}
+    <div class="section">
+        <h2>Class Features</h2>
+        {% if class_details and class_details.available %}
+        <div class="readonly-detail-box">
+            <strong>{{ class_details.name }} · Level {{ class_details.level }}</strong>
+            {% if class_details.summary %}
+            <p>{{ class_details.summary }}</p>
+            {% endif %}
+            {% if class_details.hit_die %}
+            <p><strong>Hit die:</strong> d{{ class_details.hit_die }}</p>
+            {% endif %}
+            {% set class_features = character.class_features if character.class_features is defined else [] %}
+            {% if class_features %}
+            <div style="margin-top: 12px;">
+                <p><strong>Class features (SRD 5.1)</strong></p>
+                <div class="player-feature-chip-list" id="classFeaturesChipList">
+                    {% for feat in class_features %}
+                    <span class="player-feature-chip" role="button" tabindex="0"
+                          data-feature-name="{{ feat.name }}"
+                          data-feature-description="{{ feat.description or feat.summary or '' }}"
+                          data-feature-rules="{{ feat.rules_text or '' }}"
+                          data-feature-level="{{ feat.level if feat.level is defined else '' }}"
+                          title="Hover for details">
+                        {{ feat.name }}
+                        {% if feat.level is defined and feat.level %}
+                        <span class="player-feature-chip-meta">Lv {{ feat.level }}</span>
+                        {% endif %}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <p class="sheet-muted"><em>No class features are defined for this level yet.</em></p>
+            {% endif %}
+            {% set class_caps = character.class_progression if character.class_progression is defined else {} %}
+            {% if class_caps %}
+            <p><strong>Spellcasting caps:</strong>
+                {% if class_caps.cantrips_known is not none %}Cantrips {{ class_caps.cantrips_known }}{% endif %}
+                {% if class_caps.spells_known is not none %}{% if class_caps.cantrips_known is not none %}; {% endif %}Spells known {{ class_caps.spells_known }}{% endif %}
+                {% if class_caps.spells_prepared is not none %}{% if class_caps.cantrips_known is not none or class_caps.spells_known is not none %}; {% endif %}Spells prepared {{ class_caps.spells_prepared }}{% endif %}
+                {% if class_caps.invocations_known is not none %}{% if class_caps.cantrips_known is not none or class_caps.spells_known is not none or class_caps.spells_prepared is not none %}; {% endif %}Invocations {{ class_caps.invocations_known }}{% endif %}
+            </p>
+            {% endif %}
+            {% set class_resources = character.class_resources if character.class_resources is defined else {} %}
+            {% if class_resources %}
+            <p><strong>Class resources:</strong>
+                {% for key, value in class_resources.items() %}
+                {{ key|replace('_', ' ')|title }} {{ value }}{% if not loop.last %}; {% endif %}
+                {% endfor %}
+            </p>
+            {% endif %}
+            {% set combat_abilities = character.combat_abilities if character.combat_abilities is defined else [] %}
+            {% if combat_abilities %}
+            <p><strong>Combat abilities:</strong></p>
+            <div class="player-feature-chip-list" id="combatAbilitiesChipList">
+                {% for ability in combat_abilities %}
+                <span class="player-feature-chip" role="button" tabindex="0"
+                      data-feature-name="{{ ability.label }}"
+                      data-feature-description="{{ ability.description or '' }}"
+                      data-feature-rules=""
+                      data-feature-level=""
+                      title="Hover for details">
+                    {{ ability.label }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if class_details.next_level_row and class_details.next_level_row.features and show_level_controls %}
+            <p style="margin-top: 12px;"><strong>Next level preview</strong></p>
+            <div class="player-feature-chip-list">
+                {% for feature in class_details.next_level_row.features %}
+                <span class="player-feature-chip" role="button" tabindex="0"
+                      data-feature-name="{{ feature.name }}"
+                      data-feature-description="{{ feature.description or '' }}"
+                      data-feature-level="{{ class_details.next_level_row.level }}"
+                      title="Hover for details">
+                    {{ feature.name }}
+                    <span class="player-feature-chip-meta">Lv {{ class_details.next_level_row.level }}</span>
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% elif class_details and class_details.hidden_message %}
+        <p class="sheet-muted"><em>{{ class_details.hidden_message }}</em></p>
+        {% else %}
+        <p class="sheet-muted"><em>Class feature details are not available.</em></p>
+        {% endif %}
+    </div>
+
+    {% set spell_details = character.spell_details if character.spell_details is defined else none %}
+    {% set spell_slots = character.spell_slots_display if character.spell_slots_display is defined else {} %}
+    {% if (character.system_type or '')|lower == 'dnd5e' %}
+    {% set spell_lists = spell_details.spells if spell_details and spell_details.spells is defined else {} %}
+    <div class="section">
+        <h2>Spells</h2>
+        <div class="readonly-detail-box">
+            {% if spell_lists.cantrips %}
+            <p><strong>Cantrips</strong></p>
+            <div class="player-feature-chip-list">
+                {% for spell in spell_lists.cantrips %}
+                <span class="player-feature-chip player-spell-chip" role="button" tabindex="0"
+                      data-feature-name="{{ spell.name or spell.key }}"
+                      data-spell-level="{{ spell.level if spell.level is not none else 0 }}"
+                      data-spell-school="{{ spell.school or '' }}"
+                      data-spell-casting-time="{{ spell.casting_time or '' }}"
+                      data-spell-range="{{ spell.range or '' }}"
+                      data-spell-duration="{{ spell.duration or '' }}"
+                      data-spell-components="{{ spell.components or '' }}"
+                      data-spell-summary="{{ spell.summary or '' }}"
+                      title="Hover for spell details">
+                    {{ spell.name or spell.key }}
+                    <span class="player-feature-chip-meta">Cantrip</span>
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if spell_lists.prepared %}
+            <p><strong>Prepared</strong></p>
+            <div class="player-feature-chip-list">
+                {% for spell in spell_lists.prepared %}
+                <span class="player-feature-chip player-spell-chip" role="button" tabindex="0"
+                      data-feature-name="{{ spell.name or spell.key }}"
+                      data-spell-level="{{ spell.level if spell.level is not none else '' }}"
+                      data-spell-school="{{ spell.school or '' }}"
+                      data-spell-casting-time="{{ spell.casting_time or '' }}"
+                      data-spell-range="{{ spell.range or '' }}"
+                      data-spell-duration="{{ spell.duration or '' }}"
+                      data-spell-components="{{ spell.components or '' }}"
+                      data-spell-summary="{{ spell.summary or '' }}"
+                      title="Hover for spell details">
+                    {{ spell.name or spell.key }}
+                    {% if spell.level is not none %}
+                    <span class="player-feature-chip-meta">Lvl {{ spell.level }}</span>
+                    {% endif %}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if spell_lists.known %}
+            <p><strong>Known</strong></p>
+            <div class="player-feature-chip-list">
+                {% for spell in spell_lists.known %}
+                <span class="player-feature-chip player-spell-chip" role="button" tabindex="0"
+                      data-feature-name="{{ spell.name or spell.key }}"
+                      data-spell-level="{{ spell.level if spell.level is not none else '' }}"
+                      data-spell-school="{{ spell.school or '' }}"
+                      data-spell-casting-time="{{ spell.casting_time or '' }}"
+                      data-spell-range="{{ spell.range or '' }}"
+                      data-spell-duration="{{ spell.duration or '' }}"
+                      data-spell-components="{{ spell.components or '' }}"
+                      data-spell-summary="{{ spell.summary or '' }}"
+                      title="Hover for spell details">
+                    {{ spell.name or spell.key }}
+                    {% if spell.level is not none %}
+                    <span class="player-feature-chip-meta">Lvl {{ spell.level }}</span>
+                    {% endif %}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if spell_slots %}
+            <p><strong>Spell slots</strong></p>
+            <ul>
+                {% for slot_level, count in spell_slots.items()|sort %}
+                <li>Level {{ slot_level }}: {{ count }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if not spell_lists.cantrips and not spell_lists.prepared and not spell_lists.known %}
+            <p><em>No spells selected yet.{% if show_level_controls %} Manage spells from your campaign dashboard.{% endif %}</em></p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h2>Core Stats</h2>
+        <div class="stat-grid">
+            {% for stat in character.abilities_display|default(character.stat_display) %}
+            <div class="stat-card">
+                <div class="stat-label">{{ stat.label }}</div>
+                {% if stat.id %}
+                <div style="display: flex; justify-content: center; align-items: center; gap: 6px;">
+                    <input type="number" step="any" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" {% if npc_ability_bounds %}min="1" max="999"{% endif %} style="width: 60px; font-size: 1.1em; text-align: center; padding: 6px; border-radius: 4px;">
+                    {% if stat.modifier is not none %}
+                    <span style="font-size: 1.1em; font-weight: bold;">
+                        {{ '%+d'|format(stat.modifier) }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="stat-value" style="font-size: 1.3em; font-weight: bold;">
+                    {% if stat.value is not none %}
+                        {{ stat.value }}
+                        {% if stat.modifier is not none %}
+                            | {{ '%+d'|format(stat.modifier) }}
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Defense & Saves</h2>
+        <div class="stat-grid">
+            {% for stat in character.defenses_display or [] %}
+            <div class="stat-card">
+                <div class="stat-label">{{ stat.label }}</div>
+                {% if stat.id %}
+                <input type="number" step="any" name="stat_{{ stat.id }}" value="{{ stat.value if stat.value is not none else '' }}" style="width: 100%; font-size: 1.1em; text-align: center; padding: 6px; border-radius: 4px;">
+                {% if stat.category == 'save' and stat.computed_value is not none %}
+                <div class="stat-computed">
+                    Computed: {{ '%+d'|format(stat.computed_value) }}
+                </div>
+                {% endif %}
+                {% if stat.category == 'save' and character.ruleset_meta and character.ruleset_meta.supports_save_proficiency %}
+                <div style="margin-top: 4px; font-size: 0.75em; text-align: left;">
+                    {% set save_flag = character.save_prof_flags.get(stat.key) if character.save_prof_flags is defined else None %}
+                    <label style="display: flex; align-items: center; gap: 4px;">
+                        <input type="checkbox" name="save_prof_flag_{{ stat.key }}" value="1" {% if save_flag and save_flag >= 0.5 %}checked{% endif %}>
+                        <span>Proficient</span>
+                    </label>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="stat-value" style="font-size: 1.1em; font-weight: bold;">
+                    {{ stat.value if stat.value is not none else '-' }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if character.skills_display %}
+    <div class="section">
+        <h2>Skills</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Skill</th>
+                    <th>Total</th>
+                    {% if character.ruleset_meta and character.ruleset_meta.supports_skill_proficiency %}
+                    <th>Proficiency</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for skill in character.skills_display or [] %}
+                <tr>
+                    <td>{{ skill.label }}</td>
+                    <td>
+                        {% if skill.computed_value is not none %}
+                        <span>{{ '%+d'|format(skill.computed_value) }}</span>
+                        {% else %}
+                        <span>{{ skill.value if skill.value is not none else '-' }}</span>
+                        {% endif %}
+                    </td>
+                    {% if character.ruleset_meta and character.ruleset_meta.supports_skill_proficiency %}
+                    <td>
+                        {% set tier = character.skill_prof_tiers.get(skill.key) if character.skill_prof_tiers is defined else 0 %}
+                        {% set tier_int = tier|int if tier is not none else 0 %}
+                        {% set is_proficient = tier_int > 0 %}
+                        <label style="display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="skill_prof_flag_{{ skill.key }}" value="1" {% if is_proficient %}checked{% endif %} onchange="this.closest('tr').querySelector('.tier-select-{{ skill.key }}').disabled = !this.checked;">
+                            <span>Proficient</span>
+                        </label>
+                        <select name="skill_prof_tier_{{ skill.key }}" class="tier-select-{{ skill.key }}" style="margin-top: 4px; width: 140px;" {% if not is_proficient %}disabled{% endif %}>
+                            {% for t in character.ruleset_meta.proficiency_tiers %}
+                                {% if t.value > 0 %}
+                                <option value="{{ t.value }}" {% if tier_int == t.value %}selected{% endif %}>{{ t.label }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if show_equipment_section %}
+    <div class="section">
+        <h2>Equipment</h2>
+        <ul style="list-style: none; padding: 0;">
+            {% for slot in character.equipment_slots|default([]) %}
+                <li class="equipment-row">
+                    <span><strong>{{ slot.slot_name|replace('_', ' ')|title }}:</strong>
+                    {% if slot.item %}
+                        {{ slot.item.name }} ({{ slot.item.type }})
+                    {% else %}
+                        Empty
+                    {% endif %}
+                    </span>
+                    {% if slot.item and equipment_unequip_url is defined %}
+                    <form action="{{ equipment_unequip_url(slot.slot_name) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="button" style="padding: 4px 10px; font-size: 0.85em;">Unequip</button>
+                    </form>
+                    {% elif slot.item %}
+                    <form action="{{ url_for('player.unequip_item', slot_name=slot.slot_name) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="button" style="padding: 4px 10px; font-size: 0.85em;">Unequip</button>
+                    </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</form>

@@ -153,6 +153,37 @@ def test_step2_continue_advances_to_economy():
     assert config.settings_json["setup_stage"] == SETUP_STAGE_ECONOMY
 
 
+def test_economy_back_link_returns_to_map_step():
+    user = _make_gm("economy-back-gm")
+    client = flask_app.test_client()
+    seed_client_session(client, user)
+    client.post(
+        "/gm/generate_world",
+        data={"campaign_name": "Back Nav World", "system_type": "generic"},
+    )
+    campaign = Campaign.query.filter_by(gm_profile_id=user.gm_profile.id).one()
+    client.post(
+        "/gm/generate_world/map/continue",
+        data={
+            "map_landmass_scale_min": "5",
+            "map_landmass_scale_max": "7",
+            "map_waterways_min": "3",
+            "map_waterways_max": "5",
+            "map_terrain_roughness_min": "4",
+            "map_terrain_roughness_max": "6",
+        },
+    )
+
+    resp = client.get("/gm/generate_world/economy")
+    assert resp.status_code == 200
+
+    resp = client.get("/gm/generate_world/map")
+    assert resp.status_code == 200
+    assert b"map" in resp.data.lower()
+    config = CampaignWorldConfig.query.filter_by(campaign_id=campaign.id).one()
+    assert config.settings_json["setup_stage"] == SETUP_STAGE_MAP
+
+
 def test_step3_generates_world_and_preserves_canvas():
     user = _make_gm("step3-gm")
     client = flask_app.test_client()

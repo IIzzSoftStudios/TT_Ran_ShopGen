@@ -110,6 +110,9 @@
     min-width: 320px;
     min-height: 280px;
 }
+.battle-floating-popout[hidden] {
+    display: none !important;
+}
 .battle-floating-popout-header {
     display: flex;
     align-items: center;

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Request Received — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        .topbar-simple {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        }
+        .topbar-inner-simple {
+            max-width: 980px; margin: 0 auto; padding: 14px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 14px; flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 10px; padding: 10px 14px; font-weight: 800;
+            text-decoration: none; white-space: nowrap;
+        }
+        .btn-primary { background: var(--color-accent); color: var(--color-accent-contrast); }
+        .btn-secondary {
+            background: transparent; border: 1px solid rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+        .page-wrap { max-width: 720px; margin: 0 auto; padding: 48px 18px 60px; text-align: center; }
+        h1 { margin: 0 0 12px; }
+        p { color: var(--color-muted); line-height: 1.65; margin: 0 0 18px; }
+        .page-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="topbar-simple">
+        <div class="topbar-inner-simple">
+            <div style="font-weight:900; letter-spacing:0.2px;">Econo-Forge</div>
+            <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Home</a>
+        </div>
+    </div>
+    <div class="page-wrap">
+        <h1>Request received</h1>
+        <p>
+            Thank you for your interest in Econo-Forge's pre-seed round. Our team is reviewing your request
+            to ensure compliance with our regulatory data room frameworks. We will follow up shortly with access.
+        </p>
+        <p>A confirmation was sent to the email address you provided.</p>
+        <div class="page-actions">
+            <a class="btn btn-primary" href="{{ url_for('main.index') }}">Back to Home</a>
+            <a class="btn btn-secondary" href="{{ url_for('main.public_deck') }}" target="_blank" rel="noopener noreferrer">View Public Deck</a>
+        </div>
+    </div>
+</body>
+</html>

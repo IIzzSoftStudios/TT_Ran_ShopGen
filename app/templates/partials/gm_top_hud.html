@@ -52,7 +52,6 @@
             </div>
         </div>
         <div class="gm-hud-nav-actions gm-primary-actions" aria-label="Campaign navigation">
-            <a href="{{ url_for('gm.view_campaigns') }}" class="button">GM Campaign Overview</a>
             <details class="gm-join-tools">
                 <summary class="button">GM Campaign Code</summary>
                 <div class="gm-join-popover">
@@ -68,11 +67,11 @@
                             </div>
                         </form>
                     {% else %}
-                        <p>Choose an active campaign first (open <strong>GM Campaign Overview</strong> and load a campaign, or create one).</p>
+                        <p>Choose an active campaign first (open <strong>Select Campaign</strong> and load a campaign, or create one).</p>
                     {% endif %}
                 </div>
             </details>
-            <a href="{{ url_for('main.campaigns') }}" class="button">Back to GM/Player Campaigns</a>
+            <a href="{{ url_for('main.campaigns') }}" class="button">Select Campaign</a>
         </div>
     </div>
 </header>

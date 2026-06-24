@@ -105,7 +105,9 @@ def test_legacy_player_routes_redirect_to_home(client):
 
 
 def test_player_home_uses_browse_shops_not_market_route(client):
-    user, player, _campaign = _player_with_campaign()
+    user, player, campaign = _player_with_campaign()
+    campaign.system_type = "dnd5e"
+    db.session.commit()
     seed_client_session(
         client,
         user,
@@ -143,9 +145,20 @@ def test_player_home_uses_browse_shops_not_market_route(client):
     assert b'className = "map-encounter-popout"' in resp.data
     assert b".map-encounter-popout {" in resp.data
     assert b'id="playerSpellsContent"' in resp.data
+    assert b'id="playerSpellTooltip"' in resp.data
+    assert b"buildPlayerSpellTooltipHtml" in resp.data
+    assert b'id="characterSpeciesTrigger"' in resp.data
+    assert b'id="characterSpeciesPopout"' in resp.data
+    assert b"renderSpeciesDetailsPopout" in resp.data
+    assert b"setupIdentityHoverPopouts" in resp.data
+    assert b'id="playerItemTooltip"' in resp.data
+    assert b"buildPlayerItemTooltipHtml" in resp.data
+    assert b"renderLevelUpPreviewPopout" in resp.data
+    assert b"showLevelUpResultPopout" in resp.data
+    assert b'id="levelUpPreviewPopout"' in resp.data
     assert b"setupPlayerSpellDragDrop()" in resp.data
     assert b"savePlayerSpellSelection" in resp.data
-    assert b"Full Character Sheet" in resp.data
+    assert b"Full character sheet" in resp.data
     assert b"showPurchaseToast(data.message || \"Purchase complete.\", \"success\")" in resp.data
     assert b"setTimeout(function () { location.reload(); }, 3000)" in resp.data
     assert b"Add Region" not in resp.data
@@ -192,6 +205,174 @@ def test_player_character_data_includes_class_available_spells(client):
     assert "magic_missile" in by_key
 
 
+def test_player_character_data_includes_species_details(client):
+    user, player, campaign = _player_with_campaign()
+    campaign.system_type = "dnd5e"
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=campaign.id,
+            sheet_json={
+                "system_type": "dnd5e",
+                "name": "Species Tester",
+                "species": "Human",
+                "class_name": "Fighter",
+                "level": 1,
+                "creation": {"species_key": "human", "class_key": "fighter"},
+                "abilities": {"str": 16},
+                "defenses": {"hp_max": 12, "hp_current": 12, "ac": 16},
+            },
+        )
+    )
+    db.session.commit()
+    seed_client_session(
+        client,
+        user,
+        campaign_id=player.campaign_id,
+        player_id=player.id,
+        session_mode="player",
+    )
+
+    resp = client.get("/player/character-data")
+    assert resp.status_code == 200
+    species_details = resp.get_json()["species_details"]
+    assert species_details["available"] is True
+    assert species_details["name"] == "Human"
+    assert species_details["entry"]["key"] == "human"
+    assert isinstance(species_details["entry"]["ability_modifiers"], dict)
+
+
+def test_player_character_data_includes_traits_details(client):
+    user, player, campaign = _player_with_campaign()
+    campaign.system_type = "dnd5e"
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=campaign.id,
+            sheet_json={
+                "system_type": "dnd5e",
+                "name": "Trait Tester",
+                "species": "Elf",
+                "class_name": "Wizard",
+                "level": 1,
+                "creation": {
+                    "species_key": "elf",
+                    "class_key": "wizard",
+                    "trait_keys": ["darkvision-60"],
+                },
+                "traits": [
+                    {"name": "Keen Senses", "description": "Proficiency in Perception."}
+                ],
+                "abilities": {"dex": 16},
+                "defenses": {"hp_max": 8, "hp_current": 8, "ac": 12},
+                "skill_prof_tiers": {"perception": 2},
+            },
+        )
+    )
+    db.session.commit()
+    seed_client_session(
+        client,
+        user,
+        campaign_id=player.campaign_id,
+        player_id=player.id,
+        session_mode="player",
+    )
+
+    resp = client.get("/player/character-data")
+    assert resp.status_code == 200
+    traits_details = resp.get_json()["traits_details"]
+    assert traits_details["available"] is True
+    assert traits_details["traits"][0]["name"] == "Keen Senses"
+
+
+def test_full_character_sheet_renders_traits_section(client):
+    user, player, campaign = _player_with_campaign()
+    campaign.system_type = "dnd5e"
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=campaign.id,
+            sheet_json={
+                "system_type": "dnd5e",
+                "name": "Sheet Trait Tester",
+                "species": "Elf",
+                "class_name": "Wizard",
+                "level": 1,
+                "creation": {
+                    "species_key": "elf",
+                    "class_key": "wizard",
+                    "background_key": "sage",
+                    "trait_keys": ["darkvision-60"],
+                },
+                "traits": [
+                    {"name": "Keen Senses", "description": "Proficiency in Perception."}
+                ],
+                "abilities": {"dex": 16, "int": 16},
+                "defenses": {"hp_max": 8, "hp_current": 8, "ac": 12},
+                "skill_prof_tiers": {"perception": 2},
+            },
+        )
+    )
+    db.session.commit()
+    seed_client_session(
+        client,
+        user,
+        campaign_id=player.campaign_id,
+        player_id=player.id,
+        session_mode="player",
+    )
+
+    resp = client.get(f"/player/character/{player.id}")
+    assert resp.status_code == 200
+    body = resp.data
+    assert b"<h2>Traits</h2>" in body
+    assert b"Keen Senses" in body
+    assert b"<h2>Class Features</h2>" in body
+    assert b"<h2>Background</h2>" in body
+    assert b"Sage" in body
+
+
+def test_full_character_sheet_renders_spells_section(client):
+    user, player, campaign = _player_with_campaign()
+    campaign.system_type = "dnd5e"
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=campaign.id,
+            sheet_json={
+                "system_type": "dnd5e",
+                "name": "Spell Sheet",
+                "species": "Human",
+                "class_name": "Wizard",
+                "level": 1,
+                "creation": {"species_key": "human", "class_key": "wizard"},
+                "abilities": {"int": 16},
+                "defenses": {"hp_max": 8, "hp_current": 8, "ac": 12},
+                "spells": {
+                    "cantrips": ["fire-bolt"],
+                    "prepared": ["magic-missile"],
+                    "known": [],
+                },
+            },
+        )
+    )
+    db.session.commit()
+    seed_client_session(
+        client,
+        user,
+        campaign_id=player.campaign_id,
+        player_id=player.id,
+        session_mode="player",
+    )
+
+    resp = client.get(f"/player/character/{player.id}")
+    assert resp.status_code == 200
+    body = resp.data
+    assert b"<h2>Spells</h2>" in body
+    assert b"Fire Bolt" in body or b"fire-bolt" in body.lower()
+    assert b"Magic Missile" in body or b"magic-missile" in body.lower()
+
+
 def test_player_save_character_spells(client):
     user, player, campaign = _player_with_campaign()
     campaign.system_type = "dnd5e"
@@ -207,6 +388,10 @@ def test_player_save_character_spells(client):
                 "creation": {"class_key": "wizard"},
                 "abilities": {"int": 16},
                 "defenses": {"hp_max": 8, "hp_current": 8, "ac": 12},
+                "class_progression": {
+                    "cantrips_known": 3,
+                    "spells_prepared": 4,
+                },
                 "spells": {},
             },
         )
@@ -240,6 +425,55 @@ def test_player_save_character_spells(client):
     ).one()
     assert sheet.sheet_json["spells"]["cantrips"] == ["fire_bolt"]
     assert sheet.sheet_json["spells"]["prepared"] == ["magic_missile"]
+    assert spell_details["limits"]["cantrips"]["max"] == 3
+    assert spell_details["limits"]["prepared"]["max"] == 4
+    assert spell_details["limits"]["known"]["enabled"] is False
+
+
+def test_player_save_character_spells_enforces_caps(client):
+    user, player, campaign = _player_with_campaign()
+    campaign.system_type = "dnd5e"
+    db.session.add(
+        PlayerCharacterSheet(
+            player_id=player.id,
+            campaign_id=campaign.id,
+            sheet_json={
+                "system_type": "dnd5e",
+                "name": "Capped Wizard",
+                "class_name": "Wizard",
+                "level": 1,
+                "creation": {"class_key": "wizard"},
+                "abilities": {"int": 16},
+                "defenses": {"hp_max": 8, "hp_current": 8, "ac": 12},
+                "class_progression": {
+                    "cantrips_known": 2,
+                    "spells_prepared": 2,
+                },
+                "spells": {},
+            },
+        )
+    )
+    db.session.commit()
+    seed_client_session(
+        client,
+        user,
+        campaign_id=player.campaign_id,
+        player_id=player.id,
+        session_mode="player",
+    )
+
+    resp = client.post(
+        "/player/character/spells",
+        json={
+            "cantrips": ["fire_bolt", "light", "mage_hand"],
+            "prepared": ["magic_missile"],
+            "known": [],
+        },
+    )
+    assert resp.status_code == 400
+    payload = resp.get_json()
+    assert payload["ok"] is False
+    assert any("cantrip" in err.lower() for err in payload.get("errors") or [])
 
 
 def test_player_home_shows_encounter_tab_for_dnd5e_campaign(client):
@@ -447,6 +681,7 @@ def test_player_market_overview_api_uses_active_campaign(client):
     data = resp.get_json()
     assert data["items"][0]["name"] == "Iron Ration"
     assert data["items"][0]["current_avg_price"] == 3.0
+    assert data["items"][0]["tooltip"]["name"] == "Iron Ration"
 
 
 def test_404_page_shows_econo_forge_branding(client):

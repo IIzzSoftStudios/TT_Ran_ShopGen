@@ -90,6 +90,10 @@ def compute_equipment_ac(
     *,
     dex_mod: int,
     base_ac: int = 10,
+    con_mod: int = 0,
+    wis_mod: int = 0,
+    unarmored_ac_add_ability: str | None = None,
+    unarmored_defense_allows_shield: bool = True,
 ) -> int:
     """Compute AC from armor/shield/ring bonuses on top of Dex-only base."""
     armor_ac: int | None = None
@@ -113,7 +117,17 @@ def compute_equipment_ac(
             dex_add = min(dex_mod, dex_cap)
         return max(1, armor_ac + max(0, dex_add) + shield_bonus + misc_bonus)
 
-    return max(1, base_ac + dex_mod + shield_bonus + misc_bonus)
+    if unarmored_ac_add_ability and not unarmored_defense_allows_shield and shield_bonus > 0:
+        shield_bonus = 0
+
+    ability_add = 0
+    add_ab = str(unarmored_ac_add_ability or "").lower()
+    if add_ab == "con":
+        ability_add = con_mod
+    elif add_ab == "wis":
+        ability_add = wis_mod
+
+    return max(1, base_ac + dex_mod + ability_add + shield_bonus + misc_bonus)
 
 
 def build_weapon_attacks(
@@ -150,6 +164,33 @@ def build_weapon_attacks(
             }
         )
     return attacks
+
+
+def player_item_tooltip_payload(item: Item | dict[str, Any] | None) -> dict[str, Any]:
+    """Player-safe item stats for market and shop hover tooltips."""
+    if item is None:
+        return {}
+    snapshot = combat_item_snapshot(item)
+    if isinstance(item, dict):
+        desc = str(item.get("description") or "").strip()
+        item_id = item.get("item_id") or item.get("id")
+        item_type = item.get("type")
+        rarity = item.get("rarity")
+        name = item.get("name") or snapshot.get("name")
+    else:
+        desc = str(getattr(item, "description", None) or "").strip()
+        item_id = getattr(item, "item_id", None)
+        item_type = getattr(item, "type", None)
+        rarity = getattr(item, "rarity", None)
+        name = getattr(item, "name", None) or snapshot.get("name")
+    return {
+        "item_id": item_id,
+        "name": name,
+        "type": item_type,
+        "rarity": rarity,
+        "description": desc,
+        **{k: v for k, v in snapshot.items() if k != "name"},
+    }
 
 
 def combat_equipment_snapshots(player) -> dict[str, Any]:

@@ -718,12 +718,11 @@
                         Econo-Forge is now in Alpha. This page summarizes what the team is prioritizing next.
                         It is product-facing guidance—not a delivery schedule or contract.
                     </p>
-                    <h3>Now: player map, population, and encounter parity</h3>
+                    <h3>Now: progression, combat depth, and player bestiary</h3>
                     <ul>
-                        <li>GM dashboard compendiums now cover regions, cities, shops, items, species, classes, spells, and monsters.</li>
-                        <li>Item management now supports folders, bulk actions, manual stocking into shops, and OGL-safe starter item templates.</li>
-                        <li>Market Overview now includes simulation controls, active volatility context, and clearer last-run market deltas.</li>
-                        <li>Player dashboard tabs now include class-filtered spell availability for D&amp;D 5e characters.</li>
+                        <li>SRD level-up/down, subclass compendium, and the level-up wizard shipped in Alpha 1.3.1.</li>
+                        <li>Battle-board spellcasting, multiattack, concentration, and player monster journals are live for D&amp;D 5e campaigns.</li>
+                        <li>Dashboard panels now refresh in place for level changes, spell picks, and shop trades without losing your place.</li>
                     </ul>
                     <h3>Next: polish and reliability</h3>
                     <ul>
@@ -752,6 +751,8 @@
                     <div class="changelog-layout">
                         <aside class="changelog-index" aria-label="Patch notes">
                             <p class="changelog-index-title">Patch Notes</p>
+                            <a href="#patch-1-3-1">Alpha 1.3.1 Progression &amp; Combat Update</a>
+                            <a href="#patch-1-3">Alpha 1.3 Campaign Hub Update</a>
                             <a href="#patch-1-2-5">Alpha 1.2 GM Workspace Update</a>
                             <a href="#patch-1-2-4">Alpha 1.1 Map and Encounter Update</a>
                             <a href="#patch-1-2-3">Alpha 1.0</a>
@@ -762,8 +763,138 @@
                         </aside>
 
                         <div class="changelog-patches">
+                            <section class="changelog-patch" id="patch-1-3-1" aria-labelledby="heading-patch-1-3-1">
+                                <h3 id="heading-patch-1-3-1">Alpha 1.3.1 Progression &amp; Combat Update <span class="docs-badge">Latest</span></h3>
+                                <p>
+                                    <strong>June 23, 2026.</strong> Builds on the Alpha 1.3 campaign hub with SRD level progression, subclass compendium tooling, player bestiary journals, battle-board spellcasting and multiattack, marketing intake flows, and dashboard UX that keeps panels open while you level, trade, and manage spells.
+                                </p>
+                                <h3>Character level progression (D&amp;D 5e)</h3>
+                                <ul>
+                                    <li>Players can <strong>level up</strong> and <strong>level down</strong> from the dashboard character sheet; a hover preview shows the next level&apos;s HP, features, spell slots, and pending choices before you confirm.</li>
+                                    <li>New <strong>level-up wizard</strong> walks through Ability Score Improvements (+2 or +1/+1), subclass selection, and class trait picks; <strong>Decide later</strong> defers unresolved choices to a pending banner on the sheet.</li>
+                                    <li>Level-up applies average hit-die HP + CON, class features, spell slots, cantrip/known/prepared caps, and Warlock pact magic; level-down reverses the last level including ASI, subclass grants, and trait keys.</li>
+                                    <li>New characters receive full level-1 SRD progression on creation finalize; GMs can set a campaign <strong>max player level</strong> (1–20) in character-creation settings.</li>
+                                    <li>Level changes refresh the sheet in place via AJAX—the character panel stays open instead of reloading the page.</li>
+                                </ul>
+                                <h3>Classes, subclasses, and traits compendiums</h3>
+                                <ul>
+                                    <li>SRD 5e <strong>class progression tables</strong> (levels 1–20) seed per-class hit dice, features, spell-slot rows, and player-choice definitions; GMs can edit progression text and add custom classes.</li>
+                                    <li>Twelve core SRD <strong>subclasses</strong> (one per class) seed with trait-linked feature grants; the GM Classes panel uses expandable class folders and a dedicated subclass editor with trait pickers (not comma-separated keys).</li>
+                                    <li>Class and subclass mechanical traits merge into the Traits Compendium with prerequisites for required classes and subclasses; class feature chips on the player sheet pull descriptions from compendium trait summaries.</li>
+                                    <li>The GM Traits slide-out now supports <strong>sortable columns</strong> (Name, Key, Category, Effects, Prerequisites) like the Spells compendium.</li>
+                                </ul>
+                                <h3>Player dashboard UX</h3>
+                                <ul>
+                                    <li>The <strong>Spells</strong> workspace auto-saves when you drag spells into cantrips, prepared, or known lists (with a manual Save now fallback).</li>
+                                    <li><strong>Market</strong> buy and sell actions update credits, stock, and inventory in place—the market/shops panel stays open instead of reloading.</li>
+                                    <li>The <strong>Inventory</strong> panel uses a stacked card layout so equipment unequip, sell, and equip controls are no longer clipped in the narrow slide-out.</li>
+                                    <li>Separate dashboard tabs for Character, Inventory, Spells, Monsters, Market, and Encounters; item tooltips on market and shop rows show player-safe combat stats.</li>
+                                    <li>Redesigned <strong>campaign selection</strong> hub with a GM campaign table and player character cards in one scrollable view.</li>
+                                </ul>
+                                <h3>Player monster bestiary</h3>
+                                <ul>
+                                    <li>New <strong>Monsters</strong> dashboard tab for personal bestiary journals—observed HP, AC, speed, abilities, attacks, legendary actions, resistances, and notes, never the GM&apos;s full stat block.</li>
+                                    <li>GMs mark compendium entries <strong>Known to players</strong> to share them proactively; players can also <strong>Add to bestiary</strong> from an encounter inspect panel during battle.</li>
+                                </ul>
+                                <h3>Combat (D&amp;D 5e)</h3>
+                                <ul>
+                                    <li><strong>Multiattack</strong> for monsters—SRD multiattack prose (e.g. one bite and two claws) parses into ordered attack swings resolved as one action.</li>
+                                    <li><strong>Extra Attack</strong> for player classes—Fighters and similar classes gain multi-swing Attack actions from class progression traits.</li>
+                                    <li><strong>Spellcasting on the battle board</strong>—prepared/known spells and cantrips cast from sheet snapshots; automated resolution for direct-numeric spells (attacks, saves, single-target damage, healing, and area effects on the 5 ft grid).</li>
+                                    <li>Per-combatant <strong>spell slot tracking</strong> with remaining/total display; <strong>concentration</strong> start/replace/end, CON saves on damage, and linked effect cleanup (GM-toggleable in battle settings).</li>
+                                    <li><strong>Unarmored Defense</strong> and related class traits (Barbarian CON, Monk WIS, Draconic Sorcerer, etc.) adjust AC in combat equipment calculations.</li>
+                                    <li>Expanded SRD 5.1 monster dataset feeds multiattack parsing and compendium seeding.</li>
+                                </ul>
+                                <h3>GM tools</h3>
+                                <ul>
+                                    <li>Shared character sheet partials for GM player/NPC editors—same form, styles, and tooltips as the player sheet; GMs set NPC level directly without player level controls.</li>
+                                    <li>World setup Step 3 can return to Step 2 (map sculpt) without abandoning the campaign.</li>
+                                    <li>Legacy GM campaign list redirects to the unified <code>/campaigns</code> hub with seat counts and inline delete.</li>
+                                    <li>Map Studio preserves existing studio edits when uploading underlay images unless regeneration is explicitly requested.</li>
+                                    <li>Nation and region map pins show ruler and shop-owner NPC name, class, and level on hover.</li>
+                                </ul>
+                                <h3>Marketing and landing</h3>
+                                <ul>
+                                    <li>Landing page hero repositioned as a full GM campaign hub; new CTAs for Creators, Public Deck, and Request Investor Deck.</li>
+                                    <li>Public deck PDF at <code>/public-deck</code>; investor deck and creator partnership intake forms with email notification (not stored in the database).</li>
+                                    <li>Updated SEO and social meta copy to reflect maps, compendiums, economy, and table tools—not economy-only positioning.</li>
+                                </ul>
+                                <h3>Reliability</h3>
+                                <ul>
+                                    <li>Runtime schema bootstrap for <code>PlayerMonsterJournal</code> and monster <code>known_to_players</code> columns on older databases.</li>
+                                    <li>New regression coverage for level progression (up/down, ASI, warlock slots, campaign cap), SRD subclasses and class traits, multiattack, player bestiary, spell guardrails (concentration, area spells, slot tracking), trait-driven combat abilities, investor/creator forms, and shared character sheet partials.</li>
+                                </ul>
+                            </section>
+
+                            <section class="changelog-patch" id="patch-1-3" aria-labelledby="heading-patch-1-3">
+                                <h3 id="heading-patch-1-3">Alpha 1.3 Campaign Hub Update</h3>
+                                <p>
+                                    <strong>June 23, 2026.</strong> Econo-Forge moves from an economy-first tool to a unified GM campaign hub: dashboard shell, map-first world setup, hex Map Studio, Traits Compendium, SRD monster seeding, deeper D&amp;D 5e combat profiles, player spell workspace, nation tools, and landing-page copy that reflects the full product surface.
+                                </p>
+                                <h3>GM dashboard shell</h3>
+                                <ul>
+                                    <li>The GM home screen now uses a persistent top HUD for campaign name, in-game calendar, day/week/month/year/pause simulation controls, supply on/off, and market volatility.</li>
+                                    <li>An icon nav rail opens slide-in panels for Map, Nations, Cities, Shops, Items, Market, Simulation, Players, Species, Traits, Classes, Spells, Encounters, and Monsters.</li>
+                                    <li>Players and NPCs open in an embedded dashboard editor so GMs can add or edit characters without leaving the workspace.</li>
+                                    <li>Shared <code>gm_dashboard_shell.css</code> styling aligns GM and player dashboard chrome.</li>
+                                </ul>
+                                <h3>Map-first world setup</h3>
+                                <ul>
+                                    <li>New campaigns follow a three-step wizard: <strong>Step 1</strong> name and ruleset, <strong>Step 2</strong> sculpt the map, <strong>Step 3</strong> configure economy and species before procedural generation fills regions, cities, shops, and inventory.</li>
+                                    <li>Incomplete setup campaigns redirect back into the wizard; skipping from Step 1 still creates a playable shell.</li>
+                                    <li>Step 2 and Step 3 preserve the map canvas through generation so sculpted terrain survives world fill.</li>
+                                    <li>Documentation now describes the three-step flow instead of a single-shot world generation form.</li>
+                                </ul>
+                                <h3>Hex maps and Map Studio</h3>
+                                <ul>
+                                    <li>World, city, and shop maps can use a procedural <strong>hex grid</strong> pipeline (climate, hydrology, terrain derivation, and scoped cell layouts).</li>
+                                    <li><strong>Map Studio</strong> on the GM dashboard supports painting hex terrain plus rivers, roads, and routes; underlay image upload; and regeneration guards when studio edits exist.</li>
+                                    <li>Legacy raster terrain grids migrate forward to hex-backed layouts when older map metadata is loaded.</li>
+                                    <li>City and shop map scopes generate their own hex cells for local canvases.</li>
+                                </ul>
+                                <h3>Nations and regions</h3>
+                                <ul>
+                                    <li>The <strong>Nation Compendium</strong> surfaces axis position, map colors, assigned rulers, city counts, and whether a nation boundary exists on the world map.</li>
+                                    <li>Region editing adds nation color fields, ruler assignment shortcuts, and magic-tech axis hints.</li>
+                                    <li>GMs can draw and save nation boundaries on the world map from the dashboard.</li>
+                                </ul>
+                                <h3>Traits Compendium (D&amp;D 5e)</h3>
+                                <ul>
+                                    <li>New dashboard <strong>Traits Compendium</strong> stores campaign-scoped mechanical traits (senses, movement, defenses, saves, conditions, and prerequisites)—not SRD prose.</li>
+                                    <li>Core species templates seed trait keys that flow into combat profiles; custom species can reference compendium traits.</li>
+                                    <li>Class-level trait keys and prerequisites (level, ability scores, granted traits) merge into player combat profiles when encounters run.</li>
+                                </ul>
+                                <h3>Monsters and combat (D&amp;D 5e)</h3>
+                                <ul>
+                                    <li>SRD 5.1 monsters auto-seed into the Monster Compendium for D&amp;D 5e campaigns (including skip-setup flows) while preserving GM edits on re-seed.</li>
+                                    <li>Combat profiles now resolve species and monster resistances, immunities, cover, flanking, Lucky, and related mechanical effects during encounter play.</li>
+                                    <li>Encounter and battle-board logic expanded to use the new profile builder and serializers.</li>
+                                </ul>
+                                <h3>Player dashboard</h3>
+                                <ul>
+                                    <li>Player home adds a top HUD with character identity, class/level, campaign name, campaign selection, and join-code tools.</li>
+                                    <li>The <strong>Spells</strong> tab now includes a drag-and-drop workspace for cantrips, prepared spells, and known spells, with save-to-sheet support for D&amp;D 5e characters.</li>
+                                    <li>Class-filtered spell library chips remain available when no spells are selected yet.</li>
+                                </ul>
+                                <h3>Character and NPC creation</h3>
+                                <ul>
+                                    <li>D&amp;D 5e NPC creation uses the same wizard-style flow as players, including point-buy and random-roll helpers where enabled.</li>
+                                    <li>GM character-creation settings persist per campaign; vault character sheets can copy when a player joins a campaign.</li>
+                                    <li>Custom species, classes with flexible skill options, and trait-linked species details finalize into immutable character sheets.</li>
+                                </ul>
+                                <h3>Marketing and positioning</h3>
+                                <ul>
+                                    <li>The public landing page now describes Econo-Forge as a full GM campaign hub (world, maps, compendiums, economy, and table tools)—not only a shop simulator.</li>
+                                </ul>
+                                <h3>Reliability</h3>
+                                <ul>
+                                    <li>Runtime schema compatibility helpers patch missing campaign-scope columns on older databases during bootstrap.</li>
+                                    <li>Added regression coverage for world-setup stages, hex generation, Map Studio APIs, traits compendium, SRD monster seeding, D&amp;D 5e combat profiles, nation boundaries, and dashboard shell markup.</li>
+                                </ul>
+                            </section>
+
                             <section class="changelog-patch" id="patch-1-2-5" aria-labelledby="heading-patch-1-2-5">
-                                <h3 id="heading-patch-1-2-5">Alpha 1.2 GM Workspace Update <span class="docs-badge">Latest</span></h3>
+                                <h3 id="heading-patch-1-2-5">Alpha 1.2 GM Workspace Update</h3>
                                 <p>
                                     <strong>June 14, 2026.</strong> GM dashboard compendiums, bulk item management, item folders, OGL-safe item templates, campaign market volatility controls, Market Overview simulation controls, and clearer player spell visibility.
                                 </p>

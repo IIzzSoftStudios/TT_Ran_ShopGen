@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Request Received — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <style>
+        .page-wrap { max-width: 720px; margin: 0 auto; padding: 48px 18px 60px; text-align: center; }
+        h1 { margin: 0 0 12px; }
+        p { color: var(--color-muted); line-height: 1.65; margin: 0 0 18px; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 10px; padding: 10px 14px; font-weight: 800;
+            text-decoration: none; margin: 6px;
+        }
+        .btn-primary { background: var(--color-accent); color: var(--color-accent-contrast); }
+        .btn-secondary {
+            background: transparent; border: 1px solid rgba(124, 58, 237, 0.35);
+            color: var(--color-accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrap">
+        <h1>Partnership request received</h1>
+        <p>
+            Thanks for reaching out. Our team is reviewing your channel for audience fit with systems-heavy TTRPG GMs.
+            You'll receive a follow-up email shortly—affiliate access, product exchange, and paid integrations are all reviewed manually.
+        </p>
+        <p>A confirmation was sent to the email address you provided.</p>
+        <div>
+            <a class="btn btn-primary" href="{{ url_for('main.index') }}">Back to Home</a>
+            <a class="btn btn-secondary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+        </div>
+    </div>
+</body>
+</html>

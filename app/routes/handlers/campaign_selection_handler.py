@@ -135,9 +135,18 @@ def select_campaign():
     try:
         campaigns = []
         solo_characters = []
+        seat_cap = None
+        active_campaign_id = None
+        try:
+            active_campaign_id = (
+                int(session.get("campaign_id")) if session.get("campaign_id") else None
+            )
+        except (TypeError, ValueError):
+            active_campaign_id = None
 
         if has_gm_capability(current_user):
             gm_profile = current_user.gm_profile
+            _campaign_cap, seat_cap, _label = get_gm_limits(current_user)
             gm_campaigns = Campaign.query.filter_by(gm_profile_id=gm_profile.id).all()
             for campaign in gm_campaigns:
                 player_count = Player.query.filter_by(
@@ -153,6 +162,7 @@ def select_campaign():
                         "system_type": campaign.system_type,
                         "gm_username": current_user.username,
                         "player_count": player_count,
+                        "seat_cap": seat_cap,
                         "pending_setup": pending_setup,
                         "resume_setup_url": setup_resume_url(settings)
                         if pending_setup
@@ -184,9 +194,15 @@ def select_campaign():
                     "type": "Player",
                     "system_type": camp.system_type,
                     "character_label": _character_label_for_campaign_players(chars, camp),
+                    "gm_username": (
+                        camp.gm_profile.user.username
+                        if camp.gm_profile and camp.gm_profile.user
+                        else "—"
+                    ),
                     "player_count": Player.query.filter_by(
                         campaign_id=camp.id, is_npc=False
                     ).count(),
+                    "character_count": len(chars),
                 }
             )
 
@@ -202,6 +218,7 @@ def select_campaign():
             player_campaigns=player_campaigns,
             solo_characters=solo_characters,
             show_redeem_only=show_redeem_only,
+            active_campaign_id=active_campaign_id,
             **_campaign_limit_context_for_user(current_user),
         )
     except Exception as e:

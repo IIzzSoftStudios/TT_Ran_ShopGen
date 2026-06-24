@@ -11,6 +11,9 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys
+
+sys.path.insert(0, str(ROOT))
 SOURCE = ROOT / "scripts" / "_srd_monsters_source.json"
 SOURCE_URL = (
     "https://raw.githubusercontent.com/Tabyltop/CC-SRD/main/"
@@ -104,6 +107,19 @@ def should_skip_attack(name: str) -> bool:
     return any(token in lowered for token in _SKIP_ATTACK_NAMES)
 
 
+def convert_multiattacks(actions: list, attacks: list[dict]) -> list[dict]:
+    from app.services.combat.multiattack_rules import build_multiattack_entry
+
+    multiattacks: list[dict] = []
+    for action in actions or []:
+        if not isinstance(action, dict):
+            continue
+        entry = build_multiattack_entry(action, attacks)
+        if entry:
+            multiattacks.append(entry)
+    return multiattacks[:3]
+
+
 def convert_attacks(actions: list) -> list[dict]:
     attacks: list[dict] = []
     for index, action in enumerate(actions or []):
@@ -194,6 +210,7 @@ def convert_monster(raw: dict) -> dict:
         for ab in ("str", "dex", "con", "int", "wis", "cha")
     }
     attacks = convert_attacks(raw.get("actions") or [])
+    multiattacks = convert_multiattacks(raw.get("actions") or [], attacks)
     if not attacks:
         attacks = [
             {
@@ -212,6 +229,7 @@ def convert_monster(raw: dict) -> dict:
         "speed_ft": parse_speed_ft(raw.get("speed")),
         "abilities": abilities,
         "attacks": attacks,
+        "multiattacks": multiattacks,
         "legendary_actions": convert_legendary(raw.get("actions") or []),
         "traits": convert_traits(raw.get("abilities") or []),
         "size": str(raw.get("size") or "")[:20],

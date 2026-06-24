@@ -577,7 +577,11 @@ body.gm-panel-open.gm-map-tools-open #gm-world-stage {
     display: none !important;
 }
 
-.gm-slide-panel--compendium.is-compendium-embed-open .gm-compendium-embed {
+.gm-compendium-embed[hidden] {
+    display: none !important;
+}
+
+.gm-slide-panel--compendium.is-compendium-embed-open .gm-compendium-embed:not([hidden]) {
     display: flex;
     width: 100%;
 }

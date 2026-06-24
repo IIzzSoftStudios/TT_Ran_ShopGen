@@ -317,6 +317,97 @@ def _merge_proficiencies(
     return save_flags, skill_tiers
 
 
+from app.services.character_creation.dnd5e_species import DRAGONBORN_ANCESTRY_META
+
+DRAGONBORN_ANCESTRY_OPTIONS = tuple(DRAGONBORN_ANCESTRY_META.keys())
+
+
+def _validate_flex_assignments(
+    species_entry: dict[str, Any],
+    flex_assignments: dict[str, Any] | None,
+) -> dict[str, int]:
+    flex_count = int(species_entry.get("flex_ability_bonuses") or 0)
+    if flex_count <= 0:
+        return {}
+    if not isinstance(flex_assignments, dict):
+        raise CreationValidationError("Species flexible ability bonuses are required.")
+    cleaned: dict[str, int] = {}
+    for ability, bonus in flex_assignments.items():
+        ab = str(ability or "").strip().lower()
+        if ab not in _ability_keys():
+            raise CreationValidationError("Invalid flexible ability bonus target.")
+        try:
+            val = int(bonus)
+        except (TypeError, ValueError):
+            raise CreationValidationError("Flexible ability bonus must be an integer.")
+        if val <= 0:
+            continue
+        cleaned[ab] = val
+    if len(cleaned) != flex_count:
+        raise CreationValidationError(
+            f"Species requires exactly {flex_count} flexible ability bonus(es)."
+        )
+    if len(set(cleaned.keys())) != len(cleaned):
+        raise CreationValidationError("Flexible bonuses must target different abilities.")
+    if species_entry.get("key") == "half-elf" and "cha" in cleaned:
+        raise CreationValidationError("Half-Elf flexible bonuses cannot apply to Charisma.")
+    return cleaned
+
+
+def _validate_species_skill_choices(
+    species_entry: dict[str, Any],
+    chosen_skills: list[str] | None,
+) -> list[str]:
+    cfg = species_entry.get("species_skill_choices") or {}
+    count = int(cfg.get("count") or 0)
+    if count <= 0:
+        return []
+    options = cfg.get("options") or []
+    if options == "any":
+        option_set = set(ALL_SKILL_KEYS)
+    else:
+        option_set = {str(o).strip().lower() for o in options}
+    cleaned: list[str] = []
+    for skill in chosen_skills or []:
+        sk = str(skill).strip().lower()
+        if sk not in option_set:
+            raise CreationValidationError(f"Skill {sk} is not allowed for this species.")
+        if sk in cleaned:
+            continue
+        cleaned.append(sk)
+    if len(cleaned) != count:
+        raise CreationValidationError(
+            f"Pick exactly {count} species skill(s); received {len(cleaned)}."
+        )
+    return cleaned
+
+
+def _apply_species_skill_grants(
+    species_entry: dict[str, Any],
+    skill_tiers: dict[str, int],
+    species_skill_choices: list[str],
+) -> dict[str, int]:
+    for skill in species_entry.get("species_skill_proficiencies") or []:
+        sk = str(skill).strip().lower()
+        if sk in ALL_SKILL_KEYS:
+            skill_tiers[sk] = max(int(skill_tiers.get(sk, 0)), 2)
+    for skill in species_skill_choices:
+        skill_tiers[skill] = max(int(skill_tiers.get(skill, 0)), 2)
+    return skill_tiers
+
+
+def _validate_dragonborn_ancestry(
+    species_entry: dict[str, Any],
+    ancestry: str | None,
+) -> str | None:
+    if not species_entry.get("requires_dragonborn_ancestry"):
+        return None
+    choice = str(ancestry or "").strip().lower()
+    if choice not in DRAGONBORN_ANCESTRY_OPTIONS:
+        raise CreationValidationError("Choose a draconic ancestry damage type.")
+    return choice
+
+
 def _validate_class_skills(class_entry: dict[str, Any], chosen_skills: list[str]) -> list[str]:
     cfg = class_entry.get("skill_choices") or {}
     count = int(cfg.get("count") or 0)
@@ -385,6 +476,21 @@ def build_final_sheet_json(
     flex_assignments = payload.get("species_flex_assignments")
     if flex_assignments is not None and not isinstance(flex_assignments, dict):
         raise CreationValidationError("Invalid species flexible bonus payload.")
+    flex_assignments = _validate_flex_assignments(species_entry, flex_assignments)
+
+    species_skill_choices = _validate_species_skill_choices(
+        species_entry,
+        payload.get("species_skill_choices") or [],
+    )
+    dragonborn_ancestry = _validate_dragonborn_ancestry(
+        species_entry,
+        payload.get("dragonborn_ancestry"),
+    )
+    dragonborn_meta = (
+        DRAGONBORN_ANCESTRY_META.get(dragonborn_ancestry or "")
+        if dragonborn_ancestry
+        else None
+    )
 
     chosen_skills = payload.get("class_skill_choices") or []
     if not isinstance(chosen_skills, list):
@@ -401,6 +507,9 @@ def build_final_sheet_json(
     save_flags, skill_tiers = _merge_proficiencies(
         class_entry, background_entry, validated_skills
     )
+    skill_tiers = _apply_species_skill_grants(
+        species_entry, skill_tiers, species_skill_choices
+    )
     defenses = _starter_defenses(final_abilities, class_entry, skill_tiers)
 
     sheet = _empty_sheet("dnd5e")
@@ -412,12 +521,23 @@ def build_final_sheet_json(
     sheet["defenses"] = defenses
     sheet["save_prof_flags"] = save_flags
     sheet["skill_prof_tiers"] = skill_tiers
+    sheet["traits"] = deepcopy(species_entry.get("traits") or [])
+    trait_keys = list(species_entry.get("trait_keys") or [])
+    if dragonborn_meta:
+        resist_key = dragonborn_meta.get("trait_key")
+        if resist_key and resist_key not in trait_keys:
+            trait_keys.append(resist_key)
     sheet["creation"] = {
         "schema_version": CREATION_SCHEMA_VERSION,
         "species_key": species_key,
         "class_key": class_key,
         "background_key": background_key,
+        "trait_keys": trait_keys,
         "class_skill_choices": validated_skills,
+        "species_skill_choices": species_skill_choices,
+        "dragonborn_ancestry": dragonborn_ancestry,
+        "dragonborn_breath_summary": (dragonborn_meta or {}).get("breath_summary"),
+        "dragonborn_breath_shape": (dragonborn_meta or {}).get("breath_shape"),
         "ability_method": "gm_set" if uncapped else settings.get("ability_method"),
         "point_buy_budget_used": int(settings.get("point_buy_budget") or 27),
         "point_buy_spend": point_buy_spend(base_scores)
@@ -430,7 +550,11 @@ def build_final_sheet_json(
         "species_source": species_entry.get("source") or species_entry.get("provenance"),
         "class_source": class_entry.get("source") or class_entry.get("provenance"),
         "settings_version": settings.get("settings_version"),
+        "stat_modifiers": str(species_entry.get("stat_modifiers") or "").strip(),
     }
+    from app.services.character_creation.level_progression_service import apply_level_one_progression
+
+    apply_level_one_progression(sheet, class_entry)
     return sheet
 
 
@@ -563,4 +687,5 @@ def wizard_catalog_for_user(
         "catalog": catalog,
         "point_buy_costs": POINT_BUY_COSTS,
         "point_buy_range": {"min": POINT_BUY_MIN, "max": POINT_BUY_MAX},
+        "dragonborn_ancestry_options": DRAGONBORN_ANCESTRY_META,
     }

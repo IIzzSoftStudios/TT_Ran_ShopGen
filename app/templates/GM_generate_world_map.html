@@ -119,6 +119,7 @@
             background: #ece3cd;
             flex: 1 1 auto;
             min-height: 200px;
+            cursor: grab;
         }
         .map-stage.map-palette-parchment_atlas { background: #ece3cd; }
         .map-stage.map-palette-satellite { background: #ccd4dd; }
@@ -134,6 +135,9 @@
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
         }
         .map-stage.map-studio-paint {
+            cursor: crosshair;
+        }
+        .map-stage.map-studio-paint .map-viewport-layer {
             cursor: crosshair;
         }
         .map-stage.map-viewport-panning {
@@ -530,8 +534,7 @@
             </details>
 
             <p id="map-studio-blocked" class="map-studio-blocked" hidden>
-                Map studio edits procedural maps. Remove the uploaded background or
-                <button type="button" class="button" id="map-convert-editable-btn">convert to editable map</button>.
+                Map studio edits procedural maps. You can still draw nation boundaries and place cities and shops on uploaded maps.
             </p>
             <details id="map-studio-panel" class="map-studio-panel" hidden>
                 <summary>Map studio</summary>
@@ -590,7 +593,7 @@
                 {% endif %}
             {% endfor %}
             <button type="submit" class="btn btn-primary" id="world-map-continue-btn">Continue to economy</button>
-            <a href="{{ url_for('gm.view_campaigns') }}" class="btn btn-secondary">Back to campaigns</a>
+            <a href="{{ url_for('main.campaigns') }}" class="btn btn-secondary">Back to campaigns</a>
         </form>
     </div>
 
@@ -600,7 +603,6 @@
         "mapWorldGeneration": {{ url_for('gm.gm_map_world_generation') | tojson }},
         "mapWorldBackground": {{ url_for('gm.gm_map_world_background') | tojson }},
         "mapWorldBackgroundPreview": {{ url_for('gm.gm_map_world_background_preview') | tojson }},
-        "mapWorldConvertEditable": {{ url_for('gm.gm_map_world_convert_editable') | tojson }},
         "mapWorldUnderlay": {{ url_for('gm.gm_map_world_underlay') | tojson }},
         "mapUnderlayImage": {{ url_for('gm.gm_map_underlay', canvas_id=999999999) | tojson }},
         "mapImage": {{ url_for('gm.gm_map_image', canvas_id=999999999) | tojson }}

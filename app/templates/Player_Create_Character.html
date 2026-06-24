@@ -143,6 +143,32 @@
             margin: 0;
             flex: 0 0 auto;
         }
+        .species-trait-list {
+            margin: 12px 0 0;
+            padding-left: 18px;
+        }
+        .species-trait-list li { margin-bottom: 8px; }
+        .species-trait-list strong { display: block; }
+        .species-choice-panel {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--color-border);
+        }
+        .species-choice-panel h4 {
+            margin: 0 0 8px;
+            font-size: 0.95rem;
+        }
+        .species-flex-grid, .species-skill-grid {
+            display: grid;
+            gap: 8px;
+        }
+        .species-flex-grid label, .species-skill-grid label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 0;
+            font-weight: 500;
+        }
         .roll-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .review-list { padding-left: 1.2rem; }
         #wizard-errors {
@@ -272,7 +298,8 @@
     <div class="modal-backdrop" id="species-modal" hidden>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="species-modal-title">
             <h3 id="species-modal-title">Species</h3>
-            <p id="species-modal-body"></p>
+            <div id="species-modal-body"></div>
+            <div id="species-modal-choices"></div>
             <div class="modal-actions">
                 <button type="button" class="button-secondary" id="species-modal-cancel">Cancel</button>
                 <button type="button" class="button" id="species-modal-accept">Accept species</button>

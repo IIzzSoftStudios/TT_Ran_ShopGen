@@ -647,6 +647,11 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     js = Path("app/static/js/gm_battle.js").read_text(encoding="utf-8")
     css = Path("app/static/css/battle.css").read_text(encoding="utf-8")
     assert "function positionBattleRenamePopout" in js
+    assert "function formatToHitRoll" in js
+    assert "function formatDamageRoll" in js
+    assert "describeAttackPayload" in js
+    assert "function getFixedPanelRoot" in js
+    assert "edgeDrag: true" in js
     assert "positionBattleRenamePopout(popout, renameBtn)" in js
     assert 'id="battle-delete-popout"' in html
     assert 'id="battle-delete-confirm"' in html
@@ -664,6 +669,7 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     assert "battle-token-own-player" in css
     assert "#facc15" in css
     assert ".battle-radial[hidden]" in css
+    assert ".battle-floating-popout[hidden]" in css
     assert "display: none !important" in css
     assert "function resetBattleUiAfterMutation" in js
     assert "function hideRadialMenu" in js
@@ -683,12 +689,6 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     assert 'id="battle-monster-select"' in html
     assert 'id="battle-monster-place-count"' in html
     assert 'id="battle-add-monster-btn"' in html
-    assert 'id="battle-monster-import-btn"' in html
-    assert 'id="battle-monster-import-popout"' in html
-    assert 'id="battle-monster-import-file-type"' in html
-    assert 'id="battle-monster-import-file-type-other"' in html
-    assert 'data-import-title="Monster import request"' in html
-    assert 'data-import-prompted-key="monster_import"' in html
     assert 'data-monster-source-filter="srd_only"' in html
     assert 'data-monster-source-filter="all"' in html
     assert 'data-monster-source-filter="custom_only"' in html
@@ -752,6 +752,10 @@ def test_player_battle_templates_include_map_background():
     player_home = Path("app/templates/Player_Home.html").read_text(encoding="utf-8")
     assert 'id="battle-map-bg"' in player_battle
     assert 'id="battle-map-bg"' in player_home
+    assert 'id="battle-radial-cast"' in player_battle
+    assert 'id="battle-radial-cast"' in player_home
+    assert 'id="battle-cast-popout"' in player_battle
+    assert 'id="battle-cast-popout"' in player_home
     js = Path("app/static/js/gm_battle.js").read_text(encoding="utf-8")
     assert "loadEncounterMap" in js
     assert "/encounters/' + state.encounterId + '/map'" in js

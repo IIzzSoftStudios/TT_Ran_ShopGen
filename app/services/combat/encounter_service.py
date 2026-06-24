@@ -538,41 +538,31 @@ def settings_for(encounter: BattleEncounter) -> dict:
     return merged
 
 
-def _spell_attack_mod(combatant: BattleCombatant, *, level: int = 1) -> int:
-    abilities = combatant.ability_json or {}
-    ruleset = get_ruleset("dnd5e")
-    prof = ruleset.proficiency_bonus(max(1, int(level or 1)))
-    mods = [
-        ruleset.compute_ability_mod(abilities.get(key, 10))
-        for key in ("int", "wis", "cha")
-    ]
-    return max(mods) + prof
+def _spell_attack_mod(
+    combatant: BattleCombatant,
+    *,
+    level: int = 1,
+    class_entry: dict | None = None,
+) -> int:
+    from app.services.combat.combat_spell_service import spell_attack_modifier
+
+    return spell_attack_modifier(
+        combatant.ability_json or {},
+        class_entry,
+        level=level,
+    )
 
 
-def _build_spell_slots_snapshot(class_row: dict | None) -> dict:
-    slots = (class_row or {}).get("spell_slots") or {}
-    snapshot: dict[str, dict[str, int]] = {}
-    for key, total in slots.items():
-        try:
-            slot_total = int(total)
-        except (TypeError, ValueError):
-            continue
-        if slot_total > 0:
-            snapshot[str(key)] = {"total": slot_total, "remaining": slot_total}
-    return snapshot
+def _build_spell_slots_snapshot(sheet: dict, class_row: dict | None) -> dict:
+    from app.services.combat.combat_spell_service import build_spell_slots_snapshot
+
+    return build_spell_slots_snapshot(sheet, class_row)
 
 
-def _player_spell_keys(sheet: dict) -> list[str]:
-    spells_state = sheet.get("spells") if isinstance(sheet.get("spells"), dict) else {}
-    keys: list[str] = []
-    seen: set[str] = set()
-    for bucket in ("cantrips", "prepared", "known"):
-        for raw in spells_state.get(bucket) or []:
-            key = str(raw or "").strip()
-            if key and key not in seen:
-                seen.add(key)
-                keys.append(key)
-    return keys
+def _player_spell_keys(sheet: dict, class_entry: dict | None = None) -> list[str]:
+    from app.services.combat.combat_spell_service import combat_spell_keys_with_buckets
+
+    return [key for key, _ in combat_spell_keys_with_buckets(sheet, class_entry)]
 
 
 # ---------------------------------------------------------------------------
@@ -660,6 +650,8 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
     ruleset = get_ruleset("dnd5e")
     dex_mod = ruleset.compute_ability_mod(abilities.get("dex", 10))
     str_mod = ruleset.compute_ability_mod(abilities.get("str", 10))
+    con_mod = ruleset.compute_ability_mod(abilities.get("con", 10))
+    wis_mod = ruleset.compute_ability_mod(abilities.get("wis", 10))
     try:
         char_level = max(1, int(sheet.get("level") or 1))
     except (TypeError, ValueError):
@@ -689,14 +681,18 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         class_name_fallback=sheet.get("class_name"),
         owner_class_key=creation.get("class_key"),
     )
-    from app.services.spells_compendium_service import combat_spell_snapshots
-
-    spell_keys = _player_spell_keys(sheet)
-    spell_snapshots = combat_spell_snapshots(encounter.campaign_id, spell_keys)
-    spell_slots = _build_spell_slots_snapshot(class_details.get("current_level_row"))
-    spell_mod = _spell_attack_mod(
-        BattleCombatant(ability_json=abilities), level=char_level
+    from app.services.combat.combat_spell_service import (
+        build_player_spell_snapshots,
+        spell_attack_modifier,
     )
+
+    spell_snapshots = build_player_spell_snapshots(
+        encounter.campaign_id, sheet, class_entry
+    )
+    spell_slots = _build_spell_slots_snapshot(
+        sheet, class_details.get("current_level_row")
+    )
+    spell_mod = spell_attack_modifier(abilities, class_entry, level=char_level)
 
     from app.services.equipment.item_rules import (
         build_weapon_attacks,
@@ -705,8 +701,26 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         get_equipped_items,
     )
 
+    species_key = creation.get("species_key")
+    player_combat_profile = build_player_combat_profile(
+        encounter.campaign_id,
+        sheet,
+        species_entry=species_entry,
+        class_entry=class_entry,
+    )
+    speed_ft = max(5, int(player_combat_profile.get("speed_ft") or 30))
+
     equipped = get_equipped_items(player)
-    equipment_ac = compute_equipment_ac(equipped, dex_mod=dex_mod)
+    equipment_ac = compute_equipment_ac(
+        equipped,
+        dex_mod=dex_mod,
+        con_mod=con_mod,
+        wis_mod=wis_mod,
+        unarmored_ac_add_ability=player_combat_profile.get("unarmored_ac_add_ability"),
+        unarmored_defense_allows_shield=bool(
+            player_combat_profile.get("unarmored_defense_allows_shield", True)
+        ),
+    )
     weapon_attacks = build_weapon_attacks(
         equipped, str_mod=str_mod, dex_mod=dex_mod, prof_bonus=prof
     )
@@ -725,19 +739,22 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         ]
     equipment_snapshot = combat_equipment_snapshots(player)
 
-    species_key = creation.get("species_key")
-    player_combat_profile = build_player_combat_profile(
-        encounter.campaign_id,
-        sheet,
-        species_entry=species_entry,
-        class_entry=class_entry,
-    )
-    speed_ft = max(5, int(player_combat_profile.get("speed_ft") or 30))
-
     class_resources = dict((class_details.get("current_level_row") or {}).get("resources") or {})
     resources = _fresh_resources()
     if class_resources:
         resources["class_resources"] = class_resources
+
+    from app.services.combat.multiattack_rules import (
+        player_attack_multiattack,
+        resolve_extra_attack_count,
+    )
+
+    extra_attacks = resolve_extra_attack_count(
+        class_entry,
+        char_level,
+        combat_profile=player_combat_profile,
+    )
+    player_multiattacks = player_attack_multiattack(extra_attacks)
 
     x, y = _free_tile(encounter, *_coerce_tile(encounter, x, y))
     combatant = BattleCombatant(
@@ -758,12 +775,18 @@ def add_player_combatant(encounter: BattleEncounter, player, campaign,
         ability_json=abilities,
         action_data_json={
             "attacks": weapon_attacks,
+            "multiattacks": player_multiattacks,
+            "extra_attack_count": extra_attacks,
             "spells": spell_snapshots,
             "spell_attack_mod": spell_mod,
             "character_level": char_level,
             "equipment": equipment_snapshot,
             "save_prof_flags": dict(sheet.get("save_prof_flags") or {}),
             "combat_profile": player_combat_profile,
+            "action_surge": bool(player_combat_profile.get("action_surge")),
+            "action_surge_additional_actions": int(
+                player_combat_profile.get("action_surge_additional_actions") or 0
+            ),
             "species_key": species_key,
             "class_key": creation.get("class_key"),
         },
@@ -816,6 +839,7 @@ def add_monster_combatant(encounter: BattleEncounter, entry, x=0, y=0,
         ability_json=dict(abilities),
         action_data_json={
             "attacks": list(stats.get("attacks") or []),
+            "multiattacks": list(stats.get("multiattacks") or []),
             "legendary_actions": list(stats.get("legendary_actions") or []),
             "combat_profile": monster_combat_profile,
         },
@@ -1079,6 +1103,119 @@ def _attack_definition(combatant: BattleCombatant, attack_key) -> dict:
         if attack.get("key") == attack_key:
             return attack
     raise CombatValidationError("Unknown attack for this combatant.")
+
+
+def _multiattack_definition(combatant: BattleCombatant, multiattack_key: str) -> dict:
+    definitions = (combatant.action_data_json or {}).get("multiattacks") or []
+    for definition in definitions:
+        if definition.get("key") == multiattack_key:
+            return definition
+    raise CombatValidationError("Unknown multiattack for this combatant.")
+
+
+def _resolve_multiattack_keys(
+    attacker: BattleCombatant,
+    multiattack_key: str,
+    *,
+    primary_attack_key: str | None = None,
+) -> list[str]:
+    definition = _multiattack_definition(attacker, multiattack_key)
+    if definition.get("uses_primary_attack"):
+        try:
+            swing_count = int(definition.get("swing_count") or 0)
+        except (TypeError, ValueError):
+            raise CombatValidationError("Multiattack swing count is invalid.")
+        if swing_count < 2:
+            raise CombatValidationError("Multiattack swing count must be at least 2.")
+        key = str(primary_attack_key or "").strip()
+        if not key:
+            raise CombatValidationError(
+                "A weapon attack must be selected for this Attack action."
+            )
+        _attack_definition(attacker, key)
+        return [key] * swing_count
+    keys = [str(key) for key in (definition.get("attack_keys") or []) if str(key).strip()]
+    if not keys:
+        raise CombatValidationError("Multiattack has no attacks configured.")
+    for key in keys:
+        _attack_definition(attacker, key)
+    return keys
+
+
+def _resolve_attack_swing(
+    encounter: BattleEncounter,
+    attacker: BattleCombatant,
+    target: BattleCombatant,
+    attack: dict,
+    settings: dict,
+    rng: Random,
+    roll_mode: str,
+) -> dict:
+    """Resolve one weapon swing without consuming action economy."""
+    distance = rules.grid_distance_ft(
+        attacker.x, attacker.y, target.x, target.y, settings["diagonal_mode"]
+    )
+    if distance > int(attack.get("range_ft", 5)):
+        raise CombatValidationError(
+            f"Target is out of range ({distance} ft > {attack.get('range_ft', 5)} ft)."
+        )
+    effective_ac, ac_detail = _effective_target_ac(
+        encounter,
+        attacker,
+        target,
+        settings,
+        attack_kind=str(attack.get("kind") or "melee"),
+    )
+    resolved_mode, roll_detail = _attack_roll_mode(
+        encounter, attacker, target, attack, settings, roll_mode
+    )
+    to_hit = _resolve_attack_to_hit(
+        attacker, effective_ac, int(attack.get("attack_mod", 0)), rng, resolved_mode
+    )
+    result = {
+        "attacker_id": attacker.id,
+        "target_id": target.id,
+        "attack": {"key": attack.get("key"), "name": attack.get("name")},
+        "distance_ft": distance,
+        "to_hit": to_hit,
+        "ac_detail": ac_detail,
+        "roll_detail": roll_detail,
+        "hit": to_hit["hit"],
+        "crit": to_hit["crit"],
+    }
+    if to_hit["hit"]:
+        crit = to_hit["crit"] and settings["crit_mode"] == "double_dice"
+        damage = rules.roll_damage(str(attack.get("damage", "1d6")), rng, crit=crit)
+        profile = _combat_profile(attacker)
+        extra = combat_profile.savage_attacks_extra_damage(
+            str(attack.get("damage", "1d6")),
+            rng,
+            enabled=bool(profile.get("savage_attacks")),
+            crit=to_hit["crit"],
+            melee=str(attack.get("kind") or "melee").lower() == "melee",
+        )
+        if extra:
+            damage = dict(damage)
+            damage["total"] += extra["total"]
+            damage["savage_attacks"] = extra
+        target_profile = _combat_profile(target)
+        modified = combat_profile.apply_damage_modifiers(
+            damage["total"], attack.get("damage_type"), target_profile
+        )
+        damage = dict(damage)
+        damage["total"] = modified["total"]
+        damage["damage_modifiers"] = modified
+        result["damage_roll"] = damage
+        if settings["auto_apply_damage"]:
+            result["outcome"] = _apply_outcome_to_target(
+                encounter,
+                target,
+                damage["total"],
+                settings,
+                rng,
+                damage_type=attack.get("damage_type"),
+            )
+    return result
 
 
 def _get_concentration(resources: dict) -> dict | None:
@@ -1381,68 +1518,11 @@ def attack_action(encounter: BattleEncounter, attacker: BattleCombatant,
         raise CombatValidationError(f"{attacker.name} has already used their action.")
 
     attack = _attack_definition(attacker, attack_key)
-    distance = rules.grid_distance_ft(
-        attacker.x, attacker.y, target.x, target.y, settings["diagonal_mode"]
-    )
-    if distance > int(attack.get("range_ft", 5)):
-        raise CombatValidationError(
-            f"Target is out of range ({distance} ft > {attack.get('range_ft', 5)} ft)."
-        )
-
     if roll_mode not in rules.ROLL_MODES:
         raise CombatValidationError("Invalid roll mode.")
-    effective_ac, ac_detail = _effective_target_ac(
-        encounter, attacker, target, settings, attack_kind=str(attack.get("kind") or "melee")
+    result = _resolve_attack_swing(
+        encounter, attacker, target, attack, settings, rng, roll_mode
     )
-    resolved_mode, roll_detail = _attack_roll_mode(
-        encounter, attacker, target, attack, settings, roll_mode
-    )
-    to_hit = _resolve_attack_to_hit(
-        attacker, effective_ac, int(attack.get("attack_mod", 0)), rng, resolved_mode
-    )
-    result = {
-        "attacker_id": attacker.id,
-        "target_id": target.id,
-        "attack": {"key": attack.get("key"), "name": attack.get("name")},
-        "distance_ft": distance,
-        "to_hit": to_hit,
-        "ac_detail": ac_detail,
-        "roll_detail": roll_detail,
-        "hit": to_hit["hit"],
-        "crit": to_hit["crit"],
-    }
-    if to_hit["hit"]:
-        crit = to_hit["crit"] and settings["crit_mode"] == "double_dice"
-        damage = rules.roll_damage(str(attack.get("damage", "1d6")), rng, crit=crit)
-        profile = _combat_profile(attacker)
-        extra = combat_profile.savage_attacks_extra_damage(
-            str(attack.get("damage", "1d6")),
-            rng,
-            enabled=bool(profile.get("savage_attacks")),
-            crit=to_hit["crit"],
-            melee=str(attack.get("kind") or "melee").lower() == "melee",
-        )
-        if extra:
-            damage = dict(damage)
-            damage["total"] += extra["total"]
-            damage["savage_attacks"] = extra
-        target_profile = _combat_profile(target)
-        modified = combat_profile.apply_damage_modifiers(
-            damage["total"], attack.get("damage_type"), target_profile
-        )
-        damage = dict(damage)
-        damage["total"] = modified["total"]
-        damage["damage_modifiers"] = modified
-        result["damage_roll"] = damage
-        if settings["auto_apply_damage"]:
-            result["outcome"] = _apply_outcome_to_target(
-                encounter,
-                target,
-                damage["total"],
-                settings,
-                rng,
-                damage_type=attack.get("damage_type"),
-            )
 
     if settings["track_action_economy"]:
         resources["action"] = False
@@ -1452,6 +1532,94 @@ def attack_action(encounter: BattleEncounter, attacker: BattleCombatant,
     _log(encounter, attacker, "attack", result)
     db.session.flush()
     return result
+
+
+def multiattack_action(
+    encounter: BattleEncounter,
+    attacker: BattleCombatant,
+    target_id,
+    multiattack_key: str,
+    rng: Random,
+    *,
+    roll_mode: str = "normal",
+    primary_attack_key: str | None = None,
+) -> dict:
+    """Resolve SRD multiattack or class Extra Attack as one action."""
+    _require_active(encounter)
+    _require_turn(encounter, attacker)
+    if attacker.status != "active":
+        raise CombatValidationError(f"{attacker.name} cannot act right now.")
+    if combat_profile.incapacitated(list(attacker.conditions_json or [])):
+        raise CombatValidationError(f"{attacker.name} is incapacitated.")
+
+    target = combatant_in_encounter(encounter, target_id)
+    if target is None or target.status in ("dead", "removed"):
+        raise CombatValidationError("Target not found in this encounter.")
+    if target.id == attacker.id:
+        raise CombatValidationError("A combatant cannot attack itself.")
+
+    settings = settings_for(encounter)
+    resources = dict(attacker.resources_json or _fresh_resources())
+    if settings["track_action_economy"] and not resources.get("action", True):
+        raise CombatValidationError(f"{attacker.name} has already used their action.")
+    if roll_mode not in rules.ROLL_MODES:
+        raise CombatValidationError("Invalid roll mode.")
+
+    definition = _multiattack_definition(attacker, multiattack_key)
+    swing_keys = _resolve_multiattack_keys(
+        attacker,
+        multiattack_key,
+        primary_attack_key=primary_attack_key,
+    )
+    results: list[dict] = []
+    for swing_index, attack_key in enumerate(swing_keys):
+        target = combatant_in_encounter(encounter, target_id)
+        if target is None or target.status in ("dead", "removed"):
+            results.append(
+                {
+                    "attacker_id": attacker.id,
+                    "target_id": target_id,
+                    "swing_index": swing_index,
+                    "skipped": "Target is down.",
+                }
+            )
+            break
+        attack = _attack_definition(attacker, attack_key)
+        try:
+            swing = _resolve_attack_swing(
+                encounter, attacker, target, attack, settings, rng, roll_mode
+            )
+        except CombatValidationError as exc:
+            results.append(
+                {
+                    "attacker_id": attacker.id,
+                    "target_id": target.id,
+                    "swing_index": swing_index,
+                    "attack": {"key": attack.get("key"), "name": attack.get("name")},
+                    "skipped": str(exc),
+                }
+            )
+            break
+        swing["swing_index"] = swing_index
+        results.append(swing)
+
+    payload = {
+        "attacker_id": attacker.id,
+        "target_id": target.id,
+        "multiattack": {
+            "key": definition.get("key"),
+            "name": definition.get("name"),
+        },
+        "results": results,
+    }
+    if settings["track_action_economy"]:
+        resources["action"] = False
+        attacker.resources_json = resources
+
+    encounter.turn_version += 1
+    _log(encounter, attacker, "multiattack", payload)
+    db.session.flush()
+    return payload
 
 
 def batch_attack_action(encounter: BattleEncounter, attacker_ids, target_id,
@@ -1553,7 +1721,12 @@ def batch_attack_action(encounter: BattleEncounter, attacker_ids, target_id,
         results.append(entry)
 
     encounter.turn_version += 1
-    _log(encounter, current, "batch_attack", {"results_count": len(results)})
+    _log(
+        encounter,
+        current,
+        "batch_attack",
+        {"target_id": target_id, "results": results},
+    )
     db.session.flush()
     return results
 
@@ -1714,7 +1887,69 @@ def cast_spell_action(
     if auto_resolve:
         spell_dtype = spell.get("damage_type")
         attack_type = spell.get("attack_type")
-        if attack_type == "spell_attack" and spell.get("damage"):
+        from app.services.combat.combat_spell_service import (
+            combatants_in_spell_area,
+            is_area_damage_spell,
+        )
+
+        if is_area_damage_spell(spell):
+            save_ability = str(spell.get("save_ability") or "dex")
+            save_dc = 8 + spell_mod
+            area_targets = combatants_in_spell_area(
+                encounter,
+                attacker,
+                target,
+                spell,
+                diagonal_mode=settings["diagonal_mode"],
+            )
+            if not area_targets:
+                area_targets = [target]
+            base_damage = _roll_spell_damage(spell, cast_level_int, rng)
+            area_results: list[dict] = []
+            for area_target in area_targets:
+                save = _resolve_save_roll(
+                    area_target,
+                    save_ability,
+                    save_dc,
+                    rng,
+                    client_mode=roll_mode,
+                    is_magic=True,
+                )
+                row: dict = {
+                    "target_id": area_target.id,
+                    "target_name": area_target.name,
+                    "save": save,
+                }
+                if base_damage:
+                    tdamage = dict(base_damage)
+                    if save.get("success"):
+                        tdamage["total"] = tdamage["total"] // 2
+                    modified = combat_profile.apply_damage_modifiers(
+                        tdamage["total"], spell_dtype, _combat_profile(area_target)
+                    )
+                    tdamage["total"] = modified["total"]
+                    tdamage["damage_modifiers"] = modified
+                    row["damage_roll"] = tdamage
+                    if settings["auto_apply_damage"] and tdamage["total"] > 0:
+                        row["outcome"] = _apply_outcome_to_target(
+                            encounter,
+                            area_target,
+                            tdamage["total"],
+                            settings,
+                            rng,
+                            concentration_check_override=concentration_check_override,
+                            damage_type=spell_dtype,
+                        )
+                area_results.append(row)
+            result["area_targets"] = area_results
+            result["save_dc"] = save_dc
+            if area_results:
+                primary = area_results[0]
+                result["save"] = primary.get("save")
+                result["damage_roll"] = primary.get("damage_roll")
+                if primary.get("outcome"):
+                    result["outcome"] = primary["outcome"]
+        elif attack_type == "spell_attack" and spell.get("damage"):
             if roll_mode not in rules.ROLL_MODES:
                 raise CombatValidationError("Invalid roll mode.")
             effective_ac, ac_detail = _effective_target_ac(

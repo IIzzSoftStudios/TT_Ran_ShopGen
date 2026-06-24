@@ -136,7 +136,7 @@
     <h1>Player &amp; NPC Manager</h1>
     <h2>Campaign: {{ campaign.name }} ({{ campaign.system_type }})</h2>
     <div class="nav-buttons">
-        <a href="{{ url_for('gm.view_campaigns') }}" class="button">Manage Campaigns</a>
+        <a href="{{ url_for('main.campaigns') }}" class="button">Manage Campaigns</a>
         <a href="{{ url_for('gm.gm_create_npc') }}" class="button">Add NPC</a>
         <a href="{{ url_for('gm.home') }}" class="button">Back to Dashboard</a>
     </div>
@@ -175,7 +175,6 @@
                                                         <span class="tag">Lv {{ character.level }}</span>
                                                     {% endif %}
                                                 </span>
-                                                <span class="character-sheet-hint">View sheet</span>
                                             </a>
                                         {% endfor %}
                                     </div>

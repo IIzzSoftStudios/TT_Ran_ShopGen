@@ -183,11 +183,25 @@ def is_direct_numeric_automation(value: Any) -> bool:
     return normalize_automation(value) == AUTOMATION_DIRECT_NUMERIC
 
 
+_DIRECT_NUMERIC_SPELL_ALLOWLIST = frozenset(
+    {
+        "magic_missile",  # SRD: automatic hit; damage field is full volley on one target
+    }
+)
+
+
 def _forces_manual_automation(entry: dict[str, Any]) -> bool:
-    """Unsupported subsystems and multi-target/area spells stay manual for MVP."""
-    if entry.get("area"):
-        return True
+    """Unsupported subsystems stay manual; SRD area save/damage spells may auto-resolve."""
+    key = str(entry.get("key") or "").strip().lower()
+    if key in _DIRECT_NUMERIC_SPELL_ALLOWLIST:
+        return False
     if entry.get("conditions"):
+        return True
+    area = entry.get("area") if isinstance(entry.get("area"), dict) else {}
+    if area.get("shape") and str(entry.get("attack_type") or "") == "save" and entry.get("damage"):
+        summary = str(entry.get("summary") or "")
+        return bool(_UNSUPPORTED_SUMMARY_RE.search(summary))
+    if entry.get("area"):
         return True
     summary = str(entry.get("summary") or "")
     if _UNSUPPORTED_SUMMARY_RE.search(summary):

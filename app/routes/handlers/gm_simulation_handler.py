@@ -183,7 +183,7 @@ def build_gm_onboarding_context(gm_profile, campaign):
         "steps": steps,
         "generate_world_url": url_for("gm.generate_world_form"),
         "players_view_url": url_for("gm.gm_view_players"),
-        "campaign_players_url": url_for("gm.view_campaigns", onboarding="players"),
+        "campaign_players_url": url_for("main.campaigns", onboarding="players"),
     }
 
 

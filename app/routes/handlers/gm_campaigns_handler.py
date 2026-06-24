@@ -124,46 +124,8 @@ def _expansion_interest_selection(intent: str) -> str:
 
 @login_required
 def list_campaigns():
-    gm_profile = GMProfile.query.filter_by(user_id=current_user.id).first()
-    if not gm_profile:
-        flash("GM profile not found.", "error")
-        return redirect(url_for("main.campaigns"))
-
-    campaigns = Campaign.query.filter_by(gm_profile_id=gm_profile.id).order_by(
-        Campaign.created_at.asc()
-    ).all()
-
-    _campaign_cap, seat_cap, _label = get_gm_limits(gm_profile.user)
-
-    campaigns_with_info = []
-    for campaign in campaigns:
-        member_count = (
-            db.session.query(Player)
-            .filter(
-                Player.campaign_id == campaign.id,
-                Player.is_npc.is_(False),
-            )
-            .count()
-        )
-        campaigns_with_info.append(
-            {
-                "campaign": campaign,
-                "member_count": member_count,
-                "seat_cap": seat_cap,
-            }
-        )
-
-    try:
-        active_campaign_id = int(session.get("campaign_id")) if session.get("campaign_id") else None
-    except (TypeError, ValueError):
-        active_campaign_id = None
-
-    return render_template(
-        "GM_view_campaigns.html",
-        campaigns_info=campaigns_with_info,
-        active_campaign_id=active_campaign_id,
-        **_campaign_limit_context(gm_profile),
-    )
+    """Legacy GM overview — unified campaign list lives on /campaigns."""
+    return redirect(url_for("main.campaigns", **request.args))
 
 
 @login_required
@@ -344,7 +306,7 @@ def delete_campaign(campaign_id: int):
     ).first()
     if not campaign:
         flash("Campaign not found.", "error")
-        return redirect(url_for("gm.view_campaigns"))
+        return redirect(url_for("main.campaigns"))
 
     deleting_active_campaign = session.get("campaign_id") == campaign_id
 
@@ -388,7 +350,7 @@ def delete_campaign(campaign_id: int):
             f"({type(exc).__name__})",
             "error",
         )
-        return redirect(url_for("gm.view_campaigns"))
+        return redirect(url_for("main.campaigns"))
     except Exception:
         db.session.rollback()
         log.exception(
@@ -397,7 +359,7 @@ def delete_campaign(campaign_id: int):
             gm_profile.id,
         )
         flash("Could not delete this campaign. Please try again.", "error")
-        return redirect(url_for("gm.view_campaigns"))
+        return redirect(url_for("main.campaigns"))
 
     logging.getLogger(__name__).info(
         "Campaign deleted | campaign_id=%s name=%r gm_profile_id=%s "
@@ -415,7 +377,7 @@ def delete_campaign(campaign_id: int):
         flash("Campaign deleted.", "success")
         return redirect(url_for("main.campaigns"))
     flash("Campaign deleted.", "success")
-    return redirect(url_for("gm.view_campaigns"))
+    return redirect(url_for("main.campaigns"))
 
 
 # ---------------------------------------------------------------------------
@@ -567,7 +529,12 @@ def _require_gm_profile():
     return gm_profile, None, None
 
 
-def _campaign_for_setup_step(gm_profile, required_stage: str):
+def _campaign_for_setup_step(
+    gm_profile,
+    required_stage: str,
+    *,
+    revisit_from: str | None = None,
+):
     """Load session campaign and verify it is at the expected setup stage."""
     cid = session.get("campaign_id")
     if not cid:
@@ -586,9 +553,14 @@ def _campaign_for_setup_step(gm_profile, required_stage: str):
         return campaign, config, redirect(url_for("gm.home"), code=303)
     stage = setup_state.setup_stage(settings)
     if stage != required_stage:
-        resume = setup_state.redirect_for_setup_stage(settings)
-        if resume is not None:
-            return campaign, config, resume
+        if revisit_from and stage == revisit_from:
+            settings = setup_state.mark_setup_map(settings)
+            config.settings_json = settings
+            db.session.commit()
+        else:
+            resume = setup_state.redirect_for_setup_stage(settings)
+            if resume is not None:
+                return campaign, config, resume
     return campaign, config, None
 
 
@@ -707,7 +679,9 @@ def generate_world_map():
         return redirect_response, status
 
     campaign, config, stage_redirect = _campaign_for_setup_step(
-        gm_profile, setup_state.SETUP_STAGE_MAP
+        gm_profile,
+        setup_state.SETUP_STAGE_MAP,
+        revisit_from=setup_state.SETUP_STAGE_ECONOMY,
     )
     if stage_redirect is not None:
         return stage_redirect
@@ -1162,11 +1136,11 @@ def post_redeem_player_code(campaign_id: int):
     ).first()
     if not campaign:
         flash("Campaign not found.", "error")
-        return redirect(url_for("gm.view_campaigns"))
+        return redirect(url_for("main.campaigns"))
     raw = (request.form.get("player_join_code") or "").strip()
     if not raw:
         flash("Enter a player code (PLY-…).", "warning")
-        return redirect(url_for("gm.view_campaigns"))
+        return redirect(url_for("main.campaigns"))
     try:
         redeem_player_code(
             gm_profile_id=gm_profile.id,
@@ -1181,4 +1155,4 @@ def post_redeem_player_code(campaign_id: int):
             or "Could not add player with that code.",
             "danger",
         )
-    return redirect(url_for("gm.view_campaigns"))
+    return redirect(url_for("main.campaigns"))

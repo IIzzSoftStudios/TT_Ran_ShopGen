@@ -103,7 +103,6 @@
 
         function releaseInteraction() {
             paintCapture = false;
-            options.paintActive = false;
             if (panPointer) {
                 endPan();
             }

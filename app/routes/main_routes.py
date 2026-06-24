@@ -1,7 +1,9 @@
 import logging
+import re
 from datetime import datetime
+from pathlib import Path
 
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from flask_login import login_required, current_user
 from redis.exceptions import RedisError
 from sqlalchemy import text
@@ -16,13 +18,40 @@ from app.routes.handlers.campaign_selection_handler import (
     load_campaign_character,
     redeem_campaign_post,
 )
+from app.services.creator_partnership_mail import send_creator_partnership_emails
 from app.services.distributed_lock import get_redis_client
+from app.services.investor_deck_mail import send_investor_request_emails
 from app.services.key_generator import generate_secure_code
+from app.services.landing_tiktok import load_landing_tiktok_feed
 
 main_bp = Blueprint("main", __name__)
 
 _ready_logger = logging.getLogger(__name__)
 AUTO_ACCESS_PHASE = "alpha"
+PUBLIC_DECK_FILENAME = "web-deck-v1.pdf"
+_CONSUMER_EMAIL_DOMAINS = frozenset(
+    {
+        "gmail.com",
+        "googlemail.com",
+        "yahoo.com",
+        "hotmail.com",
+        "outlook.com",
+        "live.com",
+        "aol.com",
+        "icloud.com",
+        "me.com",
+        "proton.me",
+        "protonmail.com",
+    }
+)
+_INVESTOR_STATUSES = frozenset({"accredited", "institutional"})
+_CHECK_SIZES = frozenset({"10000_25000", "25000_50000", "50000_100000", "100000_plus"})
+_CREATOR_PLATFORMS = frozenset(
+    {"youtube_shorts", "tiktok", "twitch", "instagram_reels", "podcast_other"}
+)
+_CREATOR_AUDIENCE_SIZES = frozenset({"under_10k", "10k_50k", "50k_250k", "250k_plus"})
+_CREATOR_CONTENT_FOCUS = frozenset({"ttrpg", "gm_advice", "grand_strategy", "military_sim"})
+_CREATOR_PARTNERSHIP_TYPES = frozenset({"affiliate", "paid_sponsorship", "product_exchange"})
 
 
 @main_bp.route("/healthz")
@@ -86,7 +115,7 @@ def ready():
 
 @main_bp.route("/")
 def index():
-    return render_template("landing.html")
+    return render_template("landing.html", tiktok_feed=load_landing_tiktok_feed())
 
 
 _DOCS_SECTIONS = frozenset(
@@ -210,6 +239,209 @@ def _generate_unique_access_key(phase_slug: str) -> str:
 @main_bp.route("/thank-you")
 def thank_you():
     return redirect(url_for("main.access_request"))
+
+
+@main_bp.route("/public-deck")
+def public_deck():
+    """Serve the public-facing deck PDF (not the investor data room)."""
+    media_dir = Path(current_app.root_path) / "static" / "media"
+    deck_path = media_dir / PUBLIC_DECK_FILENAME
+    if not deck_path.is_file():
+        flash("Public deck is not available yet. Please try again later.", "warning")
+        return redirect(url_for("main.index"))
+    return send_from_directory(
+        media_dir,
+        PUBLIC_DECK_FILENAME,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name="Econo-Forge-Public-Deck.pdf",
+    )
+
+
+def _email_domain(email: str) -> str:
+    return email.rsplit("@", 1)[-1].lower().strip()
+
+
+def _normalize_fund_website(raw: str) -> str | None:
+    """Accept bare domains or http(s) URLs; returns normalized https URL or None if invalid."""
+    value = (raw or "").strip()
+    if not value:
+        return None
+    if len(value) > 500 or " " in value:
+        return None
+    if not value.startswith(("http://", "https://")):
+        value = f"https://{value.lstrip('/')}"
+    host = value.split("://", 1)[-1].split("/")[0].split("?")[0]
+    if "." not in host or host.startswith(".") or host.endswith("."):
+        return None
+    return value
+
+
+def _validate_investor_payload(form) -> dict | None:
+    full_name = (form.get("full_name") or "").strip()
+    email = (form.get("email") or "").strip().lower()
+    company_fund_name = (form.get("company_fund_name") or "").strip()
+    fund_website_raw = (form.get("fund_website") or "").strip()
+    investor_status = (form.get("investor_status") or "").strip()
+    check_size = (form.get("check_size") or "").strip()
+    prior_saas_gaming_invest = (form.get("prior_saas_gaming_invest") or "").strip()
+    confidentiality_ack = form.get("confidentiality_ack") == "yes"
+
+    if not full_name or len(full_name) > 120:
+        flash("Full name is required (max 120 characters).", "warning")
+        return None
+    if not email or "@" not in email or len(email) > 255:
+        flash("A valid professional email address is required.", "warning")
+        return None
+    if not company_fund_name or len(company_fund_name) > 200:
+        flash("Company / fund / syndicate name is required.", "warning")
+        return None
+    fund_website = _normalize_fund_website(fund_website_raw)
+    if fund_website_raw and fund_website is None:
+        flash("Fund website must be a valid domain or URL (e.g., yourfund.com).", "warning")
+        return None
+    if _email_domain(email) in _CONSUMER_EMAIL_DOMAINS and not fund_website:
+        flash(
+            "Personal email detected—add your fund website so we can verify your background, or use a work/fund address.",
+            "warning",
+        )
+        return None
+    if investor_status not in _INVESTOR_STATUSES:
+        flash("Please select your investor status.", "warning")
+        return None
+
+    if check_size not in _CHECK_SIZES:
+        flash("Please select a typical check size / investment range.", "warning")
+        return None
+    if prior_saas_gaming_invest not in {"yes", "no"}:
+        flash("Please indicate whether you have previously invested in SaaS, gaming, or infrastructure technology.", "warning")
+        return None
+    if not confidentiality_ack:
+        flash("You must acknowledge the confidentiality terms before submitting.", "warning")
+        return None
+
+    return {
+        "full_name": full_name,
+        "email": email,
+        "company_fund_name": company_fund_name,
+        "fund_website": fund_website or None,
+        "investor_status": investor_status,
+        "check_size": check_size,
+        "prior_saas_gaming_invest": prior_saas_gaming_invest,
+    }
+
+
+@main_bp.route("/investor-deck-request", methods=["GET", "POST"])
+@limiter.limit("5 per hour")
+def investor_deck_request():
+    if request.method == "POST":
+        payload = _validate_investor_payload(request.form)
+        if payload is None:
+            return redirect(url_for("main.investor_deck_request"))
+
+        try:
+            send_investor_request_emails(payload)
+        except Exception as exc:
+            _ready_logger.warning("Investor deck email failed: %s", exc)
+            flash(
+                "We could not send your request right now. Please try again shortly or email iizzsoftstudios@gmail.com directly.",
+                "error",
+            )
+            return redirect(url_for("main.investor_deck_request"))
+
+        return redirect(url_for("main.investor_deck_thanks"))
+
+    return render_template("investor_deck_request.html")
+
+
+@main_bp.route("/investor-deck-thanks")
+def investor_deck_thanks():
+    return render_template("investor_deck_thanks.html")
+
+
+def _validate_creator_payload(form) -> dict | None:
+    full_name = (form.get("full_name") or "").strip()
+    email = (form.get("email") or "").strip().lower()
+    primary_platform = (form.get("primary_platform") or "").strip()
+    channel_url = (form.get("channel_url") or "").strip()
+    audience_size = (form.get("audience_size") or "").strip()
+    content_focus = [v for v in form.getlist("content_focus") if v in _CREATOR_CONTENT_FOCUS]
+    avg_views_note = (form.get("avg_views_note") or "").strip()
+    partnership_type = (form.get("partnership_type") or "").strip()
+    rate_or_cpm = (form.get("rate_or_cpm") or "").strip()
+    campaign_pitch = (form.get("campaign_pitch") or "").strip()
+
+    if not full_name or len(full_name) > 120:
+        flash("Full name is required (max 120 characters).", "warning")
+        return None
+    if not email or "@" not in email or len(email) > 255:
+        flash("A valid email address is required.", "warning")
+        return None
+    if primary_platform not in _CREATOR_PLATFORMS:
+        flash("Please select your primary platform.", "warning")
+        return None
+    if not channel_url or len(channel_url) > 500:
+        flash("Primary channel URL or handle is required.", "warning")
+        return None
+    if audience_size not in _CREATOR_AUDIENCE_SIZES:
+        flash("Please select your audience size.", "warning")
+        return None
+    if not content_focus:
+        flash("Select at least one primary content focus.", "warning")
+        return None
+    if not avg_views_note or len(avg_views_note) > 300:
+        flash("Average views or concurrent viewers is required (max 300 characters).", "warning")
+        return None
+    if partnership_type not in _CREATOR_PARTNERSHIP_TYPES:
+        flash("Please select a partnership type.", "warning")
+        return None
+    if partnership_type == "paid_sponsorship" and (not rate_or_cpm or len(rate_or_cpm) > 200):
+        flash("Standard rate or base CPM is required for paid sponsorship requests.", "warning")
+        return None
+    if not campaign_pitch or len(campaign_pitch) > 2000:
+        flash("Please describe how you plan to showcase Econo-Forge (max 2000 characters).", "warning")
+        return None
+
+    return {
+        "full_name": full_name,
+        "email": email,
+        "primary_platform": primary_platform,
+        "channel_url": channel_url,
+        "audience_size": audience_size,
+        "content_focus": content_focus,
+        "avg_views_note": avg_views_note,
+        "partnership_type": partnership_type,
+        "rate_or_cpm": rate_or_cpm or None,
+        "campaign_pitch": campaign_pitch,
+    }
+
+
+@main_bp.route("/creator-partnership", methods=["GET", "POST"])
+@limiter.limit("5 per hour")
+def creator_partnership_request():
+    if request.method == "POST":
+        payload = _validate_creator_payload(request.form)
+        if payload is None:
+            return redirect(url_for("main.creator_partnership_request"))
+
+        try:
+            send_creator_partnership_emails(payload)
+        except Exception as exc:
+            _ready_logger.warning("Creator partnership email failed: %s", exc)
+            flash(
+                "We could not send your request right now. Please try again shortly or email iizzsoftstudios@gmail.com directly.",
+                "error",
+            )
+            return redirect(url_for("main.creator_partnership_request"))
+
+        return redirect(url_for("main.creator_partnership_thanks"))
+
+    return render_template("creator_partnership_request.html")
+
+
+@main_bp.route("/creator-partnership-thanks")
+def creator_partnership_thanks():
+    return render_template("creator_partnership_thanks.html")
 
 
 @main_bp.route("/campaigns")

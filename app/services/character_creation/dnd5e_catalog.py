@@ -332,12 +332,42 @@ def _normalize_species_entry(raw: dict[str, Any], *, source: str) -> dict[str, A
     name = str(raw.get("name") or key).strip()
     mods = raw.get("ability_modifiers") or {}
     clean_mods = {a: int(mods.get(a, 0) or 0) for a in ABILITIES}
+    traits: list[dict[str, str]] = []
+    for trait in raw.get("traits") or []:
+        if not isinstance(trait, dict):
+            continue
+        trait_name = str(trait.get("name") or "").strip()
+        trait_desc = str(trait.get("description") or "").strip()
+        if trait_name or trait_desc:
+            traits.append({"name": trait_name or "Trait", "description": trait_desc[:500]})
+    trait_keys = [
+        str(k).strip().lower()
+        for k in (raw.get("trait_keys") or [])
+        if str(k).strip()
+    ]
+    skill_cfg = raw.get("species_skill_choices")
+    if isinstance(skill_cfg, dict) and skill_cfg:
+        skill_cfg = deepcopy(skill_cfg)
+        if skill_cfg.get("options") == "any":
+            skill_cfg["options"] = list(ALL_SKILL_KEYS)
+    else:
+        skill_cfg = None
     return {
         "key": key,
         "name": name,
         "summary": str(raw.get("summary") or raw.get("notes") or "").strip()[:500],
         "ability_modifiers": clean_mods,
         "flex_ability_bonuses": int(raw.get("flex_ability_bonuses") or 0),
+        "stat_modifiers": str(raw.get("stat_modifiers") or "").strip()[:500],
+        "traits": traits,
+        "trait_keys": trait_keys,
+        "species_skill_proficiencies": [
+            str(sk).strip().lower()
+            for sk in (raw.get("species_skill_proficiencies") or [])
+            if str(sk).strip().lower() in ALL_SKILL_KEYS
+        ],
+        "species_skill_choices": skill_cfg,
+        "requires_dragonborn_ancestry": bool(raw.get("requires_dragonborn_ancestry")),
         "source": source,
         "provenance": source,
     }
@@ -361,6 +391,12 @@ def _species_from_compendium(entries: list[dict[str, Any]]) -> list[dict[str, An
                     "summary": row.get("summary") or row.get("notes") or "",
                     "ability_modifiers": mods,
                     "flex_ability_bonuses": row.get("flex_ability_bonuses") or 0,
+                    "stat_modifiers": row.get("stat_modifiers") or "",
+                    "traits": row.get("traits") or [],
+                    "trait_keys": row.get("trait_keys") or [],
+                    "species_skill_proficiencies": row.get("species_skill_proficiencies") or [],
+                    "species_skill_choices": row.get("species_skill_choices"),
+                    "requires_dragonborn_ancestry": row.get("requires_dragonborn_ancestry"),
                 },
                 source="species_compendium",
             )

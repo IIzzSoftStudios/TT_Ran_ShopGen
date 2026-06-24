@@ -84,6 +84,18 @@ def serialize_combatant(combatant: BattleCombatant, *, for_gm: bool,
                 "attacks": list(
                     (combatant.action_data_json or {}).get("attacks") or []
                 ),
+                "multiattacks": list(
+                    (combatant.action_data_json or {}).get("multiattacks") or []
+                ),
+                "extra_attack_count": int(
+                    (combatant.action_data_json or {}).get("extra_attack_count") or 1
+                ),
+                "action_surge": bool(
+                    (combatant.action_data_json or {}).get("action_surge")
+                ),
+                "action_surge_additional_actions": int(
+                    (combatant.action_data_json or {}).get("action_surge_additional_actions") or 0
+                ),
                 "spells": list(
                     (combatant.action_data_json or {}).get("spells") or []
                 ),
@@ -103,6 +115,12 @@ def serialize_combatant(combatant: BattleCombatant, *, for_gm: bool,
                 )
         if is_own:
             base["spell_slots"] = dict(combatant.spell_slots_json or {})
+    if (
+        not for_gm
+        and combatant.side == "foe"
+        and combatant.compendium_entry_id
+    ):
+        base["compendium_entry_id"] = combatant.compendium_entry_id
     if for_gm:
         base.update(
             {

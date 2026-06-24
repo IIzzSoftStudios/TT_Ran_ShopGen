@@ -906,6 +906,63 @@ class PlayerNpcNote(db.Model):
         )
 
 
+class PlayerMonsterJournal(db.Model):
+    """Per-character notes and observed stats for a compendium monster."""
+
+    __tablename__ = "player_monster_journal"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "viewer_player_id",
+            "monster_entry_id",
+            name="uq_player_monster_journal_viewer_entry",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    viewer_player_id = db.Column(
+        db.Integer,
+        db.ForeignKey("player.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    monster_entry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("monster_compendium_entry.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stat_json = db.Column(_json_with_jsonb(), nullable=False, default=dict)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    viewer = db.relationship(
+        "Player",
+        foreign_keys=[viewer_player_id],
+        backref=db.backref("monster_journals_written", lazy="dynamic"),
+    )
+    monster_entry = db.relationship(
+        "MonsterCompendiumEntry",
+        foreign_keys=[monster_entry_id],
+        backref=db.backref("player_journals", lazy="dynamic"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<PlayerMonsterJournal viewer={self.viewer_player_id} "
+            f"monster={self.monster_entry_id}>"
+        )
+
+
 class ResourceTransform(db.Model):
     __tablename__ = "resource_transforms"
     transform_id = db.Column(db.Integer, primary_key=True)
@@ -1348,6 +1405,7 @@ class MonsterCompendiumEntry(db.Model):
     generation_seed = db.Column(db.String(64), nullable=True)
     challenge_rating = db.Column(db.Float, nullable=True)
     stat_json = db.Column(_json_with_jsonb(), nullable=False, default=dict)
+    known_to_players = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow

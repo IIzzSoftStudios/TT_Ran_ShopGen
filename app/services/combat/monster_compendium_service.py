@@ -102,6 +102,55 @@ def _validated_stats(stat_json) -> dict:
             }
         )
     stats["attacks"] = clean_attacks
+    attack_keys = {row["key"] for row in clean_attacks}
+
+    multiattacks = stats.get("multiattacks") or []
+    if not isinstance(multiattacks, list) or len(multiattacks) > 5:
+        raise CombatValidationError("multiattacks must be a list of at most 5 entries.")
+    clean_multiattacks = []
+    for index, bundle in enumerate(multiattacks):
+        if not isinstance(bundle, dict):
+            raise CombatValidationError("Each multiattack must be an object.")
+        name = str(bundle.get("name") or f"Multiattack {index + 1}")[:60]
+        uses_primary = bool(bundle.get("uses_primary_attack"))
+        swing_count = bundle.get("swing_count")
+        if uses_primary:
+            try:
+                swings = int(swing_count or 0)
+            except (TypeError, ValueError):
+                raise CombatValidationError("multiattack swing_count must be an integer.")
+            if not (2 <= swings <= 8):
+                raise CombatValidationError("multiattack swing_count must be 2-8.")
+            clean_multiattacks.append(
+                {
+                    "key": str(bundle.get("key") or f"multiattack_{index}")[:30],
+                    "name": name,
+                    "uses_primary_attack": True,
+                    "swing_count": swings,
+                    "description": str(bundle.get("description") or "")[:500],
+                }
+            )
+            continue
+        raw_keys = bundle.get("attack_keys") or []
+        if not isinstance(raw_keys, list) or not raw_keys:
+            raise CombatValidationError("multiattack attack_keys must be a non-empty list.")
+        if len(raw_keys) > 12:
+            raise CombatValidationError("multiattack attack_keys may have at most 12 swings.")
+        clean_keys = []
+        for attack_key in raw_keys:
+            key = str(attack_key or "").strip()[:30]
+            if key not in attack_keys:
+                raise CombatValidationError(f"multiattack references unknown attack key: {key}")
+            clean_keys.append(key)
+        clean_multiattacks.append(
+            {
+                "key": str(bundle.get("key") or f"multiattack_{index}")[:30],
+                "name": name,
+                "attack_keys": clean_keys,
+                "description": str(bundle.get("description") or "")[:500],
+            }
+        )
+    stats["multiattacks"] = clean_multiattacks
 
     legendary_actions = stats.get("legendary_actions") or []
     if not isinstance(legendary_actions, list) or len(legendary_actions) > 10:
@@ -230,7 +279,7 @@ def create_entry(
 
 
 def update_entry(entry: MonsterCompendiumEntry, name=None, stat_json=None,
-                 challenge_rating=None) -> MonsterCompendiumEntry:
+                 challenge_rating=None, known_to_players=None) -> MonsterCompendiumEntry:
     if name is not None:
         name = str(name).strip()
         if not name or len(name) > _MAX_NAME_LEN:
@@ -246,6 +295,8 @@ def update_entry(entry: MonsterCompendiumEntry, name=None, stat_json=None,
         if not (0 <= cr <= 30):
             raise CombatValidationError("challenge_rating must be between 0 and 30.")
         entry.challenge_rating = cr
+    if known_to_players is not None:
+        entry.known_to_players = bool(known_to_players)
     db.session.flush()
     return entry
 
@@ -286,5 +337,6 @@ def serialize_entry(entry: MonsterCompendiumEntry) -> dict:
         "origin_srd_key": entry.origin_srd_key,
         "generation_seed": entry.generation_seed,
         "challenge_rating": entry.challenge_rating,
+        "known_to_players": bool(getattr(entry, "known_to_players", False)),
         "stats": entry.stat_json or {},
     }
