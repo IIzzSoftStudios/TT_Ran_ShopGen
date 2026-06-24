@@ -325,6 +325,11 @@ def create_app():
         "CREATOR_PARTNERSHIP_NOTIFY_EMAIL", "iizzsoftstudios@gmail.com"
     )
 
+    # Pytest and Cloud Build run the full suite in one process with in-memory
+    # limiter storage (TRSG_TEST_FILESYSTEM_SESSION). Shared counters cause 429s.
+    if os.getenv("TRSG_TEST_FILESYSTEM_SESSION", "").lower() in ("1", "true", "yes"):
+        app.config["RATELIMIT_ENABLED"] = False
+
     db.init_app(app)
     login_manager.init_app(app)
     bcrypt.init_app(app)
