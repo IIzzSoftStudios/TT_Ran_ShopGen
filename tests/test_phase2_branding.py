@@ -160,7 +160,7 @@ def test_player_home_uses_browse_shops_not_market_route(client):
     assert b"savePlayerSpellSelection" in resp.data
     assert b"Full character sheet" in resp.data
     assert b"showPurchaseToast(data.message || \"Purchase complete.\", \"success\")" in resp.data
-    assert b"setTimeout(function () { location.reload(); }, 3000)" in resp.data
+    assert b"keepPlayerPanelOpenAfterTrade()" in resp.data
     assert b"Add Region" not in resp.data
     assert b"Import market data" not in resp.data
     assert b"Supply On" not in resp.data

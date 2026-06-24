@@ -9,7 +9,9 @@ def test_docs_roadmap_section_renders(client):
     assert b"Product Roadmap" in resp.data
     assert b'id="section-roadmap"' in resp.data
     assert b"data-section=\"roadmap\"" in resp.data
-    assert b"player map, population, and encounter parity" in resp.data.lower()
+    assert b"player map, population, and encounter parity" not in resp.data.lower()
+    assert b"srd level-up/down" in resp.data.lower()
+    assert b"battle-board spellcasting" in resp.data.lower()
     assert b"species and monster compendiums" in resp.data
     assert b"Population by species" in resp.data
     assert b"visibility filtering" in resp.data

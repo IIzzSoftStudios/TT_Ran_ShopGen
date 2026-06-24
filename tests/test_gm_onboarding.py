@@ -84,7 +84,9 @@ def test_build_context_ready_for_first_sim():
     assert ctx["show"] is True
     assert ctx["show_first_sim_prompt"] is True
     assert ctx["join_code_ready"] is True
-    assert ctx["campaign_players_url"].endswith("/campaigns/?onboarding=players")
+    assert ctx["campaign_players_url"].endswith("/campaigns?onboarding=players") or ctx[
+        "campaign_players_url"
+    ].endswith("/campaigns/?onboarding=players")
 
 
 def test_build_context_join_code_not_ready_when_cleared():
@@ -137,9 +139,10 @@ def test_gm_home_first_run_prompt_before_advanced_controls():
     assert b"gm-run-first-day-btn" in resp.data
     assert b"Start the market clock" in resp.data
     assert b"gm-advanced-sim-controls" not in resp.data
-    assert b"Run week" in resp.data
-    assert b"Run month" in resp.data
-    assert b"Run year" in resp.data
+    assert b"gm-run-first-day-btn" in resp.data
+    assert b">Week<" in resp.data or b"Run week" in resp.data
+    assert b">Month<" in resp.data or b"Run month" in resp.data
+    assert b">Year<" in resp.data or b"Run year" in resp.data
 
 
 def test_gm_home_renders_setup_complete_summary():

@@ -86,10 +86,11 @@ def test_keys_template_includes_gm_heading_only_when_flag_true():
     {% endif %}
     """
     with app.app_context():
-        html_off = render_template_string(tpl, show_gm_usage_tab=False)
-        assert "gm-simulation-usage-heading" not in html_off
-        html_on = render_template_string(tpl, show_gm_usage_tab=True)
-        assert "GM simulation usage" in html_on
+        with app.test_request_context("/"):
+            html_off = render_template_string(tpl, show_gm_usage_tab=False)
+            assert "gm-simulation-usage-heading" not in html_off
+            html_on = render_template_string(tpl, show_gm_usage_tab=True)
+            assert "GM simulation usage" in html_on
 
 
 def _sample_gm_row():

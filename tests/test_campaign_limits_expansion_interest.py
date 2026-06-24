@@ -95,10 +95,10 @@ def test_gm_campaign_list_renders_expansion_modal_trigger_when_capped(client):
     _make_campaign(gm_user.gm_profile, "Live", is_active=True)
     seed_client_session(client, gm_user)
 
-    resp = client.get("/gm/campaigns/")
+    resp = client.get("/gm/campaigns/", follow_redirects=True)
 
     assert resp.status_code == 200
-    assert b"data-expansion-interest-source=\"gm_campaigns_add\"" in resp.data
+    assert b"data-expansion-interest-source=\"campaign_selection_create\"" in resp.data
 
 
 def test_expansion_interest_endpoint_persists_server_identity(client):

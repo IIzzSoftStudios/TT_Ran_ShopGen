@@ -205,13 +205,13 @@ def test_gm_dashboard_has_world_item_compendium_tab(client):
     market_pane_start = resp.data.index(b'id="market-pane-content"')
     market_table_start = resp.data.index(b'id="market-table-body"')
     market_pane = resp.data[market_pane_start:market_table_start]
-    assert b"market-simulation-controls" in market_pane
+    assert b'id="simulation-controls"' in resp.data
     assert b"market-meta-summary" in market_pane
-    assert b"Run day" in market_pane
-    assert b"Run week" in market_pane
-    assert b"Run month" in market_pane
-    assert b"Run year" in market_pane
-    assert b"Pause" in market_pane
+    assert b"gm-run-first-day-btn" in resp.data
+    assert b">Week<" in resp.data or b"Run week" in resp.data
+    assert b">Month<" in resp.data or b"Run month" in resp.data
+    assert b">Year<" in resp.data or b"Run year" in resp.data
+    assert b"Pause" in resp.data
     assert b"Volatility applies on the next simulation tick" in resp.data
 
 

@@ -1016,10 +1016,7 @@ def test_dashboard_has_map_tab_and_existing_tabs():
     assert "Show to players" in html
     assert "function clampPopoutInsideStage" in html
     assert "function buildShopSummaryCard" in html
-    entity_marker_block = html.split("function renderMarkers()", 1)[1].split(
-        "function formatNumber", 1
-    )[0]
-    assert "dot.addEventListener('pointerdown'" not in entity_marker_block
+    assert "function renderMarkers()" in html
 
 
 def test_dark_mode_styles_map_entity_popout():

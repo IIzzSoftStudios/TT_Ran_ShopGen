@@ -205,6 +205,10 @@ def derive_features_from_hex_grid(
             if hull:
                 features.append({"type": "island", "points": hull})
 
+    waterways = float(profile.get("waterways", 5))
+    max_rivers = max(0, int(1 + waterways / 2))
+    features.extend(_rivers(cells, width, height, hex_grid, max_rivers))
+
     return features
 
 
@@ -294,6 +298,24 @@ def derive_city_features_from_hex_grid(
             features.append({"type": "park", "points": hull})
 
     features.extend(_road_paths(cells, width, height, hex_grid, profile))
+
+    courtyard_cells = [
+        (q, r)
+        for q, r in hg.iter_hexes(width, height)
+        if cells[hg.cell_index(q, r, width)] == 1
+    ]
+    if courtyard_cells:
+        avg_q = sum(q for q, _ in courtyard_cells) / len(courtyard_cells)
+        avg_r = sum(r for _, r in courtyard_cells) / len(courtyard_cells)
+        plaza_point = axial_feature_point(hex_grid, int(round(avg_q)), int(round(avg_r)))
+        features.append({
+            "type": "plaza",
+            "x": plaza_point[0],
+            "y": plaza_point[1],
+            "size": 0.08,
+        })
+    else:
+        features.append({"type": "plaza", "x": 0.5, "y": 0.52, "size": 0.08})
 
     return features
 

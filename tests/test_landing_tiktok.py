@@ -77,5 +77,6 @@ def test_landing_shows_tiktok_rail_when_videos_configured(client):
     assert "autoplay=1" in html
     assert "muted=1" in html
     assert "Creator Approved" in html
+    assert "TikToks updated every update." in html
     assert "View all on TikTok" in html
     assert "TikTok #Econoforge" in html
