@@ -665,6 +665,13 @@ def generate_world_start():
     session["campaign_id"] = campaign.id
     session["system_type"] = campaign.system_type
     session["session_mode"] = "gm"
+    from app.services.demo_session import (
+        clear_demo_session_flags,
+        is_anonymous_demo_user,
+    )
+
+    if not is_anonymous_demo_user(current_user):
+        clear_demo_session_flags()
     session.permanent = True
     session.modified = True
 
@@ -891,6 +898,13 @@ def generate_world_economy_submit():
 
     session["campaign_id"] = campaign.id
     session["system_type"] = campaign.system_type
+    from app.services.demo_session import (
+        clear_demo_session_flags,
+        is_anonymous_demo_user,
+    )
+
+    if not is_anonymous_demo_user(current_user):
+        clear_demo_session_flags()
     session.permanent = True
     session.modified = True
 
@@ -1002,6 +1016,13 @@ def skip_world_generation_submit():
 
     session["campaign_id"] = campaign.id
     session["system_type"] = campaign.system_type
+    from app.services.demo_session import (
+        clear_demo_session_flags,
+        is_anonymous_demo_user,
+    )
+
+    if not is_anonymous_demo_user(current_user):
+        clear_demo_session_flags()
     session.permanent = True
     session.modified = True
 

@@ -324,6 +324,16 @@ def create_app():
     app.config["CREATOR_PARTNERSHIP_NOTIFY_EMAIL"] = os.getenv(
         "CREATOR_PARTNERSHIP_NOTIFY_EMAIL", "iizzsoftstudios@gmail.com"
     )
+    # Public Demo (landing Try Demo → /demo). Snapshot file is required at runtime.
+    # [Dev][Web]
+    app.config["DEMO_SNAPSHOT_PATH"] = (
+        os.getenv("DEMO_SNAPSHOT_PATH") or ""
+    ).strip()
+    # Optional: campaign id used only by scripts/export_demo_snapshot.py
+    # [Dev]
+    app.config["DEMO_TEMPLATE_CAMPAIGN_ID"] = (
+        os.getenv("DEMO_TEMPLATE_CAMPAIGN_ID") or ""
+    ).strip()
 
     # Pytest and Cloud Build run the full suite in one process with in-memory
     # limiter storage (TRSG_TEST_FILESYSTEM_SESSION). Shared counters cause 429s.
@@ -602,9 +612,11 @@ def create_app():
     from app.routes.simulation_routes import simulation_bp
     from app.routes.admin_routes import admin_bp
     from app.routes.combat_routes import combat_bp
+    from app.routes.demo_routes import demo_bp
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
+    app.register_blueprint(demo_bp)
     app.register_blueprint(gm_bp)
     app.register_blueprint(player_bp, url_prefix="/player")
     app.register_blueprint(combat_bp, url_prefix="/api/combat")
@@ -675,6 +687,7 @@ def create_app():
             "/admin/",
             "/campaigns",
             "/home",
+            "/demo",
         )
         path = request.path if request else ""
         if any(path.startswith(p) for p in sensitive_prefixes):

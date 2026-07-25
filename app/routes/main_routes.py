@@ -23,6 +23,7 @@ from app.services.distributed_lock import get_redis_client
 from app.services.investor_deck_mail import send_investor_request_emails
 from app.services.key_generator import generate_secure_code
 from app.services.landing_tiktok import load_landing_tiktok_feed
+from app.services.landing_youtube import load_landing_youtube_feed
 
 main_bp = Blueprint("main", __name__)
 
@@ -115,7 +116,11 @@ def ready():
 
 @main_bp.route("/")
 def index():
-    return render_template("landing.html", tiktok_feed=load_landing_tiktok_feed())
+    return render_template(
+        "landing.html",
+        tiktok_feed=load_landing_tiktok_feed(),
+        youtube_feed=load_landing_youtube_feed(),
+    )
 
 
 _DOCS_SECTIONS = frozenset(

@@ -28,6 +28,7 @@ from app.services.join_codes import (
     WrongRoleError,
     JoinCodeError,
 )
+from app.services.demo_session import active_demo_mode_for_user
 from app.services.player_resolution import (
     all_player_ids_for_user,
     list_user_characters,
@@ -219,6 +220,7 @@ def select_campaign():
             solo_characters=solo_characters,
             show_redeem_only=show_redeem_only,
             active_campaign_id=active_campaign_id,
+            demo_mode=active_demo_mode_for_user(current_user),
             **_campaign_limit_context_for_user(current_user),
         )
     except Exception as e:
@@ -265,6 +267,14 @@ def _player_character_rows_for_campaign(user, campaign):
 
 def _commit_active_session(campaign, player):
     """Pin ``campaign`` (and optionally ``player``) into the session."""
+    from app.services.demo_session import (
+        clear_demo_session_flags,
+        is_anonymous_demo_user,
+    )
+
+    # Loading a real campaign must drop Try Demo UI locks.
+    if not is_anonymous_demo_user(current_user):
+        clear_demo_session_flags()
     session["campaign_id"] = campaign.id
     session["system_type"] = campaign.system_type
     if player is not None:

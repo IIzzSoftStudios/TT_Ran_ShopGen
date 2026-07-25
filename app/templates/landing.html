@@ -414,12 +414,109 @@
             color: var(--color-accent-hover);
         }
 
+        .youtube-section {
+            margin-top: 28px;
+        }
+
+        .youtube-section h2 {
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .youtube-section-note {
+            text-align: center;
+            color: var(--color-muted);
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin: 0 0 14px;
+            line-height: 1.4;
+        }
+
+        .youtube-rail-wrap {
+            margin: 0 -18px;
+            overflow: hidden;
+        }
+
+        .youtube-rail-track {
+            display: flex;
+            width: max-content;
+            animation: youtube-carousel 75s linear infinite;
+            will-change: transform;
+        }
+
+        .youtube-rail-track.is-paused {
+            animation-play-state: paused;
+        }
+
+        .youtube-rail-set {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 16px;
+            flex-shrink: 0;
+            padding: 4px 18px 14px;
+        }
+
+        @keyframes youtube-carousel {
+            from {
+                transform: translateX(0);
+            }
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .youtube-rail-track {
+                animation: none;
+                overflow-x: auto;
+                max-width: 100%;
+                scrollbar-width: thin;
+            }
+        }
+
+        .youtube-card {
+            flex: 0 0 420px;
+            width: 420px;
+            aspect-ratio: 16 / 9;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.35);
+            border-radius: 16px;
+            overflow: hidden;
+            scroll-snap-align: start;
+        }
+
+        .youtube-player {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .youtube-section-cta {
+            margin-top: 14px;
+            text-align: center;
+        }
+
+        .youtube-section-cta a {
+            font-weight: 700;
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        .youtube-section-cta a:hover {
+            color: var(--color-accent-hover);
+        }
+
         /* Mobile: single column stack and prioritise Login + Search */
         @media (max-width: 900px) {
             .hero { grid-template-columns: 1fr; }
             .feature-grid { grid-template-columns: 1fr; }
             .split { grid-template-columns: 1fr; }
             .footer-grid { grid-template-columns: 1fr 1fr; }
+            .youtube-card {
+                flex-basis: 320px;
+                width: 320px;
+            }
         }
 
         @media (max-width: 600px) {
@@ -461,10 +558,21 @@
             </div>
         </div>
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="landing-flashes" role="status" style="max-width:1100px;margin:12px auto 0;padding:0 18px;">
+                    {% for category, message in messages %}
+                        <p style="margin:0 0 8px;padding:10px 12px;border:1px solid rgba(255,255,255,0.12);border-radius:8px;background:rgba(0,0,0,0.35);color:var(--color-text);">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         <section class="hero">
             <div>
                 <h1>One stop shop for all your GameMaster needs</h1>
-                <p>Build or generate your campaign once, then run nations, cities, maps, compendiums, shops, and players from a single dashboard. Advance market days between sessions while your table browses shared maps, inventory, and shops—without you juggling five tools mid-session.</p>
+                <p>Econo-Forge replaces your spreadsheet shops, scattered map files, and messy prep notes with a unified GM dashboard.</p>
+                <p>Run your story at the table while the system handles commerce and gives your players a dedicated portal for maps, gear, and shops.</p>
                 <div class="hero-ctas">
                     <div class="hero-ctas-primary">
                     {% if current_user.is_authenticated %}
@@ -472,7 +580,7 @@
                         <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
                     {% else %}
                         <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
-                        <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login to Dashboard</a>
+                        <a class="btn btn-secondary" href="{{ url_for('demo.start') }}">Try Demo</a>
                     {% endif %}
                     </div>
                     <div class="hero-ctas-deck">
@@ -532,6 +640,37 @@
                 </div>
                 <div class="tiktok-section-cta">
                     <a href="{{ tiktok_feed.hashtag_url }}" target="_blank" rel="noopener noreferrer">View all on TikTok</a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if youtube_feed.videos %}
+            <div class="youtube-section">
+                <h2>{{ youtube_feed.title }}</h2>
+                <p class="youtube-section-note">Product walkthroughs from the official demo playlist.</p>
+                <div class="youtube-rail-wrap">
+                <div class="youtube-rail-track" aria-label="Econo-Forge demo walkthrough videos on YouTube">
+                    {% for copy in range(2) %}
+                    <div class="youtube-rail-set"{% if copy == 1 %} aria-hidden="true"{% endif %}>
+                        {% for video in youtube_feed.videos %}
+                        <div class="youtube-card">
+                            <iframe
+                                class="youtube-player"
+                                data-src="https://www.youtube.com/embed/{{ video.id }}?rel=0&amp;modestbranding=1&amp;playsinline=1"
+                                title="{{ video.title or 'Econo-Forge demo walkthrough video' }}"
+                                loading="lazy"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowfullscreen
+                                referrerpolicy="strict-origin-when-cross-origin"
+                            ></iframe>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                </div>
+                <div class="youtube-section-cta">
+                    <a href="{{ youtube_feed.playlist_url }}" target="_blank" rel="noopener noreferrer">View playlist on YouTube</a>
                 </div>
             </div>
             {% endif %}
@@ -685,6 +824,69 @@
 
             syncPlayback();
             window.setInterval(syncPlayback, 1200);
+        })();
+
+        (function () {
+            var wrap = document.querySelector(".youtube-rail-wrap");
+            var track = document.querySelector(".youtube-rail-track");
+            var players = document.querySelectorAll(".youtube-player[data-src]");
+            if (!wrap || !track || !players.length) {
+                return;
+            }
+
+            function ensureLoaded(iframe) {
+                if (!iframe.src) {
+                    iframe.src = iframe.getAttribute("data-src");
+                }
+            }
+
+            function cardVisible(card) {
+                var wrapRect = wrap.getBoundingClientRect();
+                var cardRect = card.getBoundingClientRect();
+                var visibleWidth = Math.min(cardRect.right, wrapRect.right) - Math.max(cardRect.left, wrapRect.left);
+                return visibleWidth > cardRect.width * 0.25;
+            }
+
+            function syncLazyLoad() {
+                players.forEach(function (iframe) {
+                    var card = iframe.closest(".youtube-card");
+                    if (card && cardVisible(card)) {
+                        ensureLoaded(iframe);
+                    }
+                });
+            }
+
+            function pauseCarousel() {
+                track.classList.add("is-paused");
+            }
+
+            function resumeCarousel() {
+                track.classList.remove("is-paused");
+            }
+
+            wrap.addEventListener("mouseenter", pauseCarousel);
+            wrap.addEventListener("mouseleave", resumeCarousel);
+            wrap.addEventListener("focusin", pauseCarousel);
+            wrap.addEventListener("focusout", function (event) {
+                if (!wrap.contains(event.relatedTarget)) {
+                    resumeCarousel();
+                }
+            });
+
+            if ("IntersectionObserver" in window) {
+                var observer = new IntersectionObserver(function () {
+                    syncLazyLoad();
+                }, { root: wrap, threshold: [0, 0.25, 0.5, 1] });
+                players.forEach(function (iframe) {
+                    var card = iframe.closest(".youtube-card");
+                    if (card) {
+                        observer.observe(card);
+                    }
+                });
+            }
+
+            syncLazyLoad();
+            window.setInterval(syncLazyLoad, 1200);
         })();
     </script>
 </body>

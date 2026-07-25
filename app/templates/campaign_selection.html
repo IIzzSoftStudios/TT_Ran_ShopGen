@@ -647,6 +647,12 @@
 
     {% include 'partials/expansion_interest_modal.html' %}
     {% include 'partials/confirm_delete_script.html' %}
+    <script src="{{ url_for('static', filename='js/demo_bridge.js') }}"></script>
+    {% if demo_mode %}
+    {% set demo_surface = 'campaigns' %}
+    {% include 'partials/demo_coach_chrome.html' %}
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/demo_campaigns_tutorial.js') }}"></script>
     <script>
     (function () {
         function shouldIgnoreRowClick(target) {

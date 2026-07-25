@@ -19,7 +19,7 @@
             <div id="simulation-controls" aria-label="Simulation controls">
                 <div class="sim-row">
                     <button type="button" class="sim-action-btn" id="gm-run-first-day-btn" onclick="runSimulationPeriod('day', this)">Day</button>
-                    <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('week', this)">Week</button>
+                    <button type="button" class="sim-action-btn" id="gm-run-week-btn" onclick="runSimulationPeriod('week', this)">Week</button>
                     <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('month', this)">Month</button>
                     <button type="button" class="sim-action-btn" onclick="runSimulationPeriod('year', this)">Year</button>
                     <button type="button" class="sim-action-btn sim-pause-btn" onclick="pauseSimulation()">Pause</button>
@@ -52,8 +52,8 @@
             </div>
         </div>
         <div class="gm-hud-nav-actions gm-primary-actions" aria-label="Campaign navigation">
-            <details class="gm-join-tools">
-                <summary class="button">GM Campaign Code</summary>
+            <details class="gm-join-tools" id="gm-campaign-code-details">
+                <summary class="button" id="gm-campaign-code-summary">GM Campaign Code</summary>
                 <div class="gm-join-popover">
                     {% if session.get('campaign_id') %}
                         {% set reveal_url = url_for('gm.reveal_campaign_join_code', campaign_id=session['campaign_id']) %}

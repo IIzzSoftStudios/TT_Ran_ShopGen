@@ -14,16 +14,79 @@
         .layout { width: 90%; max-width: 1200px; display: grid; grid-template-columns: 220px 1fr; gap: 16px; margin-bottom: 24px; }
         .folder-panel, .items-panel { background: white; border-radius: 5px; padding: 16px; box-shadow: 0 0 10px rgba(0,0,0,0.08); }
         .folder-panel h3, .items-panel h2 { margin-top: 0; }
-        .folder-link { display: block; padding: 6px 8px; text-decoration: none; color: #333; border-radius: 4px; }
-        .folder-link.active, .folder-link:hover { background: #efe6ff; color: purple; }
-        .bulk-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px; background: #f9f9f9; border-radius: 4px; }
+        .folder-link { display: block; padding: 6px 8px; text-decoration: none; color: #1f2937; border-radius: 4px; }
+        .folder-link.active, .folder-link:hover { background: #efe6ff; color: #5b21b6; }
+        .bulk-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px; background: #f9f9f9; border-radius: 4px; color: #1f2937; }
+        .bulk-toolbar label, .bulk-toolbar #selected-count { color: #1f2937; }
         .bulk-toolbar select, .bulk-toolbar input[type="text"], .bulk-toolbar input[type="number"] { padding: 6px; }
+        #selected-count { font-weight: 600; }
+
+        /* Dark mode: folder panel / bulk toolbar inherit dark panel backgrounds from theme.css */
+        html.dark-mode body.gm-list-page { background: #0f1419; color: #e2e8f0; }
+        html.dark-mode body.gm-list-page h1 { color: #f8fafc; }
+        html.dark-mode .folder-panel,
+        html.dark-mode .items-panel {
+            background: #1e2430;
+            color: #e2e8f0;
+            box-shadow: 0 0 10px rgba(0,0,0,0.35);
+        }
+        html.dark-mode .folder-panel h3,
+        html.dark-mode .items-panel h2 { color: #f1f5f9; }
+        html.dark-mode .folder-link { color: #e2e8f0; }
+        html.dark-mode .folder-link.active,
+        html.dark-mode .folder-link:hover { background: #3b2a55; color: #f3e8ff; }
+        html.dark-mode .bulk-toolbar {
+            background: #2a3344;
+            color: #e2e8f0;
+        }
+        html.dark-mode .bulk-toolbar label,
+        html.dark-mode .bulk-toolbar #selected-count,
+        html.dark-mode #selected-count {
+            color: #f1f5f9;
+        }
+        html.dark-mode .bulk-toolbar select,
+        html.dark-mode .bulk-toolbar input[type="text"],
+        html.dark-mode .bulk-toolbar input[type="number"] {
+            background: #1e2430;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+        }
+        html.dark-mode .city-block summary,
+        html.dark-mode .item-name,
+        html.dark-mode .city-meta,
+        html.dark-mode .empty-city {
+            color: #e2e8f0;
+        }
         .item-checkbox { margin-right: 8px; }
         .delete-button { background: #dc3545; color: white; border: none; padding: 8px 14px; border-radius: 5px; cursor: pointer; }
         .button { background: purple; color: white; border: none; padding: 8px 14px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
         .shop-picker details { margin: 4px 0; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); }
-        .modal-content { background: #fff; margin: 10% auto; padding: 20px; width: 90%; max-width: 520px; border-radius: 5px; }
+        .modal-content { background: #fff; color: #1f2937; margin: 10% auto; padding: 20px; width: 90%; max-width: 520px; border-radius: 5px; }
+        .modal-content h3 { color: #111827; margin-top: 0; }
+        .modal-content label,
+        .modal-content .shop-picker,
+        .modal-content .shop-picker summary,
+        .modal-content .shop-picker strong {
+            color: #1f2937;
+        }
+        html.dark-mode .modal-content {
+            background: #1e2430;
+            color: #e2e8f0;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+        }
+        html.dark-mode .modal-content h3 { color: #f8fafc; }
+        html.dark-mode .modal-content label,
+        html.dark-mode .modal-content .shop-picker,
+        html.dark-mode .modal-content .shop-picker summary,
+        html.dark-mode .modal-content .shop-picker strong {
+            color: #e2e8f0;
+        }
+        html.dark-mode .modal-content input[type="number"] {
+            background: #0f1419;
+            color: #f1f5f9;
+            border: 1px solid #475569;
+        }
         @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
     </style>
 </head>

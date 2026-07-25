@@ -93,6 +93,18 @@
             createBtn.textContent = createButtonLabel;
         }
         if (steps[state.step] === "review") renderReview();
+        if (window.parent && window.parent !== window) {
+            try {
+                window.parent.postMessage(
+                    {
+                        type: "demo-wizard-step",
+                        step: steps[state.step],
+                        stepIndex: state.step,
+                    },
+                    window.location.origin
+                );
+            } catch (_notifyErr) { /* ignore */ }
+        }
     }
 
     function openExitModal() {
@@ -849,7 +861,39 @@
                 try {
                     window.parent.postMessage({ type: "gm-players-changed" }, window.location.origin);
                     window.parent.postMessage({ type: "gm-map-changed" }, window.location.origin);
+                    window.parent.postMessage(
+                        {
+                            type: "demo-wizard-complete",
+                            ok: true,
+                            name: state.name || "",
+                            draft: {
+                                name: state.name || "",
+                                speciesKey: state.species?.key || null,
+                                speciesFlex: state.speciesFlex || {},
+                                speciesSkillChoices: state.speciesSkillChoices || [],
+                                dragonbornAncestry: state.dragonbornAncestry || null,
+                                classKey: state.classKey || null,
+                                classSkills: state.classSkills || [],
+                                backgroundKey: state.backgroundKey || null,
+                                baseAbilities: state.baseAbilities || {},
+                            },
+                        },
+                        window.location.origin
+                    );
                 } catch (_notifyErr) { /* ignore */ }
+            }
+            if (window.EFDemoBridge && window.EFDemoBridge.isActive()) {
+                var demoBridge = window.EFDemoBridge.read() || {};
+                window.EFDemoBridge.write({
+                    phase: "player_card",
+                    active: true,
+                    playerId: data.player_id || null,
+                    campCode: demoBridge.campCode || null,
+                    npcName: demoBridge.npcName || state.name || null,
+                    characterDraft: demoBridge.characterDraft || null,
+                });
+                window.location.href = "/campaigns";
+                return;
             }
             window.location.href = data.redirect_url;
         } catch (_err) {
@@ -900,6 +944,62 @@
         });
     }
 
+    function applyDemoCharacterDraft(draft) {
+        if (!draft || typeof draft !== "object") return false;
+        if (draft.name) {
+            state.name = String(draft.name);
+            const nameEl = $("#character_name");
+            if (nameEl) {
+                nameEl.value = state.name;
+                nameEl.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+        }
+        if (draft.speciesKey) {
+            const sp = (catalog.species || []).find(
+                (s) => String(s.key || "").toLowerCase() === String(draft.speciesKey).toLowerCase()
+            );
+            if (sp) state.species = sp;
+        }
+        if (draft.speciesFlex && typeof draft.speciesFlex === "object") {
+            state.speciesFlex = { ...draft.speciesFlex };
+        }
+        if (Array.isArray(draft.speciesSkillChoices)) {
+            state.speciesSkillChoices = draft.speciesSkillChoices.slice();
+        }
+        if (draft.dragonbornAncestry) {
+            state.dragonbornAncestry = draft.dragonbornAncestry;
+        }
+        if (draft.classKey) {
+            const cls = (catalog.classes || []).find(
+                (c) => String(c.key || "").toLowerCase() === String(draft.classKey).toLowerCase()
+            );
+            if (cls) state.classKey = cls.key;
+            else state.classKey = draft.classKey;
+        }
+        if (Array.isArray(draft.classSkills)) {
+            state.classSkills = draft.classSkills.slice();
+        }
+        if (draft.backgroundKey) {
+            const bg = (catalog.backgrounds || []).find(
+                (b) => String(b.key || "").toLowerCase() === String(draft.backgroundKey).toLowerCase()
+            );
+            if (bg) state.backgroundKey = bg.key;
+            else state.backgroundKey = draft.backgroundKey;
+        }
+        if (draft.baseAbilities && typeof draft.baseAbilities === "object") {
+            ABILITIES.forEach((ab) => {
+                if (draft.baseAbilities[ab] != null) {
+                    state.baseAbilities[ab] = Number(draft.baseAbilities[ab]);
+                }
+            });
+        }
+        speciesCards();
+        classCards();
+        backgroundCards();
+        renderAbilitiesPanel();
+        return !!state.species;
+    }
+
     function init() {
         ABILITIES.forEach((ab) => {
             if (gmNpcMode) {
@@ -918,8 +1018,37 @@
             if ($("#dnd5e-wizard")) $("#dnd5e-wizard").hidden = sys !== "dnd5e";
             if ($("#simple-create-actions")) $("#simple-create-actions").hidden = sys === "dnd5e";
         }
-        setStep(0);
+        let startStep = 0;
+        if (!gmNpcMode && window.EFDemoBridge && window.EFDemoBridge.isActive()) {
+            const demoBridge = window.EFDemoBridge.read() || {};
+            const draft = demoBridge.characterDraft;
+            if (draft && applyDemoCharacterDraft(draft)) {
+                startStep = steps.length - 1;
+            } else if (demoBridge.npcName) {
+                state.name = String(demoBridge.npcName);
+                const nameEl = $("#character_name");
+                if (nameEl) nameEl.value = state.name;
+            }
+        }
+        setStep(startStep);
     }
+
+    window.EFDemoHydrateCharacterWizard = function () {
+        if (gmNpcMode) return false;
+        if (!window.EFDemoBridge || !window.EFDemoBridge.isActive()) return false;
+        const demoBridge = window.EFDemoBridge.read() || {};
+        const draft = demoBridge.characterDraft;
+        if (draft && applyDemoCharacterDraft(draft)) {
+            setStep(steps.length - 1);
+            return true;
+        }
+        if (demoBridge.npcName) {
+            state.name = String(demoBridge.npcName);
+            const nameEl = $("#character_name");
+            if (nameEl) nameEl.value = state.name;
+        }
+        return !!state.species;
+    };
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);

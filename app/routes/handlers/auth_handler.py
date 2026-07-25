@@ -61,7 +61,8 @@ def _is_safe_next(target):
 def handle_login():
     next_url = request.args.get("next") or request.form.get("next")
 
-    if current_user.is_authenticated:
+    # Allow credential POST to switch accounts (e.g. leave Try Demo for a real GM).
+    if current_user.is_authenticated and request.method != "POST":
         if _is_safe_next(next_url):
             return redirect(next_url)
         if current_user.role == "vault_keeper":
@@ -80,6 +81,14 @@ def handle_login():
                 user = User.query.filter_by(email=identifier.lower()).first()
 
         if user and user.check_password(password):
+            from app.services.demo_session import (
+                clear_demo_session_flags,
+                is_anonymous_demo_user,
+            )
+
+            # Real accounts must never inherit a leftover Try Demo walkthrough.
+            if not is_anonymous_demo_user(user):
+                clear_demo_session_flags()
             login_user(user, remember=True)
             if getattr(user, "last_active", None) is not None:
                 user.last_active = datetime.utcnow()
@@ -98,6 +107,9 @@ def handle_login():
 @login_required
 def handle_logout():
     next_url = request.args.get("next")
+    from app.services.demo_session import clear_demo_session_flags
+
+    clear_demo_session_flags()
     logout_user()
     session.pop("user_id", None)
     session.pop("session_mode", None)
@@ -180,6 +192,9 @@ def _handle_campaign_code_register(username: str, password: str, confirm_passwor
             raise ValueError("Campaign join did not create a player character.")
         character_sheet_service.ensure_initial_campaign_sheet(player, campaign)
         db.session.commit()
+        from app.services.demo_session import clear_demo_session_flags
+
+        clear_demo_session_flags()
         login_user(new_user, remember=True)
         session["session_mode"] = "player"
         session["campaign_id"] = campaign.id

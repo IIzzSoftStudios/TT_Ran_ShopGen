@@ -1,0 +1,735 @@
+{# Demo walkthrough overlay — only rendered when session demo_mode is set. #}
+{% if demo_mode and demo_step %}
+<style>
+    #demo-tutorial-root {
+        position: relative;
+        z-index: 12000;
+    }
+
+    .demo-tutorial-modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        background: rgba(8, 10, 14, 0.62);
+        z-index: 12001;
+    }
+
+    .demo-tutorial-modal[hidden] {
+        display: none !important;
+    }
+
+    .demo-tutorial-dialog {
+        width: min(420px, 100%);
+        padding: 1.25rem 1.35rem 1.15rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: #161b22;
+        color: #f3f5f7;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+    }
+
+    .demo-tutorial-dialog h2 {
+        margin: 0 0 0.35rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+    }
+
+    .demo-tutorial-dialog h3 {
+        margin: 0 0 0.75rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #9ecbff;
+    }
+
+    .demo-tutorial-dialog ol {
+        margin: 0 0 1.1rem;
+        padding-left: 1.2rem;
+        line-height: 1.45;
+    }
+
+    .demo-tutorial-dialog li + li {
+        margin-top: 0.45rem;
+    }
+
+    .demo-tutorial-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .demo-tutorial-actions .button,
+    .demo-tutorial-actions a.button,
+    #demo-tutorial-root a.demo-register-cta {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .demo-tutorial-coach {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 11990;
+        width: min(320px, calc(100vw - 2rem));
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(22, 27, 34, 0.96);
+        color: #f3f5f7;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .demo-tutorial-coach[hidden] {
+        display: none !important;
+    }
+
+    .demo-tutorial-coach strong {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: #9ecbff;
+    }
+
+    .demo-tutorial-coach p {
+        margin: 0 0 0.65rem;
+        font-size: 0.88rem;
+        line-height: 1.4;
+    }
+
+    .demo-tutorial-coach .demo-register-cta {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    #demo-tutorial-arrow {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        z-index: 2147483000;
+        overflow: visible;
+    }
+
+    #demo-tutorial-arrow[hidden] {
+        display: none !important;
+    }
+
+    #demo-tutorial-arrow .demo-arrow-shaft {
+        position: fixed;
+        height: 4px;
+        margin: 0;
+        padding: 0;
+        transform-origin: 0 50%;
+        background: linear-gradient(90deg, rgba(158, 203, 255, 0.15), #9ecbff 35%, #9ecbff);
+        border-radius: 2px;
+        box-shadow: 0 0 8px rgba(158, 203, 255, 0.75);
+    }
+
+    #demo-tutorial-arrow .demo-arrow-head {
+        position: fixed;
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 8px 0 8px 16px;
+        border-color: transparent transparent transparent #9ecbff;
+        filter: drop-shadow(0 0 4px rgba(158, 203, 255, 0.75));
+    }
+
+    .demo-coach-nav {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0 0 0.65rem;
+    }
+
+    .demo-coach-nav .button {
+        flex: 1;
+        min-height: 2rem;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.82rem;
+    }
+
+    .demo-coach-nav .button:disabled {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+    }
+
+    /* Base lock: all chrome greyed. */
+    body.gm-dashboard--demo .gm-paradox-shell button,
+    body.gm-dashboard--demo .gm-paradox-shell a,
+    body.gm-dashboard--demo .gm-paradox-shell input,
+    body.gm-dashboard--demo .gm-paradox-shell select,
+    body.gm-dashboard--demo .gm-paradox-shell textarea,
+    body.gm-dashboard--demo .gm-paradox-shell label.button,
+    body.gm-dashboard--demo .gm-paradox-shell .gm-nav-rail-btn,
+    body.gm-dashboard--demo .gm-paradox-shell .sim-action-btn,
+    body.gm-dashboard--demo .gm-paradox-shell .map-world-nav-btn,
+    body.gm-dashboard--demo .gm-paradox-shell .map-stage-upload-label {
+        pointer-events: none !important;
+        opacity: 0.42 !important;
+        filter: grayscale(0.4);
+        cursor: not-allowed !important;
+    }
+
+    body.gm-dashboard--demo #demo-tutorial-root button,
+    body.gm-dashboard--demo #demo-tutorial-root a {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo #demo-tutorial-root button:disabled {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+    }
+
+    /* Welcome + point_nations: only Nations tab (and section menu) usable. */
+    body.gm-dashboard--demo[data-demo-phase="welcome"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="welcome"] #regions-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="point_nations"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_nations"] #regions-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="welcome"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_nations"] #gm-section-menu-btn {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="point_nations"] #regions-tab-btn {
+        outline: 2px solid #9ecbff;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.35);
+        animation: demo-pulse-outline 1.4s ease-in-out infinite;
+    }
+
+    @keyframes demo-pulse-outline {
+        0%, 100% { box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.25); }
+        50% { box-shadow: 0 0 0 6px rgba(158, 203, 255, 0.45); }
+    }
+
+    /* Shared unlock for rail tabs / allowed actions across later phases. */
+    body.gm-dashboard--demo[data-demo-phase="draw_on_map"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="draw_borders"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="drawing"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="close_ready"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="open_nations_ruler"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="open_nations_ruler"] #regions-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="add_ruler"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="draw_on_map"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="draw_borders"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="drawing"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="close_ready"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="open_nations_ruler"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="add_ruler"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="owners_info"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="select_city"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_shops"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="place_shops"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="shop_owners_info"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="select_shop"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="shop_popout"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="open_shop"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_items"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="catalog_explain"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="catalog_select_item"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="catalog_stock"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="catalog_assign_shop"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="catalog_confirm_stock"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="back_to_city"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="select_shop_goods"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="return_world_map"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="select_city_goods"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_market"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="market_explain"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_calendar"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="calendar_explain"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="sim_week"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="sim_result"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_species"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="species_explain"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_traits"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="traits_explain"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_classes"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="classes_explain"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_spells"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="spells_explain"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_monsters"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="monsters_explain"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="invite_open"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="invite_reveal"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="invite_copy"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_profile"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] #gm-section-menu-btn,
+    body.gm-dashboard--demo[data-demo-phase="draw_on_map"] #regions-pane-content .demo-allowed-draw,
+    body.gm-dashboard--demo[data-demo-phase="draw_borders"] #regions-pane-content .demo-allowed-draw,
+    body.gm-dashboard--demo[data-demo-phase="drawing"] #regions-pane-content .demo-allowed-draw,
+    body.gm-dashboard--demo[data-demo-phase="close_ready"] #regions-pane-content .demo-allowed-draw {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="open_nations_ruler"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #cities-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_shops"] #shops-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_items"] #items-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_market"] #market-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_calendar"] #calendar-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_species"] #species-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_traits"] #traits-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_classes"] #classes-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_spells"] #spells-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_monsters"] #monsters-tab-btn {
+        outline: 2px solid #9ecbff;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.35);
+        animation: demo-pulse-outline 1.4s ease-in-out infinite;
+    }
+
+    /* While painting: entire boundary tool bar greyed (incl. Close). */
+    body.gm-dashboard--demo[data-demo-phase="draw_on_map"] #map-region-boundary-tools button,
+    body.gm-dashboard--demo[data-demo-phase="draw_borders"] #map-region-boundary-tools button,
+    body.gm-dashboard--demo[data-demo-phase="drawing"] #map-region-boundary-tools button,
+    body.gm-dashboard--demo[data-demo-phase="close_ready"] #map-region-boundary-tools button:not(#map-region-boundary-close-btn),
+    body.gm-dashboard--demo.demo-close-boundary-ready #map-region-boundary-tools button:not(#map-region-boundary-close-btn) {
+        pointer-events: none !important;
+        opacity: 0.35 !important;
+        filter: grayscale(0.6);
+        cursor: not-allowed !important;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="draw_on_map"] #map-region-boundary-close-btn,
+    body.gm-dashboard--demo[data-demo-phase="draw_borders"] #map-region-boundary-close-btn,
+    body.gm-dashboard--demo[data-demo-phase="drawing"] #map-region-boundary-close-btn {
+        outline: 2px solid rgba(158, 203, 255, 0.35);
+        outline-offset: 2px;
+    }
+
+    body.gm-dashboard--demo.demo-close-boundary-ready #map-region-boundary-close-btn,
+    body.gm-dashboard--demo[data-demo-phase="close_ready"] #map-region-boundary-close-btn {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    /* 1.3 Add Ruler + wizard embed. */
+    body.gm-dashboard--demo[data-demo-phase="add_ruler"] #regions-pane-content .demo-allowed-ruler,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .gm-compendium-embed,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .gm-compendium-embed button,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .gm-compendium-embed a,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .gm-compendium-embed iframe {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    /* After ruler / during Step 2+: Nations pane stays fully locked if still open. */
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #regions-pane-content input,
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #regions-pane-content select,
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #regions-pane-content textarea,
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #regions-pane-content input,
+    body.gm-dashboard--demo[data-demo-phase="owners_info"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="owners_info"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="select_city"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="select_city"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="city_popout"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="city_popout"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="open_city"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="open_city"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="shop_popout"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="shop_popout"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="open_shop"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="open_shop"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="point_items"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="point_items"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #regions-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #regions-pane-content a,
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="owners_info"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="select_city"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="city_popout"] #regions-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="open_city"] #regions-tab-btn {
+        pointer-events: none !important;
+        opacity: 0.35 !important;
+        filter: grayscale(0.6);
+        cursor: not-allowed !important;
+    }
+
+    /* While wizard embed is open, keep Nations list chrome locked behind it. */
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .gm-compendium-shell button,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .gm-compendium-shell a,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .gm-compendium-shell input,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .species-compendium-table-wrapper button,
+    body.gm-dashboard--demo[data-demo-phase^="wizard_"] #regions-pane-content .species-compendium-table-wrapper a {
+        pointer-events: none !important;
+        opacity: 0.35 !important;
+        filter: grayscale(0.6);
+        cursor: not-allowed !important;
+    }
+
+    /* Step 2 Cities. */
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #cities-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_cities"] #cities-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #cities-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #cities-compendium-body .demo-allowed-city,
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #cities-compendium-body .demo-father-city-row .map-compendium-map-btn.is-on-map,
+    body.gm-dashboard--demo[data-demo-phase="point_shops"] #shops-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_shops"] #shops-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="place_shops"] #shops-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="place_shops"] #shops-compendium-body .demo-allowed-shop,
+    body.gm-dashboard--demo[data-demo-phase="place_shops"] #shops-compendium-body .demo-target-shop-row .map-compendium-map-btn.is-on-map,
+    body.gm-dashboard--demo[data-demo-phase="point_items"] #items-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_items"] #items-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #items-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #items-pane-content .demo-allowed-items-catalog {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="catalog_explain"] #items-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="catalog_explain"] #items-pane-content .gm-compendium-embed,
+    body.gm-dashboard--demo[data-demo-phase="catalog_explain"] #items-pane-content .gm-compendium-embed-frame,
+    body.gm-dashboard--demo[data-demo-phase="catalog_select_item"] #items-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="catalog_select_item"] #items-pane-content .gm-compendium-embed,
+    body.gm-dashboard--demo[data-demo-phase="catalog_select_item"] #items-pane-content .gm-compendium-embed-frame,
+    body.gm-dashboard--demo[data-demo-phase="catalog_stock"] #items-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="catalog_stock"] #items-pane-content .gm-compendium-embed,
+    body.gm-dashboard--demo[data-demo-phase="catalog_stock"] #items-pane-content .gm-compendium-embed-frame,
+    body.gm-dashboard--demo[data-demo-phase="catalog_assign_shop"] #items-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="catalog_assign_shop"] #items-pane-content .gm-compendium-embed,
+    body.gm-dashboard--demo[data-demo-phase="catalog_assign_shop"] #items-pane-content .gm-compendium-embed-frame,
+    body.gm-dashboard--demo[data-demo-phase="catalog_confirm_stock"] #items-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="catalog_confirm_stock"] #items-pane-content .gm-compendium-embed,
+    body.gm-dashboard--demo[data-demo-phase="catalog_confirm_stock"] #items-pane-content .gm-compendium-embed-frame,
+    body.gm-dashboard--demo[data-demo-phase^="catalog_"] #items-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="back_to_city"] #map-shop-back-btn,
+    body.gm-dashboard--demo[data-demo-phase="back_to_city"] .demo-allowed-shop-back,
+    body.gm-dashboard--demo[data-demo-phase="return_world_map"] #map-world-back-btn,
+    body.gm-dashboard--demo[data-demo-phase="return_world_map"] .demo-allowed-world-back,
+    body.gm-dashboard--demo[data-demo-phase="point_market"] #market-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_market"] #market-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="market_explain"] #market-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="market_explain"] #market-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="point_calendar"] #calendar-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_calendar"] #calendar-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="calendar_explain"] #calendar-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="calendar_explain"] #sim-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="sim_week"] #gm-run-week-btn,
+    body.gm-dashboard--demo[data-demo-phase="sim_week"] .demo-allowed-sim-week,
+    body.gm-dashboard--demo[data-demo-phase="sim_result"] #map-feedback,
+    body.gm-dashboard--demo[data-demo-phase="sim_result"] .demo-allowed-sim-result,
+    body.gm-dashboard--demo[data-demo-phase="point_species"] #species-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_species"] #species-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="species_explain"] #species-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="species_explain"] #species-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="point_traits"] #traits-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_traits"] #traits-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="traits_explain"] #traits-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="traits_explain"] #traits-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="point_classes"] #classes-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_classes"] #classes-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="classes_explain"] #classes-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="classes_explain"] #classes-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="point_spells"] #spells-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_spells"] #spells-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="spells_explain"] #spells-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="spells_explain"] #spells-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="point_monsters"] #monsters-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="point_monsters"] #monsters-tab-btn *,
+    body.gm-dashboard--demo[data-demo-phase="monsters_explain"] #monsters-tab-btn,
+    body.gm-dashboard--demo[data-demo-phase="monsters_explain"] #monsters-pane-content,
+    body.gm-dashboard--demo[data-demo-phase="invite_open"] #gm-campaign-code-summary,
+    body.gm-dashboard--demo[data-demo-phase="invite_open"] .demo-allowed-campaign-code,
+    body.gm-dashboard--demo[data-demo-phase="invite_reveal"] .invite-reveal-btn,
+    body.gm-dashboard--demo[data-demo-phase="invite_reveal"] .demo-allowed-invite-reveal,
+    body.gm-dashboard--demo[data-demo-phase="invite_copy"] .gm-campaign-invite-block .code-display,
+    body.gm-dashboard--demo[data-demo-phase="invite_copy"] .demo-allowed-invite-copy,
+    body.gm-dashboard--demo[data-demo-phase="point_profile"] #accountAvatarBtn,
+    body.gm-dashboard--demo[data-demo-phase="point_profile"] .demo-allowed-profile,
+    body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] #accountAvatarBtn,
+    body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] .demo-allowed-switch-campaigns,
+    body.gm-dashboard--demo.demo-invite-switch-ready #accountPopoverPanel a.account-menu-nav-link {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    /* Keep invite popover readable while only Reveal/code are clickable. */
+    body.gm-dashboard--demo[data-demo-phase^="invite_"] details.gm-join-tools .gm-join-popover {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+    body.gm-dashboard--demo[data-demo-phase^="invite_"] details.gm-join-tools .gm-ply-redeem-form,
+    body.gm-dashboard--demo[data-demo-phase^="invite_"] details.gm-join-tools .gm-ply-redeem-form input,
+    body.gm-dashboard--demo[data-demo-phase^="invite_"] details.gm-join-tools .gm-ply-redeem-form button {
+        pointer-events: none !important;
+        opacity: 0.35 !important;
+        cursor: not-allowed !important;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="back_to_city"] #map-shop-back-btn,
+    body.gm-dashboard--demo[data-demo-phase="return_world_map"] #map-world-back-btn,
+    body.gm-dashboard--demo[data-demo-phase="sim_week"] #gm-run-week-btn {
+        outline: 2px solid #9ecbff;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.35);
+        animation: demo-pulse-outline 1.4s ease-in-out infinite;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="sim_result"] #map-feedback,
+    body.gm-dashboard--demo[data-demo-phase="sim_result"] .demo-allowed-sim-result {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        color: #f8fafc !important;
+        background: rgba(30, 41, 59, 0.92);
+        padding: 0.55rem 0.75rem;
+        border-radius: 8px;
+        outline: 2px solid #9ecbff;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.35);
+        animation: demo-pulse-outline 1.4s ease-in-out infinite;
+        font-size: 0.95rem;
+        font-weight: 600;
+        z-index: 5;
+        position: relative;
+    }
+
+    /* Account menu: only Sign out until Switch campaigns step. */
+    body.gm-dashboard--demo #accountAvatarBtn {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo #accountPopoverPanel a:not(.menu-btn-danger-outline),
+    body.gm-dashboard--demo #accountPopoverPanel button,
+    body.gm-dashboard--demo #accountPopoverPanel .avatar-upload-interaction-container,
+    body.gm-dashboard--demo #accountPopoverPanel input,
+    body.gm-dashboard--demo #accountPopoverPanel select,
+    body.gm-dashboard--demo #accountPopoverPanel textarea,
+    body.gm-dashboard--demo #accountPopoverPanel label {
+        pointer-events: none !important;
+        opacity: 0.42 !important;
+        filter: grayscale(0.4);
+        cursor: not-allowed !important;
+    }
+
+    body.gm-dashboard--demo #accountPopoverPanel a.menu-btn-danger-outline {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo.demo-invite-switch-ready #accountPopoverPanel a.account-menu-nav-link,
+    body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] #accountPopoverPanel a.account-menu-nav-link {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+        outline: 2px solid #9ecbff;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.35);
+        animation: demo-pulse-outline 1.4s ease-in-out infinite;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #items-pane-content button,
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #items-pane-content a:not(.demo-allowed-items-catalog),
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #items-pane-content input,
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #items-pane-content select,
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #items-pane-content textarea {
+        pointer-events: none !important;
+        opacity: 0.35 !important;
+        filter: grayscale(0.6);
+        cursor: not-allowed !important;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="items_briefing"] #items-pane-content .demo-allowed-items-catalog {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="place_cities"] #cities-compendium-body tr:not(.demo-father-city-row),
+    body.gm-dashboard--demo[data-demo-phase="place_shops"] #shops-compendium-body tr:not(.demo-target-shop-row) {
+        opacity: 0.42;
+        filter: grayscale(0.4);
+        pointer-events: none;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="select_city"] .map-entity-wrap.demo-allowed-city-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_city"] .map-entity-wrap.demo-allowed-city-marker .map-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_city_goods"] .map-entity-wrap.demo-allowed-city-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_city_goods"] .map-entity-wrap.demo-allowed-city-marker .map-marker,
+    body.gm-dashboard--demo[data-demo-phase="city_popout"] .map-entity-popout,
+    body.gm-dashboard--demo[data-demo-phase="city_popout"] .map-entity-wrap.demo-allowed-city-marker,
+    body.gm-dashboard--demo[data-demo-phase="open_city"] .map-entity-popout,
+    body.gm-dashboard--demo[data-demo-phase="open_city"] .map-entity-popout .demo-allowed-open,
+    body.gm-dashboard--demo[data-demo-phase="open_city"] .map-entity-wrap.demo-allowed-city-marker,
+    body.gm-dashboard--demo.demo-city-open-ready .map-entity-popout .demo-allowed-open,
+    body.gm-dashboard--demo[data-demo-phase="select_shop"] .map-entity-wrap.demo-allowed-shop-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_shop"] .map-entity-wrap.demo-allowed-shop-marker .map-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_shop_goods"] .map-entity-wrap.demo-allowed-shop-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_shop_goods"] .map-entity-wrap.demo-allowed-shop-marker .map-marker,
+    body.gm-dashboard--demo[data-demo-phase="shop_popout"] .map-entity-popout,
+    body.gm-dashboard--demo[data-demo-phase="shop_popout"] .map-entity-wrap.demo-allowed-shop-marker,
+    body.gm-dashboard--demo[data-demo-phase="open_shop"] .map-entity-popout,
+    body.gm-dashboard--demo[data-demo-phase="open_shop"] .map-entity-popout .demo-allowed-open,
+    body.gm-dashboard--demo[data-demo-phase="open_shop"] .map-entity-wrap.demo-allowed-shop-marker {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo[data-demo-phase="select_city"] .map-entity-wrap:not(.demo-allowed-city-marker) .map-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_city_goods"] .map-entity-wrap:not(.demo-allowed-city-marker) .map-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_shop"] .map-entity-wrap:not(.demo-allowed-shop-marker) .map-marker,
+    body.gm-dashboard--demo[data-demo-phase="select_shop_goods"] .map-entity-wrap:not(.demo-allowed-shop-marker) .map-marker,
+    body.gm-dashboard--demo[data-demo-phase="city_popout"] .map-entity-popout button,
+    body.gm-dashboard--demo[data-demo-phase="open_city"] .map-entity-popout button:not(.demo-allowed-open),
+    body.gm-dashboard--demo[data-demo-phase="shop_popout"] .map-entity-popout button,
+    body.gm-dashboard--demo[data-demo-phase="open_shop"] .map-entity-popout button:not(.demo-allowed-open) {
+        pointer-events: none !important;
+        opacity: 0.35 !important;
+        filter: grayscale(0.6);
+        cursor: not-allowed !important;
+    }
+
+    .demo-city-view-popout {
+        position: fixed;
+        z-index: 2147483001;
+        width: min(320px, calc(100vw - 24px));
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(22, 27, 34, 0.97);
+        color: #f3f5f7;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        pointer-events: auto;
+    }
+
+    .demo-city-view-popout strong {
+        display: block;
+        margin-bottom: 0.4rem;
+        color: #9ecbff;
+    }
+
+    .demo-city-view-popout p {
+        margin: 0 0 0.55rem;
+        font-size: 0.86rem;
+        line-height: 1.4;
+    }
+
+    .demo-city-view-popout ul {
+        margin: 0 0 0.55rem;
+        padding-left: 1.1rem;
+        font-size: 0.86rem;
+        line-height: 1.4;
+    }
+
+    .demo-unlock-countdown {
+        margin: 0.35rem 0 0;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #fbbf24;
+        letter-spacing: 0.01em;
+    }
+
+    #demo-coach-forward.demo-allowed-forward {
+        outline: 2px solid #9ecbff !important;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.35);
+        animation: demo-pulse-outline 1.4s ease-in-out infinite;
+        opacity: 1 !important;
+        filter: none !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+
+    body.gm-dashboard--demo .demo-draw-highlight,
+    body.gm-dashboard--demo .demo-close-highlight {
+        outline: 2px solid #9ecbff !important;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.35);
+        animation: demo-pulse-outline 1.4s ease-in-out infinite;
+    }
+</style>
+
+<div id="demo-tutorial-root"
+     data-demo-step="{{ demo_step.id }}"
+     data-demo-title="{{ demo_step.title }}"
+     data-nation-hint="{{ demo_step.nation_hint or 'Father\'s Castel-bari' }}"
+     data-register-cta="{% if demo_step.register_cta %}1{% else %}0{% endif %}">
+    <div class="demo-tutorial-modal" id="demo-tutorial-modal" role="dialog" aria-modal="true"
+         aria-labelledby="demo-tutorial-title"
+         {% if demo_step.register_cta %}hidden{% endif %}>
+        <div class="demo-tutorial-dialog">
+            <h2 id="demo-tutorial-title">{{ demo_step.title }}</h2>
+            <h3>{{ demo_step.heading }}</h3>
+            <ol>
+                {% for line in demo_step.instructions %}
+                <li>{{ line }}</li>
+                {% endfor %}
+            </ol>
+            <div class="demo-tutorial-actions">
+                {% if demo_step.register_cta %}
+                <a class="button demo-register-cta" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                {% else %}
+                <a class="button secondary-button demo-register-cta" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                <button type="button" class="button" id="demo-tutorial-dismiss">Got it</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <aside class="demo-tutorial-coach" id="demo-tutorial-coach" {% if not demo_step.register_cta %}hidden{% endif %}>
+        <strong id="demo-coach-heading">{{ demo_step.heading }}</strong>
+        <p id="demo-coach-body">{{ demo_step.instructions[0] }} {{ demo_step.instructions[1] if demo_step.instructions|length > 1 else '' }}</p>
+        <p class="demo-unlock-countdown" id="demo-unlock-countdown" hidden></p>
+        {% if not demo_step.register_cta %}
+        <div class="demo-coach-nav" id="demo-coach-nav">
+            <button type="button" class="button secondary-button" id="demo-coach-back" disabled hidden>Back</button>
+            <button type="button" class="button secondary-button" id="demo-coach-forward" disabled hidden>Forward</button>
+        </div>
+        {% endif %}
+        <a class="button demo-register-cta" href="{{ url_for('main.access_request') }}">Register For Access</a>
+    </aside>
+</div>
+
+<script src="{{ url_for('static', filename='js/demo_bridge.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/demo_tutorial.js') }}" defer></script>
+{% endif %}

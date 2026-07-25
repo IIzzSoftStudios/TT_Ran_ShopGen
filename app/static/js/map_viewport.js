@@ -72,23 +72,49 @@
             }
         }
 
+        /**
+         * Map a screen point into stage layout (CSS) pixels.
+         * Uses clientWidth/Height — not getBoundingClientRect size — so a CSS
+         * transform on the stage (e.g. decorative scale) cannot desync pan/zoom
+         * math from marker placement.
+         */
+        function clientToStageLocal(clientX, clientY) {
+            if (!stageEl) return { x: 0, y: 0 };
+            var rect = stageEl.getBoundingClientRect();
+            var lw = stageEl.clientWidth || 0;
+            var lh = stageEl.clientHeight || 0;
+            if (!rect.width || !rect.height || !lw || !lh) return { x: 0, y: 0 };
+            return {
+                x: (clientX - rect.left) * (lw / rect.width),
+                y: (clientY - rect.top) * (lh / rect.height)
+            };
+        }
+
+        function stageLayoutSize() {
+            if (!stageEl) return { width: 0, height: 0 };
+            return {
+                width: stageEl.clientWidth || 0,
+                height: stageEl.clientHeight || 0
+            };
+        }
+
         function fitToView(padding) {
             if (!stageEl) return;
             padding = padding == null ? 24 : padding;
-            var rect = stageEl.getBoundingClientRect();
-            var sx = (rect.width - padding * 2) / worldW;
-            var sy = (rect.height - padding * 2) / worldH;
+            var size = stageLayoutSize();
+            var sx = (size.width - padding * 2) / worldW;
+            var sy = (size.height - padding * 2) / worldH;
             scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.min(sx, sy)));
-            panX = (rect.width - worldW * scale) / 2;
-            panY = (rect.height - worldH * scale) / 2;
+            panX = (size.width - worldW * scale) / 2;
+            panY = (size.height - worldH * scale) / 2;
             applyTransform();
         }
 
         function screenToWorld(clientX, clientY) {
             if (!stageEl) return { x: 0, y: 0 };
-            var rect = stageEl.getBoundingClientRect();
-            var x = (clientX - rect.left - panX) / scale;
-            var y = (clientY - rect.top - panY) / scale;
+            var local = clientToStageLocal(clientX, clientY);
+            var x = (local.x - panX) / scale;
+            var y = (local.y - panY) / scale;
             return {
                 x: Math.max(0, Math.min(worldW, x)),
                 y: Math.max(0, Math.min(worldH, y)),
@@ -115,9 +141,9 @@
         function onWheel(ev) {
             if (!stageEl) return;
             ev.preventDefault();
-            var rect = stageEl.getBoundingClientRect();
-            var mx = ev.clientX - rect.left;
-            var my = ev.clientY - rect.top;
+            var local = clientToStageLocal(ev.clientX, ev.clientY);
+            var mx = local.x;
+            var my = local.y;
             var beforeX = (mx - panX) / scale;
             var beforeY = (my - panY) / scale;
             var factor = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
@@ -139,8 +165,15 @@
 
         function movePan(clientX, clientY) {
             if (!dragging) return;
-            panX += clientX - lastX;
-            panY += clientY - lastY;
+            var rect = stageEl ? stageEl.getBoundingClientRect() : null;
+            var sx = (stageEl && rect && rect.width)
+                ? (stageEl.clientWidth / rect.width)
+                : 1;
+            var sy = (stageEl && rect && rect.height)
+                ? (stageEl.clientHeight / rect.height)
+                : 1;
+            panX += (clientX - lastX) * sx;
+            panY += (clientY - lastY) * sy;
             lastX = clientX;
             lastY = clientY;
             applyTransform();
@@ -231,9 +264,9 @@
 
         function panToWorldPoint(wx, wy) {
             if (!stageEl) return;
-            var rect = stageEl.getBoundingClientRect();
-            panX = rect.width / 2 - wx * scale;
-            panY = rect.height / 2 - wy * scale;
+            var size = stageLayoutSize();
+            panX = size.width / 2 - wx * scale;
+            panY = size.height / 2 - wy * scale;
             applyTransform();
         }
 

@@ -329,9 +329,15 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/demo_bridge.js') }}"></script>
     <script>
         window.DND5E_WIZARD_CONFIG = {{ wizard_config | tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/character_create_wizard.js') }}"></script>
+    {% if demo_mode %}
+    {% set demo_surface = 'character' %}
+    {% include 'partials/demo_coach_chrome.html' %}
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/demo_character_tutorial.js') }}"></script>
 </body>
 </html>

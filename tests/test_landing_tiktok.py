@@ -71,9 +71,9 @@ def test_landing_shows_tiktok_rail_when_videos_configured(client):
     assert resp.status_code == 200
     html = resp.data.decode("utf-8")
     assert 'class="tiktok-rail-track"' in html
-    assert "7645277507855453454" in html
-    assert "player/v1/7645277507855453454" in html
-    assert 'data-src="https://www.tiktok.com/player/v1/7645277507855453454' in html
+    assert "7666157768763542798" in html
+    assert "player/v1/7666157768763542798" in html
+    assert 'data-src="https://www.tiktok.com/player/v1/7666157768763542798' in html
     assert "autoplay=1" in html
     assert "muted=1" in html
     assert "Creator Approved" in html

@@ -1,0 +1,99 @@
+{# Shared demo coach chrome — include when demo_mode (or client bridge) drives a walkthrough. #}
+<style>
+    .demo-tutorial-coach {
+        position: fixed;
+        z-index: 2147483002;
+        right: 16px;
+        bottom: 16px;
+        width: min(340px, calc(100vw - 24px));
+        padding: 0.9rem 1rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(22, 27, 34, 0.97);
+        color: #f3f5f7;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    }
+    .demo-tutorial-coach h2 {
+        margin: 0 0 0.35rem;
+        font-size: 1rem;
+        color: #9ecbff;
+    }
+    .demo-tutorial-coach p {
+        margin: 0 0 0.65rem;
+        font-size: 0.88rem;
+        line-height: 1.4;
+    }
+    .demo-coach-nav {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0 0 0.35rem;
+    }
+    .demo-coach-nav .button {
+        flex: 1;
+        min-height: 2rem;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.82rem;
+    }
+    #demo-tutorial-arrow {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        z-index: 2147483000;
+        overflow: visible;
+    }
+    #demo-tutorial-arrow[hidden] { display: none !important; }
+    #demo-tutorial-arrow .demo-arrow-shaft {
+        position: fixed;
+        height: 4px;
+        transform-origin: 0 50%;
+        background: linear-gradient(90deg, rgba(158, 203, 255, 0.15), #9ecbff 35%, #9ecbff);
+        border-radius: 2px;
+        box-shadow: 0 0 8px rgba(158, 203, 255, 0.75);
+    }
+    #demo-tutorial-arrow .demo-arrow-head {
+        position: fixed;
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 8px 0 8px 16px;
+        border-color: transparent transparent transparent #9ecbff;
+        filter: drop-shadow(0 0 4px rgba(158, 203, 255, 0.75));
+    }
+    .demo-city-view-popout {
+        position: fixed;
+        z-index: 2147483001;
+        width: min(320px, calc(100vw - 24px));
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(22, 27, 34, 0.97);
+        color: #f3f5f7;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+    .demo-city-view-popout strong { display: block; margin-bottom: 0.4rem; color: #9ecbff; }
+    .demo-city-view-popout p { margin: 0 0 0.55rem; font-size: 0.86rem; line-height: 1.4; }
+    .demo-city-view-popout ul { margin: 0 0 0.55rem; padding-left: 1.1rem; font-size: 0.86rem; line-height: 1.4; }
+    @keyframes demo-pulse-outline {
+        0%, 100% { box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.25); }
+        50% { box-shadow: 0 0 0 6px rgba(158, 203, 255, 0.45); }
+    }
+    .demo-draw-highlight,
+    #demo-coach-forward.demo-allowed-forward {
+        outline: 2px solid #9ecbff !important;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(158, 203, 255, 0.35);
+        animation: demo-pulse-outline 1.4s ease-in-out infinite;
+    }
+</style>
+<div id="demo-tutorial-root" data-demo-surface="{{ demo_surface|default('generic') }}">
+    <aside id="demo-tutorial-coach" class="demo-tutorial-coach" role="status" aria-live="polite">
+        <div class="demo-coach-nav">
+            <button type="button" class="button" id="demo-coach-back" hidden disabled>Back</button>
+            <button type="button" class="button" id="demo-coach-forward" hidden disabled>Forward</button>
+        </div>
+        <h2 id="demo-coach-heading">Demo</h2>
+        <p id="demo-coach-body"></p>
+    </aside>
+</div>

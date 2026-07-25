@@ -4477,7 +4477,7 @@
         window.loadCharacterData = loadCharacterData;
     </script>
 </head>
-<body class="player-dashboard">
+<body class="player-dashboard{% if demo_mode %} player-dashboard--demo{% endif %}">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="flash-stack">
@@ -6907,5 +6907,11 @@
     </script>
     {% endif %}
     <script src="{{ url_for('static', filename='js/level_up_wizard.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/demo_bridge.js') }}"></script>
+    {% if demo_mode %}
+    {% set demo_surface = 'player' %}
+    {% include 'partials/demo_coach_chrome.html' %}
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/demo_player_tutorial.js') }}"></script>
 </body>
 </html>

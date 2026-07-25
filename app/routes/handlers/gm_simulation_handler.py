@@ -7,6 +7,7 @@ from datetime import datetime
 from functools import wraps
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
+from flask_login import current_user
 from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
 from app.services.logging_config import gm_logger
 from app.scripts.seeder import seed_gm_data
@@ -207,6 +208,17 @@ def home():
     pc_entries = [e for e in player_entries if not e["player"].is_npc]
     npc_entries = [e for e in player_entries if e["player"].is_npc]
     onboarding_checklist = build_gm_onboarding_context(gm_profile, campaign)
+    from app.services.demo_tutorial import default_demo_step_id, get_demo_step
+    from app.services.demo_session import active_demo_mode_for_user
+
+    demo_mode = active_demo_mode_for_user(current_user)
+    demo_step = None
+    if demo_mode:
+        step_id = session.get("demo_step") or default_demo_step_id()
+        session["demo_step"] = step_id
+        demo_step = get_demo_step(step_id)
+        # Demo walkthrough replaces the normal first-run checklist.
+        onboarding_checklist = None
     # Battle tab is D&D-5e-only: hidden entirely for other rulesets.
     from app.services.rulesets import get_ruleset
 
@@ -224,6 +236,7 @@ def home():
 
         character_creation_settings = get_creation_settings(campaign.id)
         species_compendium_preview = ensure_species_compendium(campaign.id)
+
     return render_template(
         "GM_Home.html",
         gm_profile=gm_profile,
@@ -235,6 +248,8 @@ def home():
         npc_entries=npc_entries,
         character_creation_settings=character_creation_settings,
         species_compendium_preview=species_compendium_preview,
+        demo_mode=demo_mode,
+        demo_step=demo_step,
         **shops_panel,
     )
 

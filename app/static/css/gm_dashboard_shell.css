@@ -942,9 +942,11 @@ body.gm-dashboard-drawer-open {
     filter: brightness(0.92);
 }
 
+/* Do not CSS-transform .map-stage here: scale/translate breaks MapViewport
+   screen↔world math (shop/city marker placement) because pan/zoom uses layout
+   pixels while getBoundingClientRect reflects the transformed box. */
 #gm-world-stage.gm-world-stage--city-zoom .map-stage {
-    transition: transform 0.28s ease;
-    transform: scale(1.03);
+    box-shadow: inset 0 0 0 2px rgba(158, 203, 255, 0.22);
 }
 
 .gm-slide-panel-close {

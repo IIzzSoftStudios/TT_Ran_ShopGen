@@ -37,6 +37,7 @@ from app.services.player_resolution import (
     list_user_characters,
 )
 from app.services.billing_rules import can_add_player_profile
+from app.services.demo_session import active_demo_mode_for_user
 from app.services.join_codes import (
     redeem_campaign_code,
     InvalidCodeError,
@@ -735,6 +736,7 @@ def player_home():
         player_market_item_catalog=player_market_item_catalog,
         level_up_summary=_pop_level_up_summary(player.id),
         character_sheet_url=url_for("player.view_character_id", player_id=player.id),
+        demo_mode=active_demo_mode_for_user(current_user),
     )
 
 # Search route
@@ -1439,6 +1441,7 @@ def create_character():
             can_add=ok,
             cap_message=msg or "",
             wizard_config=wizard_payload,
+            demo_mode=active_demo_mode_for_user(current_user),
         )
 
     ok, msg = can_add_player_profile(current_user)

@@ -1813,7 +1813,7 @@
         }
     </style>
 </head>
-<body class="gm-dashboard{% if onboarding_checklist and onboarding_checklist.show_first_sim_prompt %} gm-dashboard--first-run{% endif %}">
+<body class="gm-dashboard{% if onboarding_checklist and onboarding_checklist.show_first_sim_prompt %} gm-dashboard--first-run{% endif %}{% if demo_mode %} gm-dashboard--demo{% endif %}">
     <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -1830,6 +1830,7 @@
     {% endwith %}
 
     {% include 'partials/gm_onboarding_checklist.html' %}
+    {% include 'partials/gm_demo_tutorial.html' %}
 
     <!-- Paradox-style GM workspace shell -->
     {% set cal = campaign.calendar_state if campaign else {'year': 1, 'month_of_year': 1, 'day': 1} %}
@@ -2132,7 +2133,7 @@
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="shops-pane-content" id="shops-tab-btn" role="tab" aria-selected="false" title="Shop Compendium"><span class="gm-nav-icon" aria-hidden="true">🏪</span><span class="gm-nav-label">Shops</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="items-pane-content" id="items-tab-btn" role="tab" aria-selected="false" title="Item Compendium"><span class="gm-nav-icon" aria-hidden="true">📦</span><span class="gm-nav-label">Items</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="market-pane-content" id="market-tab-btn" role="tab" aria-selected="false" title="Market Overview"><span class="gm-nav-icon" aria-hidden="true">📊</span><span class="gm-nav-label">Market</span></button>
-            <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="sim-pane-content" role="tab" aria-selected="false" title="Calendar"><span class="gm-nav-icon" aria-hidden="true">⏱</span><span class="gm-nav-label">Calendar</span></button>
+            <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="sim-pane-content" id="calendar-tab-btn" role="tab" aria-selected="false" title="Calendar"><span class="gm-nav-icon" aria-hidden="true">⏱</span><span class="gm-nav-label">Calendar</span></button>
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="players-npcs-pane-content" id="players-npcs-tab-btn" role="tab" aria-selected="false" title="Players and NPCs"><span class="gm-nav-icon" aria-hidden="true">👥</span><span class="gm-nav-label">Players</span></button>
             {% if combat_enabled %}
             <button type="button" class="gm-panel-tab gm-nav-rail-btn" data-target="species-pane-content" id="species-tab-btn" role="tab" aria-selected="false" title="Species Compendium"><span class="gm-nav-icon" aria-hidden="true">🧬</span><span class="gm-nav-label">Species</span></button>
@@ -8789,6 +8790,9 @@
                     wrap.className = 'map-entity-wrap';
                     wrap.style.position = 'absolute';
                     wrap.style.transform = 'translate(0, 0)';
+                    if (entity.entity_type) wrap.dataset.entityType = entity.entity_type;
+                    if (entity.region) wrap.dataset.region = entity.region;
+                    if (entity.name) wrap.dataset.entityName = entity.name;
                     positionMarker(wrap, entity);
 
                     var dot = document.createElement('button');
