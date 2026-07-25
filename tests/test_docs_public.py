@@ -51,10 +51,10 @@ def test_docs_unknown_section_falls_back_to_getting_started(client):
     assert b"Getting Started" in resp.data or b"getting-started" in resp.data
 
 
-def test_login_page_links_new_users_to_access_request(client):
+def test_login_page_links_new_users_to_subscribe(client):
     resp = client.get("/auth/login")
     assert resp.status_code == 200
-    assert b"/access-request" in resp.data
+    assert b"/subscribe" in resp.data
     assert b"Register for access as a GM" in resp.data
     assert b"Register for access with a GM Code" in resp.data
     assert b"/auth/register?campaign_code=1" in resp.data

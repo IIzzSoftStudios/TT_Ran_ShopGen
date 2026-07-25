@@ -52,6 +52,7 @@ def clear_demo_session_flags() -> None:
     """Strip demo walkthrough flags so they cannot leak into real GM sessions."""
     session.pop("demo_mode", None)
     session.pop("demo_step", None)
+    session.pop("demo_run_id", None)
     # Keep demo_anon_id so re-entry to /demo can reuse the same ephemeral user.
     session.modified = True
 
@@ -253,4 +254,25 @@ def start_anonymous_demo() -> tuple[Campaign | None, object | None, str | None]:
     db.session.commit()
 
     setup_redirect = enter_demo_gm_session(personal, user)
+    try:
+        from app.services.demo_analytics import (
+            EVENT_DEMO_START,
+            current_demo_run_id,
+            mint_demo_run_id,
+            record_demo_event,
+        )
+
+        run_id = current_demo_run_id() or mint_demo_run_id()
+        anon_id = session.get("demo_anon_id") or _anon_id_for_session()
+        record_demo_event(
+            event_type=EVENT_DEMO_START,
+            demo_run_id=run_id,
+            demo_anon_id=str(anon_id),
+            user_id=getattr(user, "id", None),
+            commit=True,
+        )
+    except Exception:
+        from app.services.logging_config import gm_logger
+
+        gm_logger.exception("Demo analytics demo_start failed")
     return personal, setup_redirect, None

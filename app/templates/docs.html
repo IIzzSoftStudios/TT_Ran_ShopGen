@@ -468,7 +468,7 @@
                         <li><strong>Player Use</strong> — joining a campaign, creating D&amp;D 5e characters, using dashboard tabs, viewing class spell options, shared maps, shops, and inventory</li>
                         <li><strong>Item &amp; Inventory Concepts</strong> — pricing, stock, folders, templates, compendiums, and game-day ticks</li>
                         <li><strong>Roadmap</strong> — what we are improving next for GMs and players</li>
-                        <li><strong>Changelog</strong> — release notes for Alpha and earlier demo milestones</li>
+                        <li><strong>Changelog</strong> — release notes for Early Access and prior milestones</li>
                         <li><strong>Terms &amp; Privacy</strong> — general site rules and privacy notes</li>
                         <li><strong>FAQ</strong> — limitations, map visibility, rulesets, and infrastructure expectations</li>
                     </ul>
@@ -486,8 +486,9 @@
                     </p>
                     <h3>1. Get your registration key</h3>
                     <p>
-                        From the landing page, choose <strong>Register For Access</strong> and submit the form at
-                        <a href="{{ url_for('main.access_request') }}">Register For Access</a>. Tell us whether you are a
+                        From the landing page, choose <strong>Register For Access</strong> and complete
+                        <a href="{{ url_for('billing.subscribe') }}">Checkout</a> for a Tier 1 or Pro plan.
+                        After payment you create your username and password. Tell us whether you are a
                         GM, player, or both, and which ruleset you run. Your registration key is issued immediately
                         and you are redirected straight to account creation—no waiting for approval email.
                     </p>
@@ -745,12 +746,13 @@
                     aria-labelledby="heading-changelog" hidden>
                     <h2 id="heading-changelog">Changelog</h2>
                     <p>
-                        Release notes for Econo-Forge Alpha. Entries are listed newest first.
+                        Release notes for Econo-Forge Early Access. Entries are listed newest first.
                     </p>
 
                     <div class="changelog-layout">
                         <aside class="changelog-index" aria-label="Patch notes">
                             <p class="changelog-index-title">Patch Notes</p>
+                            <a href="#patch-early-access-demo">Early Access — Demo</a>
                             <a href="#patch-1-3-1">Alpha 1.3.1 Progression &amp; Combat Update</a>
                             <a href="#patch-1-3">Alpha 1.3 Campaign Hub Update</a>
                             <a href="#patch-1-2-5">Alpha 1.2 GM Workspace Update</a>
@@ -763,8 +765,19 @@
                         </aside>
 
                         <div class="changelog-patches">
+                            <section class="changelog-patch" id="patch-early-access-demo" aria-labelledby="heading-patch-early-access-demo">
+                                <h3 id="heading-patch-early-access-demo">Early Access — Demo <span class="docs-badge">Latest</span></h3>
+                                <p>
+                                    <strong>July 25, 2026.</strong> Econo-Forge is now in Early Access. This release adds the public Demo.
+                                </p>
+                                <h3>Demo</h3>
+                                <ul>
+                                    <li>Added a public <strong>Demo</strong> from the landing page (<strong>Try Demo</strong>) so visitors can walk through the GM experience without requesting access first.</li>
+                                </ul>
+                            </section>
+
                             <section class="changelog-patch" id="patch-1-3-1" aria-labelledby="heading-patch-1-3-1">
-                                <h3 id="heading-patch-1-3-1">Alpha 1.3.1 Progression &amp; Combat Update <span class="docs-badge">Latest</span></h3>
+                                <h3 id="heading-patch-1-3-1">Alpha 1.3.1 Progression &amp; Combat Update</h3>
                                 <p>
                                     <strong>June 23, 2026.</strong> Builds on the Alpha 1.3 campaign hub with SRD level progression, subclass compendium tooling, player bestiary journals, battle-board spellcasting and multiattack, marketing intake flows, and dashboard UX that keeps panels open while you level, trade, and manage spells.
                                 </p>
@@ -1128,6 +1141,7 @@
                         <li>To authenticate users, route them to GM or player tools, and enforce campaign access.</li>
                         <li>To run campaign tools including world generation, population summaries, species and monster compendiums, maps, encounters, market views, stock, pricing, character creation, and simulation jobs.</li>
                         <li>To process access-form submissions, issue registration keys, diagnose bugs, improve Alpha, and respond to feedback.</li>
+                        <li>To measure anonymous Demo walkthrough usage (steps opened and Register For Access clicks) so we can improve the Demo funnel. These metrics do not store email or IP on the analytics rows.</li>
                     </ul>
                     <h3>Sharing and retention</h3>
                     <p>
@@ -1154,7 +1168,8 @@
 
                     <h3>Is access request approval manual?</h3>
                     <p>
-                        On the public site, <strong>Register For Access</strong> auto-issues your registration key and
+                        On the public site, <strong>Register For Access</strong> starts Stripe Checkout for a paid plan,
+                        then sends you to account creation with your registration key.
                         sends you to account creation. Admin triage is a separate backoffice path for held or legacy
                         pending rows—approving there emails a registration link with the same key model.
                     </p>
@@ -1237,7 +1252,7 @@
                 </div>
             </div>
             <div class="btn-row">
-                <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                <a class="btn btn-primary" href="{{ url_for('billing.subscribe') }}">Register For Access</a>
                 <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login</a>
             </div>
         </div>

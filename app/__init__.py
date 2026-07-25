@@ -28,7 +28,9 @@ from app.services.schema_compat import (
     ensure_monster_known_to_players_column,
     ensure_join_codes_columns,
     ensure_campaign_code_redemption_table,
+    ensure_demo_analytics_event_table,
     ensure_expansion_interest_table,
+    ensure_stripe_billing_schema,
     ensure_map_tables,
     ensure_phase_entitlement_columns,
     ensure_player_campaign_id,
@@ -64,7 +66,9 @@ from app.services.schema_compat import (
     warn_if_monster_known_to_players_applied,
     warn_if_join_codes_compat_applied,
     warn_if_campaign_code_redemption_table_applied,
+    warn_if_demo_analytics_event_table_applied,
     warn_if_expansion_interest_table_applied,
+    warn_if_stripe_billing_schema_applied,
     warn_if_password_history_compat_applied,
     warn_if_user_avatar_column_applied,
     warn_if_user_submissions_table_applied,
@@ -446,9 +450,19 @@ def create_app():
                 warn_if_expansion_interest_table_applied,
             )
             _safe_bootstrap(
+                "demo_analytics_event table compatibility bootstrap",
+                ensure_demo_analytics_event_table,
+                warn_if_demo_analytics_event_table_applied,
+            )
+            _safe_bootstrap(
                 "campaign_code_redemption table compatibility bootstrap",
                 ensure_campaign_code_redemption_table,
                 warn_if_campaign_code_redemption_table_applied,
+            )
+            _safe_bootstrap(
+                "stripe billing schema compatibility bootstrap",
+                ensure_stripe_billing_schema,
+                warn_if_stripe_billing_schema_applied,
             )
             _safe_bootstrap(
                 "player NPC compatibility bootstrap",
@@ -613,10 +627,12 @@ def create_app():
     from app.routes.admin_routes import admin_bp
     from app.routes.combat_routes import combat_bp
     from app.routes.demo_routes import demo_bp
+    from app.routes.billing_routes import billing_bp
 
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(main_bp)
     app.register_blueprint(demo_bp)
+    app.register_blueprint(billing_bp)
     app.register_blueprint(gm_bp)
     app.register_blueprint(player_bp, url_prefix="/player")
     app.register_blueprint(combat_bp, url_prefix="/api/combat")
@@ -642,15 +658,28 @@ def create_app():
         "WTF_CSRF_HEADERS", ["X-CSRFToken", "X-CSRF-Token", "X-Csrf-Token"]
     )
 
+    @app.before_request
+    def block_lapsed_subscription_mutations():
+        from app.services.subscription_gate import maybe_block_lapsed_mutation
+
+        return maybe_block_lapsed_mutation()
+
     @app.context_processor
     def inject_account_menu_context():
         from flask import session as flask_session
 
         from app.constants.submission_categories import categories_for_json
         from app.services.account_stats import get_campaign_counts
+        from app.services.demo_session import active_demo_mode_for_user
+        from app.services.subscription_gate import (
+            resubscribe_cta_url,
+            subscription_lapsed_for_request,
+        )
 
         show_account_menu = False
         account_menu_config = {}
+        subscription_lapsed = False
+        subscription_lapsed_cta_url = None
         if getattr(current_user, "is_authenticated", False) and request.endpoint:
             if not request.endpoint.startswith("auth.") and not request.endpoint.startswith(
                 "static"
@@ -669,11 +698,23 @@ def create_app():
                     "player_count": counts["player"],
                     "is_vault_keeper": getattr(current_user, "role", "") == "vault_keeper",
                     "campaigns_url": url_for("main.campaigns"),
+                    "billing_url": url_for("billing.billing_settings"),
                     "logout_url": url_for("auth.logout"),
                 }
+                # Billing/subscribe pages stay interactive so users can renew.
+                on_billing = request.endpoint.startswith("billing.")
+                if (
+                    not on_billing
+                    and not active_demo_mode_for_user(current_user)
+                    and subscription_lapsed_for_request()
+                ):
+                    subscription_lapsed = True
+                    subscription_lapsed_cta_url = resubscribe_cta_url()
         return {
             "show_account_menu": show_account_menu,
             "account_menu_config": account_menu_config,
+            "subscription_lapsed": subscription_lapsed,
+            "subscription_lapsed_cta_url": subscription_lapsed_cta_url,
             "gm_panel_embed": request.args.get("embed") == "1"
             or (request.method == "POST" and request.form.get("embed") == "1"),
         }

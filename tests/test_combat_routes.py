@@ -632,6 +632,10 @@ def test_battle_tab_rendered_only_for_dnd5e_dashboard():
     assert '<a href="/gm/players/" class="gm-panel-tab" id="players-npcs-tab-btn"' not in html
     assert 'id="battle-tab-btn"' in html
     assert 'title="Encounters"' in html
+    assert 'id="encounter-wip-dialog"' in html
+    assert "Encounter system in development" in html
+    assert 'id="encounter-wip-show-each-time"' in html
+    assert "window.encounterWipWarning" in html
     assert 'id="battle-encounter-window"' in html
     assert "gm-nav-rail" in html
     assert "gm_battle.js" in html

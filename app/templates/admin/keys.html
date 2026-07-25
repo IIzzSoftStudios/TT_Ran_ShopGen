@@ -343,6 +343,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="gm-simulation-tab" data-bs-toggle="tab" data-bs-target="#gm-simulation-pane" type="button" role="tab" aria-controls="gm-simulation-pane" aria-selected="false">GM simulation usage</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="demo-analytics-tab" data-bs-toggle="tab" data-bs-target="#demo-analytics-pane" type="button" role="tab" aria-controls="demo-analytics-pane" aria-selected="false">Demo analytics</button>
+            </li>
             {% endif %}
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="access-requests-tab" data-bs-toggle="tab" data-bs-target="#vault-access-requests-pane" type="button" role="tab" aria-controls="vault-access-requests-pane" aria-selected="false">Access Requests</button>
@@ -588,6 +591,111 @@
                 </table>
             </div>
 
+            <p class="mt-3">
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
+            </p>
+        </div>
+
+        <div class="tab-pane fade" id="demo-analytics-pane" role="tabpanel" aria-labelledby="demo-analytics-tab" tabindex="0">
+            <h2 class="h5 mb-3" id="demo-analytics-heading">Demo analytics</h2>
+            <p class="text-muted small mb-3">
+                First-party GM walkthrough funnel: demo runs, step reach rates, and Register For Access clicks.
+            </p>
+            {% set da = demo_analytics or {} %}
+            <div class="row g-3 mb-3" id="demo-analytics-summary">
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Total demo runs</div>
+                            <div class="fs-4 fw-bold" id="demo-analytics-total-runs">{{ da.get('total_runs', 0) }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Runs with Register click</div>
+                            <div class="fs-4 fw-bold" id="demo-analytics-register-runs">{{ da.get('runs_with_register_click', 0) }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Register conversion</div>
+                            <div class="fs-4 fw-bold" id="demo-analytics-register-pct">{{ da.get('register_conversion_pct', 0) }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <div>
+                    <label for="demo-analytics-since" class="form-label small text-muted mb-1">Since</label>
+                    <input type="date" id="demo-analytics-since" class="form-control form-control-sm">
+                </div>
+                <div>
+                    <label for="demo-analytics-until" class="form-label small text-muted mb-1">Until</label>
+                    <input type="date" id="demo-analytics-until" class="form-control form-control-sm">
+                </div>
+                <button type="button" id="demo-analytics-filter-btn" class="btn btn-sm btn-primary">Filter</button>
+                <a href="{{ url_for('admin.demo_analytics_export') }}" id="demo-analytics-export-link" class="btn btn-sm btn-outline-secondary">Export to Excel</a>
+            </div>
+            <script type="application/json" id="demo-analytics-bootstrap">{{ da | tojson }}</script>
+            <div class="table-responsive">
+                <table class="gm-list-table w-100" id="demo-analytics-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Step</th>
+                            <th scope="col">Runs reached</th>
+                            <th scope="col">Reach %</th>
+                            <th scope="col">Register clicks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="demo-analytics-tbody"></tbody>
+                </table>
+            </div>
+            <div class="card shadow-sm mt-4">
+                <div class="card-body">
+                    <h3 class="h6 mb-2">Who stopped where</h3>
+                    <p class="text-muted small">Leads (name/email) whose last recorded tutorial step matches the selection.</p>
+                    <form method="get" class="row g-2 align-items-end mb-3">
+                        <input type="hidden" name="tab" value="demo-analytics">
+                        <div class="col-md-6">
+                            <label for="demo-lead-step" class="form-label small text-muted mb-1">Step</label>
+                            <select name="demo_step" id="demo-lead-step" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="">Select a step…</option>
+                                {% for sk in demo_funnel_steps|default([]) %}
+                                <option value="{{ sk }}" {% if demo_lead_step == sk %}selected{% endif %}>{{ sk }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                    {% if demo_lead_step %}
+                    <div class="table-responsive">
+                        <table class="gm-list-table w-100">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Last step at</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lead in demo_leads_at_step|default([]) %}
+                                <tr>
+                                    <td>{{ lead.contact_name }}</td>
+                                    <td>{{ lead.email }}</td>
+                                    <td>{{ lead.last_step_at or '—' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="text-muted">No leads stopped on this step yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
             <p class="mt-3">
                 <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
             </p>
@@ -1157,6 +1265,85 @@
             var defaultTh = document.querySelector('.gm-sim-sortable[data-sort="username"]');
             updateSortHints(defaultTh);
             render();
+        })();
+
+        (function initDemoAnalyticsTable() {
+            var boot = document.getElementById('demo-analytics-bootstrap');
+            var tbody = document.getElementById('demo-analytics-tbody');
+            if (!boot || !tbody) return;
+
+            var filterBtn = document.getElementById('demo-analytics-filter-btn');
+            var sinceEl = document.getElementById('demo-analytics-since');
+            var untilEl = document.getElementById('demo-analytics-until');
+            var exportLink = document.getElementById('demo-analytics-export-link');
+            var totalEl = document.getElementById('demo-analytics-total-runs');
+            var regRunsEl = document.getElementById('demo-analytics-register-runs');
+            var regPctEl = document.getElementById('demo-analytics-register-pct');
+            var apiUrl = {{ url_for('admin.demo_analytics_api') | tojson }};
+            var exportBase = {{ url_for('admin.demo_analytics_export') | tojson }};
+
+            function escapeHtml(s) {
+                var d = document.createElement('div');
+                d.textContent = s == null ? '' : String(s);
+                return d.innerHTML;
+            }
+
+            function renderPayload(payload) {
+                if (!payload) payload = {};
+                if (totalEl) totalEl.textContent = String(payload.total_runs || 0);
+                if (regRunsEl) regRunsEl.textContent = String(payload.runs_with_register_click || 0);
+                if (regPctEl) regPctEl.textContent = String(payload.register_conversion_pct || 0) + '%';
+                var steps = payload.steps || [];
+                tbody.innerHTML = steps.map(function (row) {
+                    return '<tr>' +
+                        '<td><code>' + escapeHtml(row.step_key) + '</code></td>' +
+                        '<td>' + escapeHtml(row.runs_reached) + '</td>' +
+                        '<td>' + escapeHtml(row.reach_pct) + '%</td>' +
+                        '<td>' + escapeHtml(row.register_clicks) + '</td>' +
+                        '</tr>';
+                }).join('');
+            }
+
+            function querySuffix() {
+                var params = [];
+                var since = sinceEl && sinceEl.value ? sinceEl.value.trim() : '';
+                var until = untilEl && untilEl.value ? untilEl.value.trim() : '';
+                if (since) params.push('since=' + encodeURIComponent(since));
+                if (until) params.push('until=' + encodeURIComponent(until));
+                return params.length ? ('?' + params.join('&')) : '';
+            }
+
+            function refreshExportHref() {
+                if (exportLink) {
+                    exportLink.setAttribute('href', exportBase + querySuffix());
+                }
+            }
+
+            function applyFilter() {
+                refreshExportHref();
+                fetch(apiUrl + querySuffix(), {
+                    method: 'GET',
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin'
+                }).then(function (resp) {
+                    if (!resp.ok) throw new Error('filter_failed');
+                    return resp.json();
+                }).then(function (data) {
+                    renderPayload(data);
+                }).catch(function () {
+                    alert('Could not refresh Demo analytics.');
+                });
+            }
+
+            try {
+                renderPayload(JSON.parse(boot.textContent || '{}'));
+            } catch (e) {
+                renderPayload({});
+            }
+            refreshExportHref();
+            if (filterBtn) {
+                filterBtn.addEventListener('click', applyFilter);
+            }
         })();
     </script>
 </body>

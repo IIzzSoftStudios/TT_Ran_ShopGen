@@ -4488,6 +4488,8 @@
         {% endif %}
     {% endwith %}
 
+    {% include 'partials/encounter_wip_warning.html' %}
+
     <!-- Paradox-style player workspace -->
     <div id="player-paradox-shell" class="player-paradox-shell">
         <button type="button" class="gm-section-menu-btn" id="player-section-menu-btn" aria-controls="player-nav-rail" aria-expanded="false">
@@ -5826,10 +5828,23 @@
                 setPanelBackdrop(false);
             }
 
-            function openPanel(targetId, triggerBtn, keepOpen) {
+            function openPanel(targetId, triggerBtn, keepOpen, skipWipWarning) {
                 if (!targetId) return;
                 if (targetId === activePanelId && !keepOpen) {
                     closeAllPanels();
+                    return;
+                }
+                var openingEncounter =
+                    targetId === "player-encounter-panel" && targetId !== activePanelId;
+                if (
+                    openingEncounter &&
+                    !skipWipWarning &&
+                    window.encounterWipWarning &&
+                    window.encounterWipWarning.shouldPrompt()
+                ) {
+                    window.encounterWipWarning.prompt(function () {
+                        openPanel(targetId, triggerBtn, keepOpen, true);
+                    });
                     return;
                 }
                 if (targetId !== activePanelId) {

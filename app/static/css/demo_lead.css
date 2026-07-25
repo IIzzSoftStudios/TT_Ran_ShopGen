@@ -1,0 +1,25 @@
+/* Try Demo lead gate */
+
+.demo-lead-page .demo-lead-wrap {
+    max-width: 480px;
+}
+
+.demo-lead-form .form-group {
+    margin-bottom: 14px;
+}
+
+.demo-lead-optional {
+    font-weight: 500;
+    color: var(--color-muted);
+    font-size: 0.88em;
+}
+
+.demo-lead-form .auth-secondary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    text-decoration: none;
+    text-align: center;
+}

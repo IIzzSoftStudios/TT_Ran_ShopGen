@@ -1,5 +1,6 @@
 # Phase entitlements: version-controlled business rules (per-worker load via PhaseEntitlements).
 # Slugs in DB (registration_key.key_phase) must match keys under `phases:` exactly.
+# seat_limit: null means unlimited seats.
 
 phases:
   default:
@@ -7,6 +8,16 @@ phases:
     prefix: "FORGE"
     campaign_limit: 1
     seat_limit: 3
+  tier1:
+    label: "Tier 1"
+    prefix: "TIER1"
+    campaign_limit: 1
+    seat_limit: 5
+  pro:
+    label: "Pro"
+    prefix: "PRO"
+    campaign_limit: 5
+    seat_limit: null
   tech_demo:
     label: "Tech Demo"
     prefix: "TECH"

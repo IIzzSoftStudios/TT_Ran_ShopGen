@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Billing — Econo-Forge{% endblock %}
+{% block content %}
+<section class="container py-4" style="max-width: 720px;">
+  <h1 class="h3 mb-3">Billing settings</h1>
+  <p class="mb-1"><strong>Current plan:</strong> {{ plan_label }}</p>
+  <p class="text-muted mb-3">
+    Campaigns: {{ campaign_limit }}
+    · Seats: {% if seat_limit is none %}Unlimited{% else %}{{ seat_limit }}{% endif %}
+  </p>
+
+  {% if has_customer %}
+  <form method="post" action="{{ url_for('billing.create_portal') }}" class="mb-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-outline-primary">Manage billing</button>
+  </form>
+  <p class="small text-muted">Update payment method, cancel, or switch plans in the Stripe Customer Portal.</p>
+  {% else %}
+  <p class="mb-3">No Stripe customer is linked yet. Choose a plan below to subscribe.</p>
+  {% endif %}
+
+  {% if plans %}
+  <h2 class="h5 mt-4">Upgrade or change plan</h2>
+  <form method="post" action="{{ url_for('billing.create_checkout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="email" value="{{ current_user.email or '' }}">
+    {% for p in plans %}
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="radio" name="price_id" id="bill-price-{{ loop.index }}"
+             value="{{ p.price_id }}" {% if loop.first %}checked{% endif %}>
+      <label class="form-check-label" for="bill-price-{{ loop.index }}">
+        {{ p.tier }} — {{ p.interval }} ({{ p.amount_label }})
+      </label>
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary mt-2">Checkout</button>
+  </form>
+  {% endif %}
+
+  <p class="mt-4"><a href="{{ url_for('gm.home') }}">Back to GM home</a></p>
+</section>
+{% endblock %}

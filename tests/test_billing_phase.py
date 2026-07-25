@@ -62,4 +62,4 @@ def test_can_add_player_profile_respects_campaign_limit(app_with_phases):
             qm.return_value.filter.return_value.count.return_value = 1
             ok, msg = can_add_player_profile(u)
             assert ok is False
-            assert "profile limit" in msg.lower() or "limit (1)" in msg
+            assert "profile limit" in msg.lower() or "limit (1)" in msg or "player profile" in msg.lower()

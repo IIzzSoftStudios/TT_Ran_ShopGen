@@ -14,27 +14,26 @@
         <p class="expansion-interest-kicker">Base tier milestone</p>
         <h2 id="expansion-interest-title">Ready to expand your realm?</h2>
         <p id="expansion-interest-copy">
-            You've hit the base limit for active campaigns!
+            You've hit your current plan's campaign limit.
             {% if campaign_limit and active_campaign_count is not none %}
                 Your current tier supports {{ campaign_limit }} active campaign{% if campaign_limit != 1 %}s{% endif %}.
             {% endif %}
+            Upgrade in Billing settings for more campaigns and seats, or tell us you're not interested yet.
         </p>
         <div class="expansion-interest-actions">
-            <button
-                type="button"
+            <a
                 class="expansion-interest-cta expansion-interest-yes"
-                data-expansion-interest-submit
-                data-expansion-interest-intent="campaign_limit_upgrade"
+                href="{{ url_for('billing.billing_settings') }}"
             >
-                Yes, express interest
-            </button>
+                Go to Billing
+            </a>
             <button
                 type="button"
                 class="expansion-interest-cta expansion-interest-no"
                 data-expansion-interest-submit
                 data-expansion-interest-intent="not_interested"
             >
-                No, stay base tier
+                No, stay on current tier
             </button>
         </div>
         <p class="expansion-interest-status" data-expansion-interest-status role="status" aria-live="polite"></p>

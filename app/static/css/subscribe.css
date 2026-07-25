@@ -1,0 +1,217 @@
+/* Subscribe / Register For Access — plan picker */
+
+.subscribe-page .subscribe-wrap {
+    max-width: 640px;
+}
+
+.subscribe-form .form-group {
+    margin-bottom: 18px;
+}
+
+.subscribe-plans {
+    border: 0;
+    margin: 0 0 8px;
+    padding: 0;
+    min-inline-size: 0;
+}
+
+.subscribe-plans-legend {
+    font-size: 1rem;
+    font-weight: 650;
+    color: var(--color-text);
+    margin: 0 0 12px;
+    padding: 0;
+}
+
+/* Monthly / Yearly segmented control */
+.subscribe-period {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    background: var(--color-input-bg, var(--color-bg));
+}
+
+.subscribe-period-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+}
+
+.subscribe-period-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+}
+
+.subscribe-period-input:checked + .subscribe-period-btn {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+}
+
+.subscribe-period-input:focus-visible + .subscribe-period-btn {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+/* Plan cards */
+.subscribe-plan-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.subscribe-plan-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 16px 14px 14px;
+    border-radius: 14px;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-input-bg, var(--color-bg));
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.subscribe-plan-card:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-1px);
+}
+
+.subscribe-plan-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+.subscribe-plan-card:has(.subscribe-plan-input:checked) {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px var(--color-accent), var(--shadow-panel);
+    background: var(--color-surface);
+}
+
+.subscribe-plan-card:has(.subscribe-plan-input:focus-visible) {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+.subscribe-plan-card.is-featured {
+    border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+}
+
+.subscribe-plan-badge {
+    position: absolute;
+    top: -9px;
+    right: 12px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+}
+
+.subscribe-plan-tier {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--color-text);
+    letter-spacing: 0.01em;
+}
+
+.subscribe-plan-price {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    line-height: 1;
+}
+
+.subscribe-plan-amount {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--color-text);
+}
+
+.subscribe-plan-per {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-muted);
+}
+
+.subscribe-plan-features {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.subscribe-plan-features li {
+    position: relative;
+    padding-left: 1.15rem;
+    font-size: 0.86rem;
+    line-height: 1.35;
+    color: var(--color-muted);
+}
+
+.subscribe-plan-features li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.35em;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--color-accent);
+    opacity: 0.85;
+}
+
+/* Interval filter via :has — hide non-matching cards; keep checked radio valid */
+.subscribe-form:has(#period-monthly:checked) .subscribe-plan-card[data-interval="yearly"],
+.subscribe-form:has(#period-yearly:checked) .subscribe-plan-card[data-interval="monthly"] {
+    display: none;
+}
+
+/* When switching period, ensure a visible card stays selected via tiny script fallback;
+   without JS, browsers may keep a hidden radio checked — sync on change below. */
+
+.subscribe-form .auth-secondary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    text-decoration: none;
+    text-align: center;
+}
+
+@media (max-width: 560px) {
+    .subscribe-plan-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .subscribe-page .subscribe-wrap {
+        max-width: 480px;
+    }
+}

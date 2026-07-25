@@ -489,7 +489,7 @@
             '<strong style="display:block;margin:0 0 0.35rem;font-size:1.25rem;">Demo complete</strong>' +
             '<p style="margin:0 0 1rem;font-size:0.95rem;line-height:1.45;color:#c8d0d8;">' +
             'You have toured GM and player surfaces. Register For Access to run your own campaigns.</p>' +
-            '<a class="button demo-register-cta demo-draw-highlight" href="/access-request"' +
+            '<a class="button demo-register-cta demo-draw-highlight" href="/subscribe"' +
             ' style="display:inline-block;">Register For Access</a>' +
             '</div>';
         document.body.appendChild(modal);

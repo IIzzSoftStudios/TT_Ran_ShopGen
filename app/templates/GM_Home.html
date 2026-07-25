@@ -1831,6 +1831,7 @@
 
     {% include 'partials/gm_onboarding_checklist.html' %}
     {% include 'partials/gm_demo_tutorial.html' %}
+    {% include 'partials/encounter_wip_warning.html' %}
 
     <!-- Paradox-style GM workspace shell -->
     {% set cal = campaign.calendar_state if campaign else {'year': 1, 'month_of_year': 1, 'day': 1} %}
@@ -7151,9 +7152,16 @@
                         var win = document.getElementById('battle-encounter-window');
                         var opening = win && win.hidden;
                         if (opening) {
-                            btn.classList.add('active');
-                            btn.setAttribute('aria-selected', 'true');
-                            if (window.gmBattle) window.gmBattle.openEncounterWindow();
+                            function openBattle() {
+                                btn.classList.add('active');
+                                btn.setAttribute('aria-selected', 'true');
+                                if (window.gmBattle) window.gmBattle.openEncounterWindow();
+                            }
+                            if (window.encounterWipWarning && window.encounterWipWarning.shouldPrompt()) {
+                                window.encounterWipWarning.prompt(openBattle);
+                            } else {
+                                openBattle();
+                            }
                         } else if (window.gmBattle) {
                             window.gmBattle.closeEncounterWindow();
                         }

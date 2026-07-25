@@ -20,6 +20,14 @@ from app.services.demo_session import DEMO_ANON_PREFIX
 from app.services.user_capabilities import ensure_gm_profile
 
 
+def _complete_demo_lead(client, *, name="Demo User", email="demo@example.com"):
+    return client.post(
+        "/demo/lead",
+        data={"contact_name": name, "email": email},
+        follow_redirects=False,
+    )
+
+
 @pytest.fixture(autouse=True)
 def _db_tables(tmp_path):
     flask_app.config["WTF_CSRF_ENABLED"] = False
@@ -125,6 +133,7 @@ def test_landing_hero_cta_is_try_demo(client):
 def test_demo_without_snapshot_safe_failure(client, tmp_path):
     missing = tmp_path / "missing.json"
     flask_app.config["DEMO_SNAPSHOT_PATH"] = str(missing)
+    _complete_demo_lead(client)
     resp = client.get("/demo", follow_redirects=False)
     assert resp.status_code in (302, 303)
     assert resp.headers["Location"].endswith("/")
@@ -134,6 +143,7 @@ def test_demo_without_snapshot_safe_failure(client, tmp_path):
 
 
 def test_demo_get_provisions_anonymous_and_redirects(client):
+    _complete_demo_lead(client)
     resp = client.get("/demo", follow_redirects=False)
     assert resp.status_code in (302, 303)
     assert "/gm" in resp.headers["Location"]
@@ -146,6 +156,7 @@ def test_demo_get_provisions_anonymous_and_redirects(client):
 
 
 def test_demo_isolation_between_clients(client):
+    _complete_demo_lead(client)
     client.get("/demo", follow_redirects=False)
     with client.session_transaction() as sess:
         camp_a = sess.get("campaign_id")
@@ -160,6 +171,7 @@ def test_demo_isolation_between_clients(client):
     from app import app as app_mod
 
     with app_mod.test_client() as client_b:
+        _complete_demo_lead(client_b, email="b@example.com")
         client_b.get("/demo", follow_redirects=False)
         with client_b.session_transaction() as sess:
             camp_b = sess.get("campaign_id")
@@ -175,6 +187,7 @@ def test_demo_isolation_between_clients(client):
 
 
 def test_demo_reentry_resets_step_and_world(client):
+    _complete_demo_lead(client)
     client.get("/demo", follow_redirects=False)
     with client.session_transaction() as sess:
         first_id = sess.get("campaign_id")
@@ -197,13 +210,18 @@ def test_demo_reentry_resets_step_and_world(client):
 
 
 def test_demo_gm_home_has_register_cta(client):
-    client.get("/demo", follow_redirects=False)
+    client.post(
+        "/demo/lead",
+        data={"contact_name": "Demo User", "email": "demo@example.com"},
+        follow_redirects=False,
+    )
+    client.get("/demo", follow_redirects=True)
     resp = client.get("/gm/")
     assert resp.status_code == 200
     body = resp.get_data(as_text=True)
     assert "Welcome to Econo-Forge Demo" in body
     assert "Register For Access" in body
-    assert "/access-request" in body
+    assert "/subscribe" in body
     assert "Father's Castel-bari" in body or "Father&#39;s Castel-bari" in body
     assert "create your own" not in body.lower()
     assert "demo_tutorial.js" in body or "demo-tutorial-arrow" in body
@@ -252,6 +270,7 @@ def test_stale_demo_mode_does_not_leak_to_real_gm(client):
 
 
 def test_login_clears_demo_flags(client):
+    _complete_demo_lead(client)
     client.get("/demo", follow_redirects=False)
     with client.session_transaction() as sess:
         assert sess.get("demo_mode") is True

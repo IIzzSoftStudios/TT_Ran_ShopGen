@@ -1,0 +1,169 @@
+{# Hard lock when a previously paid subscription is no longer active. #}
+{% if subscription_lapsed %}
+<div
+    id="subscription-lapsed-modal"
+    class="subscription-lapsed-modal is-open"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="subscription-lapsed-title"
+    aria-describedby="subscription-lapsed-copy"
+>
+    <div class="subscription-lapsed-card">
+        <p class="subscription-lapsed-kicker">Subscription ended</p>
+        <h2 id="subscription-lapsed-title">You're no longer subscribed</h2>
+        <p id="subscription-lapsed-copy">
+            Your paid plan is inactive. Subscribe again to keep using this campaign
+            and unlock the dashboard.
+        </p>
+        <div class="subscription-lapsed-actions">
+            <a
+                class="subscription-lapsed-cta subscription-lapsed-allowed"
+                href="{{ subscription_lapsed_cta_url or url_for('billing.subscribe') }}"
+            >
+                Subscribe again
+            </a>
+            <a
+                class="subscription-lapsed-secondary subscription-lapsed-allowed"
+                href="{{ url_for('auth.logout') }}"
+            >
+                Sign out
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    body.subscription-lapsed button:not(.subscription-lapsed-allowed),
+    body.subscription-lapsed a:not(.subscription-lapsed-allowed),
+    body.subscription-lapsed input:not(.subscription-lapsed-allowed),
+    body.subscription-lapsed select:not(.subscription-lapsed-allowed),
+    body.subscription-lapsed textarea:not(.subscription-lapsed-allowed),
+    body.subscription-lapsed summary:not(.subscription-lapsed-allowed),
+    body.subscription-lapsed [role="button"]:not(.subscription-lapsed-allowed),
+    body.subscription-lapsed .campaign-row[data-href],
+    body.subscription-lapsed .create-campaign-btn,
+    body.subscription-lapsed .create-character-btn {
+        pointer-events: none !important;
+        opacity: 0.45;
+    }
+
+    body.subscription-lapsed .subscription-lapsed-allowed,
+    body.subscription-lapsed .subscription-lapsed-allowed * {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+    }
+
+    /* Keep account menu openable only for billing + sign out. */
+    body.subscription-lapsed #accountAvatarBtn.subscription-lapsed-allowed {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+    }
+
+    .subscription-lapsed-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10050;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(15, 23, 42, 0.82);
+        box-sizing: border-box;
+    }
+
+    .subscription-lapsed-modal.is-open {
+        display: flex;
+    }
+
+    .subscription-lapsed-card {
+        position: relative;
+        width: min(100%, 480px);
+        padding: 30px;
+        border-radius: 14px;
+        border: 1px solid var(--color-border, #d1d5db);
+        background: var(--color-surface, #fff);
+        color: var(--color-text, #111827);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+        text-align: left;
+    }
+
+    .subscription-lapsed-kicker {
+        margin: 0 0 0.35rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-muted, #6b7280);
+    }
+
+    .subscription-lapsed-card h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1.35rem;
+        line-height: 1.25;
+    }
+
+    .subscription-lapsed-card p#subscription-lapsed-copy {
+        margin: 0 0 1.25rem;
+        line-height: 1.5;
+        color: var(--color-muted, #4b5563);
+    }
+
+    .subscription-lapsed-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .subscription-lapsed-cta {
+        display: inline-block;
+        padding: 0.65rem 1.1rem;
+        border-radius: 8px;
+        background: #1f2937;
+        color: #fff !important;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .subscription-lapsed-cta:hover {
+        background: #111827;
+    }
+
+    .subscription-lapsed-secondary {
+        display: inline-block;
+        padding: 0.65rem 0.9rem;
+        color: var(--color-muted, #4b5563);
+        text-decoration: underline;
+    }
+</style>
+
+<script>
+(function () {
+    document.body.classList.add('subscription-lapsed');
+
+    var avatar = document.getElementById('accountAvatarBtn');
+    if (avatar) {
+        avatar.classList.add('subscription-lapsed-allowed');
+    }
+
+    /* Allow billing + sign-out links inside the account menu. */
+    document.querySelectorAll(
+        '#accountPopoverPanel a[href*="billing"], #accountPopoverPanel a[href*="logout"], #accountPopoverPanel a[href*="subscribe"]'
+    ).forEach(function (el) {
+        el.classList.add('subscription-lapsed-allowed');
+    });
+
+    document.addEventListener('click', function (ev) {
+        var target = ev.target;
+        if (!target || !target.closest) return;
+        if (target.closest('.subscription-lapsed-allowed')) return;
+        if (target.closest('#subscription-lapsed-modal')) return;
+        var interactive = target.closest(
+            'a, button, input, select, textarea, summary, [role="button"], .campaign-row[data-href]'
+        );
+        if (!interactive) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+    }, true);
+})();
+</script>
+{% endif %}

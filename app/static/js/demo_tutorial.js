@@ -386,9 +386,73 @@
     }
 
     function setPhase(next) {
+        var prev = phase;
         phase = next;
         document.body.setAttribute('data-demo-phase', next);
         root.setAttribute('data-demo-phase', next);
+        if (next && next !== prev) {
+            trackDemoAnalytics('step_view', next);
+        }
+    }
+
+    function demoAnalyticsEndpoint() {
+        return root.getAttribute('data-analytics-url') || '/demo/analytics/event';
+    }
+
+    function demoCsrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') || '' : '';
+    }
+
+    function trackDemoAnalytics(eventType, stepKey) {
+        var payload = {
+            event_type: eventType,
+            surface: 'gm_tutorial'
+        };
+        if (stepKey) {
+            payload.step_key = stepKey;
+        }
+        var body = JSON.stringify(payload);
+        var url = demoAnalyticsEndpoint();
+        var csrf = demoCsrfToken();
+        try {
+            if (navigator.sendBeacon) {
+                var blob = new Blob([body], { type: 'application/json' });
+                // sendBeacon cannot set custom headers; fall through to fetch with keepalive.
+            }
+        } catch (err) {
+            /* ignore */
+        }
+        try {
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRFToken': csrf
+                },
+                body: body,
+                credentials: 'same-origin',
+                keepalive: true
+            }).catch(function () { /* ignore analytics failures */ });
+        } catch (err2) {
+            /* ignore */
+        }
+    }
+
+    function bindRegisterAnalytics() {
+        document.querySelectorAll('.demo-register-cta').forEach(function (el) {
+            if (el.getAttribute('data-analytics-bound') === '1') return;
+            el.setAttribute('data-analytics-bound', '1');
+            el.addEventListener('click', function () {
+                var step =
+                    document.body.getAttribute('data-demo-phase') ||
+                    root.getAttribute('data-demo-phase') ||
+                    phase ||
+                    'welcome';
+                trackDemoAnalytics('register_click', step);
+            });
+        });
     }
 
     function updateNavButtons() {
@@ -3161,4 +3225,5 @@
         setPhase('welcome');
         updateNavButtons();
     }
+    bindRegisterAnalytics();
 })();

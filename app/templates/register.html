@@ -60,7 +60,7 @@
             </div>
             <div class="form-group">
                 <label for="campaign_code">GM Campaign Code</label>
-                <input type="text" id="campaign_code" name="campaign_code" required placeholder="CAMP-XXXX-XXXX-XXXX" autocomplete="off">
+                <input type="text" id="campaign_code" name="campaign_code" required placeholder="CAMP-XXXX-XXXX-XXXX" autocomplete="off" value="{{ join_code or '' }}">
             </div>
             {% else %}
             {% if vault_key %}
@@ -70,7 +70,7 @@
             {% else %}
             <div class="info-box">
                 You need a registration key to create an account.
-                <a href="{{ url_for('main.access_request') }}">Register For Access</a> to receive one immediately.
+                <a href="{{ url_for('billing.subscribe') }}">Register For Access</a> to receive one immediately.
             </div>
             {% endif %}
             <div class="form-group">
@@ -80,7 +80,7 @@
             {% endif %}
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autocomplete="username">
+                <input type="text" id="username" name="username" required autocomplete="username" value="{{ username or '' }}">
             </div>
             <div class="form-group">
                 <label for="email">Email (required if your key is tied to an access request)</label>
@@ -112,9 +112,9 @@
         </form>
         <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
         {% if campaign_code_mode %}
-        <p class="auth-alt-link">Need GM access instead? <a href="{{ url_for('main.access_request') }}">Register for access as a GM</a></p>
+        <p class="auth-alt-link">Need GM access instead? <a href="{{ url_for('billing.subscribe') }}">Register for access as a GM</a></p>
         {% elif not vault_key %}
-        <p class="auth-alt-link">Need a key? <a href="{{ url_for('main.access_request') }}">Register For Access</a></p>
+        <p class="auth-alt-link">Need a key? <a href="{{ url_for('billing.subscribe') }}">Register For Access</a></p>
         {% endif %}
     </div>
 </body>

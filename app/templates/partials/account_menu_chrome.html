@@ -42,6 +42,9 @@
                     <div style="flex:1"><span class="metric-label">Player</span><strong>{{ account_menu_config.player_count }}</strong></div>
                 </div>
                 <a href="{{ account_menu_config.campaigns_url }}" class="account-menu-nav-link">Switch campaigns <span>&rarr;</span></a>
+                {% if account_menu_config.billing_url and not account_menu_config.is_vault_keeper %}
+                <a href="{{ account_menu_config.billing_url }}" class="account-menu-nav-link">Billing settings <span>&rarr;</span></a>
+                {% endif %}
                 {% if not account_menu_config.is_vault_keeper %}
                 <div class="feedback-subtriage-routing-group">
                     <span class="feedback-group-label">Help &amp; feedback</span>
@@ -116,3 +119,4 @@
     </div>
 </div>
 {% endif %}
+{% include 'partials/subscription_lapsed_gate.html' %}

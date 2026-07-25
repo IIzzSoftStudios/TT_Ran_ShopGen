@@ -133,42 +133,68 @@ def _setup_new_unified_user(new_user, campaign_code: str) -> None:
         )
 
 
-def _register_redirect_fail(registration_key=""):
+def _register_redirect_fail(
+    registration_key="",
+    *,
+    email=None,
+    username=None,
+    campaign_code=None,
+    campaign_mode=False,
+):
+    """Redirect back to register, preserving safe non-secret form fields."""
+    params = {}
+    if campaign_mode or request.args.get("campaign_code") == "1":
+        params["campaign_code"] = "1"
     key = (registration_key or "").strip()
-    if request.args.get("campaign_code") == "1":
-        return redirect(url_for("auth.register", campaign_code="1"))
     if key:
-        return redirect(url_for("auth.register", vault_key=key))
-    return redirect(url_for("auth.register"))
+        params["vault_key"] = key
+    email_norm = (email or "").strip().lower()
+    if email_norm:
+        params["email"] = email_norm
+    username_norm = (username or "").strip()
+    if username_norm:
+        params["username"] = username_norm
+    campaign_norm = (campaign_code or "").strip()
+    if campaign_norm and params.get("campaign_code") == "1":
+        params["join_code"] = campaign_norm
+    return redirect(url_for("auth.register", **params))
 
 
 def _handle_campaign_code_register(username: str, password: str, confirm_password: str,
                                    email: str | None, campaign_code: str):
     """Create a player-only account from a GM's CAMP code."""
+    def _fail():
+        return _register_redirect_fail(
+            email=email,
+            username=username,
+            campaign_code=campaign_code,
+            campaign_mode=True,
+        )
+
     if not campaign_code:
         flash("Campaign code is required.", "warning")
-        return redirect(url_for("auth.register", campaign_code="1"))
+        return _fail()
 
     if not username or not password or not confirm_password:
         flash("All fields are required!", "warning")
-        return redirect(url_for("auth.register", campaign_code="1"))
+        return _fail()
 
     if password != confirm_password:
         flash("Passwords do not match.", "danger")
-        return redirect(url_for("auth.register", campaign_code="1"))
+        return _fail()
 
     is_strong, msg = is_password_strong(password)
     if not is_strong:
         flash(msg, "danger")
-        return redirect(url_for("auth.register", campaign_code="1"))
+        return _fail()
 
     if User.query.filter_by(username=username).first():
         flash("Username already exists!", "warning")
-        return redirect(url_for("auth.register", campaign_code="1"))
+        return _fail()
 
     if email and User.query.filter_by(email=email).first():
         flash("That email is already registered.", "warning")
-        return redirect(url_for("auth.register", campaign_code="1"))
+        return _fail()
 
     try:
         new_user = User(username=username, role="Player", email=email)
@@ -214,12 +240,22 @@ def _handle_campaign_code_register(username: str, password: str, confirm_passwor
             or "Could not join with that campaign code.",
             "danger",
         )
-        return redirect(url_for("auth.register", campaign_code="1"))
+        return _register_redirect_fail(
+            email=email,
+            username=username,
+            campaign_code=campaign_code,
+            campaign_mode=True,
+        )
     except (IntegrityError, OperationalError, ValueError) as e:
         db.session.rollback()
         log.exception("Campaign-code registration failed: %s", e)
         flash("Something went wrong creating your account. Please try again.", "danger")
-        return redirect(url_for("auth.register", campaign_code="1"))
+        return _register_redirect_fail(
+            email=email,
+            username=username,
+            campaign_code=campaign_code,
+            campaign_mode=True,
+        )
 
 
 def handle_register():
@@ -262,46 +298,58 @@ def handle_register():
         if keyed:
             if not registration_key:
                 flash("Registration key is required.", "warning")
-                return redirect(url_for("auth.register"))
+                return _register_redirect_fail(email=email, username=username)
             key_row = RegistrationKey.query.filter_by(
                 key_code=registration_key
             ).with_for_update().first()
             if not key_row or key_row.is_used:
                 db.session.rollback()
                 flash("Invalid or already used registration key.", "danger")
-                return _register_redirect_fail(registration_key)
+                return _register_redirect_fail(
+                    registration_key, email=email, username=username
+                )
             registration_relaxed = bool(key_row.is_admin_test_key)
 
         if not username or not password or not confirm_password:
             if keyed:
                 db.session.rollback()
             flash("All fields are required!", "warning")
-            return _register_redirect_fail(registration_key)
+            return _register_redirect_fail(
+                registration_key, email=email, username=username
+            )
 
         if password != confirm_password:
             if keyed:
                 db.session.rollback()
             flash("Passwords do not match.", "danger")
-            return _register_redirect_fail(registration_key)
+            return _register_redirect_fail(
+                registration_key, email=email, username=username
+            )
 
         if registration_relaxed:
             if len(username) < 1 or len(username) > 100:
                 db.session.rollback()
                 flash("Username must be 1–100 characters.", "warning")
-                return _register_redirect_fail(registration_key)
+                return _register_redirect_fail(
+                    registration_key, email=email, username=username
+                )
         else:
             is_strong, msg = is_password_strong(password)
             if not is_strong:
                 if keyed:
                     db.session.rollback()
                 flash(msg, "danger")
-                return _register_redirect_fail(registration_key)
+                return _register_redirect_fail(
+                    registration_key, email=email, username=username
+                )
 
         if User.query.filter_by(username=username).first():
             if keyed:
                 db.session.rollback()
             flash("Username already exists!", "warning")
-            return _register_redirect_fail(registration_key)
+            return _register_redirect_fail(
+                registration_key, email=email, username=username
+            )
 
         if registration_relaxed:
             email = None
@@ -309,7 +357,9 @@ def handle_register():
             if keyed:
                 db.session.rollback()
             flash("That email is already registered.", "warning")
-            return _register_redirect_fail(registration_key)
+            return _register_redirect_fail(
+                registration_key, email=email, username=username
+            )
 
         # Keyed registration
         if registration_key or require_key:
@@ -321,7 +371,9 @@ def handle_register():
                         "Registration key email mismatch. Use the same email you used on the access request.",
                         "danger",
                     )
-                    return _register_redirect_fail(registration_key)
+                    return _register_redirect_fail(
+                        registration_key, email=email, username=username
+                    )
 
             try:
                 new_user = User(username=username, role="Both", email=email)
@@ -348,7 +400,14 @@ def handle_register():
                         or "Could not join with that campaign code.",
                         "danger",
                     )
-                    return _register_redirect_fail(registration_key)
+                    return _register_redirect_fail(
+                        registration_key, email=email, username=username
+                    )
+
+                if key_row.stripe_customer_id or key_row.stripe_subscription_id:
+                    from app.services.entitlements import attach_subscription_to_user
+
+                    attach_subscription_to_user(new_user, key_row)
 
                 db.session.commit()
                 flash(
@@ -360,13 +419,17 @@ def handle_register():
                 db.session.rollback()
                 log.exception("Registration failed: %s", e)
                 flash("A database error occurred. Please try again later.", "danger")
-                return _register_redirect_fail(registration_key)
+                return _register_redirect_fail(
+                    registration_key, email=email, username=username
+                )
 
         # Legacy open registration (no key) — same password rules as keyed registration
         is_strong_legacy, msg_legacy = is_password_strong(password)
         if not is_strong_legacy:
             flash(msg_legacy, "danger")
-            return _register_redirect_fail(registration_key)
+            return _register_redirect_fail(
+                registration_key, email=email, username=username
+            )
 
         try:
             new_user = User(username=username, role="Both", email=email)
@@ -383,7 +446,7 @@ def handle_register():
                     or "Could not join with that campaign code.",
                     "danger",
                 )
-                return redirect(url_for("auth.register"))
+                return _register_redirect_fail(email=email, username=username)
 
             db.session.commit()
             flash("Account created! You can now log in.", "success")
@@ -392,15 +455,19 @@ def handle_register():
             db.session.rollback()
             log.exception("Registration error: %s", e)
             flash(f"Error creating account: {str(e)}", "danger")
-            return redirect(url_for("auth.register"))
+            return _register_redirect_fail(email=email, username=username)
 
     vault_key = request.args.get("vault_key")
     email = (request.args.get("email") or "").strip().lower()
+    username = (request.args.get("username") or "").strip()
+    join_code = (request.args.get("join_code") or "").strip()
     campaign_code_mode = request.args.get("campaign_code") == "1"
     return render_template(
         "register.html",
         vault_key=vault_key,
         email=email,
+        username=username,
+        join_code=join_code,
         campaign_code_mode=campaign_code_mode,
     )
 

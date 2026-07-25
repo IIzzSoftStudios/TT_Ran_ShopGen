@@ -39,7 +39,11 @@
 # Secrets are wired into the Cloud Run revision at deploy time via
 # --set-secrets (each entry maps an env var to a Secret Manager secret).
 # Values: SECRET_KEY, SQLALCHEMY_DATABASE_URI, REDIS_URL, MAIL_USERNAME,
-# MAIL_PASSWORD, MAIL_DEFAULT_SENDER, MAIL_SERVER.
+# MAIL_PASSWORD, MAIL_DEFAULT_SENDER, MAIL_SERVER, STRIPE_SECRET_KEY,
+# STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET.
+# Non-secret Stripe price IDs are passed via --set-env-vars (see deploy step).
+# Dashboard: enable Managed Payments, Customer Portal, and Smart Retries
+# (Billing → Revenue recovery) before go-live.
 
 substitutions:
   _REGION: us-central1
@@ -53,6 +57,11 @@ substitutions:
   _CONCURRENCY: "40"
   _TIMEOUT: "60"
   _RUN_MIGRATIONS: "true"
+  # Stripe Catalog price IDs (test-mode defaults; override per trigger for live).
+  _STRIPE_PRICE_TIER1_MONTHLY: "price_1TxCb1CeqjCrJ7RkRtwhJldh"
+  _STRIPE_PRICE_TIER1_YEARLY: "price_1TxCbxCeqjCrJ7RkVgmX6Uqq"
+  _STRIPE_PRICE_PRO_MONTHLY: "price_1TxCv3CeqjCrJ7RkTOH8z5qm"
+  _STRIPE_PRICE_PRO_YEARLY: "price_1TxCveCeqjCrJ7RkCv9JW726"
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -221,8 +230,8 @@ steps:
           --cpu-throttling \
           --timeout ${_TIMEOUT} \
           --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE} \
-          --set-env-vars FLASK_ENV=production,SQLALCHEMY_ECHO=false,LOG_LEVEL=INFO \
-          --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest,REDIS_URL=REDIS_URL:latest,MAIL_USERNAME=MAIL_USERNAME:latest,MAIL_PASSWORD=MAIL_PASSWORD:latest,MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER:latest,MAIL_SERVER=MAIL_SERVER:latest \
+          --set-env-vars FLASK_ENV=production,SQLALCHEMY_ECHO=false,LOG_LEVEL=INFO,STRIPE_PRICE_TIER1_MONTHLY=${_STRIPE_PRICE_TIER1_MONTHLY},STRIPE_PRICE_TIER1_YEARLY=${_STRIPE_PRICE_TIER1_YEARLY},STRIPE_PRICE_PRO_MONTHLY=${_STRIPE_PRICE_PRO_MONTHLY},STRIPE_PRICE_PRO_YEARLY=${_STRIPE_PRICE_PRO_YEARLY} \
+          --set-secrets SECRET_KEY=SECRET_KEY:latest,SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI:latest,REDIS_URL=REDIS_URL:latest,MAIL_USERNAME=MAIL_USERNAME:latest,MAIL_PASSWORD=MAIL_PASSWORD:latest,MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER:latest,MAIL_SERVER=MAIL_SERVER:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_PUBLISHABLE_KEY=STRIPE_PUBLISHABLE_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest \
           $$VPC_FLAGS
 
 artifacts:

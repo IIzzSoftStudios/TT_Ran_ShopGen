@@ -162,71 +162,8 @@ def register_alias():
 
 @main_bp.route("/access-request", methods=["GET", "POST"])
 def access_request():
-    if request.method == "POST":
-        contact_name = (request.form.get("contact_name") or "").strip()
-        email = (request.form.get("email") or "").strip().lower()
-        user_role = request.form.get("user_role")
-
-        if not contact_name or len(contact_name) > 120:
-            flash("Name is required (max 120 characters).", "warning")
-            return redirect(url_for("main.access_request"))
-
-        try:
-            player_count = int(request.form.get("player_count") or 0)
-        except ValueError:
-            flash("Please enter a valid number for player count.", "warning")
-            return redirect(url_for("main.access_request"))
-
-        try:
-            total_expected_users = int(request.form.get("total_expected_users") or 1)
-        except ValueError:
-            flash("Please enter a valid number for expected users.", "warning")
-            return redirect(url_for("main.access_request"))
-
-        is_homebrew = request.form.get("is_homebrew") == "yes"
-        primary_ruleset = request.form.get("primary_ruleset")
-        discovery_source = request.form.get("discovery_source")
-        notes = request.form.get("notes")
-
-        if not email or not user_role or not primary_ruleset:
-            flash("Email, role, and primary ruleset are required.", "warning")
-            return redirect(url_for("main.access_request"))
-
-        if user_role in ["GM", "Both"] and player_count <= 0:
-            flash("If you select GM or Both, player count is required.", "warning")
-            return redirect(url_for("main.access_request"))
-
-        vault_key = _generate_unique_access_key(AUTO_ACCESS_PHASE)
-        ar = AccessRequest(
-            contact_name=contact_name,
-            email=email,
-            user_role=user_role,
-            player_count=player_count if user_role in ["GM", "Both"] else 0,
-            total_expected_users=total_expected_users if total_expected_users >= 1 else 1,
-            is_homebrew=is_homebrew,
-            primary_ruleset=primary_ruleset,
-            discovery_source=discovery_source,
-            notes=notes,
-            status="approved",
-            processed_at=datetime.utcnow(),
-            vault_key=vault_key,
-            vault_key_used=False,
-        )
-        db.session.add(ar)
-        db.session.add(
-            RegistrationKey(
-                key_code=vault_key,
-                email=email,
-                is_used=False,
-                key_phase=AUTO_ACCESS_PHASE,
-                is_admin_test_key=False,
-            )
-        )
-        db.session.commit()
-
-        return redirect(url_for("main.register_alias", vault_key=vault_key, email=email))
-
-    return render_template("access_request.html")
+    """Public free auto-keys are retired; Register For Access is paid Checkout."""
+    return redirect(url_for("billing.subscribe"), code=302)
 
 
 def _generate_unique_access_key(phase_slug: str) -> str:
@@ -243,7 +180,7 @@ def _generate_unique_access_key(phase_slug: str) -> str:
 
 @main_bp.route("/thank-you")
 def thank_you():
-    return redirect(url_for("main.access_request"))
+    return redirect(url_for("billing.subscribe"))
 
 
 @main_bp.route("/public-deck")

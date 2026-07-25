@@ -1,0 +1,186 @@
+{# Shared Encounter WIP warning — include once on GM and player dashboards. #}
+<style>
+    .encounter-wip-dialog[hidden] {
+        display: none !important;
+    }
+    .encounter-wip-dialog {
+        position: fixed;
+        inset: 0;
+        z-index: 12000;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.45);
+    }
+    .encounter-wip-dialog-card {
+        width: min(420px, calc(100vw - 2rem));
+        background: var(--color-surface, #fff);
+        color: var(--color-text, #111);
+        border: 1px solid var(--color-border, #ccc);
+        border-radius: 10px;
+        padding: 1.1rem 1.15rem 1rem;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+    }
+    .encounter-wip-dialog-card h2 {
+        margin: 0 0 0.45rem;
+        font-size: 1.15rem;
+        color: var(--color-accent, #6b21a8);
+    }
+    .encounter-wip-dialog-card p {
+        margin: 0 0 0.9rem;
+        line-height: 1.45;
+        color: var(--color-muted, #555);
+        font-size: 0.95rem;
+    }
+    .encounter-wip-dialog-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        margin: 0 0 1rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        line-height: 1.35;
+        cursor: pointer;
+    }
+    .encounter-wip-dialog-check input {
+        margin-top: 0.15rem;
+        flex: 0 0 auto;
+    }
+    .encounter-wip-dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+</style>
+
+<div
+    id="encounter-wip-dialog"
+    class="encounter-wip-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="encounter-wip-title"
+    aria-describedby="encounter-wip-copy"
+    hidden
+>
+    <div class="encounter-wip-dialog-card">
+        <h2 id="encounter-wip-title">Encounter system in development</h2>
+        <p id="encounter-wip-copy">
+            The Encounter board is still being built. You can open it now, but expect unfinished flows, rough edges, and changes as updates ship.
+        </p>
+        <label class="encounter-wip-dialog-check" for="encounter-wip-show-each-time">
+            <input type="checkbox" id="encounter-wip-show-each-time" checked>
+            <span>Show this warning every time I open Encounter</span>
+        </label>
+        <div class="encounter-wip-dialog-actions">
+            <button type="button" class="button" id="encounter-wip-cancel">Cancel</button>
+            <button type="button" class="button" id="encounter-wip-continue">Continue</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var STORAGE_KEY = "ef-encounter-wip-show-each-time";
+    var dialog = document.getElementById("encounter-wip-dialog");
+    var showEachTime = document.getElementById("encounter-wip-show-each-time");
+    var continueBtn = document.getElementById("encounter-wip-continue");
+    var cancelBtn = document.getElementById("encounter-wip-cancel");
+    var pendingContinue = null;
+    var previousFocus = null;
+
+    function readShowEachTime() {
+        try {
+            var raw = localStorage.getItem(STORAGE_KEY);
+            if (raw === null) return true;
+            return raw !== "0";
+        } catch (err) {
+            return true;
+        }
+    }
+
+    function writeShowEachTime(enabled) {
+        try {
+            localStorage.setItem(STORAGE_KEY, enabled ? "1" : "0");
+        } catch (err) {
+            /* ignore quota / private mode */
+        }
+    }
+
+    function shouldPrompt() {
+        return readShowEachTime();
+    }
+
+    function closeDialog(runContinue) {
+        if (!dialog) return;
+        dialog.hidden = true;
+        dialog.setAttribute("aria-hidden", "true");
+        document.removeEventListener("keydown", onKeyDown, true);
+        var cb = pendingContinue;
+        pendingContinue = null;
+        if (previousFocus && typeof previousFocus.focus === "function") {
+            try {
+                previousFocus.focus();
+            } catch (err) {
+                /* ignore */
+            }
+        }
+        previousFocus = null;
+        if (runContinue && typeof cb === "function") {
+            cb();
+        }
+    }
+
+    function onKeyDown(ev) {
+        if (ev.key === "Escape") {
+            ev.preventDefault();
+            ev.stopPropagation();
+            closeDialog(false);
+        }
+    }
+
+    function prompt(onContinue) {
+        if (!dialog || !shouldPrompt()) {
+            if (typeof onContinue === "function") onContinue();
+            return;
+        }
+        pendingContinue = onContinue;
+        previousFocus = document.activeElement;
+        if (showEachTime) {
+            showEachTime.checked = true;
+        }
+        dialog.hidden = false;
+        dialog.setAttribute("aria-hidden", "false");
+        document.addEventListener("keydown", onKeyDown, true);
+        if (continueBtn) {
+            continueBtn.focus();
+        }
+    }
+
+    if (continueBtn) {
+        continueBtn.addEventListener("click", function () {
+            var keepShowing = !(showEachTime && !showEachTime.checked);
+            writeShowEachTime(keepShowing);
+            closeDialog(true);
+        });
+    }
+    if (cancelBtn) {
+        cancelBtn.addEventListener("click", function () {
+            closeDialog(false);
+        });
+    }
+    if (dialog) {
+        dialog.addEventListener("click", function (ev) {
+            if (ev.target === dialog) {
+                closeDialog(false);
+            }
+        });
+    }
+
+    window.encounterWipWarning = {
+        shouldPrompt: shouldPrompt,
+        prompt: prompt,
+        storageKey: STORAGE_KEY,
+    };
+})();
+</script>

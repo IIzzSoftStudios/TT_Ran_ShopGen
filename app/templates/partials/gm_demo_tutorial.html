@@ -693,7 +693,8 @@
      data-demo-step="{{ demo_step.id }}"
      data-demo-title="{{ demo_step.title }}"
      data-nation-hint="{{ demo_step.nation_hint or 'Father\'s Castel-bari' }}"
-     data-register-cta="{% if demo_step.register_cta %}1{% else %}0{% endif %}">
+     data-register-cta="{% if demo_step.register_cta %}1{% else %}0{% endif %}"
+     data-analytics-url="{{ url_for('demo.analytics_event') }}">
     <div class="demo-tutorial-modal" id="demo-tutorial-modal" role="dialog" aria-modal="true"
          aria-labelledby="demo-tutorial-title"
          {% if demo_step.register_cta %}hidden{% endif %}>
@@ -707,9 +708,9 @@
             </ol>
             <div class="demo-tutorial-actions">
                 {% if demo_step.register_cta %}
-                <a class="button demo-register-cta" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                <a class="button demo-register-cta" href="{{ url_for('billing.subscribe') }}">Register For Access</a>
                 {% else %}
-                <a class="button secondary-button demo-register-cta" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                <a class="button secondary-button demo-register-cta" href="{{ url_for('billing.subscribe') }}">Register For Access</a>
                 <button type="button" class="button" id="demo-tutorial-dismiss">Got it</button>
                 {% endif %}
             </div>
@@ -726,7 +727,7 @@
             <button type="button" class="button secondary-button" id="demo-coach-forward" disabled hidden>Forward</button>
         </div>
         {% endif %}
-        <a class="button demo-register-cta" href="{{ url_for('main.access_request') }}">Register For Access</a>
+        <a class="button demo-register-cta" href="{{ url_for('billing.subscribe') }}">Register For Access</a>
     </aside>
 </div>
 

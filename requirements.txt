@@ -40,3 +40,6 @@ openpyxl>=3.1,<4
 # Async simulation execution
 celery>=5
 redis>=4
+
+# Stripe Billing (Managed Payments Checkout + webhooks)
+stripe>=11.0,<14

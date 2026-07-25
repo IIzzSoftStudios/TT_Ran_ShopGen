@@ -552,7 +552,7 @@
                         <a class="btn btn-primary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
                     {% else %}
                         <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Login</a>
-                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                        <a class="btn btn-primary" href="{{ url_for('billing.subscribe') }}">Register For Access</a>
                     {% endif %}
                 </div>
             </div>
@@ -579,7 +579,7 @@
                         <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
                         <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
                     {% else %}
-                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                        <a class="btn btn-primary" href="{{ url_for('billing.subscribe') }}">Register For Access</a>
                         <a class="btn btn-secondary" href="{{ url_for('demo.start') }}">Try Demo</a>
                     {% endif %}
                     </div>
@@ -684,7 +684,7 @@
                         <a class="btn btn-primary" href="{{ url_for('main.home') }}">Go to Dashboard</a>
                         <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
                     {% else %}
-                        <a class="btn btn-primary" href="{{ url_for('main.access_request') }}">Register For Access</a>
+                        <a class="btn btn-primary" href="{{ url_for('billing.subscribe') }}">Register For Access</a>
                         <a class="btn btn-secondary" href="{{ url_for('auth.login') }}">Or go straight to Login</a>
                     {% endif %}
                 </div>

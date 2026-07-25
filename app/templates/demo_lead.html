@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Try Demo — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth_pages.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/demo_lead.css') }}">
+</head>
+<body class="auth-page demo-lead-page">
+    {% include 'partials/auth_topbar.html' %}
+    <div class="auth-page-wrap demo-lead-wrap">
+        <h1 class="auth-title">Try Demo</h1>
+        <p class="auth-subtitle">
+            Start the free Demo with no payment required.
+            Name and email are optional — we only use them to improve the walkthrough, with no new tracking cookies.
+        </p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="auth-flash-wrap">
+                    {% for category, message in messages %}
+                        <div class="auth-flash">
+                            <strong>{{ category|capitalize }}:</strong> {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form class="auth-card demo-lead-form" method="post" action="{{ url_for('demo.capture_lead') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="demo-name">Name <span class="demo-lead-optional">(optional)</span></label>
+                <input type="text" id="demo-name" name="contact_name" maxlength="120"
+                       autocomplete="name" placeholder="Your name"
+                       value="{{ contact_name or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="demo-email">Email <span class="demo-lead-optional">(optional)</span></label>
+                <input type="email" id="demo-email" name="email" maxlength="255"
+                       autocomplete="email" placeholder="you@example.com"
+                       value="{{ email or '' }}">
+            </div>
+
+            <button type="submit">Start Demo</button>
+            <a class="auth-secondary-btn" href="{{ url_for('main.index') }}">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>

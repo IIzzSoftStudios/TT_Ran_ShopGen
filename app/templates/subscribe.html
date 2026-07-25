@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Register For Access — Econo-Forge</title>
+    {% include 'partials/theme_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth_pages.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/subscribe.css') }}">
+</head>
+<body class="auth-page subscribe-page">
+    {% include 'partials/auth_topbar.html' %}
+    <div class="auth-page-wrap subscribe-wrap">
+        <h1 class="auth-title">Register For Access</h1>
+        <p class="auth-subtitle">
+            Choose a plan to unlock Game Master campaigns and player seats.
+            After payment you create your account with a registration key.
+        </p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="auth-flash-wrap">
+                    {% for category, message in messages %}
+                        <div class="auth-flash">
+                            <strong>{{ category|capitalize }}:</strong> {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if not stripe_configured or not plans %}
+        <div class="auth-card">
+            <div class="info-box">
+                Billing is not fully configured yet. Check back soon, or contact support if you already paid.
+            </div>
+            <a class="auth-secondary-btn" href="{{ url_for('main.index') }}">Back to home</a>
+        </div>
+        {% else %}
+        <form class="auth-card subscribe-form" method="post" action="{{ url_for('billing.create_checkout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="subscribe-email">Email</label>
+                <input type="email" name="email" id="subscribe-email" required
+                       autocomplete="email" placeholder="you@example.com">
+            </div>
+
+            <fieldset class="subscribe-plans">
+                <legend class="subscribe-plans-legend">Choose a plan</legend>
+
+                <div class="subscribe-period" role="group" aria-label="Billing period">
+                    <input class="subscribe-period-input" type="radio" name="billing_period"
+                           id="period-monthly" value="monthly" checked>
+                    <label class="subscribe-period-btn" for="period-monthly">Monthly</label>
+                    <input class="subscribe-period-input" type="radio" name="billing_period"
+                           id="period-yearly" value="yearly">
+                    <label class="subscribe-period-btn" for="period-yearly">Yearly</label>
+                </div>
+
+                <div class="subscribe-plan-grid">
+                    {% for p in plans %}
+                    <label class="subscribe-plan-card{% if p.featured %} is-featured{% endif %}"
+                           data-interval="{{ p.interval_key }}"
+                           data-plan-slug="{{ p.plan_slug }}"
+                           for="price-{{ loop.index }}">
+                        <input class="subscribe-plan-input" type="radio" name="price_id"
+                               id="price-{{ loop.index }}" value="{{ p.price_id }}"
+                               data-plan-slug="{{ p.plan_slug }}"
+                               {% if loop.first %}checked{% endif %} required>
+                        {% if p.featured %}
+                        <span class="subscribe-plan-badge">Most popular</span>
+                        {% endif %}
+                        <span class="subscribe-plan-tier">{{ p.tier }}</span>
+                        <span class="subscribe-plan-price">
+                            <span class="subscribe-plan-amount">{{ p.amount_label }}</span>
+                            <span class="subscribe-plan-per">/{{ p.amount_per }}</span>
+                        </span>
+                        <ul class="subscribe-plan-features">
+                            <li>{{ p.campaigns_label }}</li>
+                            <li>{{ p.seats_label }}</li>
+                            <li>GM campaign tools</li>
+                        </ul>
+                    </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <button type="submit">Continue to payment</button>
+            <a class="auth-secondary-btn" href="{{ url_for('main.index') }}">Cancel</a>
+        </form>
+        <script>
+            (function () {
+                var form = document.querySelector('.subscribe-form');
+                if (!form) return;
+
+                function syncPlanToPeriod() {
+                    var period = form.querySelector('input[name="billing_period"]:checked');
+                    if (!period) return;
+                    var key = period.value;
+                    var selected = form.querySelector('.subscribe-plan-input:checked');
+                    var slug = selected ? selected.getAttribute('data-plan-slug') : null;
+                    var cards = form.querySelectorAll('.subscribe-plan-card[data-interval="' + key + '"]');
+                    var match = null;
+                    cards.forEach(function (card) {
+                        if (slug && card.getAttribute('data-plan-slug') === slug) {
+                            match = card.querySelector('.subscribe-plan-input');
+                        }
+                    });
+                    var target = match || (cards[0] && cards[0].querySelector('.subscribe-plan-input'));
+                    if (target) target.checked = true;
+                }
+
+                form.querySelectorAll('input[name="billing_period"]').forEach(function (input) {
+                    input.addEventListener('change', syncPlanToPeriod);
+                });
+            })();
+        </script>
+        {% endif %}
+    </div>
+</body>
+</html>

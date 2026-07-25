@@ -41,7 +41,8 @@ def test_phase_entitlements_loadable():
 def test_smoke_base_routes_structural(client):
     assert client.get("/").status_code == 200
     assert client.get("/docs").status_code == 200
-    assert client.get("/access-request").status_code == 200
+    assert client.get("/access-request", follow_redirects=False).status_code in (301, 302)
+    assert client.get("/subscribe").status_code == 200
 
 
 def test_smoke_register_redirect_behavior(client):

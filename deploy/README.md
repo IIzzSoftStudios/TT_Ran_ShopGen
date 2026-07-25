@@ -76,8 +76,16 @@ service account → add **Secret Manager Secret Accessor** and **Cloud SQL Clien
 
 Secrets referenced today (grant accessor on each secret, or use project-level
 binding above): `SECRET_KEY`, `SQLALCHEMY_DATABASE_URI`, `REDIS_URL`,
-`MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`, `MAIL_SERVER` (see
+`MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`, `MAIL_SERVER`,
+`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (see
 [`cloudbuild.yaml`](../cloudbuild.yaml) migrate and deploy steps).
+
+Stripe price IDs (`STRIPE_PRICE_TIER1_MONTHLY`, `STRIPE_PRICE_TIER1_YEARLY`,
+`STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`) are non-secret env vars
+passed via Cloud Build substitutions `_STRIPE_PRICE_*` on deploy.
+
+Before accepting live payments: enable **Managed Payments**, **Customer Portal**,
+and **Smart Retries** (Billing → Revenue recovery) in the Stripe Dashboard.
 
 ### Per-secret alternative (tighter blast radius)
 

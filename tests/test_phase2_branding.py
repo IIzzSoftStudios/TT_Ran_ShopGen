@@ -83,10 +83,10 @@ def test_docs_changelog_section_renders(client):
     assert b"Alpha status" in resp.data
 
 
-def test_thank_you_redirects_to_access_request(client):
+def test_thank_you_redirects_to_subscribe(client):
     resp = client.get("/thank-you", follow_redirects=False)
     assert resp.status_code in (301, 302)
-    assert "/access-request" in (resp.location or "")
+    assert "/subscribe" in (resp.location or "")
 
 
 def test_legacy_player_routes_redirect_to_home(client):
@@ -505,6 +505,10 @@ def test_player_home_shows_encounter_tab_for_dnd5e_campaign(client):
     assert b'id="player-encounter-tab"' in resp.data
     assert b'data-target="player-encounter-panel"' in resp.data
     assert b'title="Encounters"' in resp.data
+    assert b'id="encounter-wip-dialog"' in resp.data
+    assert b"Encounter system in development" in resp.data
+    assert b'id="encounter-wip-show-each-time"' in resp.data
+    assert b"window.encounterWipWarning" in resp.data
     assert b'id="player-encounter-panel"' in resp.data
     assert b"Encounters: Road Ambush" in resp.data
     assert b"Hidden Ambush" not in resp.data
@@ -691,16 +695,16 @@ def test_404_page_shows_econo_forge_branding(client):
     assert b"Econo-Forge" in resp.data or b"Back to home" in resp.data
 
 
-def test_access_request_copy_uses_registration_key(client):
-    resp = client.get("/access-request")
-    assert resp.status_code == 200
-    assert b"registration key" in resp.data.lower()
+def test_access_request_redirects_to_subscribe(client):
+    resp = client.get("/access-request", follow_redirects=False)
+    assert resp.status_code in (301, 302)
+    assert "/subscribe" in (resp.location or "")
 
 
 def test_docs_faq_explains_auto_access_vs_admin_triage(client):
     resp = client.get("/docs?section=faq")
     assert resp.status_code == 200
-    assert b"auto-issues your registration key" in resp.data.lower() or b"auto-issues" in resp.data.lower()
+    assert b"Checkout" in resp.data or b"paid plan" in resp.data.lower() or b"Tier" in resp.data
     assert b"Manual Triage" in resp.data or b"admin triage" in resp.data.lower()
     assert b"What are the Species and Monster Compendiums?" in resp.data
     assert b"Where does city population by species appear?" in resp.data

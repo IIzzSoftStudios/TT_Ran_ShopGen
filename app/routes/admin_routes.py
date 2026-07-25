@@ -13,6 +13,8 @@ from app.routes.handlers.admin_handler import (
     handle_reject_access_request,
     handle_gm_simulation_usage_api,
     handle_gm_simulation_usage_export,
+    handle_demo_analytics_summary,
+    handle_demo_analytics_export,
     handle_submission_action,
 )
 from app.services.sim_metrics import snapshot as simulation_metrics_snapshot
@@ -60,6 +62,20 @@ def gm_simulation_usage_export():
 @admin_required
 def gm_simulation_usage_api():
     return handle_gm_simulation_usage_api()
+
+
+@admin_bp.route("/vault/demo-analytics/export", methods=["GET"])
+@login_required
+@admin_required
+def demo_analytics_export():
+    return handle_demo_analytics_export()
+
+
+@admin_bp.route("/vault/demo-analytics", methods=["GET"])
+@login_required
+@admin_required
+def demo_analytics_api():
+    return handle_demo_analytics_summary()
 
 
 @admin_bp.route("/vault/access-requests/<int:request_id>/approve", methods=["POST"])

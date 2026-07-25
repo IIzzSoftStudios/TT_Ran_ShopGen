@@ -31,6 +31,9 @@ class PhaseEntitlements:
             for key in ("label", "prefix", "campaign_limit", "seat_limit"):
                 if key not in row:
                     raise KeyError(f"Phase '{slug}' missing required key '{key}'")
+            # seat_limit may be null (unlimited); campaign_limit must be an int.
+            if row.get("campaign_limit") is None:
+                raise KeyError(f"Phase '{slug}' campaign_limit cannot be null")
 
     def get_phase(self, slug: str | None) -> Dict[str, Any]:
         """Return phase row or default if slug is missing, empty, or unknown."""

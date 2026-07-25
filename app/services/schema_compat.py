@@ -317,6 +317,85 @@ def warn_if_expansion_interest_table_applied(patched_any: bool) -> None:
         )
 
 
+def ensure_demo_analytics_event_table() -> bool:
+    """Create demo_analytics_event when missing (Vault Demo funnel telemetry)."""
+    if db.engine.dialect.name != "postgresql":
+        return False
+    if not _regclass_exists("user"):
+        return False
+    if _regclass_exists("demo_analytics_event"):
+        return False
+    db.session.execute(
+        text(
+            """
+            CREATE TABLE demo_analytics_event (
+                id SERIAL PRIMARY KEY,
+                demo_run_id VARCHAR(36) NOT NULL,
+                demo_anon_id VARCHAR(64) NOT NULL,
+                user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL,
+                event_type VARCHAR(32) NOT NULL,
+                step_key VARCHAR(64),
+                surface VARCHAR(40) NOT NULL DEFAULT 'gm_tutorial',
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                    DEFAULT (NOW() AT TIME ZONE 'utc')
+            )
+            """
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_demo_analytics_event_demo_run_id "
+            "ON demo_analytics_event(demo_run_id)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_demo_analytics_event_demo_anon_id "
+            "ON demo_analytics_event(demo_anon_id)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_demo_analytics_event_user_id "
+            "ON demo_analytics_event(user_id)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_demo_analytics_event_created_at "
+            "ON demo_analytics_event(created_at)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_demo_analytics_event_type_created "
+            "ON demo_analytics_event(event_type, created_at)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_demo_analytics_run_type "
+            "ON demo_analytics_event(demo_run_id, event_type)"
+        )
+    )
+    db.session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_demo_analytics_step_type "
+            "ON demo_analytics_event(step_key, event_type)"
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def warn_if_demo_analytics_event_table_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "demo_analytics_event table created via compat bootstrap. "
+            "Run sql/demo_analytics_event_create.sql in controlled deploys."
+        )
+
+
 def ensure_campaign_code_redemption_table() -> bool:
     """Create campaign_code_redemption when missing (vault campaign-code telemetry)."""
     if db.engine.dialect.name != "postgresql":
@@ -367,6 +446,168 @@ def warn_if_campaign_code_redemption_table_applied(patched_any: bool) -> None:
         log.warning(
             "campaign_code_redemption table created via compat bootstrap. "
             "Run a controlled migration in production deploys."
+        )
+
+
+def ensure_stripe_billing_schema() -> bool:
+    """Add Stripe columns/tables for Managed Payments billing."""
+    if db.engine.dialect.name != "postgresql":
+        return False
+    if not _regclass_exists("user"):
+        return False
+    patched_any = False
+
+    if not _column_exists("user", "stripe_customer_id"):
+        db.session.execute(
+            text(
+                'ALTER TABLE "user" ADD COLUMN stripe_customer_id VARCHAR(255)'
+            )
+        )
+        db.session.execute(
+            text(
+                'CREATE UNIQUE INDEX IF NOT EXISTS ix_user_stripe_customer_id '
+                'ON "user"(stripe_customer_id) WHERE stripe_customer_id IS NOT NULL'
+            )
+        )
+        patched_any = True
+
+    if _regclass_exists("registration_key"):
+        for col, ddl in (
+            (
+                "stripe_customer_id",
+                "ALTER TABLE registration_key ADD COLUMN stripe_customer_id VARCHAR(255)",
+            ),
+            (
+                "stripe_subscription_id",
+                "ALTER TABLE registration_key ADD COLUMN stripe_subscription_id VARCHAR(255)",
+            ),
+            (
+                "stripe_price_id",
+                "ALTER TABLE registration_key ADD COLUMN stripe_price_id VARCHAR(255)",
+            ),
+            (
+                "stripe_checkout_session_id",
+                "ALTER TABLE registration_key ADD COLUMN stripe_checkout_session_id VARCHAR(255)",
+            ),
+        ):
+            if not _column_exists("registration_key", col):
+                db.session.execute(text(ddl))
+                patched_any = True
+        if _column_exists("registration_key", "stripe_checkout_session_id"):
+            db.session.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "ix_registration_key_stripe_checkout_session_id "
+                    "ON registration_key(stripe_checkout_session_id) "
+                    "WHERE stripe_checkout_session_id IS NOT NULL"
+                )
+            )
+
+    if not _regclass_exists("billing_subscription"):
+        db.session.execute(
+            text(
+                """
+                CREATE TABLE billing_subscription (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL,
+                    stripe_subscription_id VARCHAR(255) NOT NULL UNIQUE,
+                    stripe_customer_id VARCHAR(255) NOT NULL,
+                    stripe_price_id VARCHAR(255) NOT NULL,
+                    plan_slug VARCHAR(40) NOT NULL,
+                    status VARCHAR(40) NOT NULL DEFAULT 'incomplete',
+                    current_period_end TIMESTAMP WITHOUT TIME ZONE,
+                    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                        DEFAULT (NOW() AT TIME ZONE 'utc'),
+                    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                        DEFAULT (NOW() AT TIME ZONE 'utc')
+                )
+                """
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_billing_subscription_user_id "
+                "ON billing_subscription(user_id)"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_billing_subscription_customer "
+                "ON billing_subscription(stripe_customer_id)"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_billing_subscription_plan_status "
+                "ON billing_subscription(plan_slug, status)"
+            )
+        )
+        patched_any = True
+
+    if not _regclass_exists("stripe_webhook_event"):
+        db.session.execute(
+            text(
+                """
+                CREATE TABLE stripe_webhook_event (
+                    id VARCHAR(255) PRIMARY KEY,
+                    event_type VARCHAR(120) NOT NULL,
+                    processed_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                        DEFAULT (NOW() AT TIME ZONE 'utc')
+                )
+                """
+            )
+        )
+        patched_any = True
+
+    if not _regclass_exists("demo_lead"):
+        db.session.execute(
+            text(
+                """
+                CREATE TABLE demo_lead (
+                    id SERIAL PRIMARY KEY,
+                    demo_run_id VARCHAR(36) NOT NULL UNIQUE,
+                    demo_anon_id VARCHAR(64) NOT NULL,
+                    contact_name VARCHAR(120) NOT NULL,
+                    email VARCHAR(255) NOT NULL,
+                    last_step_key VARCHAR(64),
+                    last_step_at TIMESTAMP WITHOUT TIME ZONE,
+                    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                        DEFAULT (NOW() AT TIME ZONE 'utc'),
+                    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                        DEFAULT (NOW() AT TIME ZONE 'utc')
+                )
+                """
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_demo_lead_email ON demo_lead(email)"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_demo_lead_last_step "
+                "ON demo_lead(last_step_key)"
+            )
+        )
+        db.session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_demo_lead_anon "
+                "ON demo_lead(demo_anon_id)"
+            )
+        )
+        patched_any = True
+
+    if patched_any:
+        db.session.commit()
+    return patched_any
+
+
+def warn_if_stripe_billing_schema_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "Stripe billing / demo_lead schema created via compat bootstrap. "
+            "Run sql/stripe_billing_create.sql in controlled deploys."
         )
 
 

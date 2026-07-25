@@ -403,11 +403,17 @@ class User(db.Model, UserMixin):
     reset_otp_hash = db.Column(db.String(128), nullable=True)
     reset_otp_expires = db.Column(db.DateTime, nullable=True)
     avatar_updated_at = db.Column(db.DateTime, nullable=True)
+    stripe_customer_id = db.Column(db.String(255), nullable=True, unique=True, index=True)
 
     # For GMs: Their players
     players = db.relationship("Player", backref="user", foreign_keys="Player.user_id")
     # GM Profile if they are a GM
     gm_profile = db.relationship("GMProfile", backref="user", uselist=False)
+    billing_subscriptions = db.relationship(
+        "BillingSubscription",
+        back_populates="user",
+        lazy="dynamic",
+    )
 
     def set_password(self, password):
         self.password = bcrypt.generate_password_hash(password).decode("utf-8") 
@@ -616,6 +622,42 @@ class ExpansionInterest(db.Model):
         return f"<ExpansionInterest user_id={self.user_id} intent={self.intent}>"
 
 
+class DemoAnalyticsEvent(db.Model):
+    """Append-only first-party Demo walkthrough funnel events."""
+
+    __tablename__ = "demo_analytics_event"
+    __table_args__ = (
+        Index("ix_demo_analytics_event_type_created", "event_type", "created_at"),
+        Index("ix_demo_analytics_run_type", "demo_run_id", "event_type"),
+        Index("ix_demo_analytics_step_type", "step_key", "event_type"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    demo_run_id = db.Column(db.String(36), nullable=False, index=True)
+    demo_anon_id = db.Column(db.String(64), nullable=False, index=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    event_type = db.Column(db.String(32), nullable=False)
+    step_key = db.Column(db.String(64), nullable=True)
+    surface = db.Column(db.String(40), nullable=False, default="gm_tutorial")
+    created_at = db.Column(db.DateTime, server_default=func.now(), nullable=False, index=True)
+
+    user = db.relationship(
+        "User",
+        backref=db.backref("demo_analytics_events", lazy="dynamic"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<DemoAnalyticsEvent run={self.demo_run_id} "
+            f"type={self.event_type} step={self.step_key}>"
+        )
+
+
 class CampaignCodeRedemption(db.Model):
     """Append-only log when a user joins a campaign via a CAMP- join code."""
 
@@ -722,8 +764,66 @@ class RegistrationKey(db.Model):
     used_at = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    stripe_customer_id = db.Column(db.String(255), nullable=True, index=True)
+    stripe_subscription_id = db.Column(db.String(255), nullable=True, index=True)
+    stripe_price_id = db.Column(db.String(255), nullable=True)
+    stripe_checkout_session_id = db.Column(db.String(255), nullable=True, unique=True, index=True)
 
     user = db.relationship("User", backref=db.backref("registration_key_used", uselist=False))
+
+
+class BillingSubscription(db.Model):
+    """Local mirror of a Stripe subscription for entitlement lookups."""
+
+    __tablename__ = "billing_subscription"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stripe_subscription_id = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    stripe_customer_id = db.Column(db.String(255), nullable=False, index=True)
+    stripe_price_id = db.Column(db.String(255), nullable=False)
+    plan_slug = db.Column(db.String(40), nullable=False, index=True)
+    status = db.Column(db.String(40), nullable=False, default="incomplete", index=True)
+    current_period_end = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    user = db.relationship("User", back_populates="billing_subscriptions")
+
+
+class StripeWebhookEvent(db.Model):
+    """Idempotency ledger for Stripe webhook event IDs."""
+
+    __tablename__ = "stripe_webhook_event"
+
+    id = db.Column(db.String(255), primary_key=True)
+    event_type = db.Column(db.String(120), nullable=False)
+    processed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class DemoLead(db.Model):
+    """First-party Try Demo lead (name/email) + last tutorial step."""
+
+    __tablename__ = "demo_lead"
+
+    id = db.Column(db.Integer, primary_key=True)
+    demo_run_id = db.Column(db.String(36), nullable=False, unique=True, index=True)
+    demo_anon_id = db.Column(db.String(64), nullable=False, index=True)
+    contact_name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    last_step_key = db.Column(db.String(64), nullable=True, index=True)
+    last_step_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
 
 class Player(db.Model):

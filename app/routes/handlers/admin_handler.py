@@ -311,6 +311,95 @@ def handle_gm_simulation_usage_export():
     )
 
 
+def _parse_demo_analytics_date_bounds():
+    """Optional since/until query params (YYYY-MM-DD), UTC day bounds."""
+    since = None
+    until = None
+    since_raw = (request.args.get("since") or "").strip()
+    until_raw = (request.args.get("until") or "").strip()
+    if since_raw:
+        try:
+            since = datetime.strptime(since_raw, "%Y-%m-%d")
+        except ValueError:
+            since = None
+    if until_raw:
+        try:
+            until_day = datetime.strptime(until_raw, "%Y-%m-%d")
+            until = until_day.replace(hour=23, minute=59, second=59, microsecond=999999)
+        except ValueError:
+            until = None
+    return since, until
+
+
+def handle_demo_analytics_summary():
+    denied = _vault_keeper_json_forbidden()
+    if denied:
+        return denied
+    from app.services.demo_analytics import aggregate_demo_analytics
+
+    since, until = _parse_demo_analytics_date_bounds()
+    payload = aggregate_demo_analytics(since=since, until=until)
+    audit_logger.info(
+        "Demo analytics API | Admin ID: %s | Runs: %s",
+        current_user.id,
+        payload.get("total_runs"),
+    )
+    return jsonify(payload)
+
+
+def handle_demo_analytics_export():
+    if not getattr(current_user, "is_authenticated", False):
+        return Response("Forbidden", status=403, mimetype="text/plain")
+    if getattr(current_user, "role", None) != "vault_keeper":
+        return Response("Forbidden", status=403, mimetype="text/plain")
+
+    from openpyxl import Workbook
+    from app.services.demo_analytics import aggregate_demo_analytics
+
+    since, until = _parse_demo_analytics_date_bounds()
+    payload = aggregate_demo_analytics(since=since, until=until)
+    audit_logger.info(
+        "Demo analytics export | Admin ID: %s | Runs: %s",
+        current_user.id,
+        payload.get("total_runs"),
+    )
+    wb = Workbook()
+    summary = wb.active
+    summary.title = "Summary"
+    summary.append(["Metric", "Value"])
+    summary.append(["Total demo runs", payload.get("total_runs", 0)])
+    summary.append(
+        ["Runs with Register click", payload.get("runs_with_register_click", 0)]
+    )
+    summary.append(
+        ["Register conversion %", payload.get("register_conversion_pct", 0.0)]
+    )
+
+    steps_ws = wb.create_sheet("Steps")
+    steps_ws.append(
+        ["Step key", "Runs reached", "Reach %", "Register clicks from step"]
+    )
+    for row in payload.get("steps") or []:
+        steps_ws.append(
+            [
+                row.get("step_key"),
+                row.get("runs_reached", 0),
+                row.get("reach_pct", 0.0),
+                row.get("register_clicks", 0),
+            ]
+        )
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="demo_analytics.xlsx",
+    )
+
+
 def _submission_sort_key(submission: UserSubmission):
     priority = {"pending": 0, "reviewed": 1, "closed": 2}.get(submission.status, 3)
     created = submission.created_at or datetime.min
@@ -617,6 +706,18 @@ def handle_admin_keys():
     gm_simulation_rows = (
         _gm_simulation_usage_serialized_rows() if show_gm_usage_tab else []
     )
+    demo_analytics = None
+    demo_funnel_steps = []
+    demo_lead_step = None
+    demo_leads_at_step = []
+    if show_gm_usage_tab:
+        from app.services.demo_analytics import aggregate_demo_analytics
+        from app.services.demo_leads import funnel_step_options, leads_stopped_at
+
+        demo_analytics = aggregate_demo_analytics()
+        demo_funnel_steps = funnel_step_options()
+        demo_lead_step = (request.args.get("demo_step") or "").strip() or None
+        demo_leads_at_step = leads_stopped_at(demo_lead_step) if demo_lead_step else []
     campaign_code_redemptions = _campaign_code_redemption_rows()
     stats["total"] += len(campaign_code_redemptions)
     stats["used"] += len(campaign_code_redemptions)
@@ -635,6 +736,10 @@ def handle_admin_keys():
         all_phase_slugs=all_phase_slugs,
         show_gm_usage_tab=show_gm_usage_tab,
         gm_simulation_rows=gm_simulation_rows,
+        demo_analytics=demo_analytics,
+        demo_funnel_steps=demo_funnel_steps,
+        demo_lead_step=demo_lead_step,
+        demo_leads_at_step=demo_leads_at_step,
         campaign_code_redemptions=campaign_code_redemptions,
         campaign_character_rows=campaign_character_rows,
         bug_reports=_load_submissions_by_kind("bug_report"),
