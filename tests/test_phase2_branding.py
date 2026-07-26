@@ -79,7 +79,7 @@ def test_docs_changelog_section_renders(client):
     assert b"Monster Compendium" in resp.data
     assert b"character creation wizard" in resp.data
     assert b"Alpha 1.0" in resp.data
-    assert b"Release notes for Econo-Forge Alpha" in resp.data
+    assert b"Release notes for Econo-Forge Early Access" in resp.data
     assert b"Alpha status" in resp.data
 
 

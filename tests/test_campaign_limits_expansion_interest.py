@@ -86,8 +86,8 @@ def test_campaign_selection_renders_expansion_modal_trigger_when_capped(client):
 
     assert resp.status_code == 200
     assert b"data-expansion-interest-trigger" in resp.data
-    assert b"Yes, express interest" in resp.data
-    assert b"No, stay base tier" in resp.data
+    assert b"Go to Billing" in resp.data
+    assert b"No, stay on current tier" in resp.data
 
 
 def test_gm_campaign_list_renders_expansion_modal_trigger_when_capped(client):

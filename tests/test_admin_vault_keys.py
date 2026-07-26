@@ -54,31 +54,34 @@ def test_handle_admin_keys_loads_gm_simulation_for_vault_keeper():
         reg_chain.order_by.return_value.all.return_value = []
         fake_rows = [{"username": "gm_test_user", "email": "gm@example.com"}]
         fake_demo = {"total_runs": 0, "runs_with_register_click": 0, "steps": []}
-        with patch.multiple(
-            admin_handler,
-            RegistrationKey=MagicMock(),
-            AccessRequest=MagicMock(),
-            current_user=MagicMock(id=1, role="vault_keeper"),
-            render_template=MagicMock(return_value="ok"),
-            _gm_simulation_usage_serialized_rows=MagicMock(return_value=fake_rows),
-            _campaign_code_redemption_rows=MagicMock(return_value=[]),
-            _campaign_character_rows=MagicMock(return_value=[]),
-            _prompted_feedback_answer_rows=MagicMock(return_value=[]),
-            _load_submissions_by_kind=MagicMock(return_value=[]),
-        ), patch(
-            "app.services.demo_analytics.aggregate_demo_analytics",
-            return_value=fake_demo,
-        ):
-            admin_handler.RegistrationKey.query.filter_by.return_value = reg_chain
-            admin_handler.AccessRequest.query.all.return_value = []
-            admin_handler.handle_admin_keys()
-            admin_handler._gm_simulation_usage_serialized_rows.assert_called_once()
-            kw = admin_handler.render_template.call_args[1]
-            assert kw["gm_simulation_rows"] == fake_rows
-            assert kw["show_gm_usage_tab"] is True
-            assert kw["demo_analytics"] == fake_demo
-            assert kw["campaign_character_rows"] == []
-            assert kw["prompted_feedback_rows"] == []
+        with app.test_request_context("/admin/keys"):
+            with patch.multiple(
+                admin_handler,
+                RegistrationKey=MagicMock(),
+                AccessRequest=MagicMock(),
+                current_user=MagicMock(id=1, role="vault_keeper"),
+                render_template=MagicMock(return_value="ok"),
+                _gm_simulation_usage_serialized_rows=MagicMock(return_value=fake_rows),
+                _campaign_code_redemption_rows=MagicMock(return_value=[]),
+                _campaign_character_rows=MagicMock(return_value=[]),
+                _prompted_feedback_answer_rows=MagicMock(return_value=[]),
+                _load_submissions_by_kind=MagicMock(return_value=[]),
+            ), patch(
+                "app.services.demo_analytics.aggregate_demo_analytics",
+                return_value=fake_demo,
+            ):
+                admin_handler.RegistrationKey.query.filter_by.return_value = reg_chain
+                admin_handler.AccessRequest.query.all.return_value = []
+                admin_handler.handle_admin_keys()
+                admin_handler._gm_simulation_usage_serialized_rows.assert_called_once()
+                kw = admin_handler.render_template.call_args[1]
+                assert kw["gm_simulation_rows"] == fake_rows
+                assert kw["show_gm_usage_tab"] is True
+                assert kw["demo_analytics"] == fake_demo
+                assert kw["demo_lead_step"] is None
+                assert kw["demo_leads_at_step"] == []
+                assert kw["campaign_character_rows"] == []
+                assert kw["prompted_feedback_rows"] == []
 
 
 def test_keys_template_includes_gm_heading_only_when_flag_true():
