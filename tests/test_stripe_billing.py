@@ -85,7 +85,7 @@ def test_billing_rules_tier1_and_pro_unlimited(app_ctx):
     db.session.commit()
 
     cap1, seats1, label1 = get_gm_limits(u1)
-    assert cap1 == 1 and seats1 == 5 and "Tier" in label1
+    assert cap1 == 1 and seats1 == 5 and "Casual" in label1
     cap2, seats2, label2 = get_gm_limits(u2)
     assert cap2 == 5 and seats2 is None and "Pro" in label2
 

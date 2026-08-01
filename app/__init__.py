@@ -639,6 +639,18 @@ def create_app():
     app.register_blueprint(simulation_bp)  # Simulation routes have /api prefix
     app.register_blueprint(admin_bp)
 
+    from app.services.stripe_client import billing_mode_mismatch, stripe_mode
+
+    if billing_mode_mismatch():
+        app.logger.critical(
+            "Stripe billing DISABLED: key mode=%s does not match FLASK_ENV=%s. "
+            "Checkout, portal, and webhook entitlements are blocked so nobody is "
+            "charged into the wrong Stripe account. Publish matching keys and "
+            "price IDs, then redeploy.",
+            stripe_mode(),
+            os.getenv("FLASK_ENV", "development"),
+        )
+
     # JSON simulation API: rely on Flask-WTF's `X-CSRFToken` header validation
     # (configured via WTF_CSRF_HEADERS, includes X-CSRFToken by default). The
     # GM dashboard injects the token on every simulation POST. GET endpoints

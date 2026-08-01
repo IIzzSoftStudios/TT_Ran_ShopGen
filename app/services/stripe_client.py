@@ -11,6 +11,36 @@ from flask import current_app
 # Request-level API version for Managed Payments (blueprint).
 MANAGED_PAYMENTS_STRIPE_VERSION = "2026-02-25.preview"
 
+# Sandbox accounts and test mode both issue `*_test_` keys, so anything that is
+# not explicitly live is treated as non-live.
+_LIVE_KEY_PREFIXES = ("sk_live_", "rk_live_")
+
+
+def expects_live_mode() -> bool:
+    """True when this process should only ever talk to live Stripe."""
+    return os.getenv("FLASK_ENV", "development").lower() == "production"
+
+
+def stripe_mode() -> Optional[str]:
+    """Return "live", "test", or None when no secret key is configured."""
+    key = (os.getenv("STRIPE_SECRET_KEY") or "").strip()
+    if not key:
+        return None
+    return "live" if key.startswith(_LIVE_KEY_PREFIXES) else "test"
+
+
+def billing_mode_mismatch() -> bool:
+    """True when a configured key targets the wrong Stripe mode for this env."""
+    mode = stripe_mode()
+    if mode is None:
+        return False
+    return mode != ("live" if expects_live_mode() else "test")
+
+
+def billing_enabled() -> bool:
+    """True when Stripe is configured and safe to charge against."""
+    return stripe_mode() is not None and not billing_mode_mismatch()
+
 
 def _secret_key() -> str:
     key = (os.getenv("STRIPE_SECRET_KEY") or "").strip()

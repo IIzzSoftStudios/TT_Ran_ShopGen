@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+import os
+from typing import Any, Optional
 
 from app.extensions import db
 from app.models import BillingSubscription, StripeWebhookEvent, User
@@ -13,6 +14,7 @@ from app.services.entitlements import (
     plan_slug_for_price,
     upsert_billing_subscription,
 )
+from app.services.stripe_client import expects_live_mode
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +25,15 @@ def _already_processed(event_id: str) -> bool:
 
 def _mark_processed(event_id: str, event_type: str) -> None:
     db.session.add(StripeWebhookEvent(id=event_id, event_type=event_type))
+
+
+def _event_livemode(event: Any) -> Optional[bool]:
+    value = (
+        event.get("livemode")
+        if isinstance(event, dict)
+        else getattr(event, "livemode", None)
+    )
+    return None if value is None else bool(value)
 
 
 def _obj(data: Any) -> dict:
@@ -136,7 +147,8 @@ def handle_invoice_payment_failed(invoice_obj: Any) -> None:
 def process_stripe_event(event: Any) -> bool:
     """
     Process a verified Stripe event.
-    Returns False if duplicate (already processed), True if handled (or acknowledged).
+    Returns False if the event is a duplicate or was rejected for mode mismatch,
+    True if handled (or acknowledged).
     """
     event_id = event["id"] if isinstance(event, dict) else event.id
     event_type = event["type"] if isinstance(event, dict) else event.type
@@ -145,6 +157,21 @@ def process_stripe_event(event: Any) -> bool:
         if isinstance(event, dict)
         else event.data.object
     )
+
+    livemode = _event_livemode(event)
+    if livemode is not None and livemode is not expects_live_mode():
+        # A sandbox/test event must never grant paid entitlements in production,
+        # and a live event must never be replayed into a non-production stack.
+        # Swallow it (caller returns 200) so Stripe stops retrying.
+        log.critical(
+            "Rejected Stripe event id=%s type=%s: livemode=%s does not match "
+            "FLASK_ENV=%s. No entitlements granted.",
+            event_id,
+            event_type,
+            livemode,
+            os.getenv("FLASK_ENV", "development"),
+        )
+        return False
 
     if _already_processed(str(event_id)):
         return False

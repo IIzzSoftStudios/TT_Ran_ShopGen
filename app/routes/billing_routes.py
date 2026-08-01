@@ -23,11 +23,13 @@ from app.services.entitlements import (
     price_allowlist,
 )
 from app.services.stripe_client import (
+    billing_enabled,
     construct_webhook_event,
     create_billing_portal_session,
     create_checkout_session,
     publishable_key,
     retrieve_checkout_session,
+    stripe_mode,
 )
 from stripe import SignatureVerificationError
 from app.services.stripe_webhooks import process_stripe_event
@@ -40,10 +42,10 @@ billing_bp = Blueprint("billing", __name__)
 def _price_catalog_for_template() -> list[dict]:
     allow = price_allowlist()
     labels = {
-        "STRIPE_PRICE_TIER1_MONTHLY": ("Tier 1", "Monthly", "$10", "mo"),
-        "STRIPE_PRICE_TIER1_YEARLY": ("Tier 1", "Yearly", "$100", "yr"),
-        "STRIPE_PRICE_PRO_MONTHLY": ("Pro", "Monthly", "$30", "mo"),
-        "STRIPE_PRICE_PRO_YEARLY": ("Pro", "Yearly", "$300", "yr"),
+        "STRIPE_PRICE_TIER1_MONTHLY": ("Casual Tier", "Monthly", "$10", "mo"),
+        "STRIPE_PRICE_TIER1_YEARLY": ("Casual Tier", "Yearly", "$100", "yr"),
+        "STRIPE_PRICE_PRO_MONTHLY": ("Pro Tier", "Monthly", "$30", "mo"),
+        "STRIPE_PRICE_PRO_YEARLY": ("Pro Tier", "Yearly", "$300", "yr"),
     }
     plans = []
     for env_key, (tier, interval, amount, per) in labels.items():
@@ -77,7 +79,7 @@ def subscribe():
     return render_template(
         "subscribe.html",
         plans=plans,
-        stripe_configured=bool((os.getenv("STRIPE_SECRET_KEY") or "").strip()),
+        stripe_configured=billing_enabled(),
         publishable_key=publishable_key(),
     )
 
@@ -90,7 +92,12 @@ def create_checkout():
     if not is_allowed_price(price_id):
         flash("Invalid plan selection.", "danger")
         return redirect(url_for("billing.subscribe"))
-    if not (os.getenv("STRIPE_SECRET_KEY") or "").strip():
+    if not billing_enabled():
+        log.critical(
+            "Blocked checkout: Stripe key mode=%s is not valid for FLASK_ENV=%s",
+            stripe_mode(),
+            os.getenv("FLASK_ENV", "development"),
+        )
         flash("Billing is not configured yet. Please try again later.", "warning")
         return redirect(url_for("billing.subscribe"))
 
@@ -189,6 +196,14 @@ def create_portal():
     customer_id = getattr(current_user, "stripe_customer_id", None)
     if not customer_id:
         flash("No billing account is linked to this login yet.", "warning")
+        return redirect(url_for("billing.billing_settings"))
+    if not billing_enabled():
+        log.critical(
+            "Blocked billing portal: Stripe key mode=%s is not valid for FLASK_ENV=%s",
+            stripe_mode(),
+            os.getenv("FLASK_ENV", "development"),
+        )
+        flash("Billing is not configured yet. Please try again later.", "warning")
         return redirect(url_for("billing.billing_settings"))
     try:
         portal = create_billing_portal_session(

@@ -9,12 +9,12 @@ phases:
     campaign_limit: 1
     seat_limit: 3
   tier1:
-    label: "Tier 1"
+    label: "Casual Tier"
     prefix: "TIER1"
     campaign_limit: 1
     seat_limit: 5
   pro:
-    label: "Pro"
+    label: "Pro Tier"
     prefix: "PRO"
     campaign_limit: 5
     seat_limit: null
