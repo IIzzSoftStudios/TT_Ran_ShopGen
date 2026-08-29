@@ -1,13 +1,14 @@
-{# GM campaign join: CAMP- code, Reveal only (no separate copy). Expects: reveal_url #}
+{# GM campaign join: CAMP- code with Reveal + Copy. Expects: reveal_url #}
 <div class="gm-campaign-invite-block" data-reveal-url="{{ reveal_url }}">
   <p class="gm-invite-title"><strong>Add player by code</strong></p>
-  <p class="gm-invite-hint">Reveal the <code>CAMP-</code> code for players to register player-only accounts, create a character in this campaign, and continue into character setup.</p>
+  <p class="gm-invite-hint">Reveal the <code>CAMP-</code> code, then tap <strong>Copy code</strong> to share with players registering a player-only account.</p>
   <div class="invite-row invite-row--primary" data-row="camp">
     <span class="invite-label">CAMP-</span>
     <input type="password" class="code-display" readonly autocomplete="off" spellcheck="false"
            aria-label="CAMP join code (hidden until reveal)" value="••••••••••" />
     <div class="invite-actions">
       <button type="button" class="invite-reveal-btn button-like">Reveal</button>
+      <button type="button" class="invite-copy-btn button-like button-like--secondary">Copy code</button>
     </div>
   </div>
   <p class="invite-fetch-err" style="display:none;margin:8px 0 0 0;color:var(--color-danger);font-size:13px;"></p>
@@ -44,7 +45,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   margin-bottom: 10px;
   width: 100%;
   box-sizing: border-box;
@@ -63,7 +64,7 @@
 }
 .gm-campaign-invite-block input.code-display[type="password"],
 .gm-campaign-invite-block input.code-display[type="text"] {
-  flex: 1 1 auto;
+  flex: 1 1 120px;
   min-width: 0;
   width: auto;
   max-width: none;
@@ -87,7 +88,9 @@
 .gm-campaign-invite-block .invite-actions {
   display: flex;
   gap: 6px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .gm-campaign-invite-block .button-like {
   background: var(--color-accent);
@@ -98,13 +101,26 @@
   font-size: 13px;
   cursor: pointer;
 }
+.gm-campaign-invite-block .button-like--secondary {
+  background: rgba(124, 58, 237, 0.22);
+  color: var(--color-text);
+  border: 1px solid rgba(124, 58, 237, 0.55);
+}
 .gm-campaign-invite-block .invite-row--primary .invite-reveal-btn {
   font-weight: 600;
 }
 .gm-campaign-invite-block .button-like:hover { background: var(--color-accent-hover); }
+.gm-campaign-invite-block .button-like--secondary:hover {
+  background: rgba(124, 58, 237, 0.32);
+}
 .gm-campaign-invite-block .button-like:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.gm-campaign-invite-block .invite-copy-btn.is-copied {
+  background: #2e7d32;
+  color: #fff;
+  border-color: #2e7d32;
 }
 </style>
 <script>
@@ -136,23 +152,68 @@
     }
   }
 
+  function clearErr(block) {
+    var el = block.querySelector(".invite-fetch-err");
+    if (el) {
+      el.style.display = "none";
+      el.textContent = "";
+    }
+  }
+
+  function revealCodeInInput(block, input, code) {
+    input.value = code;
+    input.type = "text";
+    input.setAttribute("aria-label", "CAMP join code (revealed)");
+  }
+
+  function fallbackCopy(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text)
+        .then(function () { return true; })
+        .catch(function () { return fallbackCopy(text); });
+    }
+    return Promise.resolve(fallbackCopy(text));
+  }
+
+  function dispatchCopied(block, code) {
+    block.dispatchEvent(new CustomEvent("gm-invite-code-copied", {
+      bubbles: true,
+      detail: { code: code }
+    }));
+  }
+
   function wireBlock(block) {
     var row = block.querySelector(".invite-row[data-row='camp']");
     if (!row) return;
     var input = row.querySelector(".code-display");
     var revealBtn = row.querySelector(".invite-reveal-btn");
-    if (!revealBtn || !input) return;
+    var copyBtn = row.querySelector(".invite-copy-btn");
+    if (!revealBtn || !input || !copyBtn) return;
 
     revealBtn.addEventListener("click", function () {
-      var errEl = block.querySelector(".invite-fetch-err");
-      if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+      clearErr(block);
       revealBtn.disabled = true;
       ensureLoaded(block)
         .then(function () {
           var code = (block.dataset.campCode || "").trim();
-          input.value = code;
-          input.type = "text";
-          input.setAttribute("aria-label", "CAMP join code (revealed)");
+          revealCodeInInput(block, input, code);
           try {
             input.focus();
             input.select();
@@ -163,6 +224,36 @@
         })
         .finally(function () {
           revealBtn.disabled = false;
+        });
+    });
+
+    copyBtn.addEventListener("click", function () {
+      clearErr(block);
+      var originalLabel = copyBtn.textContent;
+      copyBtn.disabled = true;
+      copyBtn.classList.remove("is-copied");
+      ensureLoaded(block)
+        .then(function () {
+          var code = (block.dataset.campCode || "").trim();
+          if (!code) throw new Error("empty");
+          revealCodeInInput(block, input, code);
+          return copyText(code).then(function (ok) {
+            if (!ok) throw new Error("copy failed");
+            copyBtn.classList.add("is-copied");
+            copyBtn.textContent = "Copied!";
+            dispatchCopied(block, code);
+            setTimeout(function () {
+              copyBtn.textContent = originalLabel;
+              copyBtn.classList.remove("is-copied");
+            }, 2200);
+          });
+        })
+        .catch(function () {
+          showErr(block, "Could not copy the campaign code. Reveal it and try again.");
+          copyBtn.textContent = originalLabel;
+        })
+        .finally(function () {
+          copyBtn.disabled = false;
         });
     });
   }

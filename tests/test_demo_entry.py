@@ -228,6 +228,55 @@ def test_demo_gm_home_has_register_cta(client):
     assert "gm-dashboard--demo" in body
 
 
+def test_demo_gm_home_includes_mobile_layout_and_copy_assets(client):
+    """Regression: HUD height sync, fixed map tools, and mobile-friendly copy button."""
+    client.post(
+        "/demo/lead",
+        data={"contact_name": "Mobile Demo", "email": "mobile-demo@example.com"},
+        follow_redirects=False,
+    )
+    client.get("/demo", follow_redirects=True)
+    resp = client.get("/gm/")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "gm_hud_layout.js" in body
+    assert 'class="invite-copy-btn' in body
+    assert "Copy code" in body
+    assert "gm-invite-code-copied" in body
+
+    shell_css = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "static"
+        / "css"
+        / "gm_dashboard_shell.css"
+    ).read_text(encoding="utf-8")
+    assert "#gm-world-stage .map-world-nav" in shell_css
+    assert "position: fixed" in shell_css
+    assert "top: calc(var(--gm-hud-height) + 0.75rem)" in shell_css
+
+    demo_js = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "static"
+        / "js"
+        / "demo_tutorial.js"
+    ).read_text(encoding="utf-8")
+    assert "Tap Copy code" in demo_js
+    assert "gm-invite-code-copied" in demo_js
+    assert "Ctrl+C" not in demo_js.split("invite_copy:")[1].split("},")[0]
+
+    demo_tutorial_css = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "templates"
+        / "partials"
+        / "gm_demo_tutorial.html"
+    ).read_text(encoding="utf-8")
+    assert ":not(.demo-allowed-switch-campaigns)" in demo_tutorial_css
+    assert "#accountPopoverPanel #account-menu-switch-campaigns" in demo_tutorial_css
+
+
 def test_stale_demo_mode_does_not_leak_to_real_gm(client):
     """A leftover demo_mode session flag must not lock a real GM dashboard."""
     from tests.session_helpers import seed_client_session

@@ -56,18 +56,5 @@
           });
       });
     });
-
-    var params = new URLSearchParams(window.location.search);
-    var tab = params.get("tab");
-    if (tab) {
-      var paneId = "vault-" + tab.replace(/_/g, "-") + "-pane";
-      if (tab === "bug_reports") paneId = "vault-bug-reports-pane";
-      if (tab === "feedback") paneId = "vault-feedback-pane";
-      if (tab === "suggestions") paneId = "vault-suggestions-pane";
-      var trigger = document.querySelector('[data-bs-target="#' + paneId + '"]');
-      if (trigger && window.bootstrap && window.bootstrap.Tab) {
-        window.bootstrap.Tab.getOrCreateInstance(trigger).show();
-      }
-    }
   });
 })();

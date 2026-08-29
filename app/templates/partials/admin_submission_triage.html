@@ -1,5 +1,11 @@
 {% for item in items %}
-<div class="access-request-block submission-triage-block border rounded p-3 mb-3" data-submission-id="{{ item.id }}">
+{% set search_blob = (item.username_snapshot ~ ' ' ~ item.category ~ ' ' ~ (item.title or '') ~ ' ' ~ item.body) | lower %}
+<div class="access-request-block submission-triage-block border rounded p-3 mb-3"
+     data-submission-id="{{ item.id }}"
+     data-status="{{ item.status }}"
+     data-username="{{ item.username_snapshot | lower }}"
+     data-created="{{ item.created_at.isoformat() if item.created_at else '' }}"
+     data-search="{{ search_blob | e }}">
     <details class="w-100">
         <summary class="d-flex align-items-center justify-content-between m-0" style="cursor: pointer; list-style: none;">
             <div class="d-flex align-items-center gap-3 flex-grow-1 min-w-0">
@@ -113,6 +119,12 @@
                         </span>
                         <span class="d-block text-muted">GM vs Player mode (or hub) at send time.</span>
                     </dd>
+                    <dt class="col-sm-4 col-md-3 text-muted">Browser</dt>
+                    <dd class="col-sm-8 col-md-9 mb-0">{{ item.client_browser or 'Unknown' }}</dd>
+                    <dt class="col-sm-4 col-md-3 text-muted">Operating system</dt>
+                    <dd class="col-sm-8 col-md-9 mb-0">{{ item.client_os or 'Unknown' }}</dd>
+                    <dt class="col-sm-4 col-md-3 text-muted">Device</dt>
+                    <dd class="col-sm-8 col-md-9 mb-0">{{ item.client_device_type or 'Unknown' }}</dd>
                 </dl>
             </div>
             {% if item.status != 'closed' %}

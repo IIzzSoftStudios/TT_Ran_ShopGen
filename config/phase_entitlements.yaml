@@ -13,6 +13,11 @@ phases:
     prefix: "TIER1"
     campaign_limit: 1
     seat_limit: 5
+  adventurer:
+    label: "Adventurer Plan"
+    prefix: "ADV"
+    campaign_limit: 3
+    seat_limit: 7
   pro:
     label: "Pro Tier"
     prefix: "PRO"

@@ -19,7 +19,7 @@ from app.services.billing_rules import (
     requires_resubscribe_gate,
     resolve_phase_slug,
 )
-from app.services.entitlements import is_allowed_price, plan_slug_for_price
+from app.services.entitlements import is_allowed_price, plan_slug_for_price, subscription_plans_for_display
 from app.services.phase_config import PhaseEntitlements, resolve_phase_entitlements_path
 from app.services.stripe_webhooks import process_stripe_event
 from app.services.user_capabilities import ensure_gm_profile
@@ -30,6 +30,8 @@ from app.models import Campaign, Player
 def app_ctx(monkeypatch):
     monkeypatch.setenv("STRIPE_PRICE_TIER1_MONTHLY", "price_tier1_m")
     monkeypatch.setenv("STRIPE_PRICE_TIER1_YEARLY", "price_tier1_y")
+    monkeypatch.setenv("STRIPE_PRICE_ADVENTURER_MONTHLY", "price_adv_m")
+    monkeypatch.setenv("STRIPE_PRICE_ADVENTURER_YEARLY", "price_adv_y")
     monkeypatch.setenv("STRIPE_PRICE_PRO_MONTHLY", "price_pro_m")
     monkeypatch.setenv("STRIPE_PRICE_PRO_YEARLY", "price_pro_y")
     flask_app.config["WTF_CSRF_ENABLED"] = False
@@ -48,11 +50,42 @@ def client(app_ctx):
     return app_ctx.test_client()
 
 
+def test_subscribe_catalog_lists_three_tiers(app_ctx):
+    plans = subscription_plans_for_display()
+    slugs = {p["plan_slug"] for p in plans}
+    assert slugs == {"tier1", "adventurer", "pro"}
+    assert len(plans) == 6
+    adv = next(p for p in plans if p["plan_slug"] == "adventurer" and p["interval_key"] == "monthly")
+    assert adv["campaigns_label"] == "3 campaigns"
+    assert "7 player seats" in adv["seats_label"]
+
+
 def test_price_allowlist_rejects_unknown(app_ctx):
     assert is_allowed_price("price_tier1_m")
     assert plan_slug_for_price("price_pro_y") == "pro"
+    assert plan_slug_for_price("price_adv_m") == "adventurer"
     assert not is_allowed_price("price_evil")
     assert plan_slug_for_price("price_evil") is None
+
+
+def test_billing_rules_adventurer(app_ctx):
+    user = User(username="adv", role="Both", email="adv@ex.com")
+    user.set_password("Password1!")
+    db.session.add(user)
+    db.session.flush()
+    db.session.add(
+        BillingSubscription(
+            user_id=user.id,
+            stripe_subscription_id="sub_adv",
+            stripe_customer_id="cus_adv",
+            stripe_price_id="price_adv_m",
+            plan_slug="adventurer",
+            status="active",
+        )
+    )
+    db.session.commit()
+    cap, seats, label = get_gm_limits(user)
+    assert cap == 3 and seats == 7 and "Adventurer" in label
 
 
 def test_billing_rules_tier1_and_pro_unlimited(app_ctx):

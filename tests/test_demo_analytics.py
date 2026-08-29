@@ -12,10 +12,12 @@ from app.services.demo_analytics import (
     EVENT_DEMO_START,
     EVENT_REGISTER_CLICK,
     EVENT_STEP_VIEW,
+    aggregate_client_analytics,
     aggregate_demo_analytics,
     mint_demo_run_id,
     record_demo_event,
 )
+from app.services.client_context import parse_user_agent
 from app.services.demo_snapshot import (
     SNAPSHOT_SCHEMA_VERSION,
     write_snapshot_file,
@@ -142,6 +144,105 @@ def test_demo_start_records_analytics_event(client):
     assert len(starts) == 1
     assert starts[0].demo_anon_id
     assert starts[0].surface == "gm_tutorial"
+
+
+def test_demo_start_captures_client_context(client):
+    ua = (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    )
+    _complete_demo_lead(client)
+    resp = client.get("/demo", headers={"User-Agent": ua}, follow_redirects=False)
+    assert resp.status_code in (302, 303)
+    with client.session_transaction() as sess:
+        run_id = sess["demo_run_id"]
+    row = DemoAnalyticsEvent.query.filter_by(
+        event_type=EVENT_DEMO_START, demo_run_id=run_id
+    ).one()
+    assert row.client_browser == "Safari"
+    assert row.client_os == "iOS"
+    assert row.client_device_type == "mobile"
+
+
+def test_parse_user_agent_brave():
+    parsed = parse_user_agent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+    assert parsed["client_browser"] == "Chrome"
+    assert parsed["client_os"] == "Windows"
+    assert parsed["client_device_type"] == "desktop"
+
+
+def test_aggregate_includes_client_breakdown():
+    run_id = "00000000-0000-4000-8000-000000000101"
+    record_demo_event(
+        event_type=EVENT_DEMO_START,
+        demo_run_id=run_id,
+        demo_anon_id="anon-test-01",
+        commit=True,
+    )
+    row = DemoAnalyticsEvent.query.filter_by(demo_run_id=run_id).one()
+    row.client_browser = "Chrome"
+    row.client_os = "Windows"
+    row.client_device_type = "desktop"
+    db.session.commit()
+    payload = aggregate_demo_analytics()
+    assert "client_breakdown" in payload
+    assert payload["client_breakdown"]["browsers"][0]["label"] == "Chrome"
+
+
+def test_client_breakdown_uses_step_events_when_start_missing_context(client):
+    run_id = "00000000-0000-4000-8000-000000000103"
+    record_demo_event(
+        event_type=EVENT_DEMO_START,
+        demo_run_id=run_id,
+        demo_anon_id="anon-test-03",
+        commit=True,
+    )
+    start = DemoAnalyticsEvent.query.filter_by(
+        demo_run_id=run_id, event_type=EVENT_DEMO_START
+    ).one()
+    start.client_browser = None
+    start.client_os = None
+    start.client_device_type = None
+    db.session.commit()
+
+    ua = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+    with client.application.test_request_context(
+        "/demo/analytics/event", headers={"User-Agent": ua}
+    ):
+        record_demo_event(
+            event_type=EVENT_STEP_VIEW,
+            demo_run_id=run_id,
+            demo_anon_id="anon-test-03",
+            step_key="welcome",
+            commit=True,
+        )
+
+    payload = aggregate_demo_analytics()
+    browsers = payload["client_breakdown"]["browsers"]
+    assert browsers[0]["label"] == "Chrome"
+    assert browsers[0]["count"] == 1
+
+
+def test_aggregate_client_analytics_combined():
+    run_id = "00000000-0000-4000-8000-000000000102"
+    record_demo_event(
+        event_type=EVENT_DEMO_START,
+        demo_run_id=run_id,
+        demo_anon_id="anon-test-02",
+        commit=True,
+    )
+    row = DemoAnalyticsEvent.query.filter_by(demo_run_id=run_id).one()
+    row.client_browser = "Firefox"
+    db.session.commit()
+    payload = aggregate_client_analytics()
+    assert payload["demo_runs"] == 1
+    assert payload["demo"]["browsers"][0]["label"] == "Firefox"
 
 
 def test_analytics_beacon_rejects_non_demo_user(client):
@@ -295,6 +396,21 @@ def test_vault_demo_analytics_api_ok_for_vault_keeper(client):
     data = resp.get_json()
     assert "total_runs" in data
     assert "steps" in data
+    assert "client_breakdown" in data
+
+
+def test_vault_client_analytics_api_ok_for_vault_keeper(client):
+    keeper = User(username="vault-client", password="!", role="vault_keeper", email=None)
+    keeper.set_password("ValidPass1!")
+    db.session.add(keeper)
+    db.session.commit()
+    seed_client_session(client, keeper, session_mode="gm")
+    resp = client.get("/admin/vault/client-analytics")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "demo_runs" in data
+    assert "submissions" in data
+    assert "demo" in data
 
 
 def test_keys_template_includes_demo_analytics_tab():
@@ -326,7 +442,20 @@ def test_keys_template_includes_demo_analytics_tab():
                         "register_clicks": 0,
                     }
                 ],
+                "client_breakdown": {
+                    "browsers": [{"label": "Chrome", "count": 2}],
+                    "operating_systems": [{"label": "Windows", "count": 2}],
+                    "devices": [{"label": "desktop", "count": 2}],
+                },
             },
+            client_analytics={
+                "demo_runs": 3,
+                "submission_count": 1,
+                "demo": {"browsers": [], "operating_systems": [], "devices": []},
+                "submissions": {"browsers": [], "operating_systems": [], "devices": []},
+            },
+            access_request_rows=[],
+            campaign_character_flat_rows=[],
             campaign_code_redemptions=[],
             campaign_character_rows=[],
             bug_reports=[],
@@ -336,6 +465,11 @@ def test_keys_template_includes_demo_analytics_tab():
     assert 'id="demo-analytics-tab"' in html
     assert "Demo analytics" in html
     assert 'id="demo-analytics-pane"' in html
+    assert 'id="client-analytics-tab"' in html
+    assert 'id="client-analytics-pane"' in html
+    assert "admin_vault_tables.js" in html
+    assert "vault-submission-queue" in html
+    assert "Not reviewed" in html
 
 
 def test_privacy_mentions_demo_metrics(client):

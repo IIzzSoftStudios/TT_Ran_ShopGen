@@ -1,6 +1,7 @@
 /* Paradox-style GM dashboard shell — map background + nav rail + slide panels */
 
 :root {
+    /* Synced to measured #gm-top-hud / #player-top-hud height via gm_hud_layout.js */
     --gm-hud-height: 52px;
     --gm-rail-width: 88px;
     --gm-panel-bg: rgba(15, 20, 28, 0.92);
@@ -270,9 +271,9 @@ body.gm-panel-open.gm-map-tools-open #gm-world-stage {
 }
 
 #gm-world-stage .map-world-nav {
-    position: absolute;
-    top: 0.75rem;
-    left: 0.75rem;
+    position: fixed;
+    top: calc(var(--gm-hud-height) + 0.75rem);
+    left: calc(var(--gm-rail-width) + 0.75rem);
     z-index: 40;
     display: flex;
     flex-direction: column;
@@ -526,6 +527,54 @@ body.gm-panel-open.gm-map-tools-open #gm-world-stage {
     transform: translateX(-12px);
     opacity: 0;
     transition: transform 0.22s ease, opacity 0.22s ease;
+}
+
+.gm-slide-panel-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 12px;
+    margin-right: -6px;
+    cursor: ew-resize;
+    z-index: 6;
+    touch-action: none;
+    background: transparent;
+}
+
+.gm-slide-panel-resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 42px;
+    border-radius: 999px;
+    background: rgba(158, 203, 255, 0.45);
+    box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.35);
+    pointer-events: none;
+    transition: background 0.15s ease, height 0.15s ease;
+}
+
+.gm-slide-panel-resize-handle:hover::after,
+.gm-slide-panel-resize-handle.is-dragging::after {
+    height: 56px;
+    background: rgba(158, 203, 255, 0.85);
+}
+
+.gm-slide-panel-resize-handle:hover,
+.gm-slide-panel-resize-handle.is-dragging {
+    background: rgba(124, 58, 237, 0.12);
+}
+
+body.gm-slide-panel-resizing .gm-slide-panel {
+    transition: none;
+}
+
+body.gm-slide-panel-resizing {
+    cursor: ew-resize;
+    user-select: none;
 }
 
 .gm-slide-panel.active {
@@ -885,7 +934,7 @@ body.gm-dashboard-drawer-open {
     }
 
     #gm-world-stage .map-world-nav {
-        left: 0.5rem;
+        left: calc(var(--gm-rail-width) + 0.5rem);
         max-width: min(200px, 55vw);
     }
 
@@ -1031,9 +1080,9 @@ body.player-dashboard .theme-toggle {
 }
 
 #player-world-stage .map-world-nav {
-    position: absolute;
-    top: 0.75rem;
-    left: 0.75rem;
+    position: fixed;
+    top: calc(var(--gm-hud-height) + 0.75rem);
+    left: calc(var(--gm-rail-width) + 0.75rem);
     z-index: 25;
     display: flex;
     flex-direction: column;

@@ -240,6 +240,9 @@ def ensure_user_submissions_table() -> bool:
                 page_url VARCHAR(500) NOT NULL,
                 campaign_id INTEGER,
                 status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                client_browser VARCHAR(40),
+                client_os VARCHAR(40),
+                client_device_type VARCHAR(20),
                 created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
                     DEFAULT (NOW() AT TIME ZONE 'utc')
             )
@@ -336,6 +339,9 @@ def ensure_demo_analytics_event_table() -> bool:
                 event_type VARCHAR(32) NOT NULL,
                 step_key VARCHAR(64),
                 surface VARCHAR(40) NOT NULL DEFAULT 'gm_tutorial',
+                client_browser VARCHAR(40),
+                client_os VARCHAR(40),
+                client_device_type VARCHAR(20),
                 created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
                     DEFAULT (NOW() AT TIME ZONE 'utc')
             )
@@ -393,6 +399,94 @@ def warn_if_demo_analytics_event_table_applied(patched_any: bool) -> None:
         log.warning(
             "demo_analytics_event table created via compat bootstrap. "
             "Run sql/demo_analytics_event_create.sql in controlled deploys."
+        )
+
+
+def ensure_client_context_columns() -> bool:
+    """Add browser/OS/device columns to demo analytics and submissions."""
+    if db.engine.dialect.name != "postgresql":
+        return False
+    patched = False
+    column_defs = (
+        ("client_browser", "VARCHAR(40)"),
+        ("client_os", "VARCHAR(40)"),
+        ("client_device_type", "VARCHAR(20)"),
+    )
+    for table in ("demo_analytics_event", "user_submissions"):
+        if not _regclass_exists(table):
+            continue
+        for col_name, col_type in column_defs:
+            if _column_exists(table, col_name):
+                continue
+            db.session.execute(
+                text(
+                    f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                )
+            )
+            patched = True
+    if patched:
+        db.session.commit()
+    if _regclass_exists("demo_analytics_event"):
+        backfill_demo_client_context()
+    return patched
+
+
+def backfill_demo_client_context() -> int:
+    """Copy client context from any event in a run onto its demo_start row."""
+    if db.engine.dialect.name != "postgresql":
+        return 0
+    if not _regclass_exists("demo_analytics_event"):
+        return 0
+    result = db.session.execute(
+        text(
+            """
+            UPDATE demo_analytics_event AS ds
+            SET
+                client_browser = COALESCE(ds.client_browser, agg.client_browser),
+                client_os = COALESCE(ds.client_os, agg.client_os),
+                client_device_type = COALESCE(
+                    ds.client_device_type, agg.client_device_type
+                )
+            FROM (
+                SELECT demo_run_id,
+                    MAX(client_browser) FILTER (
+                        WHERE client_browser IS NOT NULL AND client_browser <> ''
+                    ) AS client_browser,
+                    MAX(client_os) FILTER (
+                        WHERE client_os IS NOT NULL AND client_os <> ''
+                    ) AS client_os,
+                    MAX(client_device_type) FILTER (
+                        WHERE client_device_type IS NOT NULL
+                            AND client_device_type <> ''
+                    ) AS client_device_type
+                FROM demo_analytics_event
+                GROUP BY demo_run_id
+            ) AS agg
+            WHERE ds.event_type = 'demo_start'
+              AND ds.demo_run_id = agg.demo_run_id
+              AND (
+                  ds.client_browser IS NULL OR ds.client_os IS NULL
+                  OR ds.client_device_type IS NULL
+              )
+              AND (
+                  agg.client_browser IS NOT NULL
+                  OR agg.client_os IS NOT NULL
+                  OR agg.client_device_type IS NOT NULL
+              )
+            """
+        )
+    )
+    db.session.commit()
+    return int(getattr(result, "rowcount", 0) or 0)
+
+
+def warn_if_client_context_columns_applied(patched_any: bool) -> None:
+    if patched_any:
+        log.warning(
+            "client_context columns added via compat bootstrap on "
+            "demo_analytics_event / user_submissions. "
+            "Run sql/client_context_columns.sql or "
+            "sql/migrations/005_client_context_columns.sql in controlled deploys."
         )
 
 

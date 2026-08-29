@@ -6,19 +6,49 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from flask import current_app, has_app_context
+
 from app.extensions import db
 from app.models import BillingSubscription, RegistrationKey, User
 from app.services.key_generator import generate_secure_code
 
 PLAN_TIER1 = "tier1"
+PLAN_ADVENTURER = "adventurer"
 PLAN_PRO = "pro"
-PLAN_SLUGS = frozenset({PLAN_TIER1, PLAN_PRO})
+PLAN_SLUGS = frozenset({PLAN_TIER1, PLAN_ADVENTURER, PLAN_PRO})
 
+# Env var → plan slug (Checkout allowlist + webhook resolution).
 PRICE_ENV_KEYS = (
     ("STRIPE_PRICE_TIER1_MONTHLY", PLAN_TIER1),
     ("STRIPE_PRICE_TIER1_YEARLY", PLAN_TIER1),
+    ("STRIPE_PRICE_ADVENTURER_MONTHLY", PLAN_ADVENTURER),
+    ("STRIPE_PRICE_ADVENTURER_YEARLY", PLAN_ADVENTURER),
     ("STRIPE_PRICE_PRO_MONTHLY", PLAN_PRO),
     ("STRIPE_PRICE_PRO_YEARLY", PLAN_PRO),
+)
+
+# Display metadata for /subscribe (amount labels are cosmetic; Stripe charges the Price).
+PRICE_DISPLAY_CATALOG = (
+    ("STRIPE_PRICE_TIER1_MONTHLY", PLAN_TIER1, "Casual Tier", "Monthly", "$6.99", "mo"),
+    ("STRIPE_PRICE_TIER1_YEARLY", PLAN_TIER1, "Casual Tier", "Yearly", "$69.99", "yr"),
+    (
+        "STRIPE_PRICE_ADVENTURER_MONTHLY",
+        PLAN_ADVENTURER,
+        "Adventurer Plan",
+        "Monthly",
+        "$10",
+        "mo",
+    ),
+    (
+        "STRIPE_PRICE_ADVENTURER_YEARLY",
+        PLAN_ADVENTURER,
+        "Adventurer Plan",
+        "Yearly",
+        "$100",
+        "yr",
+    ),
+    ("STRIPE_PRICE_PRO_MONTHLY", PLAN_PRO, "Pro Tier", "Monthly", "$30", "mo"),
+    ("STRIPE_PRICE_PRO_YEARLY", PLAN_PRO, "Pro Tier", "Yearly", "$300", "yr"),
 )
 
 
@@ -40,6 +70,67 @@ def plan_slug_for_price(price_id: str | None) -> Optional[str]:
 
 def is_allowed_price(price_id: str | None) -> bool:
     return plan_slug_for_price(price_id) is not None
+
+
+def _campaigns_label(campaign_limit: int) -> str:
+    n = int(campaign_limit or 0)
+    word = "campaign" if n == 1 else "campaigns"
+    return f"{n} {word}"
+
+
+def _seats_label(seat_limit: int | None) -> str:
+    if seat_limit is None:
+        return "Unlimited player seats"
+    n = int(seat_limit)
+    word = "seat" if n == 1 else "seats"
+    return f"{n} player {word} per campaign"
+
+
+def subscription_plans_for_display() -> list[dict[str, Any]]:
+    """Build subscribe-page plan cards from env price IDs + phase entitlements."""
+    allow = price_allowlist()
+    pc = (
+        current_app.extensions.get("phase_config")
+        if has_app_context()
+        else None
+    )
+    plans: list[dict[str, Any]] = []
+    for (
+        env_key,
+        slug,
+        tier,
+        interval,
+        amount,
+        per,
+    ) in PRICE_DISPLAY_CATALOG:
+        pid = (os.getenv(env_key) or "").strip()
+        if not pid or pid not in allow:
+            continue
+        if pc is not None:
+            phase = pc.get_phase(slug)
+            cap = int(phase.get("campaign_limit") or 1)
+            seats = phase.get("seat_limit")
+        elif slug == PLAN_PRO:
+            cap, seats = 5, None
+        elif slug == PLAN_ADVENTURER:
+            cap, seats = 3, 7
+        else:
+            cap, seats = 1, 5
+        plans.append(
+            {
+                "price_id": pid,
+                "tier": tier,
+                "interval": interval,
+                "interval_key": interval.lower(),
+                "amount_label": amount,
+                "amount_per": per,
+                "plan_slug": slug,
+                "featured": slug == PLAN_PRO,
+                "campaigns_label": _campaigns_label(cap),
+                "seats_label": _seats_label(seats),
+            }
+        )
+    return plans
 
 
 def _ts_to_dt(value: Any) -> Optional[datetime]:

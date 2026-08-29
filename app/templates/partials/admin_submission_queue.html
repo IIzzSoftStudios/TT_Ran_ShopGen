@@ -1,0 +1,66 @@
+{% set queue_items = items | default([]) %}
+{% set queue_dom_id = queue_id | default('submission-queue') %}
+{% set pending_count = queue_items | selectattr('status', 'equalto', 'pending') | list | length %}
+{% set reviewed_count = queue_items | selectattr('status', 'equalto', 'reviewed') | list | length %}
+{% set archived_count = queue_items | selectattr('status', 'equalto', 'closed') | list | length %}
+
+<div class="vault-submission-queue" id="{{ queue_dom_id }}" data-queue-root>
+    <ul class="nav nav-pills vault-queue-tabs mb-3 flex-wrap gap-1" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link active" data-queue-filter="pending" role="tab" aria-selected="true">
+                Not reviewed
+                <span class="badge bg-warning text-dark ms-1 vault-queue-count" data-queue-count="pending">{{ pending_count }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link" data-queue-filter="reviewed" role="tab" aria-selected="false">
+                Reviewed
+                <span class="badge bg-primary ms-1 vault-queue-count" data-queue-count="reviewed">{{ reviewed_count }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link" data-queue-filter="closed" role="tab" aria-selected="false">
+                Archived
+                <span class="badge bg-secondary ms-1 vault-queue-count" data-queue-count="closed">{{ archived_count }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button type="button" class="nav-link" data-queue-filter="all" role="tab" aria-selected="false">
+                All
+                <span class="badge bg-dark ms-1 vault-queue-count" data-queue-count="all">{{ queue_items | length }}</span>
+            </button>
+        </li>
+    </ul>
+    <div class="row g-2 mb-3 vault-queue-toolbar align-items-end">
+        <div class="col-md-6">
+            <label class="form-label small text-muted mb-1">Search</label>
+            <input type="search" class="form-control form-control-sm vault-queue-search" placeholder="Username, category, title, body…" autocomplete="off">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small text-muted mb-1">Order by</label>
+            <select class="form-select form-select-sm vault-queue-sort">
+                <option value="created_desc">Newest first</option>
+                <option value="created_asc">Oldest first</option>
+                <option value="username_asc">Username A–Z</option>
+                <option value="username_desc">Username Z–A</option>
+                <option value="status_asc">Status</option>
+            </select>
+        </div>
+    </div>
+    <div class="vault-queue-panels">
+        {% for panel_status in ['pending', 'reviewed', 'closed', 'all'] %}
+        <div class="vault-queue-panel" data-queue-panel="{{ panel_status }}" {% if panel_status != 'pending' %}hidden{% endif %}>
+            <div class="vault-queue-list">
+                {% if panel_status == 'all' %}
+                    {% set panel_items = queue_items %}
+                {% else %}
+                    {% set panel_items = queue_items | selectattr('status', 'equalto', panel_status) | list %}
+                {% endif %}
+                {% with items=panel_items %}
+                {% include 'partials/admin_submission_triage.html' %}
+                {% endwith %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>

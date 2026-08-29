@@ -7,6 +7,8 @@
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/gm_dashboard_shell.css') }}">
+    <script src="{{ url_for('static', filename='js/gm_hud_layout.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/gm_slide_panel_resize.js') }}" defer></script>
     {% if combat_enabled %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/battle.css') }}">
     {% endif %}

@@ -23,6 +23,8 @@ from app.services.stripe_webhooks import process_stripe_event
 def app_ctx(monkeypatch):
     monkeypatch.setenv("STRIPE_PRICE_TIER1_MONTHLY", "price_tier1_m")
     monkeypatch.setenv("STRIPE_PRICE_TIER1_YEARLY", "price_tier1_y")
+    monkeypatch.setenv("STRIPE_PRICE_ADVENTURER_MONTHLY", "price_adv_m")
+    monkeypatch.setenv("STRIPE_PRICE_ADVENTURER_YEARLY", "price_adv_y")
     monkeypatch.setenv("STRIPE_PRICE_PRO_MONTHLY", "price_pro_m")
     monkeypatch.setenv("STRIPE_PRICE_PRO_YEARLY", "price_pro_y")
     flask_app.config["WTF_CSRF_ENABLED"] = False

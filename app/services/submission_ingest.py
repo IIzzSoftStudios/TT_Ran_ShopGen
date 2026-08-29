@@ -15,7 +15,8 @@ from app.constants.submission_categories import (
     VALID_FREQUENCIES,
     VALID_SEVERITIES,
 )
-from app.models import User, UserSubmission
+from app.models import UserSubmission
+from app.services.client_context import apply_client_context
 
 
 @dataclass
@@ -152,7 +153,7 @@ def build_submission(
     if not body_content.strip():
         return SubmissionValidationError("Primary descriptive body content is required.")
 
-    return UserSubmission(
+    submission = UserSubmission(
         kind=kind,
         user_id=user.id,
         username_snapshot=user.username,
@@ -165,3 +166,5 @@ def build_submission(
         page_url=sanitize_page_url(data.get("page_url")),
         campaign_id=parse_campaign_id(session),
     )
+    apply_client_context(submission)
+    return submission

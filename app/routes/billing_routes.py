@@ -20,7 +20,7 @@ from app.models import RegistrationKey
 from app.services.entitlements import (
     is_allowed_price,
     plan_slug_for_price,
-    price_allowlist,
+    subscription_plans_for_display,
 )
 from app.services.stripe_client import (
     billing_enabled,
@@ -40,37 +40,7 @@ billing_bp = Blueprint("billing", __name__)
 
 
 def _price_catalog_for_template() -> list[dict]:
-    allow = price_allowlist()
-    labels = {
-        "STRIPE_PRICE_TIER1_MONTHLY": ("Casual Tier", "Monthly", "$10", "mo"),
-        "STRIPE_PRICE_TIER1_YEARLY": ("Casual Tier", "Yearly", "$100", "yr"),
-        "STRIPE_PRICE_PRO_MONTHLY": ("Pro Tier", "Monthly", "$30", "mo"),
-        "STRIPE_PRICE_PRO_YEARLY": ("Pro Tier", "Yearly", "$300", "yr"),
-    }
-    plans = []
-    for env_key, (tier, interval, amount, per) in labels.items():
-        pid = (os.getenv(env_key) or "").strip()
-        if not pid or pid not in allow:
-            continue
-        slug = allow[pid]
-        is_pro = slug == "pro"
-        plans.append(
-            {
-                "price_id": pid,
-                "tier": tier,
-                "interval": interval,
-                "interval_key": interval.lower(),
-                "amount_label": amount,
-                "amount_per": per,
-                "plan_slug": slug,
-                "featured": is_pro,
-                "campaigns_label": "5 campaigns" if is_pro else "1 campaign",
-                "seats_label": (
-                    "Unlimited player seats" if is_pro else "5 player seats"
-                ),
-            }
-        )
-    return plans
+    return subscription_plans_for_display()
 
 
 @billing_bp.route("/subscribe", methods=["GET"])

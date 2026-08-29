@@ -69,6 +69,9 @@ def test_handle_admin_keys_loads_gm_simulation_for_vault_keeper():
             ), patch(
                 "app.services.demo_analytics.aggregate_demo_analytics",
                 return_value=fake_demo,
+            ), patch(
+                "app.services.demo_analytics.aggregate_client_analytics",
+                return_value={"demo_runs": 0, "submission_count": 0, "demo": {}, "submissions": {}},
             ):
                 admin_handler.RegistrationKey.query.filter_by.return_value = reg_chain
                 admin_handler.AccessRequest.query.all.return_value = []
@@ -78,6 +81,9 @@ def test_handle_admin_keys_loads_gm_simulation_for_vault_keeper():
                 assert kw["gm_simulation_rows"] == fake_rows
                 assert kw["show_gm_usage_tab"] is True
                 assert kw["demo_analytics"] == fake_demo
+                assert kw["client_analytics"]["demo_runs"] == 0
+                assert kw["access_request_rows"] == []
+                assert kw["campaign_character_flat_rows"] == []
                 assert kw["demo_lead_step"] is None
                 assert kw["demo_leads_at_step"] == []
                 assert kw["campaign_character_rows"] == []
@@ -386,6 +392,21 @@ def test_keys_template_renders_character_tab_with_campaign_rosters():
                 ],
             }
         ],
+        campaign_character_flat_rows=[
+            {
+                "user_id": 3,
+                "gm_username": "gm_alpha",
+                "gm_email": "gm-alpha@example.com",
+                "campaign_id": 7,
+                "campaign_name": "Alpha World",
+                "system_type": "dnd5e",
+                "is_active": True,
+                "character_name": "Mira",
+                "player_username": "T12",
+                "player_email": "t12@example.com",
+                "sheet_updated_at": "2026-06-03T00:59:00Z",
+            }
+        ],
     )
     with app.test_request_context("/"):
         html = render_template(
@@ -395,10 +416,8 @@ def test_keys_template_renders_character_tab_with_campaign_rosters():
         )
 
     assert 'id="characters-tab"' in html
-    assert "Expand a user, then a campaign" in html
-    assert 'id="campaign-roster-user-3"' in html
-    assert '<span class="badge bg-secondary">1 campaign</span>' in html
-    assert '<span class="badge bg-secondary">1 player</span>' in html
+    assert 'id="characters-table"' in html
+    assert 'id="characters-search"' in html
     assert "Alpha World" in html
     assert "gm_alpha" in html
     assert "gm-alpha@example.com" in html

@@ -15,6 +15,7 @@ from app.routes.handlers.admin_handler import (
     handle_gm_simulation_usage_export,
     handle_demo_analytics_summary,
     handle_demo_analytics_export,
+    handle_client_analytics_summary,
     handle_submission_action,
 )
 from app.services.sim_metrics import snapshot as simulation_metrics_snapshot
@@ -76,6 +77,13 @@ def demo_analytics_export():
 @admin_required
 def demo_analytics_api():
     return handle_demo_analytics_summary()
+
+
+@admin_bp.route("/vault/client-analytics", methods=["GET"])
+@login_required
+@admin_required
+def client_analytics_api():
+    return handle_client_analytics_summary()
 
 
 @admin_bp.route("/vault/access-requests/<int:request_id>/approve", methods=["POST"])

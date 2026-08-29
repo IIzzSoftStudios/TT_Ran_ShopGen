@@ -28,6 +28,7 @@ from app.services.schema_compat import (
     ensure_monster_known_to_players_column,
     ensure_join_codes_columns,
     ensure_campaign_code_redemption_table,
+    ensure_client_context_columns,
     ensure_demo_analytics_event_table,
     ensure_expansion_interest_table,
     ensure_stripe_billing_schema,
@@ -66,6 +67,7 @@ from app.services.schema_compat import (
     warn_if_monster_known_to_players_applied,
     warn_if_join_codes_compat_applied,
     warn_if_campaign_code_redemption_table_applied,
+    warn_if_client_context_columns_applied,
     warn_if_demo_analytics_event_table_applied,
     warn_if_expansion_interest_table_applied,
     warn_if_stripe_billing_schema_applied,
@@ -445,6 +447,11 @@ def create_app():
                 warn_if_user_submissions_table_applied,
             )
             _safe_bootstrap(
+                "client_context columns compatibility bootstrap",
+                ensure_client_context_columns,
+                warn_if_client_context_columns_applied,
+            )
+            _safe_bootstrap(
                 "expansion_interest table compatibility bootstrap",
                 ensure_expansion_interest_table,
                 warn_if_expansion_interest_table_applied,
@@ -453,6 +460,11 @@ def create_app():
                 "demo_analytics_event table compatibility bootstrap",
                 ensure_demo_analytics_event_table,
                 warn_if_demo_analytics_event_table_applied,
+            )
+            _safe_bootstrap(
+                "client_context columns compatibility bootstrap (demo table)",
+                ensure_client_context_columns,
+                warn_if_client_context_columns_applied,
             )
             _safe_bootstrap(
                 "campaign_code_redemption table compatibility bootstrap",

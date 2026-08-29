@@ -988,6 +988,8 @@ def test_dashboard_has_map_tab_and_existing_tabs():
     assert 'id="gm-top-hud"' in html
     assert 'id="gm-panel-backdrop"' in html
     assert 'gm_dashboard_shell.css' in html
+    assert 'gm_hud_layout.js' in html
+    assert 'gm_slide_panel_resize.js' in html
     assert 'id="gm-section-menu-btn"' in html
     assert 'id="map-stage"' in html
     assert html.index('id="gm-world-stage"') < html.index('id="map-stage"')

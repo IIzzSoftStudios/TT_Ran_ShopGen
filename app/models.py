@@ -644,6 +644,9 @@ class DemoAnalyticsEvent(db.Model):
     event_type = db.Column(db.String(32), nullable=False)
     step_key = db.Column(db.String(64), nullable=True)
     surface = db.Column(db.String(40), nullable=False, default="gm_tutorial")
+    client_browser = db.Column(db.String(40), nullable=True)
+    client_os = db.Column(db.String(40), nullable=True)
+    client_device_type = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, server_default=func.now(), nullable=False, index=True)
 
     user = db.relationship(
@@ -723,6 +726,9 @@ class UserSubmission(db.Model):
     page_url = db.Column(db.String(500), nullable=False)
     campaign_id = db.Column(db.Integer, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="pending", index=True)
+    client_browser = db.Column(db.String(40), nullable=True)
+    client_os = db.Column(db.String(40), nullable=True)
+    client_device_type = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     user = db.relationship(

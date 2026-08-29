@@ -226,7 +226,7 @@
         },
         invite_copy: {
             h: 'Step 12 — Copy the code',
-            t: 'Select the revealed code and copy it (Ctrl+C / Cmd+C) so a player can join.'
+            t: 'Tap Copy code to copy the CAMP- join code so a player can register and join.'
         },
         point_profile: {
             h: 'Step 12 — Profile menu',
@@ -866,19 +866,79 @@
     }
 
     function positionViewExplainPopout(el, anchorEl) {
-        var left = 24;
-        var top = 96;
+        var pad = 12;
         var anchor = anchorEl || document.querySelector('.map-entity-popout');
-        if (anchor) {
-            var r = anchor.getBoundingClientRect();
-            left = Math.min(window.innerWidth - 340, Math.max(12, r.right + 12));
-            top = Math.max(12, Math.min(window.innerHeight - 220, r.top));
-            if (left + 320 > window.innerWidth - 8 && r.left > 340) {
-                left = Math.max(12, r.left - 332);
-            }
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+
+        function measure() {
+            return {
+                w: el.offsetWidth || Math.min(320, vw - 24),
+                h: el.offsetHeight || 220
+            };
         }
-        el.style.left = left + 'px';
-        el.style.top = top + 'px';
+
+        function clampLeft(left, width) {
+            return Math.max(pad, Math.min(vw - width - pad, left));
+        }
+
+        function clampTop(top, height) {
+            return Math.max(pad, Math.min(vh - height - pad, top));
+        }
+
+        function overlapsAnchor(left, top, width, height, rect) {
+            var explain = {
+                left: left,
+                top: top,
+                right: left + width,
+                bottom: top + height
+            };
+            return !(
+                explain.right + pad <= rect.left ||
+                explain.left >= rect.right + pad ||
+                explain.bottom + pad <= rect.top ||
+                explain.top >= rect.bottom + pad
+            );
+        }
+
+        function place(left, top) {
+            el.style.left = left + 'px';
+            el.style.top = top + 'px';
+        }
+
+        function applyPosition() {
+            var size = measure();
+            var width = size.w;
+            var height = size.h;
+
+            if (!anchor) {
+                place(pad, 96);
+                return;
+            }
+
+            var rect = anchor.getBoundingClientRect();
+            var candidates = [
+                { left: clampLeft(rect.left, width), top: clampTop(rect.bottom + pad, height) },
+                { left: clampLeft(rect.left, width), top: clampTop(rect.top - height - pad, height) },
+                { left: clampLeft(rect.right + pad, width), top: clampTop(rect.bottom - height, height) },
+                { left: clampLeft(rect.left - width - pad, width), top: clampTop(rect.bottom - height, height) }
+            ];
+
+            for (var i = 0; i < candidates.length; i += 1) {
+                var candidate = candidates[i];
+                if (!overlapsAnchor(candidate.left, candidate.top, width, height, rect)) {
+                    place(candidate.left, candidate.top);
+                    return;
+                }
+            }
+
+            place(clampLeft(vw - width - pad, width), clampTop(vh - height - pad, height));
+        }
+
+        applyPosition();
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(applyPosition);
+        }
     }
 
     function showCityViewExplainPopout() {
@@ -1457,6 +1517,10 @@
         return document.querySelector('.gm-campaign-invite-block .code-display');
     }
 
+    function getInviteCopyBtn() {
+        return document.querySelector('.gm-campaign-invite-block .invite-copy-btn');
+    }
+
     function prepareInviteOpen() {
         clearInviteHighlights();
         var details = getCampaignCodeDetails();
@@ -1489,14 +1553,10 @@
         clearInviteHighlights();
         var details = getCampaignCodeDetails();
         if (details) details.open = true;
-        var input = getInviteCodeInput();
-        if (input) {
-            input.classList.add('demo-allowed-invite-copy', 'demo-draw-highlight');
-            try {
-                input.focus();
-                input.select();
-            } catch (err) { /* ignore */ }
-            pointArrowAt(input);
+        var copyBtn = getInviteCopyBtn();
+        if (copyBtn) {
+            copyBtn.classList.add('demo-allowed-invite-copy', 'demo-draw-highlight');
+            pointArrowAt(copyBtn);
         } else {
             hideArrow();
         }
@@ -1522,7 +1582,7 @@
         var avatar = document.getElementById('accountAvatarBtn');
         var panel = document.getElementById('accountPopoverPanel');
         function highlightSwitch() {
-            var link = document.querySelector('#accountPopoverPanel a.account-menu-nav-link');
+            var link = document.getElementById('account-menu-switch-campaigns');
             if (link) {
                 link.classList.add('demo-allowed-switch-campaigns', 'demo-draw-highlight');
                 link.addEventListener('click', function () {
@@ -1561,11 +1621,23 @@
     }
 
     function storeDemoCampCodeFromInput() {
+        var block = document.querySelector('.gm-campaign-invite-block');
         var input = getInviteCodeInput();
-        if (!input) return;
-        var code = String(input.value || '').trim();
+        var code = '';
+        if (block && block.dataset && block.dataset.campCode) {
+            code = String(block.dataset.campCode).trim();
+        }
+        if (!code && input) {
+            code = String(input.value || '').trim();
+        }
         if (!code || code.indexOf('•') !== -1) return;
         persistDemoBridge({ campCode: code, phase: 'campaigns_redeem', active: true });
+    }
+
+    function onInviteCodeCopied() {
+        if (phase !== 'invite_copy') return;
+        storeDemoCampCodeFromInput();
+        enterPointProfile();
     }
 
     function showSimResultExplainPopout() {
@@ -2738,22 +2810,18 @@
         }
     }, true);
 
+    document.addEventListener('gm-invite-code-copied', onInviteCodeCopied);
+
     document.addEventListener('copy', function () {
         if (phase !== 'invite_copy') return;
-        storeDemoCampCodeFromInput();
-        enterPointProfile();
+        onInviteCodeCopied();
     });
 
     document.addEventListener('keydown', function (ev) {
         if (phase !== 'invite_copy') return;
         var key = ev.key || '';
         if ((ev.ctrlKey || ev.metaKey) && (key === 'c' || key === 'C')) {
-            setTimeout(function () {
-                if (phase === 'invite_copy') {
-                    storeDemoCampCodeFromInput();
-                    enterPointProfile();
-                }
-            }, 50);
+            setTimeout(onInviteCodeCopied, 50);
         }
     });
 
@@ -2776,7 +2844,7 @@
         if (t.closest('#accountPopoverPanel a.menu-btn-danger-outline')) return;
         if (
             (phase === 'switch_campaigns' || document.body.classList.contains('demo-invite-switch-ready')) &&
-            t.closest('#accountPopoverPanel a.account-menu-nav-link')
+            t.closest('#account-menu-switch-campaigns, .demo-allowed-switch-campaigns')
         ) return;
         if (t.closest('#accountPopoverPanel')) {
             ev.preventDefault();
@@ -3156,7 +3224,8 @@
         }
 
         if (phase === 'invite_copy') {
-            if (t.closest('.demo-allowed-invite-copy') || t.closest('.gm-campaign-invite-block .code-display')) return;
+            if (t.closest('.demo-allowed-invite-copy') || t.closest('.invite-copy-btn') ||
+                t.closest('.gm-campaign-invite-block .code-display')) return;
             if (t.closest('details.gm-join-tools')) return;
             if (t.closest('#demo-tutorial-root') || t.closest('#gm-section-menu-btn')) return;
             if (t.closest('#accountAvatarBtn')) return;
@@ -3174,7 +3243,7 @@
         }
 
         if (phase === 'switch_campaigns') {
-            if (t.closest('.demo-allowed-switch-campaigns') || t.closest('#accountPopoverPanel a.account-menu-nav-link')) return;
+            if (t.closest('.demo-allowed-switch-campaigns') || t.closest('#account-menu-switch-campaigns')) return;
             if (t.closest('#accountAvatarBtn')) return;
             if (t.closest('#demo-tutorial-root') || t.closest('#gm-section-menu-btn')) return;
             if (t.closest('#accountPopoverPanel a.menu-btn-danger-outline')) return;

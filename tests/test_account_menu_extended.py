@@ -116,11 +116,20 @@ def test_submission_polymorphic_bug_report(client):
             "/auth/account/submissions",
             json=payload,
             content_type="application/json",
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                )
+            },
         )
         assert resp.status_code == 201
         row = UserSubmission.query.filter_by(user_id=user.id).one()
         assert row.kind == "bug_report"
         assert row.body == "Panel did not open"
+        assert row.client_browser == "Chrome"
+        assert row.client_os == "Android"
+        assert row.client_device_type == "mobile"
         assert "evil_key" not in row.extra
         assert row.extra.get("severity") == "Major"
 

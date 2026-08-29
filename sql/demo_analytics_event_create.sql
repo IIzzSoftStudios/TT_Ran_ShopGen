@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS demo_analytics_event (
     event_type VARCHAR(32) NOT NULL,
     step_key VARCHAR(64),
     surface VARCHAR(40) NOT NULL DEFAULT 'gm_tutorial',
+    client_browser VARCHAR(40),
+    client_os VARCHAR(40),
+    client_device_type VARCHAR(20),
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 

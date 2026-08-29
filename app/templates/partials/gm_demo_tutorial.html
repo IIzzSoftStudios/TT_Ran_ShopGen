@@ -470,20 +470,21 @@
     body.gm-dashboard--demo[data-demo-phase="invite_open"] .demo-allowed-campaign-code,
     body.gm-dashboard--demo[data-demo-phase="invite_reveal"] .invite-reveal-btn,
     body.gm-dashboard--demo[data-demo-phase="invite_reveal"] .demo-allowed-invite-reveal,
+    body.gm-dashboard--demo[data-demo-phase="invite_copy"] .invite-copy-btn,
     body.gm-dashboard--demo[data-demo-phase="invite_copy"] .gm-campaign-invite-block .code-display,
     body.gm-dashboard--demo[data-demo-phase="invite_copy"] .demo-allowed-invite-copy,
     body.gm-dashboard--demo[data-demo-phase="point_profile"] #accountAvatarBtn,
     body.gm-dashboard--demo[data-demo-phase="point_profile"] .demo-allowed-profile,
     body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] #accountAvatarBtn,
     body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] .demo-allowed-switch-campaigns,
-    body.gm-dashboard--demo.demo-invite-switch-ready #accountPopoverPanel a.account-menu-nav-link {
+    body.gm-dashboard--demo.demo-invite-switch-ready .demo-allowed-switch-campaigns {
         pointer-events: auto !important;
         opacity: 1 !important;
         filter: none !important;
         cursor: pointer !important;
     }
 
-    /* Keep invite popover readable while only Reveal/code are clickable. */
+    /* Keep invite popover readable while only Reveal / Copy / code field are clickable. */
     body.gm-dashboard--demo[data-demo-phase^="invite_"] details.gm-join-tools .gm-join-popover {
         pointer-events: auto !important;
         opacity: 1 !important;
@@ -533,7 +534,7 @@
         cursor: pointer !important;
     }
 
-    body.gm-dashboard--demo #accountPopoverPanel a:not(.menu-btn-danger-outline),
+    body.gm-dashboard--demo #accountPopoverPanel a:not(.menu-btn-danger-outline):not(.demo-allowed-switch-campaigns),
     body.gm-dashboard--demo #accountPopoverPanel button,
     body.gm-dashboard--demo #accountPopoverPanel .avatar-upload-interaction-container,
     body.gm-dashboard--demo #accountPopoverPanel input,
@@ -553,8 +554,10 @@
         cursor: pointer !important;
     }
 
-    body.gm-dashboard--demo.demo-invite-switch-ready #accountPopoverPanel a.account-menu-nav-link,
-    body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] #accountPopoverPanel a.account-menu-nav-link {
+    body.gm-dashboard--demo.demo-invite-switch-ready #accountPopoverPanel .demo-allowed-switch-campaigns,
+    body.gm-dashboard--demo.demo-invite-switch-ready #accountPopoverPanel #account-menu-switch-campaigns,
+    body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] #accountPopoverPanel .demo-allowed-switch-campaigns,
+    body.gm-dashboard--demo[data-demo-phase="switch_campaigns"] #accountPopoverPanel #account-menu-switch-campaigns {
         pointer-events: auto !important;
         opacity: 1 !important;
         filter: none !important;

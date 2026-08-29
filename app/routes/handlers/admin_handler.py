@@ -400,6 +400,75 @@ def handle_demo_analytics_export():
     )
 
 
+def handle_client_analytics_summary():
+    denied = _vault_keeper_json_forbidden()
+    if denied:
+        return denied
+    from app.services.demo_analytics import aggregate_client_analytics
+
+    since, until = _parse_demo_analytics_date_bounds()
+    payload = aggregate_client_analytics(since=since, until=until)
+    audit_logger.info(
+        "Client analytics API | Admin ID: %s | Demo runs: %s | Submissions: %s",
+        current_user.id,
+        payload.get("demo_runs"),
+        payload.get("submission_count"),
+    )
+    return jsonify(payload)
+
+
+def _iso_dt(value):
+    if not value:
+        return None
+    return value.isoformat() + "Z"
+
+
+def _access_request_rows(requests):
+    rows = []
+    for ar in requests or []:
+        rows.append(
+            {
+                "id": ar.id,
+                "contact_name": ar.contact_name or "",
+                "email": ar.email or "",
+                "user_role": ar.user_role or "",
+                "status": ar.status or "",
+                "primary_ruleset": ar.primary_ruleset or "",
+                "player_count": ar.player_count,
+                "total_expected_users": ar.total_expected_users,
+                "is_homebrew": bool(ar.is_homebrew),
+                "discovery_source": ar.discovery_source or "",
+                "notes": ar.notes or "",
+                "created_at": _iso_dt(ar.created_at),
+                "processed_at": _iso_dt(ar.processed_at),
+            }
+        )
+    return rows
+
+
+def _campaign_character_flat_rows(nested_rows):
+    flat = []
+    for user_row in nested_rows or []:
+        for campaign in user_row.get("campaigns") or []:
+            for player in campaign.get("players") or []:
+                flat.append(
+                    {
+                        "user_id": user_row.get("user_id"),
+                        "gm_username": user_row.get("username") or "—",
+                        "gm_email": user_row.get("email") or "—",
+                        "campaign_id": campaign.get("campaign_id"),
+                        "campaign_name": campaign.get("campaign_name") or "—",
+                        "system_type": campaign.get("system_type") or "—",
+                        "is_active": bool(campaign.get("is_active")),
+                        "character_name": player.get("character_name") or "—",
+                        "player_username": player.get("username") or "—",
+                        "player_email": player.get("email") or "—",
+                        "sheet_updated_at": _iso_dt(player.get("sheet_updated_at")),
+                    }
+                )
+    return flat
+
+
 def _submission_sort_key(submission: UserSubmission):
     priority = {"pending": 0, "reviewed": 1, "closed": 2}.get(submission.status, 3)
     created = submission.created_at or datetime.min
@@ -718,10 +787,17 @@ def handle_admin_keys():
         demo_funnel_steps = funnel_step_options()
         demo_lead_step = (request.args.get("demo_step") or "").strip() or None
         demo_leads_at_step = leads_stopped_at(demo_lead_step) if demo_lead_step else []
+        from app.services.demo_analytics import aggregate_client_analytics
+
+        client_analytics = aggregate_client_analytics()
+    else:
+        client_analytics = None
+    access_request_rows = _access_request_rows(access_requests)
     campaign_code_redemptions = _campaign_code_redemption_rows()
     stats["total"] += len(campaign_code_redemptions)
     stats["used"] += len(campaign_code_redemptions)
     campaign_character_rows = _campaign_character_rows()
+    campaign_character_flat_rows = _campaign_character_flat_rows(campaign_character_rows)
     audit_logger.info("Keys view | Admin ID: %s", current_user.id)
     return render_template(
         "admin/keys.html",
@@ -740,8 +816,11 @@ def handle_admin_keys():
         demo_funnel_steps=demo_funnel_steps,
         demo_lead_step=demo_lead_step,
         demo_leads_at_step=demo_leads_at_step,
+        client_analytics=client_analytics,
+        access_request_rows=access_request_rows,
         campaign_code_redemptions=campaign_code_redemptions,
         campaign_character_rows=campaign_character_rows,
+        campaign_character_flat_rows=campaign_character_flat_rows,
         bug_reports=_load_submissions_by_kind("bug_report"),
         feedback_items=_load_submissions_by_kind("feedback"),
         suggestions=_load_submissions_by_kind("suggestion"),
