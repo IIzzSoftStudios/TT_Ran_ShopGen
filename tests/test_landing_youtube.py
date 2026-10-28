@@ -76,6 +76,8 @@ def test_landing_shows_youtube_rail_when_videos_configured(client):
     assert 'class="youtube-rail-track"' in html
     assert "Econo-Forge Demo Walk Through" in html
     assert "p8-E3vXNkL8" in html
+    assert "zcnoqaOY-uU" in html
     assert 'data-src="https://www.youtube.com/embed/p8-E3vXNkL8' in html
+    assert 'data-src="https://www.youtube.com/embed/zcnoqaOY-uU' in html
     assert "View playlist on YouTube" in html
     assert "https://www.youtube.com/playlist?list=PLWlp4viQxbJM" in html
