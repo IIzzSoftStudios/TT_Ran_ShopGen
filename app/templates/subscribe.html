@@ -13,8 +13,8 @@
     <div class="auth-page-wrap subscribe-wrap">
         <h1 class="auth-title">Register For Access</h1>
         <p class="auth-subtitle">
-            Choose a plan to unlock Game Master campaigns and player seats.
-            After payment you create your account with a registration key.
+            Choose a plan to start a 14-day free trial. Checkout collects a card;
+            you are not charged until the trial ends. Then create your account with a registration key.
         </p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -86,7 +86,7 @@
                 </div>
             </fieldset>
 
-            <button type="submit">Continue to payment</button>
+            <button type="submit">Start 14-day free trial</button>
             <a class="auth-secondary-btn" href="{{ url_for('main.index') }}">Cancel</a>
         </form>
         <script>

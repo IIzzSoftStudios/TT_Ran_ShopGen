@@ -21,6 +21,7 @@ from app.services.billing_rules import (
 )
 from app.services.entitlements import is_allowed_price, plan_slug_for_price, subscription_plans_for_display
 from app.services.phase_config import PhaseEntitlements, resolve_phase_entitlements_path
+from app.services.stripe_client import create_checkout_session, trial_period_days
 from app.services.stripe_webhooks import process_stripe_event
 from app.services.user_capabilities import ensure_gm_profile
 from app.models import Campaign, Player
@@ -58,6 +59,32 @@ def test_subscribe_catalog_lists_three_tiers(app_ctx):
     adv = next(p for p in plans if p["plan_slug"] == "adventurer" and p["interval_key"] == "monthly")
     assert adv["campaigns_label"] == "3 campaigns"
     assert "7 player seats" in adv["seats_label"]
+
+
+def test_trial_period_days_defaults_to_fourteen(monkeypatch):
+    monkeypatch.delenv("STRIPE_TRIAL_PERIOD_DAYS", raising=False)
+    assert trial_period_days() == 14
+    monkeypatch.setenv("STRIPE_TRIAL_PERIOD_DAYS", "0")
+    assert trial_period_days() is None
+    monkeypatch.setenv("STRIPE_TRIAL_PERIOD_DAYS", "21")
+    assert trial_period_days() == 21
+
+
+def test_create_checkout_session_includes_trial(monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_fake")
+    monkeypatch.setenv("STRIPE_TRIAL_PERIOD_DAYS", "14")
+    with patch("stripe.checkout.Session.create") as create:
+        create.return_value = MagicMock(url="https://checkout.stripe.com/c/test")
+        create_checkout_session(
+            price_id="price_tier1_m",
+            success_url="https://example.com/ok",
+            cancel_url="https://example.com/cancel",
+            customer_email="buyer@example.com",
+        )
+    assert create.called
+    kwargs = create.call_args.kwargs
+    assert kwargs["mode"] == "subscription"
+    assert kwargs["subscription_data"] == {"trial_period_days": 14}
 
 
 def test_price_allowlist_rejects_unknown(app_ctx):

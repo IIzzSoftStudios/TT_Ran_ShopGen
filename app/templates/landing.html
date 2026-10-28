@@ -580,7 +580,6 @@
                         <a class="btn btn-secondary" href="{{ url_for('auth.logout', next=url_for('main.index')) }}">Log out</a>
                     {% else %}
                         <a class="btn btn-primary" href="{{ url_for('billing.subscribe') }}">Register For Access</a>
-                        <a class="btn btn-secondary" href="{{ url_for('demo.start') }}">Try Demo</a>
                     {% endif %}
                     </div>
                     <div class="hero-ctas-deck">
@@ -701,6 +700,7 @@
                     <div style="font-weight:800;">Resources</div>
                     <a href="{{ url_for('main.docs') }}">Documentation</a>
                     <a href="{{ url_for('main.docs') }}">Guides</a>
+                    <a href="{{ url_for('demo.start') }}">Try Demo</a>
                     <a href="{{ url_for('main.public_deck') }}" target="_blank" rel="noopener noreferrer">Public Deck</a>
                     <a href="{{ url_for('main.investor_deck_request') }}">Request Investor Deck</a>
                 </div>

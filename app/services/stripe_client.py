@@ -55,6 +55,20 @@ def get_stripe() -> stripe:
     return stripe
 
 
+def trial_period_days() -> Optional[int]:
+    """Days of free trial on new Checkout subscriptions (None/0 disables)."""
+    raw = (os.getenv("STRIPE_TRIAL_PERIOD_DAYS") or "14").strip()
+    if not raw:
+        return None
+    try:
+        days = int(raw)
+    except ValueError:
+        return None
+    if days <= 0:
+        return None
+    return days
+
+
 def create_checkout_session(
     *,
     price_id: str,
@@ -73,6 +87,10 @@ def create_checkout_session(
         "cancel_url": cancel_url,
         "managed_payments": {"enabled": True},
     }
+    days = trial_period_days()
+    if days is not None:
+        # Applies to every plan/price that uses this helper — not per-customer in Dashboard.
+        params["subscription_data"] = {"trial_period_days": days}
     if customer_email:
         params["customer_email"] = customer_email
     if client_reference_id:
